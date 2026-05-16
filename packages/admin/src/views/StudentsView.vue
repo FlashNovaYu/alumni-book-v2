@@ -22,7 +22,7 @@
           </div>
         </div>
         <div class="student-actions">
-          <router-link :to="`/students/${student.id}`" class="btn-secondary">编辑</router-link>
+          <router-link :to="`/students/${student.slug}`" class="btn-secondary">编辑</router-link>
           <button class="btn-danger" @click="handleDelete(student)">删除</button>
         </div>
       </div>
