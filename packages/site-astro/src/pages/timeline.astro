@@ -31,7 +31,7 @@ try {
                 <img src={item.photoUrl.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl}`} alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />
               )}
               {item.type === 'join' && item.slug && (
-                <a href={`/alumni-book-v2/student/${item.slug}`} class="tl-link">查看 TA 的主页 →</a>
+                <a href={`/student/${item.slug}`} class="tl-link">查看 TA 的主页 →</a>
               )}
             </div>
           </div>

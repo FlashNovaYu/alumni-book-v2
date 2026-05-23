@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config'
 import vue from '@astrojs/vue'
 
 export default defineConfig({
-  base: '/alumni-book-v2/',
+  base: '/',
   integrations: [vue()],
   vite: {
     define: {

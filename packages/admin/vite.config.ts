@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
-  base: '/alumni-book-v2/admin/',
+  base: '/admin/',
   plugins: [vue()],
   resolve: {
     alias: {

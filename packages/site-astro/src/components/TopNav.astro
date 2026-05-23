@@ -4,7 +4,7 @@ const currentPath = Astro.url.pathname
 ---
 <nav class="top-nav">
   <div class="nav-inner container">
-    <a href="/alumni-book-v2/" class="nav-brand">
+    <a href="/" class="nav-brand">
       <span class="brand-mark"><IconBrand size={20} /></span>
       <span class="brand-text">同学录</span>
     </a>
@@ -13,10 +13,10 @@ const currentPath = Astro.url.pathname
       <span class="toggle-bar"></span>
     </label>
     <div class="nav-links">
-      <a href="/alumni-book-v2/preface" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/preface') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/preface') ? 'page' : undefined}>前言</a>
-      <a href="/alumni-book-v2/roster" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/roster') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/roster') ? 'page' : undefined}>同学录</a>
-      <a href="/alumni-book-v2/album" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/album') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/album') ? 'page' : undefined}>相册</a>
-      <a href="/alumni-book-v2/timeline" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/timeline') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/timeline') ? 'page' : undefined}>时光轴</a>
+      <a href="/preface" class={`nav-link ${currentPath.startsWith('/preface') ? 'active' : ''}`} aria-current={currentPath.startsWith('/preface') ? 'page' : undefined}>前言</a>
+      <a href="/roster" class={`nav-link ${currentPath.startsWith('/roster') ? 'active' : ''}`} aria-current={currentPath.startsWith('/roster') ? 'page' : undefined}>同学录</a>
+      <a href="/album" class={`nav-link ${currentPath.startsWith('/album') ? 'active' : ''}`} aria-current={currentPath.startsWith('/album') ? 'page' : undefined}>相册</a>
+      <a href="/timeline" class={`nav-link ${currentPath.startsWith('/timeline') ? 'active' : ''}`} aria-current={currentPath.startsWith('/timeline') ? 'page' : undefined}>时光轴</a>
     </div>
   </div>
 </nav>
