@@ -30,48 +30,52 @@
 
     <!-- 新建相册对话框 -->
     <Teleport to="body">
-      <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
-        <div class="modal card">
-          <h2 class="title-md">新建相册</h2>
-          <div class="form-group">
-            <label class="form-label">相册名称</label>
-            <input v-model="newAlbum.title" type="text" class="text-input" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">描述</label>
-            <textarea v-model="newAlbum.description" class="textarea"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">相框样式</label>
-            <select v-model="newAlbum.frameStyle" class="text-input">
-              <option value="none">无</option>
-              <option value="retro">复古</option>
-              <option value="film">胶片</option>
-              <option value="polaroid">拍立得</option>
-            </select>
-          </div>
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="showCreate = false">取消</button>
-            <button class="btn-primary" @click="handleCreate">创建</button>
+      <Transition name="modal">
+        <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
+          <div class="modal card">
+            <h2 class="title-md">新建相册</h2>
+            <div class="form-group">
+              <label class="form-label">相册名称</label>
+              <input v-model="newAlbum.title" type="text" class="text-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">描述</label>
+              <textarea v-model="newAlbum.description" class="textarea"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">相框样式</label>
+              <select v-model="newAlbum.frameStyle" class="text-input">
+                <option value="none">无</option>
+                <option value="retro">复古</option>
+                <option value="film">胶片</option>
+                <option value="polaroid">拍立得</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="showCreate = false">取消</button>
+              <button class="btn-primary" @click="handleCreate">创建</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
 
     <!-- 上传照片对话框 -->
     <Teleport to="body">
-      <div v-if="uploadAlbum" class="modal-overlay" @click.self="uploadAlbum = null">
-        <div class="modal card">
-          <h2 class="title-md">上传照片到: {{ uploadAlbum.title }}</h2>
-          <div class="form-group">
-            <input type="file" accept="image/*" multiple @change="handlePhotoUpload" />
-          </div>
-          <div v-if="uploading" class="upload-progress">上传中...</div>
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="uploadAlbum = null">关闭</button>
+      <Transition name="modal">
+        <div v-if="uploadAlbum" class="modal-overlay" @click.self="uploadAlbum = null">
+          <div class="modal card">
+            <h2 class="title-md">上传照片到: {{ uploadAlbum.title }}</h2>
+            <div class="form-group">
+              <input type="file" accept="image/*" multiple @change="handlePhotoUpload" />
+            </div>
+            <div v-if="uploading" class="upload-progress">上传中...</div>
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="uploadAlbum = null">关闭</button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

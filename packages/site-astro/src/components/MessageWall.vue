@@ -13,7 +13,13 @@
       <p v-if="submitResult" :class="'msg-result ' + submitResult.type">{{ submitResult.message }}</p>
     </div>
 
-    <div v-if="loading" class="msg-loading">加载中...</div>
+    <div v-if="loading" class="skeleton-messages">
+      <div v-for="i in 3" :key="i" class="skeleton-msg">
+        <div class="skeleton-line" style="width:60px;height:14px;border-radius:var(--rounded-sm);"></div>
+        <div class="skeleton-line" style="width:100%;height:16px;margin-top:8px;border-radius:var(--rounded-sm);"></div>
+        <div class="skeleton-line" style="width:80%;height:16px;margin-top:4px;border-radius:var(--rounded-sm);"></div>
+      </div>
+    </div>
     <div v-else-if="messages.length === 0" class="msg-empty">
       <p>暂无留言，成为第一个留言的人吧</p>
     </div>
@@ -129,4 +135,18 @@ onMounted(fetchMessages)
 .msg-author { font-weight: 500; font-size: var(--type-body-sm-size); color: var(--color-body-strong); }
 .msg-time { font-size: var(--type-caption-size); color: var(--color-muted); }
 .msg-content { font-size: var(--type-body-md-size); color: var(--color-body); line-height: 1.6; }
+.skeleton-line {
+  background: linear-gradient(90deg, var(--color-surface-cream-strong) 25%, var(--color-surface-card) 50%, var(--color-surface-cream-strong) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeleton-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+.skeleton-msg {
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
 </style>

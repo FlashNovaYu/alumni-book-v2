@@ -13,7 +13,7 @@ try {
 <MainLayout>
   <div class="timeline-page section">
     <div class="container">
-      <div class="timeline-header">
+      <div class="timeline-header fade-in">
         <p class="timeline-label">· TIMELINE ·</p>
         <h1 class="timeline-title display-lg">时光轴</h1>
         <p class="timeline-subtitle">沿着时间的轨迹，翻阅我们的故事</p>
@@ -21,7 +21,7 @@ try {
 
       <div class="timeline-line">
         {items.map((item) => (
-          <div class={`timeline-node ${item.isMilestone ? 'milestone' : ''} type-${item.type}`}>
+          <div class={`timeline-node fade-in ${item.isMilestone ? 'milestone' : ''} type-${item.type}`}>
             <div class="tl-dot"></div>
             <div class="tl-card">
               <div class="tl-date">{new Date(item.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>

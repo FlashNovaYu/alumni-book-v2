@@ -18,7 +18,7 @@ try {
 <MainLayout>
   <div class="roster-page section">
     <div class="container">
-      <div class="roster-header">
+      <div class="roster-header fade-in">
         <p class="roster-label">· CLASSMATE ROSTER ·</p>
         <h1 class="roster-title display-lg">我们的同学</h1>
         <p class="roster-subtitle">点击同学头像，进入 TA 的专属主页</p>
@@ -26,9 +26,9 @@ try {
 
       <div id="roster-search"></div>
 
-      <div class="classmate-grid">
+      <div class="classmate-grid fade-in fade-in-stagger">
         {classmates.map(mate => (
-          <a href={mate.hasPage ? `/alumni-book-v2/student/${mate.slug}` : '#'} class={`classmate-card ${!mate.hasPage ? 'no-page' : ''}`}>
+          <a href={mate.hasPage ? `/alumni-book-v2/student/${mate.slug}` : '#'} class={`classmate-card fade-in ${!mate.hasPage ? 'no-page' : ''}`}>
             <div class="card-avatar">
               {mate.avatarUrl ? (
                 <img src={mate.avatarUrl} alt={mate.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
@@ -84,9 +84,12 @@ try {
     border-radius: var(--rounded-lg);
     text-decoration: none;
     color: inherit;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform var(--duration-normal) var(--ease-out-quart),
+                box-shadow var(--duration-normal) var(--ease-out-quart),
+                opacity var(--duration-normal) var(--ease-out-quart);
   }
-  .classmate-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-subtle); }
+  .classmate-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+  .classmate-card.card-hidden { opacity: 0; transform: scale(0.95); pointer-events: none; }
   .classmate-card.no-page { opacity: 0.55; pointer-events: none; }
   .card-avatar {
     width: 72px; height: 72px;

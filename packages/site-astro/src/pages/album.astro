@@ -1,5 +1,6 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
+import IconCamera from '../components/icons/IconCamera.astro'
 
 interface Album {
   id: string; title: string; description: string; frameStyle: string
@@ -22,7 +23,7 @@ try {
 <MainLayout>
   <div class="album-page section">
     <div class="container">
-      <div class="album-header">
+      <div class="album-header fade-in">
         <p class="album-label">· CLASS ALBUM ·</p>
         <h1 class="album-title display-lg">我们的时光</h1>
         <p class="album-subtitle">每一张照片，都是一段珍贵的回忆</p>
@@ -30,7 +31,7 @@ try {
 
       {albums.length === 0 ? (
         <div class="empty-state">
-          <div class="empty-icon">📷</div>
+          <div class="empty-icon"><IconCamera size={48} /></div>
           <p>暂无照片</p>
           <p>请前往管理后台上传</p>
         </div>

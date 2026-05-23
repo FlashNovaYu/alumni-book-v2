@@ -18,13 +18,13 @@ try {
 <MainLayout>
   <div class="preface-page section">
     <div class="container">
-      <div class="preface-header">
+      <div class="preface-header fade-in">
         <p class="preface-label">· PREFACE ·</p>
         <h1 class="preface-title display-lg">{config.preface.title}</h1>
         <p class="preface-subtitle">{config.preface.subtitle}</p>
       </div>
 
-      <div class="preface-body">
+      <div class="preface-body fade-in">
         <p class="preface-text" set:html={config.preface.content.replace(/\n/g, '<br>')}></p>
       </div>
 
@@ -32,7 +32,7 @@ try {
 
       {
         config.acknowledgments?.length > 0 && (
-          <div class="acknowledgment">
+          <div class="acknowledgment fade-in">
             <h2 class="ack-title display-sm">特别致谢</h2>
             <div class="ack-grid">
               {config.acknowledgments.filter((a: any) => a.name?.trim()).map((ack: any) => (
@@ -53,7 +53,7 @@ try {
         )
       }
 
-      <div class="bottom-actions">
+      <div class="bottom-actions fade-in">
         <a href="/alumni-book-v2/album" class="btn-primary">进入班级相册</a>
         <a href="/alumni-book-v2/roster" class="btn-secondary">进入同学录主页</a>
       </div>

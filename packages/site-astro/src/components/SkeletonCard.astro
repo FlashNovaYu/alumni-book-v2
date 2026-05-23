@@ -1,0 +1,23 @@
+---
+import Skeleton from './Skeleton.astro'
+---
+<div class="skeleton-card">
+  <div style="display:flex;justify-content:center;margin-bottom:var(--spacing-sm);">
+    <Skeleton width="72px" height="72px" borderRadius="50%" />
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:var(--spacing-xxs);">
+    <Skeleton width="80px" height="16px" />
+    <Skeleton width="120px" height="14px" />
+  </div>
+</div>
+
+<style>
+  .skeleton-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-lg) var(--spacing-md);
+    background-color: var(--color-surface-card);
+    border-radius: var(--rounded-lg);
+  }
+</style>

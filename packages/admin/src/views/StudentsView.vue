@@ -30,25 +30,27 @@
 
     <!-- 新建学生对话框 -->
     <Teleport to="body">
-      <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
-        <div class="modal card">
-          <h2 class="title-md">新建学生</h2>
-          <div class="form-group">
-            <label class="form-label">姓名</label>
-            <input v-model="newStudent.name" type="text" class="text-input" placeholder="学生姓名" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Slug (URL 标识)</label>
-            <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" />
-          </div>
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="showCreate = false">取消</button>
-            <button class="btn-primary" @click="handleCreate" :disabled="creating">
-              {{ creating ? '创建中...' : '创建' }}
-            </button>
+      <Transition name="modal">
+        <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
+          <div class="modal card">
+            <h2 class="title-md">新建学生</h2>
+            <div class="form-group">
+              <label class="form-label">姓名</label>
+              <input v-model="newStudent.name" type="text" class="text-input" placeholder="学生姓名" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Slug (URL 标识)</label>
+              <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" />
+            </div>
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="showCreate = false">取消</button>
+              <button class="btn-primary" @click="handleCreate" :disabled="creating">
+                {{ creating ? '创建中...' : '创建' }}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

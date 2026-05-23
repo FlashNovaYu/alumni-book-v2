@@ -1,6 +1,7 @@
 ---
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
+import ScrollReveal from '../components/ScrollReveal.astro'
 import '../styles/global.css'
 ---
 
@@ -19,6 +20,7 @@ import '../styles/global.css'
       <main class="main-content">
         <slot />
       </main>
+      <ScrollReveal />
       <AppFooter />
     </div>
   </body>

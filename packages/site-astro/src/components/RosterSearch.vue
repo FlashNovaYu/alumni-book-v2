@@ -30,8 +30,18 @@ watch(keyword, () => {
   cards.forEach(card => {
     const name = card.querySelector('.card-name')?.textContent?.toLowerCase() || ''
     const show = !kw || name.includes(kw)
-    ;(card as HTMLElement).style.display = show ? '' : 'none'
-    if (show) count++
+    if (show) {
+      ;(card as HTMLElement).classList.remove('card-hidden')
+      ;(card as HTMLElement).style.display = ''
+      count++
+    } else {
+      ;(card as HTMLElement).classList.add('card-hidden')
+      setTimeout(() => {
+        if ((card as HTMLElement).classList.contains('card-hidden')) {
+          ;(card as HTMLElement).style.display = 'none'
+        }
+      }, 200)
+    }
   })
   filteredCount.value = count
 })

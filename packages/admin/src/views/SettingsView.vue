@@ -73,7 +73,9 @@
       </div>
     </div>
 
-    <div v-if="toast" class="toast" :class="'toast-' + toast.type">{{ toast.message }}</div>
+    <Transition name="toast">
+      <div v-if="toast" class="toast" :class="'toast-' + toast.type">{{ toast.message }}</div>
+    </Transition>
   </div>
 </template>
 

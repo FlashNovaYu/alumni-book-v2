@@ -86,16 +86,16 @@ const futureFields = getFields(student.info, [
   ) : (
     <div class="student-page">
       <StudentHero student={student} bgStyle={bgStyle} />
-      <div class="student-body container">
-        {basicFields.length > 0 && <StudentInfo title="基础信息" fields={basicFields} />}
-        {contactFields.length > 0 && <StudentInfo title="联系方式" fields={contactFields} />}
-        {personalityFields.length > 0 && <StudentInfo title="个性标签" fields={personalityFields} />}
-        {interestFields.length > 0 && <StudentInfo title="兴趣爱好" fields={interestFields} />}
-        {memoryFields.length > 0 && <StudentInfo title="校园回忆" fields={memoryFields} isMemory />}
-        {futureFields.length > 0 && <StudentInfo title="未来规划" fields={futureFields} />}
+      <div class="student-body container fade-in">
+        {basicFields.length > 0 && <div class="fade-in"><StudentInfo title="基础信息" fields={basicFields} /></div>}
+        {contactFields.length > 0 && <div class="fade-in"><StudentInfo title="联系方式" fields={contactFields} /></div>}
+        {personalityFields.length > 0 && <div class="fade-in"><StudentInfo title="个性标签" fields={personalityFields} /></div>}
+        {interestFields.length > 0 && <div class="fade-in"><StudentInfo title="兴趣爱好" fields={interestFields} /></div>}
+        {memoryFields.length > 0 && <div class="fade-in"><StudentInfo title="校园回忆" fields={memoryFields} isMemory /></div>}
+        {futureFields.length > 0 && <div class="fade-in"><StudentInfo title="未来规划" fields={futureFields} /></div>}
 
         {student.photos?.length > 0 && (
-          <section class="profile-section">
+          <section class="profile-section fade-in">
             <h2 class="section-title display-sm">照片墙</h2>
             <div id={`photo-wall-${student.slug}`}></div>
           </section>
@@ -103,7 +103,7 @@ const futureFields = getFields(student.info, [
 
         <div id={`message-wall-${student.slug}`}></div>
 
-        <div class="seal-area"><span class="seal">留念</span></div>
+        <div class="seal-area fade-in"><span class="seal">留念</span></div>
       </div>
     </div>
   )}

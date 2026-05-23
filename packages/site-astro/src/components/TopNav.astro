@@ -1,7 +1,11 @@
+---
+import IconBrand from './icons/IconBrand.astro'
+const currentPath = Astro.url.pathname
+---
 <nav class="top-nav">
   <div class="nav-inner container">
     <a href="/alumni-book-v2/" class="nav-brand">
-      <span class="brand-mark">✦</span>
+      <span class="brand-mark"><IconBrand size={20} /></span>
       <span class="brand-text">同学录</span>
     </a>
     <input type="checkbox" id="menu-toggle" class="menu-toggle-input" />
@@ -9,10 +13,10 @@
       <span class="toggle-bar"></span>
     </label>
     <div class="nav-links">
-      <a href="/alumni-book-v2/preface" class="nav-link">前言</a>
-      <a href="/alumni-book-v2/roster" class="nav-link">同学录</a>
-      <a href="/alumni-book-v2/album" class="nav-link">相册</a>
-      <a href="/alumni-book-v2/timeline" class="nav-link">时光轴</a>
+      <a href="/alumni-book-v2/preface" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/preface') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/preface') ? 'page' : undefined}>前言</a>
+      <a href="/alumni-book-v2/roster" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/roster') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/roster') ? 'page' : undefined}>同学录</a>
+      <a href="/alumni-book-v2/album" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/album') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/album') ? 'page' : undefined}>相册</a>
+      <a href="/alumni-book-v2/timeline" class={`nav-link ${currentPath.startsWith('/alumni-book-v2/timeline') ? 'active' : ''}`} aria-current={currentPath.startsWith('/alumni-book-v2/timeline') ? 'page' : undefined}>时光轴</a>
     </div>
   </div>
 </nav>
@@ -49,15 +53,32 @@
     color: var(--color-muted);
     border-radius: var(--rounded-md);
     text-decoration: none;
-    transition: color 0.15s ease, background-color 0.15s ease;
+    transition: color var(--duration-fast) var(--ease-out-quart),
+              background-color var(--duration-fast) var(--ease-out-quart);
   }
   .nav-link:hover { color: var(--color-ink); background-color: var(--color-surface-card); }
+  .nav-link.active {
+    color: var(--color-ink);
+    position: relative;
+  }
+  .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+  }
   .menu-toggle-input { display: none; }
   .mobile-toggle { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; margin-left: auto; cursor: pointer; }
   .toggle-bar, .toggle-bar::before, .toggle-bar::after {
     display: block; width: 20px; height: 2px;
     background-color: var(--color-ink); border-radius: 1px;
-    transition: transform 0.2s ease;
+    transition: transform var(--duration-normal) var(--ease-out-quart),
+              background-color var(--duration-normal) var(--ease-out-quart);
   }
   .toggle-bar { position: relative; }
   .toggle-bar::before, .toggle-bar::after { content: ''; position: absolute; left: 0; }
@@ -82,4 +103,29 @@
     }
     .nav-link { font-size: 18px; padding: 14px 16px; }
   }
+  .menu-toggle-input:checked ~ .mobile-toggle .toggle-bar {
+    background-color: transparent;
+  }
+  .menu-toggle-input:checked ~ .mobile-toggle .toggle-bar::before {
+    top: 0;
+    transform: rotate(45deg);
+  }
+  .menu-toggle-input:checked ~ .mobile-toggle .toggle-bar::after {
+    top: 0;
+    transform: rotate(-45deg);
+  }
+  .top-nav.scrolled {
+    box-shadow: var(--shadow-nav-scroll);
+  }
 </style>
+
+<script>
+  const nav = document.querySelector('.top-nav')
+  if (nav) {
+    const onScroll = () => {
+      nav.classList.toggle('scrolled', window.scrollY > 10)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+  }
+</script>

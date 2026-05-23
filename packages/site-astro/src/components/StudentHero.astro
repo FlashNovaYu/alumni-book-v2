@@ -1,4 +1,6 @@
 ---
+import IconStar from './icons/IconStar.astro'
+
 interface Props {
   student: {
     name: string
@@ -25,7 +27,7 @@ const { student, bgStyle } = Astro.props as Props
     <h1 class="hero-name display-md">{student.name}</h1>
     {student.info?.nickname && <p class="hero-nickname">「 {student.info.nickname} 」</p>}
     {student.info?.motto && <p class="hero-motto">「 {student.info.motto} 」</p>}
-    {student.isOwner && <span class="owner-badge">专属页面</span>}
+    {student.isOwner && <span class="owner-badge"><IconStar size={14} /> 专属页面</span>}
   </div>
 </section>
 
@@ -66,5 +68,5 @@ const { student, bgStyle } = Astro.props as Props
     color: var(--color-primary);
     margin-top: var(--spacing-xs);
   }
-  .owner-badge::before { content: '★'; }
+  .owner-badge svg { flex-shrink: 0; }
 </style>

@@ -30,7 +30,9 @@
       </div>
     </div>
 
-    <div v-if="toast" :class="'toast toast-' + toast.type">{{ toast.message }}</div>
+    <Transition name="toast">
+      <div v-if="toast" :class="'toast toast-' + toast.type">{{ toast.message }}</div>
+    </Transition>
   </div>
 </template>
 
