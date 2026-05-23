@@ -147,8 +147,8 @@ app.get('/api/albums', async (c) => {
 })
 
 // R2 文件访问
-app.get('/api/files/:key+', async (c) => {
-  const key = c.req.param('key')
+app.get('/api/files/*', async (c) => {
+  const key = c.req.path.replace('/api/files/', '')
   if (!key) {
     return c.json({ success: false, message: '文件路径无效' }, 400)
   }
