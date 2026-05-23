@@ -83,6 +83,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
+import { compressImage } from '@/utils/image'
 import type { Album, ApiResponse } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -134,7 +135,8 @@ async function handlePhotoUpload(e: Event) {
   try {
     for (const file of files) {
       const formData = new FormData()
-      formData.append('file', file)
+      const compressed = await compressImage(file)
+      formData.append('file', compressed)
       formData.append('type', 'photo')
       formData.append('albumId', uploadAlbum.value.id)
       await adminFetch('/api/upload', {

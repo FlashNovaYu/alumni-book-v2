@@ -174,6 +174,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminFetch } from '@/api/client'
+import { compressImage } from '@/utils/image'
 import type { Student, StudentInfo, ApiResponse } from '@alumni/shared'
 
 const route = useRoute()
@@ -214,8 +215,9 @@ function showToast(type: 'success' | 'error', message: string) {
 async function handleAvatarUpload(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  const compressed = await compressImage(file, 400, 0.8)
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', compressed)
   formData.append('type', 'avatar')
   formData.append('slug', student.value.slug)
   try {
@@ -234,8 +236,9 @@ async function handleAvatarUpload(e: Event) {
 async function handleBackgroundUpload(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  const compressed = await compressImage(file, 1920, 0.85)
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', compressed)
   formData.append('type', 'background')
   formData.append('slug', student.value.slug)
   try {
