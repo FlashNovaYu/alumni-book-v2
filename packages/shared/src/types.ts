@@ -13,6 +13,7 @@ export interface Student {
   customHtml: string | null
   info: StudentInfo
   photos: string[]
+  visitCount: number
   createdAt: string
   updatedAt: string
 }
@@ -125,6 +126,20 @@ export interface Photo {
   caption: string
   r2Key: string
   sortOrder: number
+  createdAt: string
+}
+
+/** 留言 */
+export interface Message {
+  id: string
+  studentSlug: string
+  authorName: string
+  content: string
+  reactions: Record<string, number>
+  reply: string | null
+  replyAt: string | null
+  isApproved: boolean
+  isHidden: boolean
   createdAt: string
 }
 

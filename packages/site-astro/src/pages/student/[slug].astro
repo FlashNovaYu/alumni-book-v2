@@ -106,7 +106,15 @@ const futureFields = getFields(student.info, [
 
         <div id={`message-wall-${student.slug}`}></div>
 
-        <div class="seal-area fade-in"><span class="seal">留念</span></div>
+        <div class="seal-area fade-in">
+          <span class="visits">浏览 <span id={`visit-count-${student.slug}`}>{student.visitCount || 0}</span> 次</span>
+          <span class="seal">留念</span>
+        </div>
+      </div>
+
+      <!-- 自助编辑挂载点 -->
+      <div id={`self-edit-${student.slug}`}></div>
+      <span id={`student-name-${student.slug}`} style="display:none">{student.name}</span>
       </div>
     </div>
   )}
@@ -132,8 +140,28 @@ const futureFields = getFields(student.info, [
 
   const msgEl = document.getElementById(`message-wall-${slug}`)
   if (msgEl) {
-    createApp(MessageWall, { studentSlug: slug }).mount(msgEl)
+    const studentName = document.getElementById(`student-name-${slug}`)?.textContent || ''
+    createApp(MessageWall, { studentSlug: slug, pageOwnerName: studentName }).mount(msgEl)
   }
+
+  // 自助编辑面板
+  const editEl = document.getElementById(`self-edit-${slug}`)
+  if (editEl) {
+    import('../../components/SelfEditPanel.vue').then(m => {
+      const studentName = document.getElementById(`student-name-${slug}`)?.textContent || ''
+      createApp(m.default, { studentSlug: slug, studentName }).mount(editEl)
+    })
+  }
+
+  // 访问计数
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
+  fetch(`${API_BASE}/api/students/${slug}/visit`, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      if (d.success) {
+        const el = document.getElementById(`visit-count-${slug}`)
+        if (el) el.textContent = d.data.visitCount
+      }
+    }).catch(() => {})
 </script>
 
 <script id={`photo-data-${slug}`} type="application/json" set:html={JSON.stringify(student?.photos || [])}></script>
@@ -149,7 +177,8 @@ const futureFields = getFields(student.info, [
     padding-bottom: var(--spacing-sm);
     border-bottom: 1px solid var(--color-hairline);
   }
-  .seal-area { text-align: right; padding: var(--spacing-lg) 0; opacity: 0.5; }
+  .seal-area { text-align: right; padding: var(--spacing-lg) 0; opacity: 0.5; display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+  .visits { font-size: 13px; color: var(--color-muted); }
   .seal {
     font-family: var(--font-display);
     font-size: 24px;

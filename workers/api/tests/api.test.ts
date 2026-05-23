@@ -82,6 +82,12 @@ const migrations = [
     `ALTER TABLE students ADD COLUMN school TEXT DEFAULT ''`,
     `ALTER TABLE students ADD COLUMN class_name TEXT DEFAULT ''`,
   ]},
+  { name: '0006_self_service_fields', queries: [
+    `ALTER TABLE students ADD COLUMN visit_count INTEGER DEFAULT 0`,
+    `ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT '{}'`,
+    `ALTER TABLE messages ADD COLUMN reply TEXT`,
+    `ALTER TABLE messages ADD COLUMN reply_at TEXT`,
+  ]},
 ]
 
 beforeAll(async () => {
@@ -156,5 +162,31 @@ describe('Public API', () => {
     const body = await res.json() as any
     expect(body.success).toBe(true)
     expect(body.data.preface).toBeDefined()
+  })
+
+  it('POST /api/students/:slug/visit — 增加访问计数', async () => {
+    // 需要先插入一个学生
+    const stuId = `stu_test_${Date.now()}`
+    await env.DB.prepare(
+      'INSERT INTO students (id, name, slug) VALUES (?, ?, ?)'
+    ).bind(stuId, '测试', 'test').run()
+
+    const req = new Request('http://localhost/api/students/test/visit', { method: 'POST' })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.data.visitCount).toBe(1)
+  })
+
+  it('GET /api/rankings — 返回排行榜', async () => {
+    const req = new Request('http://localhost/api/rankings')
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(Array.isArray(body.data)).toBe(true)
   })
 })

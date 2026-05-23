@@ -203,6 +203,7 @@ const student = ref<Student>({
   customHtml: null,
   info: {} as StudentInfo,
   photos: [],
+  visitCount: 0,
   createdAt: '',
   updatedAt: '',
 })

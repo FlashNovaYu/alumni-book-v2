@@ -21,6 +21,10 @@
           <span v-if="msg.isHidden" class="badge badge-hidden">已隐藏</span>
         </div>
         <p class="msg-content">{{ msg.content }}</p>
+        <div v-if="msg.reactions && Object.keys(msg.reactions).length" class="msg-reactions-inline">
+          <span v-for="(count, emoji) in msg.reactions" :key="emoji" class="react-badge">{{ emoji }} {{ count }}</span>
+        </div>
+        <div v-if="msg.reply" class="msg-reply-inline">回复：{{ msg.reply }}</div>
         <div class="msg-actions">
           <button v-if="!msg.isApproved" class="btn-primary btn-sm" @click="approve(msg.id)">审核通过</button>
           <button v-if="!msg.isHidden" class="btn-secondary btn-sm" @click="toggleHide(msg.id, true)">隐藏</button>
@@ -43,6 +47,7 @@ import { adminFetch } from '@/api/client'
 interface Message {
   id: string; studentSlug: string; authorName: string; content: string
   isApproved: boolean; isHidden: boolean; createdAt: string
+  reactions?: Record<string, number>; reply?: string | null; replyAt?: string | null
 }
 
 const messages = ref<Message[]>([])
@@ -121,6 +126,9 @@ onMounted(load)
 .msg-card { padding: var(--spacing-lg); }
 .msg-meta { display: flex; gap: var(--spacing-md); flex-wrap: wrap; font-size: var(--type-caption-size); color: var(--color-muted); margin-bottom: var(--spacing-sm); }
 .msg-content { font-size: var(--type-body-md-size); line-height: 1.6; margin-bottom: var(--spacing-sm); }
+.msg-reactions-inline { margin-bottom: 8px; display: flex; gap: 6px; }
+.react-badge { font-size: 12px; padding: 2px 8px; background: var(--color-surface-cream-strong); border-radius: 10px; }
+.msg-reply-inline { font-size: 13px; padding: 8px 12px; background: rgba(204,120,92,0.08); border-left: 3px solid var(--color-primary); border-radius: 4px; margin-bottom: 8px; }
 .msg-actions { display: flex; gap: var(--spacing-xs); }
 .badge { padding: 2px 8px; border-radius: var(--rounded-pill); font-size: 11px; }
 .badge-pending { background: var(--color-warning); color: white; }

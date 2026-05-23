@@ -12,7 +12,7 @@ messagesRoutes.get('/messages/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
   const { results } = await db.prepare(
-    'SELECT id, author_name, content, created_at FROM messages WHERE student_slug = ? AND is_approved = 1 AND is_hidden = 0 ORDER BY created_at DESC'
+    'SELECT id, author_name, content, reactions, reply, reply_at, created_at FROM messages WHERE student_slug = ? AND is_approved = 1 AND is_hidden = 0 ORDER BY created_at DESC'
   ).bind(slug).all()
 
   return c.json({
@@ -21,6 +21,9 @@ messagesRoutes.get('/messages/:slug', async (c) => {
       id: r.id,
       authorName: r.author_name,
       content: r.content,
+      reactions: JSON.parse(r.reactions || '{}'),
+      reply: r.reply || null,
+      replyAt: r.reply_at || null,
       createdAt: r.created_at,
     })),
   })
@@ -53,6 +56,57 @@ messagesRoutes.post('/messages/:slug', async (c) => {
   return c.json({ success: true, message: '留言已提交，等待审核' })
 })
 
+// 表情反应
+messagesRoutes.put('/messages/:id/react', async (c) => {
+  const id = c.req.param('id')
+  const db = c.env.DB
+  const { reaction } = await c.req.json()
+
+  const ALLOWED = ['❤️', '👍', '😂', '🎉']
+  if (!ALLOWED.includes(reaction)) {
+    return c.json({ success: false, message: '不支持的表情' }, 400)
+  }
+
+  const msg = await db.prepare('SELECT reactions FROM messages WHERE id = ?').bind(id).first()
+  if (!msg) return c.json({ success: false, message: '留言不存在' }, 404)
+
+  const reactions = JSON.parse((msg as any).reactions || '{}')
+  reactions[reaction] = (reactions[reaction] || 0) + 1
+
+  await db.prepare('UPDATE messages SET reactions = ? WHERE id = ?')
+    .bind(JSON.stringify(reactions), id).run()
+
+  return c.json({ success: true, data: { reactions } })
+})
+
+// 主人回复留言
+messagesRoutes.put('/messages/:id/reply', async (c) => {
+  const id = c.req.param('id')
+  const db = c.env.DB
+  const { reply, authorName } = await c.req.json()
+
+  if (!reply || !reply.trim() || reply.trim().length > 500) {
+    return c.json({ success: false, message: '回复内容必须在 1-500 字之间' }, 400)
+  }
+
+  const msg = await db.prepare('SELECT student_slug FROM messages WHERE id = ?').bind(id).first()
+  if (!msg) return c.json({ success: false, message: '留言不存在' }, 404)
+
+  const student = await db.prepare('SELECT name FROM students WHERE slug = ?')
+    .bind((msg as any).student_slug).first()
+  if (!student) return c.json({ success: false, message: '学生不存在' }, 404)
+
+  if (authorName !== (student as any).name) {
+    return c.json({ success: false, message: '只有页面主人可以回复' }, 403)
+  }
+
+  await db.prepare(
+    "UPDATE messages SET reply = ?, reply_at = datetime('now') WHERE id = ?"
+  ).bind(reply.trim(), id).run()
+
+  return c.json({ success: true, message: '回复成功' })
+})
+
 // 管理员获取所有留言
 messagesRoutes.get('/admin/messages', async (c) => {
   const db = c.env.DB
@@ -75,6 +129,9 @@ messagesRoutes.get('/admin/messages', async (c) => {
       studentSlug: r.student_slug,
       authorName: r.author_name,
       content: r.content,
+      reactions: JSON.parse(r.reactions || '{}'),
+      reply: r.reply || null,
+      replyAt: r.reply_at || null,
       isApproved: !!r.is_approved,
       isHidden: !!r.is_hidden,
       createdAt: r.created_at,

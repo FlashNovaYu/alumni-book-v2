@@ -30,6 +30,32 @@
           <span class="msg-time">{{ formatDate(msg.createdAt) }}</span>
         </div>
         <p class="msg-content">{{ msg.content }}</p>
+
+        <!-- 表情反应 -->
+        <div class="msg-reactions">
+          <button v-for="emoji in REACTIONS" :key="emoji" class="react-btn"
+            :class="{ active: (msg.reactions?.[emoji] || 0) > 0 }"
+            @click="react(msg.id, emoji)">
+            {{ emoji }} <span v-if="msg.reactions?.[emoji]" class="react-count">{{ msg.reactions[emoji] }}</span>
+          </button>
+        </div>
+
+        <!-- 主人回复 -->
+        <div v-if="msg.reply" class="msg-reply">
+          <span class="reply-label">主人回复：</span>
+          <p>{{ msg.reply }}</p>
+          <span class="msg-time">{{ formatDate(msg.replyAt) }}</span>
+        </div>
+
+        <!-- 回复输入框（仅主人可见） -->
+        <div v-if="isPageOwner && !msg.reply" class="reply-form">
+          <textarea v-model="replyTexts[msg.id]" class="text-input reply-textarea"
+            placeholder="回复这条留言..." maxlength="500" rows="2" />
+          <button class="btn-primary btn-sm" @click="submitReply(msg.id)"
+            :disabled="!replyTexts[msg.id]?.trim()">
+            回复
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -37,18 +63,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { getSessionName } from '@alumni/shared'
 
 interface Message {
   id: string; authorName: string; content: string; createdAt: string
+  reactions: Record<string, number>; reply: string | null; replyAt: string | null
 }
 
-const props = defineProps<{ studentSlug: string }>()
+const props = defineProps<{ studentSlug: string; pageOwnerName?: string }>()
 
 const messages = ref<Message[]>([])
 const loading = ref(true)
 const newContent = ref('')
 const submitting = ref(false)
 const submitResult = ref<{ type: 'success' | 'error'; message: string } | null>(null)
+
+const REACTIONS = ['❤️', '👍', '😂', '🎉']
+const isPageOwner = getSessionName() === props.pageOwnerName
+const replyTexts = ref<Record<string, string>>({})
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -95,6 +127,43 @@ async function submitMessage() {
   } catch {
     submitResult.value = { type: 'error', message: '网络错误，请稍后重试' }
   } finally { submitting.value = false }
+}
+
+async function react(msgId: string, emoji: string) {
+  try {
+    const res = await fetch(`${API_BASE}/api/messages/${msgId}/react`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reaction: emoji }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      const msg = messages.value.find(m => m.id === msgId)
+      if (msg) msg.reactions = data.data.reactions
+    }
+  } catch {}
+}
+
+async function submitReply(msgId: string) {
+  const text = replyTexts.value[msgId]?.trim()
+  if (!text) return
+  const author = getAuthorName()
+  try {
+    const res = await fetch(`${API_BASE}/api/messages/${msgId}/reply`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reply: text, authorName: author }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      const msg = messages.value.find(m => m.id === msgId)
+      if (msg) {
+        msg.reply = text
+        msg.replyAt = new Date().toISOString()
+      }
+      delete replyTexts.value[msgId]
+    }
+  } catch {}
 }
 
 onMounted(fetchMessages)
@@ -149,4 +218,25 @@ onMounted(fetchMessages)
   padding: var(--spacing-md) 0;
   border-bottom: 1px solid var(--color-hairline);
 }
+
+/* Reactions */
+.msg-reactions { display: flex; gap: 8px; margin-top: 10px; }
+.react-btn {
+  border: 1px solid var(--color-hairline); background: var(--color-canvas);
+  border-radius: 20px; padding: 4px 12px; font-size: 14px; cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.react-btn:hover { background: var(--color-surface-cream-strong); }
+.react-btn.active { border-color: var(--color-primary); background: rgba(204,120,92,0.08); }
+.react-count { font-size: 12px; color: var(--color-muted); margin-left: 2px; }
+
+/* Reply */
+.msg-reply {
+  margin-top: 10px; padding: 10px 14px;
+  background: var(--color-surface-cream-strong); border-radius: var(--rounded-md);
+  border-left: 3px solid var(--color-primary);
+}
+.reply-label { font-size: 12px; color: var(--color-muted); display: block; margin-bottom: 4px; }
+.reply-form { margin-top: 10px; display: flex; gap: 8px; align-items: flex-end; }
+.reply-textarea { flex: 1; min-height: 36px; font-size: 13px; }
 </style>

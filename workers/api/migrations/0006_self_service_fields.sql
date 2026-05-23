@@ -1,0 +1,4 @@
+ALTER TABLE students ADD COLUMN visit_count INTEGER DEFAULT 0;
+ALTER TABLE messages ADD COLUMN reactions TEXT DEFAULT '{}';
+ALTER TABLE messages ADD COLUMN reply TEXT;
+ALTER TABLE messages ADD COLUMN reply_at TEXT;

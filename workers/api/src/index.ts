@@ -9,6 +9,7 @@ import { uploadRoutes } from './routes/upload'
 import { authRoutes } from './routes/auth'
 import { messagesRoutes } from './routes/messages'
 import { timelineRoutes } from './routes/timeline'
+import { classmateRoutes } from './routes/classmate'
 
 type Bindings = {
   DB: D1Database
@@ -144,6 +145,33 @@ app.get('/api/albums', async (c) => {
   )
 
   return c.json({ success: true, data: albumsWithPhotos })
+})
+
+// 同学自助路由 (HMAC token 认证，无需 JWT)
+app.route('/api', classmateRoutes)
+
+// 访问计数
+app.post('/api/students/:slug/visit', async (c) => {
+  const slug = c.req.param('slug')
+  const db = c.env.DB
+  await db.prepare('UPDATE students SET visit_count = visit_count + 1 WHERE slug = ?').bind(slug).run()
+  const row = await db.prepare('SELECT visit_count FROM students WHERE slug = ?').bind(slug).first()
+  return c.json({ success: true, data: { visitCount: (row as any)?.visit_count || 0 } })
+})
+
+// 人气排行
+app.get('/api/rankings', async (c) => {
+  const db = c.env.DB
+  const { results } = await db.prepare(
+    'SELECT name, slug, avatar_url, visit_count FROM students WHERE visit_count > 0 ORDER BY visit_count DESC LIMIT 20'
+  ).all()
+  const rankings = (results || []).map((r: any) => ({
+    name: r.name,
+    slug: r.slug,
+    avatarUrl: r.avatar_url,
+    visitCount: r.visit_count,
+  }))
+  return c.json({ success: true, data: rankings })
 })
 
 // R2 文件访问
@@ -291,6 +319,7 @@ function formatStudent(row: any) {
       class: row.class_name || info.class || '',
     },
     photos: JSON.parse(row.photos || '[]'),
+    visitCount: row.visit_count || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
