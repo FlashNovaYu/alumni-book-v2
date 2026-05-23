@@ -45,22 +45,28 @@ export async function adminFetch<T>(
 
 export async function adminLogin(password: string): Promise<string> {
   const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+  } catch {
+    throw new Error('网络连接失败，请检查网络后重试')
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: '登录失败' }))
-    throw new Error(error.message)
+    throw new Error(error.message || `请求失败 (${res.status})`)
   }
 
   const data = await res.json()
   const token = data.data?.token
-  if (token) {
-    sessionStorage.setItem('admin_token', token)
+  if (!token) {
+    throw new Error(data.message || '登录响应异常，请重试')
   }
+  sessionStorage.setItem('admin_token', token)
   return token
 }
 
