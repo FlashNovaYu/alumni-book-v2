@@ -29,8 +29,11 @@ if (!student) {
   return Astro.redirect('/alumni-book-v2/roster')
 }
 
-const bgStyle = student.backgroundUrl
-  ? `background-image: url(${student.backgroundUrl}); background-size: cover; background-position: center;`
+const bgUrl = student.backgroundUrl
+  ? (student.backgroundUrl.startsWith('http') ? student.backgroundUrl : `${API_BASE}${student.backgroundUrl}`)
+  : null
+const bgStyle = bgUrl
+  ? `background-image: url(${bgUrl}); background-size: cover; background-position: center;`
   : student.backgroundColor
   ? `background-color: ${student.backgroundColor};`
   : ''
@@ -85,7 +88,7 @@ const futureFields = getFields(student.info, [
     </div>
   ) : (
     <div class="student-page">
-      <StudentHero student={student} bgStyle={bgStyle} />
+      <StudentHero student={student} bgStyle={bgStyle} apiBase={API_BASE} />
       <div class="student-body container fade-in">
         {basicFields.length > 0 && <div class="fade-in"><StudentInfo title="基础信息" fields={basicFields} /></div>}
         {contactFields.length > 0 && <div class="fade-in"><StudentInfo title="联系方式" fields={contactFields} /></div>}

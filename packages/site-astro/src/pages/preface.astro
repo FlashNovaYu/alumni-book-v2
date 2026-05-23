@@ -39,7 +39,7 @@ try {
                 <div class="ack-person">
                   <div class="ack-avatar">
                     {ack.avatarUrl ? (
-                      <img src={ack.avatarUrl} alt={ack.name} loading="lazy" decoding="async" />
+                      <img src={ack.avatarUrl.startsWith('http') ? ack.avatarUrl : `${API_BASE}${ack.avatarUrl}`} alt={ack.name} loading="lazy" decoding="async" />
                     ) : (
                       <span class="avatar-placeholder">{ack.name.charAt(0)}</span>
                     )}

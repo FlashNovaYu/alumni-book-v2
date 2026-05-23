@@ -25,7 +25,7 @@
         <div class="form-group">
           <label class="form-label">头像</label>
           <input type="file" accept="image/*" @change="handleAvatarUpload" />
-          <img v-if="student.avatarUrl" :src="student.avatarUrl" class="avatar-preview" />
+          <img v-if="student.avatarUrl" :src="fileUrl(student.avatarUrl)" class="avatar-preview" />
         </div>
         <div class="form-group">
           <label>
@@ -43,7 +43,7 @@
           <label class="form-label">背景图片</label>
           <input type="file" accept="image/*" @change="handleBackgroundUpload" />
           <div v-if="student.backgroundUrl" class="background-preview">
-            <img :src="student.backgroundUrl" alt="背景预览" />
+            <img :src="fileUrl(student.backgroundUrl)" alt="背景预览" />
             <button class="btn-danger btn-sm" @click="student.backgroundUrl = null">移除</button>
           </div>
         </div>
@@ -129,7 +129,7 @@
         <div class="form-group">
           <label class="form-label">音乐文件</label>
           <input type="file" accept="audio/*" @change="handleMusicUpload" />
-          <audio v-if="student.musicUrl" :src="student.musicUrl" controls class="audio-preview" />
+          <audio v-if="student.musicUrl" :src="fileUrl(student.musicUrl)" controls class="audio-preview" />
         </div>
         <div class="form-group">
           <label class="form-label">音乐标题</label>
@@ -178,6 +178,13 @@ import type { Student, StudentInfo, ApiResponse } from '@alumni/shared'
 
 const route = useRoute()
 const router = useRouter()
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+function fileUrl(url: string | null): string {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE}${url}`
+}
 const saving = ref(false)
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 

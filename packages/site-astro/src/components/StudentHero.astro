@@ -9,17 +9,21 @@ interface Props {
     info?: { nickname?: string; motto?: string }
   }
   bgStyle: string
+  apiBase?: string
 }
 
-const { student, bgStyle } = Astro.props as Props
+const { student, bgStyle, apiBase = '' } = Astro.props as Props
+const avatarSrc = student.avatarUrl
+  ? (student.avatarUrl.startsWith('http') ? student.avatarUrl : `${apiBase}${student.avatarUrl}`)
+  : null
 ---
 
 <section class="student-hero">
   <div class="hero-bg" style={bgStyle}></div>
   <div class="hero-content container">
     <div class="hero-avatar">
-      {student.avatarUrl ? (
-        <img src={student.avatarUrl} alt={student.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
+      {avatarSrc ? (
+        <img src={avatarSrc} alt={student.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
       ) : (
         <span class="avatar-char">{student.name.charAt(0)}</span>
       )}

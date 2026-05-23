@@ -31,7 +31,7 @@ try {
           <a href={mate.hasPage ? `/alumni-book-v2/student/${mate.slug}` : '#'} class={`classmate-card fade-in ${!mate.hasPage ? 'no-page' : ''}`}>
             <div class="card-avatar">
               {mate.avatarUrl ? (
-                <img src={mate.avatarUrl} alt={mate.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
+                <img src={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`} alt={mate.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
               ) : (
                 <span class="avatar-char">{mate.name.charAt(0)}</span>
               )}

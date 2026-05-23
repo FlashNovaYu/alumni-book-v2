@@ -46,7 +46,8 @@ uploadRoutes.post('/upload', async (c) => {
     httpMetadata: { contentType: file.type },
   })
 
-  const publicUrl = `/api/files/${r2Key}`
+  const origin = new URL(c.req.url).origin
+  const publicUrl = `${origin}/api/files/${r2Key}`
 
   if (type === 'avatar' && slug) {
     await db.prepare('UPDATE students SET avatar_url = ? WHERE slug = ?').bind(publicUrl, slug).run()
