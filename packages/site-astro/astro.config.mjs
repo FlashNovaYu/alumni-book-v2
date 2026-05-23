@@ -6,8 +6,7 @@ export default defineConfig({
   integrations: [vue()],
   vite: {
     define: {
-      // 客户端运行时 API 地址（CI 中设为空走 Pages Function 代理，本地开发走 Worker）
-      // 客户端运行时 API 地址（空字符串 = 同域相对路径）
+      // 客户端运行时 API 地址（空字符串走同域代理，`` ?? `` 保本地开发回退 Worker）
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
         process.env.VITE_API_BASE_URL ?? 'https://alumni-book-api.chenyuhao2263.workers.dev'
       ),
