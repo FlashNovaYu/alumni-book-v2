@@ -31,7 +31,7 @@ export async function adminFetch<T>(
 
   if (res.status === 401) {
     sessionStorage.removeItem('admin_token')
-    window.location.href = '/alumni-book-v2/admin/login'
+    window.location.href = '/alumni-book-v2/admin/#/login'
     throw new Error('未授权')
   }
 
@@ -66,5 +66,5 @@ export async function adminLogin(password: string): Promise<string> {
 
 export function adminLogout(): void {
   sessionStorage.removeItem('admin_token')
-  window.location.href = '/alumni-book-v2/admin/login'
+  window.location.href = '/alumni-book-v2/admin/#/login'
 }

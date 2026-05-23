@@ -1,11 +1,11 @@
 import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import App from './App.vue'
 import '@alumni/shared/src/tokens.css'
 import './styles/admin.css'
 
 const router = createRouter({
-  history: createWebHistory('/alumni-book-v2/admin/'),
+  history: createWebHashHistory('/alumni-book-v2/admin/'),
   routes: [
     {
       path: '/login',
