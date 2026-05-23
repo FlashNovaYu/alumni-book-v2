@@ -4,7 +4,7 @@ import StudentHero from '../../components/StudentHero.astro'
 import StudentInfo from '../../components/StudentInfo.astro'
 
 export async function getStaticPaths() {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+  const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
   let students: any[] = []
   try {
     const res = await fetch(`${API_BASE}/api/students`)
@@ -16,7 +16,7 @@ export async function getStaticPaths() {
 
 const { slug } = Astro.params
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
 
 let student: any = null
 try {

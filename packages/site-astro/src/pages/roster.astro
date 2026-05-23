@@ -6,7 +6,7 @@ interface Classmate {
   avatarUrl: string | null; motto: string
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
 let classmates: Classmate[] = []
 try {
   const res = await fetch(`${API_BASE}/api/classmates`)
