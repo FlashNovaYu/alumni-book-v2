@@ -67,15 +67,21 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
     return c.json({ success: false, message: '不支持的表情' }, 400)
   }
 
-  const msg = await db.prepare('SELECT reactions FROM messages WHERE id = ?').bind(id).first()
-  if (!msg) return c.json({ success: false, message: '留言不存在' }, 404)
+  // 原子更新避免并发覆盖（json_set 内 CRUD 为单条 SQL）
+  const path = `$.${reaction}`
+  await db.prepare(
+    `UPDATE messages SET reactions = json_set(
+      COALESCE(reactions, '{}'),
+      ?,
+      COALESCE(CAST(json_extract(COALESCE(reactions, '{}'), ?) AS INTEGER), 0) + 1
+    ) WHERE id = ?`
+  ).bind(path, path, id).run()
 
-  const reactions = JSON.parse((msg as any).reactions || '{}')
-  reactions[reaction] = (reactions[reaction] || 0) + 1
+  // 读取更新后结果返回给前端
+  const row = await db.prepare('SELECT reactions FROM messages WHERE id = ?').bind(id).first()
+  if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
 
-  await db.prepare('UPDATE messages SET reactions = ? WHERE id = ?')
-    .bind(JSON.stringify(reactions), id).run()
-
+  const reactions = JSON.parse((row as any).reactions || '{}')
   return c.json({ success: true, data: { reactions } })
 })
 
@@ -96,7 +102,7 @@ messagesRoutes.put('/messages/:id/reply', async (c) => {
     .bind((msg as any).student_slug).first()
   if (!student) return c.json({ success: false, message: '学生不存在' }, 404)
 
-  if (authorName !== (student as any).name) {
+  if ((authorName || '').trim() !== (student as any).name) {
     return c.json({ success: false, message: '只有页面主人可以回复' }, 403)
   }
 

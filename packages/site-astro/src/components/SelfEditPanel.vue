@@ -293,9 +293,13 @@ async function save() {
       saveMsg.value = { type: 'success', text: '保存成功' }
       setTimeout(() => closeEditor(), 1500)
     } else if (res.status === 401) {
-      // token 过期，重新获取
+      // token 过期 → 自动重新获取并重试
       token.value = ''
-      saveMsg.value = { type: 'info', text: '凭证已过期，请重新保存' }
+      if (await ensureToken()) {
+        saving.value = false
+        return save() // 重试一次
+      }
+      saveMsg.value = { type: 'error', text: '身份验证失败，请关闭后重新打开编辑' }
     } else {
       saveMsg.value = { type: 'error', text: data.message || '保存失败' }
     }

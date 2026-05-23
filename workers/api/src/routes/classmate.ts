@@ -10,6 +10,15 @@ export const classmateRoutes = new Hono<{ Bindings: Bindings }>()
 
 const TOKEN_TTL = 30 * 60 * 1000 // 30 分钟
 
+// 从 JWT_SECRET 派生独立密钥，避免密钥重用
+let _derivedSecret: string | null = null
+async function getClassmateSecret(jwtSecret: string): Promise<string> {
+  if (!_derivedSecret) {
+    _derivedSecret = await hmacSign('classmate-auth', jwtSecret)
+  }
+  return _derivedSecret
+}
+
 /** base64url 编码 */
 function base64url(str: string): string {
   return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
@@ -86,7 +95,7 @@ classmateRoutes.post('/classmate/token', async (c) => {
     return c.json({ success: false, message: '姓名不匹配' }, 403)
   }
 
-  const token = await generateClassmateToken(slug, c.env.JWT_SECRET)
+  const token = await generateClassmateToken(slug, await getClassmateSecret(c.env.JWT_SECRET))
   return c.json({ success: true, data: { token } })
 })
 
@@ -95,7 +104,7 @@ classmateRoutes.put('/classmate/students/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
 
-  const authedSlug = await authClassmate(c, c.env.JWT_SECRET)
+  const authedSlug = await authClassmate(c, await getClassmateSecret(c.env.JWT_SECRET))
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权，请先验证身份' }, 401)
   }
@@ -152,7 +161,7 @@ classmateRoutes.post('/classmate/upload', async (c) => {
     return c.json({ success: false, message: '不允许的上传类型' }, 400)
   }
 
-  const authedSlug = await authClassmate(c, c.env.JWT_SECRET)
+  const authedSlug = await authClassmate(c, await getClassmateSecret(c.env.JWT_SECRET))
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权' }, 401)
   }

@@ -153,15 +153,19 @@ const futureFields = getFields(student.info, [
     })
   }
 
-  // 访问计数
-  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
-  fetch(`${API_BASE}/api/students/${slug}/visit`, { method: 'POST' })
-    .then(r => r.json()).then(d => {
-      if (d.success) {
-        const el = document.getElementById(`visit-count-${slug}`)
-        if (el) el.textContent = d.data.visitCount
-      }
-    }).catch(() => {})
+  // 访问计数（同一会话内同一页面只计一次）
+  const visitKey = `visited_${slug}`
+  if (!sessionStorage.getItem(visitKey)) {
+    sessionStorage.setItem(visitKey, '1')
+    const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
+    fetch(`${API_BASE}/api/students/${slug}/visit`, { method: 'POST' })
+      .then(r => r.json()).then(d => {
+        if (d.success) {
+          const el = document.getElementById(`visit-count-${slug}`)
+          if (el) el.textContent = d.data.visitCount
+        }
+      }).catch(() => {})
+  }
 </script>
 
 <script id={`photo-data-${slug}`} type="application/json" set:html={JSON.stringify(student?.photos || [])}></script>
