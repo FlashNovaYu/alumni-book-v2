@@ -15,6 +15,6 @@ export default defineConfig({
     sourcemap: true,
   },
   define: {
-    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'),
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL ?? 'https://alumni-book-api.chenyuhao2263.workers.dev'),
   },
 })
