@@ -25,6 +25,17 @@ import MainLayout from '../layouts/MainLayout.astro'
   if (el) {
     createApp(NameGate).mount(el)
   }
+
+  // GSAP 首页入场动画
+  import('gsap').then(({ default: gsap }) => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    gsap.set('.hero-content > *', { autoAlpha: 0, y: 30 })
+    gsap.timeline({ defaults: { duration: 0.6, ease: 'power2.out' } })
+      .to('.hero-label', { autoAlpha: 1, y: 0 })
+      .to('.hero-title', { autoAlpha: 1, y: 0 }, '-=0.3')
+      .to('.hero-subtitle', { autoAlpha: 1, y: 0 }, '-=0.3')
+      .to('#name-gate', { autoAlpha: 1, y: 0 }, '-=0.3')
+  })
 </script>
 
 <style>

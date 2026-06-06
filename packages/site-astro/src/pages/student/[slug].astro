@@ -129,6 +129,26 @@ const futureFields = getFields(student.info, [
   import PhotoWall from '../../components/PhotoWall.vue'
   import MessageWall from '../../components/MessageWall.vue'
 
+  // 学生页动画：视差 + section 入场
+  import('gsap/ScrollTrigger').then(() => {
+    import('gsap').then(({ default: gsap }) => {
+      // Hero 背景视差
+      gsap.to('.hero-bg', {
+        y: 60, ease: 'none',
+        scrollTrigger: { trigger: '.student-hero', start: 'top top', end: 'bottom top', scrub: true },
+      })
+
+      // Info section 依次滑入
+      const sections = gsap.utils.toArray<HTMLElement>('.student-body > .fade-in')
+      sections.forEach((el, i) => {
+        gsap.from(el, {
+          autoAlpha: 0, y: 28, duration: 0.5,
+          scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+        })
+      })
+    })
+  })
+
   const slug = Astro.params.slug
 
   const photoEl = document.getElementById(`photo-wall-${slug}`)

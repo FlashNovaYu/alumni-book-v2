@@ -7,12 +7,27 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+
 const props = defineProps<{ photos: string[] }>()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 function photoUrl(p: string) {
   if (p.startsWith('http')) return p
   return `${API_BASE}${p}`
 }
+
+onMounted(() => {
+  import('gsap/ScrollTrigger').then(() => {
+    import('gsap').then(({ default: gsap }) => {
+      gsap.fromTo('.photo-item', { autoAlpha: 0, y: 24 },
+        {
+          autoAlpha: 1, y: 0, stagger: 0.08, duration: 0.45, ease: 'back.out(1.4)',
+          scrollTrigger: { trigger: '.photo-wall', start: 'top 85%', once: true },
+        }
+      )
+    })
+  })
+})
 </script>
 
 <style scoped>

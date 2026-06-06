@@ -2,6 +2,7 @@
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
 import ScrollReveal from '../components/ScrollReveal.astro'
+// GSAP 动画系统 — 见 scripts/animations.ts
 import '../styles/global.css'
 ---
 
@@ -20,7 +21,9 @@ import '../styles/global.css'
       <main class="main-content">
         <slot />
       </main>
-      <ScrollReveal />
+      <script>
+        import('../scripts/animations').then(m => m.initAnimations())
+      </script>
       <AppFooter />
     </div>
   </body>

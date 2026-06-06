@@ -166,7 +166,15 @@ async function submitReply(msgId: string) {
   } catch {}
 }
 
-onMounted(fetchMessages)
+onMounted(async () => {
+  await fetchMessages()
+  // 留言入场动画
+  import('gsap').then(({ default: gsap }) => {
+    gsap.fromTo('.msg-item', { autoAlpha: 0, y: 16 },
+      { autoAlpha: 1, y: 0, stagger: 0.05, duration: 0.4, ease: 'power2.out', delay: 0.1 }
+    )
+  })
+})
 </script>
 
 <style scoped>

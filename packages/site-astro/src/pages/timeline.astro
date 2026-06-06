@@ -47,6 +47,24 @@ try {
   </div>
 </MainLayout>
 
+<script>
+  // 时间轴节点左右交替滑入
+  import('gsap/ScrollTrigger').then(() => {
+    import('gsap').then(({ default: gsap }) => {
+      gsap.set('.timeline-node', { autoAlpha: 0, y: 30, x: 0 })
+      gsap.utils.toArray<HTMLElement>('.timeline-node').forEach((node, i) => {
+        gsap.fromTo(node,
+          { autoAlpha: 0, x: i % 2 === 0 ? -50 : 50, y: 20 },
+          {
+            autoAlpha: 1, x: 0, y: 0, duration: 0.55, ease: 'power2.out',
+            scrollTrigger: { trigger: node, start: 'top 85%', once: true },
+          }
+        )
+      })
+    })
+  })
+</script>
+
 <style>
   .timeline-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
   .timeline-header { text-align: center; margin-bottom: var(--spacing-xxl); }

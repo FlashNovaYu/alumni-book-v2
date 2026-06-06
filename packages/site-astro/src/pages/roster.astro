@@ -55,6 +55,21 @@ try {
     const classmates = JSON.parse(dataEl?.textContent || '[]')
     createApp(RosterSearch, { classmates }).mount(el)
   }
+
+  // 卡片错位弹性入场
+  import('gsap/ScrollTrigger').then(() => {
+    import('gsap').then(({ default: gsap }) => {
+      const cards = gsap.utils.toArray<HTMLElement>('.classmate-card')
+      if (cards.length) {
+        gsap.set(cards, { autoAlpha: 0, y: 40 })
+        gsap.to(cards, {
+          autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.04,
+          ease: 'back.out(1.7)',
+          scrollTrigger: { trigger: '.classmate-grid', start: 'top 88%', once: true },
+        })
+      }
+    })
+  })
 </script>
 
 <script id="roster-data" type="application/json" set:html={JSON.stringify(classmates)}></script>
