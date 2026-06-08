@@ -25,6 +25,9 @@ jobs:
 
       - name: Verify Worker tests
         run: pnpm verify:worker
+        env:
+          JWT_SECRET: alumni-book-jwt-secret-dev-only-2026
+          CORS_ORIGIN: http://localhost:4321
 
       - name: Deploy Worker
         working-directory: workers/api
