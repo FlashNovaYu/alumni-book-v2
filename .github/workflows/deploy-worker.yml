@@ -23,11 +23,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Create .dev.vars for testing
+        run: |
+          echo "JWT_SECRET=alumni-book-jwt-secret-dev-only-2026" > workers/api/.dev.vars
+          echo "CORS_ORIGIN=http://localhost:4321" >> workers/api/.dev.vars
+
       - name: Verify Worker tests
         run: pnpm verify:worker
-        env:
-          JWT_SECRET: alumni-book-jwt-secret-dev-only-2026
-          CORS_ORIGIN: http://localhost:4321
 
       - name: Deploy Worker
         working-directory: workers/api
