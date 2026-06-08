@@ -31,7 +31,8 @@ export async function adminFetch<T>(
 
   if (res.status === 401) {
     sessionStorage.removeItem('admin_token')
-    window.location.href = '/admin/#/login'
+    const adminBase = import.meta.env.BASE_URL || '/admin/'
+    window.location.href = `${adminBase}#/login`
     throw new Error('未授权')
   }
 
@@ -70,7 +71,16 @@ export async function adminLogin(password: string): Promise<string> {
   return token
 }
 
-export function adminLogout(): void {
+export async function adminLogout(): Promise<void> {
+  const token = getToken()
+  if (token) {
+    try {
+      await adminFetch('/api/auth/logout', { method: 'POST' })
+    } catch (e) {
+      console.error('Logout failed on server:', e)
+    }
+  }
   sessionStorage.removeItem('admin_token')
-  window.location.href = '/admin/#/login'
+  const adminBase = import.meta.env.BASE_URL || '/admin/'
+  window.location.href = `${adminBase}#/login`
 }

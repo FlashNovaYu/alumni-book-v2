@@ -1,8 +1,11 @@
 import { defineConfig } from 'astro/config'
 import vue from '@astrojs/vue'
 
+const rawSiteBase = process.env.SITE_BASE ?? '/'
+const siteBase = rawSiteBase.endsWith('/') ? rawSiteBase : `${rawSiteBase}/`
+
 export default defineConfig({
-  base: '/',
+  base: siteBase,
   integrations: [vue()],
   vite: {
     define: {

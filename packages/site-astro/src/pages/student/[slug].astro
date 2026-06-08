@@ -5,28 +5,30 @@ import StudentInfo from '../../components/StudentInfo.astro'
 
 export async function getStaticPaths() {
   const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
-  let students: any[] = []
+  let classmates: any[] = []
   try {
-    const res = await fetch(`${API_BASE}/api/students`)
+    const res = await fetch(`${API_BASE}/api/classmates`)
     const data = await res.json() as any
-    students = data.data || []
+    classmates = data.data || []
   } catch {}
-  return students.map(s => ({ params: { slug: s.slug } }))
+  return classmates.map(c => ({ params: { slug: c.slug } }))
 }
 
 const { slug } = Astro.params
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
+const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 
 let student: any = null
 try {
-  const res = await fetch(`${API_BASE}/api/students/${slug}`)
+  const res = await fetch(`${API_BASE}/api/students/${slug}?audience=public`)
   const data = await res.json() as any
   if (data.success && data.data) student = data.data
 } catch {}
 
 if (!student) {
-  return Astro.redirect('/roster')
+  return Astro.redirect(href('/roster'))
 }
 
 const bgUrl = student.backgroundUrl
@@ -39,7 +41,7 @@ const bgStyle = bgUrl
   : ''
 
 function getFields(info: Record<string, string>, keys: [string, string][]) {
-  return keys.filter(([k]) => info[k]?.trim()).map(([k, label]) => ({ key: k, label, value: info[k] }))
+  return keys.map(([k, label]) => ({ key: k, label, value: info?.[k] || '' }))
 }
 
 const basicFields = getFields(student.info, [
@@ -90,12 +92,37 @@ const futureFields = getFields(student.info, [
     <div class="student-page">
       <StudentHero student={student} bgStyle={bgStyle} apiBase={API_BASE} />
       <div class="student-body container fade-in">
-        {basicFields.length > 0 && <div class="fade-in"><StudentInfo title="基础信息" fields={basicFields} /></div>}
-        {contactFields.length > 0 && <div class="fade-in"><StudentInfo title="联系方式" fields={contactFields} /></div>}
-        {personalityFields.length > 0 && <div class="fade-in"><StudentInfo title="个性标签" fields={personalityFields} /></div>}
-        {interestFields.length > 0 && <div class="fade-in"><StudentInfo title="兴趣爱好" fields={interestFields} /></div>}
-        {memoryFields.length > 0 && <div class="fade-in"><StudentInfo title="校园回忆" fields={memoryFields} isMemory /></div>}
-        {futureFields.length > 0 && <div class="fade-in"><StudentInfo title="未来规划" fields={futureFields} /></div>}
+        <div class="fade-in" style={basicFields.every(f => !f.value) ? 'display: none;' : ''} data-section-container="基础信息">
+          <StudentInfo title="基础信息" fields={basicFields} />
+        </div>
+        <div class="fade-in" style={contactFields.every(f => !f.value) ? 'display: none;' : ''} data-section-container="联系方式">
+          <StudentInfo title="联系方式" fields={contactFields} />
+        </div>
+        <div class="fade-in" style={personalityFields.every(f => !f.value) ? 'display: none;' : ''} data-section-container="个性标签">
+          <StudentInfo title="个性标签" fields={personalityFields} />
+        </div>
+        <div class="fade-in" style={interestFields.every(f => !f.value) ? 'display: none;' : ''} data-section-container="兴趣爱好">
+          <StudentInfo title="兴趣爱好" fields={interestFields} />
+        </div>
+        <div class="fade-in" style={memoryFields.every(f => !f.value) ? 'display: none;' : ''} data-section-container="校园回忆">
+          <StudentInfo title="校园回忆" fields={memoryFields} isMemory />
+        </div>
+        <div class="fade-in" style={futureFields.every(f => !f.value) ? 'display: none;' : ''} data-section-container="未来规划">
+          <StudentInfo title="未来规划" fields={futureFields} />
+        </div>
+        
+        <!-- 个人小传 -->
+        <section class="profile-section fade-in" id="profile-modules-section" style={student.info?.profileModules?.length > 0 ? '' : 'display: none;'}>
+          <h2 class="section-title display-sm">个人小传</h2>
+          <div class="profile-modules-list" id="profile-modules-list">
+            {student.info?.profileModules?.map((mod: any) => (
+              <div class="profile-module-item card mb-4 p-4">
+                <h3 class="font-display text-lg mb-2">{mod.title}</h3>
+                <p class="whitespace-pre-wrap">{mod.content}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {student.photos?.length > 0 && (
           <section class="profile-section fade-in">
@@ -114,6 +141,31 @@ const futureFields = getFields(student.info, [
 
       <!-- 自助编辑挂载点 -->
       <div id={`self-edit-${student.slug}`}></div>
+      <!-- 分享按钮 -->
+      <div class="share-trigger-container">
+        <button id="share-card-btn" class="share-trigger-btn">分享 TA</button>
+      </div>
+      
+      <!-- 分享卡 Modal -->
+      <div id="share-modal" class="share-modal" style="display: none;">
+        <div class="share-modal-overlay" id="share-modal-overlay"></div>
+        <div class="share-card card">
+          <button class="share-close-btn" id="share-close-btn">✕</button>
+          <div class="share-card-content">
+            <div class="share-avatar-wrapper">
+              <img src={student.avatarUrl ? (student.avatarUrl.startsWith('http') ? student.avatarUrl : `${API_BASE}${student.avatarUrl}`) : ''} class="share-avatar" id="share-avatar-img" />
+            </div>
+            <h3 class="share-name" id="share-name-text">{student.name}</h3>
+            <p class="share-motto" id="share-motto-text">{student.info?.motto || '一句话故事'}</p>
+            <div class="share-qr-wrapper">
+              <img src="" class="share-qr" id="share-qr-img" alt="二维码" />
+              <p class="share-qr-tip">扫码访问 TA 的主页</p>
+            </div>
+          </div>
+          <button class="btn-primary w-full mt-4" id="share-print-btn" onclick="window.print()">打印 / 存为 PDF</button>
+        </div>
+      </div>
+      
       <span id={`student-name-${student.slug}`} style="display:none">{student.name}</span>
       </div>
     </div>
@@ -173,12 +225,135 @@ const futureFields = getFields(student.info, [
     })
   }
 
+  function escapeHtml(str: string) {
+    if (!str) return ''
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+  }
+
+  // 补拉学生页面数据
+  async function refreshStudentData() {
+    const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || ''
+    const WORKER_URL = (import.meta as any).env?.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+    const cachedToken = sessionStorage.getItem(`classmate_token_${slug}`)
+    const headers: Record<string, string> = {}
+    if (cachedToken) {
+      headers['X-Classmate-Token'] = cachedToken
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/students/${slug}`, { headers })
+      const data = await res.json()
+      if (data.success && data.data) {
+        const s = data.data
+        const info = s.info || {}
+
+        // 更新个人小传
+        const modulesSection = document.getElementById('profile-modules-section')
+        const modulesList = document.getElementById('profile-modules-list')
+        const profileModules = info.profileModules || []
+        
+        if (modulesSection && modulesList) {
+          if (profileModules.length > 0) {
+            modulesSection.style.display = ''
+            modulesList.innerHTML = profileModules.map((mod: any) => `
+              <div class="profile-module-item card mb-4 p-4">
+                <h3 class="font-display text-lg mb-2">${escapeHtml(mod.title)}</h3>
+                <p class="whitespace-pre-wrap">${escapeHtml(mod.content)}</p>
+              </div>
+            `).join('')
+          } else {
+            modulesSection.style.display = 'none'
+            modulesList.innerHTML = ''
+          }
+        }
+
+        // 1. 更新各信息字段
+        
+        // 遍历所有定义的 data-field-item 容器
+        const items = document.querySelectorAll('[data-field-item]')
+        items.forEach(el => {
+          const key = el.getAttribute('data-field-item')
+          if (key) {
+            const val = info[key] || ''
+            const keyEl = el.querySelector('[data-field-key]')
+            if (keyEl) {
+              keyEl.textContent = val
+            }
+            if (val) {
+              (el as HTMLElement).style.display = ''
+            } else {
+              (el as HTMLElement).style.display = 'none'
+            }
+          }
+        })
+        
+        // 2. 根据容器下的 item 状态显示/隐藏大 section 容器
+        const sections = document.querySelectorAll('[data-section-container]')
+        sections.forEach(sec => {
+          const subItems = sec.querySelectorAll('[data-field-item]')
+          let hasVisible = false
+          subItems.forEach(item => {
+            if ((item as HTMLElement).style.display !== 'none') {
+              hasVisible = true
+            }
+          })
+          if (hasVisible) {
+            (sec as HTMLElement).style.display = ''
+          } else {
+            (sec as HTMLElement).style.display = 'none'
+          }
+        })
+        
+        // 3. 更新头像、姓名及背景图
+        const avatarEl = document.querySelector('.hero-avatar img') as HTMLImageElement
+        if (avatarEl && s.avatarUrl) {
+          avatarEl.src = s.avatarUrl.startsWith('http') ? s.avatarUrl : `${WORKER_URL}${s.avatarUrl}`
+        }
+        
+        const nameEl = document.querySelector('.hero-name')
+        if (nameEl && s.name) {
+          nameEl.textContent = s.name
+        }
+        
+        const mottoEl = document.querySelector('.hero-motto')
+        if (mottoEl && info.motto) {
+          mottoEl.textContent = info.motto
+        }
+        
+        if (s.backgroundUrl) {
+          const bgUrl = s.backgroundUrl.startsWith('http') ? s.backgroundUrl : `${WORKER_URL}${s.backgroundUrl}`
+          const heroBgEl = document.querySelector('.hero-bg') as HTMLElement
+          if (heroBgEl) {
+            heroBgEl.style.backgroundImage = `url(${bgUrl})`
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to live refresh student data:', e)
+    }
+  }
+
+  // 页面载入时执行补拉
+  refreshStudentData()
+  
+  // 监听自助编辑更新事件，重新拉取
+  window.addEventListener('student-profile-updated', (e: any) => {
+    if (e.detail?.slug === slug) {
+      refreshStudentData()
+    }
+  })
+
   // 访问计数（同一会话内同一页面只计一次）
   const visitKey = `visited_${slug}`
   if (!sessionStorage.getItem(visitKey)) {
     sessionStorage.setItem(visitKey, '1')
-    const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
-    fetch(`${API_BASE}/api/students/${slug}/visit`, { method: 'POST' })
+    const API_BASE_URL_VISIT = (import.meta as any).env?.VITE_API_BASE_URL || ''
+    fetch(`${API_BASE_URL_VISIT}/api/students/${slug}/visit`, { method: 'POST' })
       .then(r => r.json()).then(d => {
         if (d.success) {
           const el = document.getElementById(`visit-count-${slug}`)
@@ -186,6 +361,39 @@ const futureFields = getFields(student.info, [
         }
       }).catch(() => {})
   }
+
+  // 分享卡交互
+  const shareBtn = document.getElementById('share-card-btn')
+  const shareModal = document.getElementById('share-modal')
+  const shareOverlay = document.getElementById('share-modal-overlay')
+  const shareClose = document.getElementById('share-close-btn')
+  const qrImg = document.getElementById('share-qr-img') as HTMLImageElement
+
+  if (shareBtn && shareModal && qrImg) {
+    shareBtn.addEventListener('click', () => {
+      const currentUrl = window.location.href
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(currentUrl)}`
+      
+      const avatarEl = document.querySelector('.hero-avatar img') as HTMLImageElement
+      const shareAvatarImg = document.getElementById('share-avatar-img') as HTMLImageElement
+      if (avatarEl && shareAvatarImg) {
+        shareAvatarImg.src = avatarEl.src
+      }
+      const mottoEl = document.querySelector('.hero-motto')
+      const shareMottoText = document.getElementById('share-motto-text')
+      if (mottoEl && shareMottoText) {
+        shareMottoText.textContent = mottoEl.textContent || ''
+      }
+      
+      shareModal.style.display = 'flex'
+    })
+  }
+  
+  const hideShare = () => {
+    if (shareModal) shareModal.style.display = 'none'
+  }
+  if (shareOverlay) shareOverlay.addEventListener('click', hideShare)
+  if (shareClose) shareClose.addEventListener('click', hideShare)
 </script>
 
 <script id={`photo-data-${slug}`} type="application/json" set:html={JSON.stringify(student?.photos || [])}></script>
@@ -213,4 +421,63 @@ const futureFields = getFields(student.info, [
     transform: rotate(-5deg);
     display: inline-block;
   }
+
+  .share-trigger-container { position: fixed; bottom: 80px; right: 24px; z-index: 99; }
+  .share-trigger-btn {
+    padding: 10px 20px;
+    background: var(--color-surface-card, #fff);
+    color: var(--color-primary, #cc785c);
+    border: 1px solid var(--color-primary, #cc785c);
+    border-radius: var(--rounded-md);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0,0,0,0.15));
+    transition: transform var(--duration-fast) var(--ease-out-quart), background var(--duration-fast);
+  }
+  .share-trigger-btn:hover { transform: scale(1.05); background: var(--color-surface-cream, #fcfaf7); }
+  
+  .share-modal {
+    position: fixed; inset: 0; z-index: 300;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .share-modal-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.6);
+  }
+  .share-card {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 360px;
+    background: var(--color-surface-card, #fff);
+    border-radius: var(--rounded-lg);
+    padding: 32px 24px 24px;
+    text-align: center;
+    box-shadow: var(--shadow-elevated, 0 12px 36px rgba(0,0,0,0.25));
+  }
+  .share-close-btn {
+    position: absolute; top: 12px; right: 16px;
+    background: none; border: none; font-size: 18px;
+    color: var(--color-muted); cursor: pointer;
+  }
+  .share-close-btn:hover { color: var(--color-primary); }
+  .share-avatar-wrapper {
+    width: 80px; height: 80px; margin: 0 auto 16px;
+    border-radius: 50%; overflow: hidden;
+    border: 3px solid var(--color-primary);
+  }
+  .share-avatar { width: 100%; height: 100%; object-fit: cover; }
+  .share-name { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+  .share-motto { font-size: 14px; color: var(--color-muted); font-style: italic; margin-bottom: 24px; }
+  .share-qr-wrapper {
+    background: var(--color-surface-cream, #fcfaf7);
+    border: 1px dashed var(--color-hairline);
+    border-radius: var(--rounded-md);
+    padding: 16px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .share-qr { width: 150px; height: 150px; margin-bottom: 8px; }
+  .share-qr-tip { font-size: 12px; color: var(--color-muted); }
+  .w-full { width: 100%; }
+  .mt-4 { margin-top: 16px; }
 </style>

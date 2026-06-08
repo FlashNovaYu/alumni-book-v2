@@ -8,6 +8,32 @@ type Bindings = {
 
 export const classmateRoutes = new Hono<{ Bindings: Bindings }>()
 
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
+  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+  const saltStr = btoa(String.fromCharCode(...salt))
+  return `pbkdf2:${saltStr}:${hash}`
+}
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  if (storedHash.startsWith('pbkdf2:')) {
+    const [, saltStr, hash] = storedHash.split(':')
+    const encoder = new TextEncoder()
+    const salt = Uint8Array.from(atob(saltStr), c => c.charCodeAt(0))
+    const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
+    const computedHash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+    return computedHash === hash
+  }
+  const encoder = new TextEncoder()
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(password))
+  const computedHash = btoa(String.fromCharCode(...new Uint8Array(hash)))
+  return computedHash === storedHash
+}
+
 const TOKEN_TTL = 30 * 60 * 1000 // 30 分钟
 
 // 从 JWT_SECRET 派生独立密钥，避免密钥重用
@@ -80,13 +106,13 @@ async function authClassmate(c: any, secret: string): Promise<string | null> {
 // POST /api/classmate/token — 获取编辑凭证
 classmateRoutes.post('/classmate/token', async (c) => {
   const db = c.env.DB
-  const { name, slug } = await c.req.json()
+  const { name, slug, editSecret } = await c.req.json()
 
   if (!name || !slug) {
     return c.json({ success: false, message: '姓名和 slug 必填' }, 400)
   }
 
-  const student = await db.prepare('SELECT name FROM students WHERE slug = ?').bind(slug).first()
+  const student = await db.prepare('SELECT name, edit_secret_hash FROM students WHERE slug = ?').bind(slug).first()
   if (!student) {
     return c.json({ success: false, message: '同学不存在' }, 404)
   }
@@ -95,8 +121,25 @@ classmateRoutes.post('/classmate/token', async (c) => {
     return c.json({ success: false, message: '姓名不匹配' }, 403)
   }
 
+  const storedHash = (student as any).edit_secret_hash
+  if (storedHash) {
+    if (!editSecret) {
+      return c.json({ success: false, message: '请输入编辑口令', requireSecret: true }, 403)
+    }
+    const valid = await verifyPassword(editSecret, storedHash)
+    if (!valid) {
+      return c.json({ success: false, message: '口令错误', requireSecret: true }, 403)
+    }
+  }
+
   const token = await generateClassmateToken(slug, await getClassmateSecret(c.env.JWT_SECRET))
-  return c.json({ success: true, data: { token } })
+  return c.json({
+    success: true,
+    data: {
+      token,
+      needSetup: !storedHash,
+    }
+  })
 })
 
 // PUT /api/classmate/students/:slug — 自助编辑资料
@@ -129,6 +172,16 @@ classmateRoutes.put('/classmate/students/:slug', async (c) => {
   if (body.info?.school !== undefined) { fields.push('school = ?'); values.push(body.info.school) }
   if (body.info?.class !== undefined) { fields.push('class_name = ?'); values.push(body.info.class) }
   if (body.info !== undefined) { fields.push('info = ?'); values.push(JSON.stringify(body.info)) }
+  if (body.editSecret !== undefined && body.editSecret !== null && body.editSecret !== '') {
+    const hash = await hashPassword(body.editSecret)
+    fields.push('edit_secret_hash = ?')
+    values.push(hash)
+    fields.push("edit_secret_updated_at = datetime('now')")
+  }
+  if (body.privacyLevel !== undefined) {
+    fields.push('privacy_level = ?')
+    values.push(body.privacyLevel)
+  }
 
   if (fields.length === 0) {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)
@@ -141,6 +194,34 @@ classmateRoutes.put('/classmate/students/:slug', async (c) => {
 
   return c.json({ success: true, message: '保存成功' })
 })
+
+const MAX_SIZES: Record<string, number> = {
+  avatar: 2 * 1024 * 1024,      // 2MB
+  background: 5 * 1024 * 1024,  // 5MB
+}
+
+const ALLOWED_MIMES: Record<string, string[]> = {
+  avatar: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+  background: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+}
+
+async function deleteOldFile(db: D1Database, r2: R2Bucket, query: string, params: any[]) {
+  try {
+    const row = await db.prepare(query).bind(...params).first()
+    if (!row) return
+    
+    const url = (row as any).avatar_url || (row as any).background_url
+    if (url) {
+      const parts = url.split('/api/files/')
+      if (parts.length === 2) {
+        const oldKey = parts[1]
+        await r2.delete(oldKey)
+      }
+    }
+  } catch (e) {
+    console.error('Failed to delete old file from R2:', e)
+  }
+}
 
 // POST /api/classmate/upload — 自助上传头像/背景图
 classmateRoutes.post('/classmate/upload', async (c) => {
@@ -173,22 +254,46 @@ classmateRoutes.post('/classmate/upload', async (c) => {
     return c.json({ success: false, message: '没有文件' }, 400)
   }
 
+  // 1. 验证大小
+  const maxBytes = MAX_SIZES[type]
+  if (file.size > maxBytes) {
+    return c.json({ success: false, message: '文件体积超出限制' }, 413)
+  }
+
+  // 2. 验证 MIME 类型
+  const allowed = ALLOWED_MIMES[type]
+  if (!allowed.includes(file.type)) {
+    return c.json({ success: false, message: '不支持的文件格式' }, 400)
+  }
+
   const ext = file.name.split('.').pop() || 'bin'
   const timestamp = Date.now()
   const r2Key = type === 'avatar'
     ? `avatars/${slug}_${timestamp}.${ext}`
     : `backgrounds/${slug}_${timestamp}.${ext}`
 
+  // 3. 上传新文件到 R2
   await r2.put(r2Key, file.stream(), {
     httpMetadata: { contentType: file.type },
   })
 
+  // 统一存为相对路径，有利于环境迁移与解耦
+  const relativeUrl = `/api/files/${r2Key}`
+
+  // 4. 清理旧文件并更新数据库
+  if (type === 'avatar') {
+    await deleteOldFile(db, r2, 'SELECT avatar_url FROM students WHERE slug = ?', [slug])
+    await db.prepare('UPDATE students SET avatar_url = ?, updated_at = datetime(\'now\') WHERE slug = ?')
+      .bind(relativeUrl, slug).run()
+  } else if (type === 'background') {
+    await deleteOldFile(db, r2, 'SELECT background_url FROM students WHERE slug = ?', [slug])
+    await db.prepare('UPDATE students SET background_url = ?, updated_at = datetime(\'now\') WHERE slug = ?')
+      .bind(relativeUrl, slug).run()
+  }
+
   const origin = new URL(c.req.url).origin
-  const publicUrl = `${origin}/api/files/${r2Key}`
+  const absoluteUrl = `${origin}${relativeUrl}`
 
-  const col = type === 'avatar' ? 'avatar_url' : 'background_url'
-  await db.prepare(`UPDATE students SET ${col} = ?, updated_at = datetime('now') WHERE slug = ?`)
-    .bind(publicUrl, slug).run()
-
-  return c.json({ success: true, data: { url: publicUrl, r2Key } })
+  return c.json({ success: true, data: { url: absoluteUrl, r2Key } })
 })
+

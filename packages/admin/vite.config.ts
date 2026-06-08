@@ -2,8 +2,11 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+const siteBase = process.env.SITE_BASE ?? '/'
+const adminBase = siteBase === '/' ? '/admin/' : `${siteBase.replace(/\/$/, '')}/admin/`
+
 export default defineConfig({
-  base: '/admin/',
+  base: adminBase,
   plugins: [vue()],
   resolve: {
     alias: {
@@ -12,7 +15,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: process.env.NODE_ENV !== 'production',
   },
   define: {
     'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL ?? 'https://alumni-book-api.chenyuhao2263.workers.dev'),

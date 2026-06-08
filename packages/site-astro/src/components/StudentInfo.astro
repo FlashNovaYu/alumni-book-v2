@@ -6,13 +6,13 @@ const { title, fields, isMemory } = Astro.props as {
 }
 ---
 
-<section class="profile-section">
+<section class="profile-section" data-info-section={title}>
   <h2 class="section-title display-sm">{title}</h2>
   <div class={isMemory ? 'memory-list' : 'info-grid'}>
     {fields.map(f => (
-      <div class="info-item">
+      <div class="info-item" data-field-item={f.key} style={f.value ? '' : 'display: none;'}>
         <span class="info-label">{f.label}</span>
-        <span class="info-value">{f.value}</span>
+        <span class="info-value" data-field-key={f.key}>{f.value}</span>
       </div>
     ))}
   </div>

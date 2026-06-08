@@ -3,6 +3,30 @@
     <button class="edit-trigger" @click="openEditor">编辑我的资料</button>
 
     <Teleport to="body">
+      <!-- 口令锁卡片 -->
+      <Transition name="modal">
+        <div v-if="showSecretPrompt" class="editor-overlay" @click.self="showSecretPrompt = false">
+          <div class="secret-panel card">
+            <h3 class="secret-title">编辑口令验证</h3>
+            <p class="secret-desc">该页面已启用编辑口令保护，请输入口令以继续：</p>
+            <input
+              v-model="inputSecret"
+              type="password"
+              class="text-input secret-input"
+              placeholder="请输入编辑口令"
+              @keydown.enter="submitSecret"
+            />
+            <p v-if="secretError" class="error-text">{{ secretError }}</p>
+            <div class="secret-buttons">
+              <button class="btn-sm" @click="showSecretPrompt = false">取消</button>
+              <button class="btn-primary" @click="submitSecret" :disabled="submittingSecret">
+                {{ submittingSecret ? '验证中...' : '确认' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <Transition name="modal">
         <div v-if="show" class="editor-overlay" @click.self="closeEditor">
           <div class="editor-panel card">
@@ -14,6 +38,14 @@
             </div>
 
             <div class="editor-body">
+              <!-- 口令首次设置提示 -->
+              <div v-if="needSetup" class="setup-notice">
+                <span class="warning-icon">⚠️</span>
+                <p class="notice-text">
+                  您尚未设置编辑口令！任何人知道姓名的人都可以冒用修改。请在下方<strong>安全设置</strong>中设定您的专属口令。
+                </p>
+              </div>
+
               <!-- 头像 -->
               <section class="edit-section">
                 <h3 class="section-label">头像</h3>
@@ -93,12 +125,20 @@
                 </div>
               </section>
 
-              <!-- 联系方式 -->
+              <!-- 联系方式（支持隐私控制） -->
               <section class="edit-section">
                 <h3 class="section-label">联系方式</h3>
                 <div class="field-grid">
                   <div class="form-group" v-for="f in contactFields" :key="f.key">
-                    <label class="form-label">{{ f.label }}</label>
+                    <div class="label-row">
+                      <label class="form-label">{{ f.label }}</label>
+                      <select v-model="form.info.visibility[f.key]" class="privacy-select">
+                        <option value="public">公开</option>
+                        <option value="classmates">同学</option>
+                        <option value="owner">本人</option>
+                        <option value="hidden">隐藏</option>
+                      </select>
+                    </div>
                     <input v-model="form.info[f.key]" class="text-input" />
                   </div>
                 </div>
@@ -132,6 +172,41 @@
                   <textarea v-model="form.info[f.key]" class="textarea" rows="2" maxlength="500" />
                 </div>
               </section>
+
+              <!-- 个人小传 -->
+              <section class="edit-section">
+                <h3 class="section-label">个人小传</h3>
+                <div class="modules-list">
+                  <div v-for="(mod, idx) in form.info.profileModules" :key="idx" class="module-item card p-3 mb-3">
+                    <div class="module-item-header">
+                      <input v-model="mod.title" class="text-input module-title-input" placeholder="模块标题（例如：现在的我）" maxlength="50" />
+                      <div class="module-actions">
+                        <button class="btn-sm btn-icon" @click="moveModule(idx, -1)" :disabled="idx === 0" title="上移">▲</button>
+                        <button class="btn-sm btn-icon" @click="moveModule(idx, 1)" :disabled="idx === form.info.profileModules.length - 1" title="下移">▼</button>
+                        <button class="btn-sm btn-danger btn-icon" @click="removeModule(idx)" title="删除">✕</button>
+                      </div>
+                    </div>
+                    <textarea v-model="mod.content" class="textarea module-content-input mt-2" rows="3" placeholder="小传内容…" maxlength="1000"></textarea>
+                  </div>
+                  <button class="btn-sm btn-secondary w-full" @click="addModule">+ 添加小传模块</button>
+                </div>
+              </section>
+
+              <!-- 安全设置 -->
+              <section class="edit-section">
+                <h3 class="section-label">安全设置</h3>
+                <div class="field-grid">
+                  <div class="form-group full-width">
+                    <label class="form-label">编辑口令（不修改请留空）</label>
+                    <input
+                      v-model="form.editSecret"
+                      type="password"
+                      class="text-input"
+                      placeholder="请输入口令"
+                    />
+                  </div>
+                </div>
+              </section>
             </div>
 
             <div class="editor-footer">
@@ -149,7 +224,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { getSessionName, compressImage, type Student, type StudentInfo } from '@alumni/shared'
+import { getSessionName, compressImage, type Student } from '@alumni/shared'
 
 const props = defineProps<{
   studentSlug: string
@@ -164,18 +239,28 @@ const uploading = ref(false)
 const saveMsg = ref<{ type: string; text: string } | null>(null)
 const token = ref('')
 
+const showSecretPrompt = ref(false)
+const inputSecret = ref('')
+const secretError = ref('')
+const submittingSecret = ref(false)
+const needSetup = ref(false)
+
 const form = reactive<{
   name: string
   avatarUrl: string | null
   backgroundUrl: string | null
   backgroundColor: string | null
-  info: Record<string, string>
+  info: Record<string, any>
+  editSecret: string
 }>({
   name: '',
   avatarUrl: null,
   backgroundUrl: null,
   backgroundColor: null,
-  info: {},
+  info: {
+    visibility: {}
+  },
+  editSecret: '',
 })
 
 const isOwner = getSessionName() === props.studentName
@@ -184,25 +269,41 @@ function authHeaders(): Record<string, string> {
   return token.value ? { 'X-Classmate-Token': token.value } : {}
 }
 
-async function ensureToken(): Promise<boolean> {
+async function ensureToken(editSecretVal?: string): Promise<boolean> {
   if (token.value) return true
+  const cached = sessionStorage.getItem(`classmate_token_${props.studentSlug}`)
+  if (cached && !editSecretVal) {
+    token.value = cached
+    return true
+  }
   const name = getSessionName()
   if (!name) {
     saveMsg.value = { type: 'error', text: '请先在首页验证身份' }
     return false
   }
   try {
+    const body: any = { name, slug: props.studentSlug }
+    if (editSecretVal) {
+      body.editSecret = editSecretVal
+    }
     const res = await fetch(`${API_BASE}/api/classmate/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, slug: props.studentSlug }),
+      body: JSON.stringify(body),
     })
     const data = await res.json()
     if (data.success) {
       token.value = data.data.token
+      sessionStorage.setItem(`classmate_token_${props.studentSlug}`, token.value)
+      needSetup.value = data.data.needSetup
       return true
     }
-    saveMsg.value = { type: 'error', text: data.message || '身份验证失败' }
+    if (data.requireSecret) {
+      showSecretPrompt.value = true
+      secretError.value = editSecretVal ? (data.message || '口令错误') : ''
+    } else {
+      saveMsg.value = { type: 'error', text: data.message || '身份验证失败' }
+    }
   } catch {
     saveMsg.value = { type: 'error', text: '网络错误，请稍后重试' }
   }
@@ -211,8 +312,13 @@ async function ensureToken(): Promise<boolean> {
 
 async function openEditor() {
   saveMsg.value = null
-  if (!(await ensureToken())) return
+  const success = await ensureToken()
+  if (success) {
+    await openEditorAfterAuthed()
+  }
+}
 
+async function openEditorAfterAuthed() {
   try {
     const res = await fetch(`${API_BASE}/api/students/${props.studentSlug}`)
     const data = await res.json()
@@ -223,9 +329,51 @@ async function openEditor() {
       form.backgroundUrl = s.backgroundUrl
       form.backgroundColor = s.backgroundColor
       form.info = { ...s.info }
+      if (!form.info.profileModules) {
+        form.info.profileModules = []
+      }
+      if (!form.info.visibility) {
+        form.info.visibility = {
+          phone: 'classmates',
+          wechat: 'classmates',
+          email: 'classmates',
+          address: 'classmates',
+          qq: 'classmates',
+          weibo: 'classmates',
+        }
+      } else {
+        // 确保字段都有默认值
+        const keys = ['phone', 'wechat', 'email', 'address', 'qq', 'weibo']
+        for (const k of keys) {
+          if (!form.info.visibility[k]) {
+            form.info.visibility[k] = 'classmates'
+          }
+        }
+      }
+      form.editSecret = ''
     }
   } catch { /* keep defaults */ }
   show.value = true
+}
+
+async function submitSecret() {
+  const secret = inputSecret.value.trim()
+  if (!secret) {
+    secretError.value = '请输入编辑口令'
+    return
+  }
+  submittingSecret.value = true
+  secretError.value = ''
+  try {
+    const success = await ensureToken(secret)
+    if (success) {
+      showSecretPrompt.value = false
+      inputSecret.value = ''
+      await openEditorAfterAuthed()
+    }
+  } finally {
+    submittingSecret.value = false
+  }
 }
 
 function closeEditor() {
@@ -263,7 +411,6 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
     saveMsg.value = { type: 'error', text: '上传失败' }
   } finally {
     uploading.value = false
-    // reset file input
     ;(e.target as HTMLInputElement).value = ''
   }
 }
@@ -282,6 +429,7 @@ async function save() {
     if (form.avatarUrl) body.avatarUrl = form.avatarUrl
     if (form.backgroundUrl) body.backgroundUrl = form.backgroundUrl
     if (form.backgroundColor) body.backgroundColor = form.backgroundColor
+    if (form.editSecret) body.editSecret = form.editSecret
 
     const res = await fetch(`${API_BASE}/api/classmate/students/${props.studentSlug}`, {
       method: 'PUT',
@@ -291,13 +439,18 @@ async function save() {
     const data = await res.json()
     if (data.success) {
       saveMsg.value = { type: 'success', text: '保存成功' }
+      window.dispatchEvent(new CustomEvent('student-profile-updated', { detail: { slug: props.studentSlug } }))
+      // 如果更新了口令，可能会触发 needSetup 变为 false
+      if (form.editSecret) {
+        needSetup.value = false
+      }
       setTimeout(() => closeEditor(), 1500)
     } else if (res.status === 401) {
-      // token 过期 → 自动重新获取并重试
       token.value = ''
+      sessionStorage.removeItem(`classmate_token_${props.studentSlug}`)
       if (await ensureToken()) {
         saving.value = false
-        return save() // 重试一次
+        return save()
       }
       saveMsg.value = { type: 'error', text: '身份验证失败，请关闭后重新打开编辑' }
     } else {
@@ -340,6 +493,25 @@ const futureFields = [
   { key: 'futureSelf', label: '十年后的自己' },
   { key: 'letterToFuture', label: '给未来自己的话' },
 ]
+
+function addModule() {
+  if (!form.info.profileModules) {
+    form.info.profileModules = []
+  }
+  form.info.profileModules.push({ type: 'custom', title: '', content: '' })
+}
+
+function removeModule(index: number) {
+  form.info.profileModules.splice(index, 1)
+}
+
+function moveModule(index: number, direction: number) {
+  const targetIndex = index + direction
+  if (targetIndex < 0 || targetIndex >= form.info.profileModules.length) return
+  const temp = form.info.profileModules[index]
+  form.info.profileModules[index] = form.info.profileModules[targetIndex]
+  form.info.profileModules[targetIndex] = temp
+}
 </script>
 
 <style scoped>
@@ -443,4 +615,114 @@ const futureFields = [
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .editor-panel { transform: scale(0.95) translateY(8px); }
 .modal-leave-to .editor-panel { transform: scale(0.95) translateY(8px); }
+
+/* Secret Dialog CSS */
+.secret-panel {
+  width: 100%; max-width: 380px;
+  background: var(--color-surface-card, #fff);
+  border-radius: var(--rounded-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0,0,0,0.15));
+}
+.secret-title { font-size: 16px; font-weight: 600; margin: 0; }
+.secret-desc { font-size: 14px; color: var(--color-muted); margin: 0; line-height: 1.5; }
+.secret-input { width: 100%; }
+.secret-buttons { display: flex; justify-content: flex-end; gap: 12px; }
+.error-text { font-size: 12px; color: #c62828; margin: 0; }
+
+.privacy-select {
+  padding: 2px 6px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--rounded-sm);
+  font-size: 12px;
+  background: var(--color-surface-cream, #fcfaf7);
+  color: var(--color-muted);
+  cursor: pointer;
+  outline: none;
+}
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.setup-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: var(--rounded-sm);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.warning-icon { font-size: 20px; }
+.notice-text { font-size: 13px; color: #b78103; margin: 0; line-height: 1.5; }
+
+.module-item {
+  border: 1px solid var(--color-hairline);
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: var(--rounded-sm);
+  background: var(--color-surface-cream, #fcfaf7);
+}
+.module-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.module-title-input {
+  flex: 1;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+.module-actions {
+  display: flex;
+  gap: 4px;
+}
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.module-content-input {
+  width: 100%;
+  margin-top: 8px;
+}
+.w-full {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .editor-panel {
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    border-radius: var(--rounded-lg) var(--rounded-lg) 0 0 !important;
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+  .editor-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .editor-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: var(--color-surface-card, #fff) !important;
+    border-top: 1px solid var(--color-hairline) !important;
+    padding: 16px 24px !important;
+    z-index: 10 !important;
+  }
+}
 </style>
+

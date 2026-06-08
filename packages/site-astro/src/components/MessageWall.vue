@@ -3,7 +3,24 @@
     <h2 class="section-title display-sm">同学留言</h2>
 
     <div class="msg-form">
-      <textarea v-model="newContent" class="text-input msg-textarea" placeholder="写下一段话，留作彼此的纪念…" maxlength="500" rows="3"></textarea>
+      <textarea
+        v-model="newContent"
+        class="text-input msg-textarea"
+        :class="'style-preview-' + selectedCardStyle"
+        placeholder="写下一段话，留作彼此的纪念…"
+        maxlength="500"
+        rows="3"
+      ></textarea>
+      
+      <!-- 明信片款式选择器 -->
+      <div class="msg-style-selector">
+        <span class="style-label">明信片款式：</span>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'paper' }" @click="selectedCardStyle = 'paper'">复古纸张</button>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'chalkboard' }" @click="selectedCardStyle = 'chalkboard'">粉笔黑板</button>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'photoback' }" @click="selectedCardStyle = 'photoback'">相片背面</button>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'letter' }" @click="selectedCardStyle = 'letter'">横格信笺</button>
+      </div>
+
       <div class="msg-form-footer">
         <span class="msg-char-count">{{ newContent.length }}/500</span>
         <button class="btn-primary btn-sm" @click="submitMessage" :disabled="submitting || !newContent.trim()">
@@ -24,7 +41,8 @@
       <p>暂无留言，成为第一个留言的人吧</p>
     </div>
     <div v-else class="msg-list">
-      <div v-for="msg in messages" :key="msg.id" class="msg-item">
+      <div v-for="msg in messages" :key="msg.id" class="msg-item" :class="'style-' + (msg.cardStyle || 'paper')">
+        <div v-if="msg.pinned" class="pinned-badge">📌 置顶留言</div>
         <div class="msg-header">
           <span class="msg-author">{{ msg.authorName }}</span>
           <span class="msg-time">{{ formatDate(msg.createdAt) }}</span>
@@ -68,6 +86,7 @@ import { getSessionName } from '@alumni/shared'
 interface Message {
   id: string; authorName: string; content: string; createdAt: string
   reactions: Record<string, number>; reply: string | null; replyAt: string | null
+  cardStyle?: string; pinned?: boolean
 }
 
 const props = defineProps<{ studentSlug: string; pageOwnerName?: string }>()
@@ -75,6 +94,7 @@ const props = defineProps<{ studentSlug: string; pageOwnerName?: string }>()
 const messages = ref<Message[]>([])
 const loading = ref(true)
 const newContent = ref('')
+const selectedCardStyle = ref('paper')
 const submitting = ref(false)
 const submitResult = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
@@ -115,11 +135,16 @@ async function submitMessage() {
     const res = await fetch(`${API_BASE}/api/messages/${props.studentSlug}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ authorName: author, content: newContent.value.trim() }),
+      body: JSON.stringify({ 
+        authorName: author, 
+        content: newContent.value.trim(),
+        cardStyle: selectedCardStyle.value
+      }),
     })
     const data = await res.json()
     if (data.success) {
       newContent.value = ''
+      selectedCardStyle.value = 'paper'
       submitResult.value = { type: 'success', message: '留言已提交，等待审核后显示' }
     } else {
       submitResult.value = { type: 'error', message: data.message || '提交失败' }
@@ -144,15 +169,65 @@ async function react(msgId: string, emoji: string) {
   } catch {}
 }
 
+async function ensureClassmateToken(): Promise<string | null> {
+  const cached = sessionStorage.getItem(`classmate_token_${props.studentSlug}`)
+  if (cached) return cached
+  
+  const name = getSessionName()
+  if (!name) return null
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/classmate/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, slug: props.studentSlug }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      sessionStorage.setItem(`classmate_token_${props.studentSlug}`, data.data.token)
+      return data.data.token
+    }
+    if (data.requireSecret) {
+      const secret = window.prompt('由于该页面已启用口令保护，请输入您的编辑口令以回复留言：')
+      if (!secret) return null
+      
+      const res2 = await fetch(`${API_BASE}/api/classmate/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, slug: props.studentSlug, editSecret: secret }),
+      })
+      const data2 = await res2.json()
+      if (data2.success) {
+        sessionStorage.setItem(`classmate_token_${props.studentSlug}`, data2.data.token)
+        return data2.data.token
+      } else {
+        alert(data2.message || '口令验证失败')
+      }
+    }
+  } catch {
+    alert('网络错误，请稍后重试')
+  }
+  return null
+}
+
 async function submitReply(msgId: string) {
   const text = replyTexts.value[msgId]?.trim()
   if (!text) return
-  const author = getAuthorName()
+  
+  const tokenVal = await ensureClassmateToken()
+  if (!tokenVal) {
+    alert('身份校验失败，无法回复留言')
+    return
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/messages/${msgId}/reply`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reply: text, authorName: author }),
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Classmate-Token': tokenVal,
+      },
+      body: JSON.stringify({ reply: text }),
     })
     const data = await res.json()
     if (data.success) {
@@ -162,8 +237,15 @@ async function submitReply(msgId: string) {
         msg.replyAt = new Date().toISOString()
       }
       delete replyTexts.value[msgId]
+    } else if (res.status === 401) {
+      sessionStorage.removeItem(`classmate_token_${props.studentSlug}`)
+      alert('身份校验已过期，请重新尝试回复')
+    } else {
+      alert(data.message || '回复失败')
     }
-  } catch {}
+  } catch {
+    alert('网络错误，请稍后重试')
+  }
 }
 
 onMounted(async () => {
@@ -247,4 +329,111 @@ onMounted(async () => {
 .reply-label { font-size: 12px; color: var(--color-muted); display: block; margin-bottom: 4px; }
 .reply-form { margin-top: 10px; display: flex; gap: 8px; align-items: flex-end; }
 .reply-textarea { flex: 1; min-height: 36px; font-size: 13px; }
+
+/* Pinned badge */
+.pinned-badge {
+  display: inline-block;
+  font-size: 11px;
+  background-color: #ffe082;
+  color: #5d4037;
+  padding: 2px 8px;
+  border-radius: var(--rounded-sm);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Style Selector */
+.msg-style-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.style-label {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.style-select-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--color-hairline);
+  background-color: var(--color-canvas);
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.style-select-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+/* Card skin styles */
+.msg-item {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg) !important;
+  border-radius: var(--rounded-md);
+  transition: transform var(--duration-fast);
+}
+.msg-item:hover {
+  transform: translateY(-2px);
+}
+
+.style-paper {
+  background: #fcfaf2;
+  border: 1px solid #eedec4;
+  color: #4a3e3d;
+  box-shadow: 0 4px 12px rgba(139,120,95,0.08);
+}
+.style-chalkboard {
+  background: #1e2d2f;
+  border: 1px solid #10191a;
+  color: #f5f5f5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.style-chalkboard .msg-author,
+.style-chalkboard .msg-time,
+.style-chalkboard .msg-content,
+.style-chalkboard .reply-label {
+  color: #e0f2f1;
+}
+.style-photoback {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  color: #212121;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+.style-letter {
+  background: #faf6f0;
+  background-image: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 27px, #e0d4c9 28px);
+  line-height: 28px !important;
+  color: #3e2723;
+  border: 1px solid #e0d4c9;
+  box-shadow: 0 4px 12px rgba(93,64,55,0.08);
+}
+.style-letter .msg-content {
+  line-height: 28px !important;
+}
+
+/* Preview class in forms */
+.msg-textarea.style-preview-paper {
+  background: #fcfaf2;
+  color: #4a3e3d;
+}
+.msg-textarea.style-preview-chalkboard {
+  background: #1e2d2f;
+  color: #f5f5f5;
+}
+.msg-textarea.style-preview-photoback {
+  background: #ffffff;
+  color: #212121;
+}
+.msg-textarea.style-preview-letter {
+  background: #faf6f0;
+  background-image: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 27px, #e0d4c9 28px);
+  line-height: 28px;
+  color: #3e2723;
+}
 </style>

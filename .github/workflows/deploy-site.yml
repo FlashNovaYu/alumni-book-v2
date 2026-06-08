@@ -37,11 +37,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build site (Astro SSG)
-        run: pnpm --filter site-astro build
+      - name: Verify Worker tests
+        run: pnpm verify:worker
 
-      - name: Build admin
-        run: pnpm --filter admin build
+      - name: Verify Admin build
+        run: pnpm verify:admin
+        env:
+          SITE_BASE: /alumni-book-v2/
+
+      - name: Verify Site build and navigation
+        run: pnpm verify:site
+        env:
+          SITE_BASE: /alumni-book-v2/
+          VITE_WORKER_URL: 'https://alumni-book-api.chenyuhao2263.workers.dev'
+          VITE_API_BASE_URL: ''
 
       - name: Prepare deployment
         run: |

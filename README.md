@@ -17,20 +17,20 @@
 pnpm install
 
 # 启动公开站点
-pnpm --filter site dev
+pnpm dev:site
 
 # 启动管理后台
-pnpm --filter admin dev
+pnpm dev:admin
 
 # 启动 Worker API (需要 wrangler)
-pnpm --filter worker dev
+pnpm dev:worker
 ```
 
 ## 项目结构
 
 ```
 packages/
-├── site/          # 公开访问的 Vue SPA
+├── site-astro/    # 面向访客的 Astro 5 SSG 站点，交互部分使用 Vue islands
 ├── admin/         # 管理后台 Vue SPA
 └── shared/        # 共享类型、设计令牌
 workers/

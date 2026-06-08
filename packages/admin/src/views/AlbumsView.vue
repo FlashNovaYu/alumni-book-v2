@@ -10,13 +10,23 @@
         <div class="album-header-row">
           <div>
             <h3 class="title-md">{{ album.title }}</h3>
-            <p class="album-meta">{{ album.photos?.length || 0 }} 张照片</p>
+            <div class="album-tags mt-1">
+              <span v-for="tag in album.tags" :key="tag" class="tag-badge">{{ tag }}</span>
+            </div>
+            <p class="album-meta mt-1">{{ album.photos?.length || 0 }} 张照片 · 边框: {{ album.frameStyle }}</p>
           </div>
           <div class="album-actions">
+            <button class="btn-secondary" @click="startEdit(album)">管理相册</button>
             <button class="btn-secondary" @click="startUpload(album)">上传照片</button>
             <button class="btn-danger" @click="handleDelete(album)">删除</button>
           </div>
         </div>
+        
+        <div class="album-cover-preview-row mb-3" v-if="album.coverR2Key">
+          <span class="text-xs text-muted">当前封面: </span>
+          <img :src="getPhotoUrl(album.coverR2Key)" class="cover-mini-thumb" />
+        </div>
+
         <div v-if="album.photos?.length" class="album-thumbs">
           <div v-for="photo in album.photos.slice(0, 6)" :key="photo.id" class="thumb">
             <img :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" />
@@ -60,6 +70,67 @@
       </Transition>
     </Teleport>
 
+    <!-- 编辑相册及照片管理对话框 -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="editAlbum" class="modal-overlay" @click.self="closeEdit">
+          <div class="modal card edit-album-modal">
+            <h2 class="title-md">编辑相册: {{ editAlbum.title }}</h2>
+            <div class="form-group">
+              <label class="form-label">相册名称</label>
+              <input v-model="editForm.title" type="text" class="text-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">描述</label>
+              <textarea v-model="editForm.description" class="textarea"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">标签 (多个标签用逗号隔开)</label>
+              <input v-model="editForm.tagsString" type="text" class="text-input" placeholder="例如: 毕业照, 运动会, 旅行" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">相框样式</label>
+              <select v-model="editForm.frameStyle" class="text-input">
+                <option value="none">无</option>
+                <option value="retro">复古</option>
+                <option value="film">胶片</option>
+                <option value="polaroid">拍立得</option>
+              </select>
+            </div>
+            
+            <!-- 照片列表管理 -->
+            <div class="photo-management mt-4">
+              <h3 class="title-sm mb-2">照片管理 (输入说明后失焦自动保存，点击▲▼调序)</h3>
+              <div v-if="editAlbum.photos && editAlbum.photos.length" class="manage-photo-grid">
+                <div v-for="(photo, idx) in editAlbum.photos" :key="photo.id" class="manage-photo-item">
+                  <img :src="getPhotoUrl(photo.r2Key)" class="manage-photo-img" />
+                  <div class="photo-info">
+                    <input v-model="photo.caption" type="text" class="text-input photo-caption-input" placeholder="输入说明..." @blur="updatePhotoCaption(photo)" />
+                    <div class="photo-actions mt-1">
+                      <button class="btn-secondary btn-action-sm" @click="movePhoto(editAlbum, idx, -1)" :disabled="idx === 0">▲</button>
+                      <button class="btn-secondary btn-action-sm" @click="movePhoto(editAlbum, idx, 1)" :disabled="idx === editAlbum.photos.length - 1">▼</button>
+                      <button class="btn-secondary btn-action-sm" :class="{ 'btn-active-cover': editForm.coverR2Key === photo.r2Key }" @click="setCover(photo.r2Key)">
+                        {{ editForm.coverR2Key === photo.r2Key ? '封面' : '设为封面' }}
+                      </button>
+                      <button class="btn-danger btn-action-sm" @click="deletePhoto(editAlbum, photo.id)">✕</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-muted text-center py-3">暂无照片，请关闭后选择上传照片</p>
+            </div>
+
+            <div class="modal-actions mt-4">
+              <button class="btn-secondary" @click="closeEdit">取消</button>
+              <button class="btn-primary" @click="handleSaveEdit" :disabled="saving">
+                {{ saving ? '保存中...' : '保存修改' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- 上传照片对话框 -->
     <Teleport to="body">
       <Transition name="modal">
@@ -88,11 +159,20 @@ import type { Album, ApiResponse } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-const albums = ref<Album[]>([])
+const albums = ref<any[]>([])
 const showCreate = ref(false)
-const uploadAlbum = ref<Album | null>(null)
+const uploadAlbum = ref<any | null>(null)
 const uploading = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none' })
+
+const editAlbum = ref<any | null>(null)
+const editForm = ref({
+  title: '',
+  description: '',
+  frameStyle: 'none',
+  tagsString: '',
+  coverR2Key: '',
+})
 
 function getPhotoUrl(r2Key: string): string {
   if (r2Key.startsWith('http')) return r2Key
@@ -101,7 +181,7 @@ function getPhotoUrl(r2Key: string): string {
 
 async function loadAlbums() {
   try {
-    const res = await adminFetch<ApiResponse<Album[]>>('/api/albums')
+    const res = await adminFetch<ApiResponse<any[]>>('/api/albums')
     albums.value = res.data || []
   } catch {
     albums.value = []
@@ -123,7 +203,7 @@ async function handleCreate() {
   }
 }
 
-function startUpload(album: Album) {
+function startUpload(album: any) {
   uploadAlbum.value = album
 }
 
@@ -154,13 +234,116 @@ async function handlePhotoUpload(e: Event) {
   }
 }
 
-async function handleDelete(album: Album) {
+async function handleDelete(album: any) {
   if (!confirm(`确定要删除相册 "${album.title}" 吗？`)) return
   try {
     await adminFetch(`/api/albums/${album.id}`, { method: 'DELETE' })
     await loadAlbums()
   } catch (e: any) {
     alert(e.message || '删除失败')
+  }
+}
+
+function startEdit(album: any) {
+  editAlbum.value = { ...album }
+  editAlbum.value.photos = album.photos ? album.photos.map((p: any) => ({ ...p })) : []
+  
+  editForm.value = {
+    title: album.title || '',
+    description: album.description || '',
+    frameStyle: album.frameStyle || 'none',
+    tagsString: album.tags ? album.tags.join(', ') : '',
+    coverR2Key: album.coverR2Key || '',
+  }
+}
+
+function closeEdit() {
+  editAlbum.value = null
+}
+
+function setCover(r2Key: string) {
+  editForm.value.coverR2Key = r2Key
+}
+
+async function updatePhotoCaption(photo: any) {
+  try {
+    await adminFetch(`/api/photos/${photo.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ caption: photo.caption })
+    })
+  } catch (e: any) {
+    alert('更新照片说明失败: ' + e.message)
+  }
+}
+
+async function movePhoto(album: any, idx: number, direction: number) {
+  const targetIdx = idx + direction
+  if (targetIdx < 0 || targetIdx >= album.photos.length) return
+  
+  const temp = album.photos[idx]
+  album.photos[idx] = album.photos[targetIdx]
+  album.photos[targetIdx] = temp
+  
+  try {
+    await Promise.all([
+      adminFetch(`/api/photos/${album.photos[idx].id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ sortOrder: idx })
+      }),
+      adminFetch(`/api/photos/${album.photos[targetIdx].id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ sortOrder: targetIdx })
+      })
+    ])
+  } catch (e: any) {
+    alert('调整排序失败: ' + e.message)
+  }
+}
+
+async function deletePhoto(album: any, photoId: string) {
+  if (!confirm('确定要删除这张照片吗？')) return
+  try {
+    await adminFetch(`/api/photos/${photoId}`, {
+      method: 'DELETE'
+    })
+    album.photos = album.photos.filter((p: any) => p.id !== photoId)
+    // 如果被删除照片是封面，则清空封面
+    const targetPhoto = editAlbum.value.photos.find((p: any) => p.id === photoId)
+    if (targetPhoto && editForm.value.coverR2Key === targetPhoto.r2Key) {
+      editForm.value.coverR2Key = ''
+    }
+  } catch (e: any) {
+    alert('删除照片失败: ' + e.message)
+  }
+}
+
+const saving = ref(false)
+async function handleSaveEdit() {
+  if (!editAlbum.value) return
+  saving.value = true
+  
+  const tags = editForm.value.tagsString
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t.length > 0)
+    
+  try {
+    await adminFetch(`/api/albums/${editAlbum.value.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        title: editForm.value.title,
+        description: editForm.value.description,
+        frameStyle: editForm.value.frameStyle,
+        coverR2Key: editForm.value.coverR2Key,
+        tags,
+      })
+    })
+    closeEdit()
+    await loadAlbums()
+  } catch (e: any) {
+    alert('保存修改失败: ' + e.message)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -184,7 +367,6 @@ onMounted(loadAlbums)
 .album-meta {
   font-size: var(--type-body-sm-size);
   color: var(--color-muted);
-  margin-top: var(--spacing-xxs);
 }
 
 .album-actions {
@@ -236,9 +418,114 @@ onMounted(loadAlbums)
 .modal {
   width: 100%;
   max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.edit-album-modal {
+  max-width: 600px;
 }
 
 .modal h2 { margin-bottom: var(--spacing-lg); }
-.modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
+.modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); }
 .upload-progress { padding: var(--spacing-md); text-align: center; color: var(--color-muted); }
+
+.tag-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--color-surface-cream-strong, #e8d5a8);
+  color: var(--color-primary, #cc785c);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 10px;
+  margin-right: 4px;
+}
+
+.album-cover-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cover-mini-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: var(--rounded-xs);
+  border: 1px solid var(--color-hairline);
+}
+
+.photo-management {
+  border-top: 1px solid var(--color-hairline);
+  padding-top: var(--spacing-md);
+}
+
+.manage-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--rounded-sm);
+  background: var(--color-surface-cream, #fcfaf7);
+}
+
+.manage-photo-item {
+  display: flex;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--color-hairline);
+  padding: 8px;
+  border-radius: var(--rounded-sm);
+}
+
+.manage-photo-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: var(--rounded-xs);
+}
+
+.photo-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.photo-caption-input {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.btn-action-sm {
+  font-size: 10px;
+  padding: 2px 6px;
+  height: 24px;
+}
+
+.btn-active-cover {
+  background: var(--color-primary) !important;
+  color: #fff !important;
+  border-color: var(--color-primary) !important;
+}
+
+.text-muted {
+  color: var(--color-muted);
+}
+.text-center {
+  text-align: center;
+}
+.py-3 {
+  padding-top: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+}
+.mt-4 { margin-top: 16px; }
+.mb-3 { margin-bottom: 12px; }
 </style>

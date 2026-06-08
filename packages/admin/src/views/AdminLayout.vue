@@ -25,8 +25,8 @@
 
 <script setup lang="ts">
 import { adminLogout } from '@/api/client'
-function handleLogout() {
-  adminLogout()
+async function handleLogout() {
+  await adminLogout()
 }
 </script>
 

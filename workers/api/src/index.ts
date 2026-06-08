@@ -20,13 +20,21 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+// Request ID
+app.use('*', async (c, next) => {
+  const requestId = crypto.randomUUID()
+  c.set('requestId', requestId)
+  await next()
+  c.header('X-Request-Id', requestId)
+})
+
 // CORS
 app.use('*', async (c, next) => {
   const corsMiddleware = cors({
     origin: c.env.CORS_ORIGIN || '*',
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Classmate-Token'],
   })
   return corsMiddleware(c, next)
 })
@@ -48,7 +56,7 @@ app.route('/api/auth', authRoutes)
 app.get('/api/classmates', async (c) => {
   const db = c.env.DB
   const { results } = await db.prepare(
-    'SELECT name, slug, avatar_url, info FROM students ORDER BY name'
+    'SELECT name, slug, avatar_url, info, school, class_name, mbti FROM students ORDER BY name'
   ).all()
 
   const classmates = (results || []).map((row: any) => {
@@ -59,6 +67,10 @@ app.get('/api/classmates', async (c) => {
       hasPage: true,
       avatarUrl: row.avatar_url,
       motto: info.motto || '',
+      nickname: info.nickname || '',
+      school: row.school || info.school || '',
+      className: row.class_name || info.class || '',
+      mbti: row.mbti || info.mbti || '',
     }
   })
 
@@ -71,7 +83,11 @@ app.get('/api/students', async (c) => {
     'SELECT * FROM students ORDER BY name'
   ).all()
 
-  const students = (results || []).map(formatStudent)
+  const formatted = (results || []).map(formatStudent)
+  const students = await Promise.all(formatted.map(async (s) => {
+    const audience = await determineAudience(c, s.slug)
+    return filterStudentForAudience(s, audience)
+  }))
   return c.json({ success: true, data: students })
 })
 
@@ -84,7 +100,10 @@ app.get('/api/students/:slug', async (c) => {
     return c.json({ success: false, message: '学生不存在' }, 404)
   }
 
-  return c.json({ success: true, data: formatStudent(row) })
+  const student = formatStudent(row)
+  const audience = await determineAudience(c, slug)
+  const filtered = filterStudentForAudience(student, audience)
+  return c.json({ success: true, data: filtered })
 })
 
 app.get('/api/config', async (c) => {
@@ -130,6 +149,8 @@ app.get('/api/albums', async (c) => {
         description: album.description,
         frameStyle: album.frame_style,
         sortOrder: album.sort_order,
+        coverR2Key: album.cover_r2_key,
+        tags: JSON.parse(album.tags || '[]'),
         photos: (photos || []).map((p: any) => ({
           id: p.id,
           albumId: p.album_id,
@@ -162,16 +183,46 @@ app.post('/api/students/:slug/visit', async (c) => {
 // 人气排行
 app.get('/api/rankings', async (c) => {
   const db = c.env.DB
-  const { results } = await db.prepare(
-    'SELECT name, slug, avatar_url, visit_count FROM students WHERE visit_count > 0 ORDER BY visit_count DESC LIMIT 20'
-  ).all()
-  const rankings = (results || []).map((r: any) => ({
-    name: r.name,
-    slug: r.slug,
-    avatarUrl: r.avatar_url,
-    visitCount: r.visit_count,
-  }))
-  return c.json({ success: true, data: rankings })
+  
+  try {
+    const [visitsResults, messagesResults, recentResults] = await Promise.all([
+      db.prepare('SELECT name, slug, avatar_url, visit_count FROM students ORDER BY visit_count DESC LIMIT 5').all(),
+      db.prepare('SELECT s.name, s.slug, s.avatar_url, COUNT(m.id) as message_count FROM students s JOIN messages m ON s.slug = m.student_slug WHERE m.is_approved = 1 GROUP BY s.slug ORDER BY message_count DESC LIMIT 5').all(),
+      db.prepare('SELECT name, slug, avatar_url, updated_at FROM students ORDER BY updated_at DESC LIMIT 5').all()
+    ])
+
+    const visits = (visitsResults.results || []).map((r: any) => ({
+      name: r.name,
+      slug: r.slug,
+      avatarUrl: r.avatar_url,
+      value: `${r.visit_count || 0} 次浏览`,
+    }))
+
+    const messages = (messagesResults.results || []).map((r: any) => ({
+      name: r.name,
+      slug: r.slug,
+      avatarUrl: r.avatar_url,
+      value: `${r.message_count || 0} 条留言`,
+    }))
+
+    const recent = (recentResults.results || []).map((r: any) => {
+      const dateStr = r.updated_at ? r.updated_at.split(' ')[0] : '最近'
+      return {
+        name: r.name,
+        slug: r.slug,
+        avatarUrl: r.avatar_url,
+        value: `更新于 ${dateStr}`,
+      }
+    })
+
+    return c.json({
+      success: true,
+      data: { visits, messages, recent }
+    })
+  } catch (e: any) {
+    console.error('Failed to query rankings:', e)
+    return c.json({ success: false, message: '排行数据查询失败' }, 500)
+  }
 })
 
 // R2 文件访问
@@ -196,11 +247,6 @@ app.get('/api/files/*', async (c) => {
   return new Response(object.body, { headers })
 })
 
-// 需要认证的路由
-app.use('/api/admin/*', async (c, next) => {
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
-})
-
 // JWT 中间件包装器
 function jwtGuard(secret: string) {
   const mw = createJwtMiddleware(secret)
@@ -214,49 +260,102 @@ function jwtGuard(secret: string) {
   }
 }
 
+// adminGuard 结合了 JWT 签名校验与数据库 admin_sessions 状态校验，防止注销后的 Token 仍可通过验证。
+function adminGuard(secret: string) {
+  const mw = createJwtMiddleware(secret)
+  return async (c: any, next: any) => {
+    try {
+      let isVerified = false
+      let response: any = null
+
+      await mw(c, async () => {
+        const authHeader = c.req.header('Authorization')
+        const token = authHeader?.replace('Bearer ', '')
+        if (!token) {
+          response = c.json({ success: false, message: '未授权' }, 401)
+          return
+        }
+
+        const session = await c.env.DB.prepare(
+          "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')"
+        ).bind(token).first()
+
+        if (!session) {
+          response = c.json({ success: false, message: '登录已失效' }, 401)
+          return
+        }
+
+        isVerified = true
+      })
+
+      if (isVerified) {
+        return next()
+      }
+
+      if (response) {
+        return response
+      }
+
+      return c.json({ success: false, message: '未授权' }, 401)
+    } catch (e) {
+      if (e instanceof HTTPException) return e.getResponse()
+      throw e
+    }
+  }
+}
+
+// 需要认证的路由
+app.use('/api/admin/*', async (c, next) => {
+  return adminGuard(c.env.JWT_SECRET)(c, next)
+})
+
 app.use('/api/students', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/students/:slug', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/config', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/albums', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/albums/:id', async (c, next) => {
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
+})
+
+app.use('/api/photos/:id', async (c, next) => {
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/upload', async (c, next) => {
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/admin/messages', async (c, next) => {
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/admin/messages/:id', async (c, next) => {
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/timeline/events', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 app.use('/api/timeline/events/:id', async (c, next) => {
-  return jwtGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c.env.JWT_SECRET)(c, next)
 })
 
 // 注册路由
@@ -270,27 +369,189 @@ app.route('/api', timelineRoutes)
 // 管理后台统计
 app.get('/api/admin/stats', async (c) => {
   const db = c.env.DB
-  const students = await db.prepare('SELECT COUNT(*) as count FROM students').first()
-  const albums = await db.prepare('SELECT COUNT(*) as count FROM albums').first()
-  const photos = await db.prepare('SELECT COUNT(*) as count FROM photos').first()
+  
+  const [
+    studentsVal,
+    albumsVal,
+    photosVal,
+    pendingMessagesVal,
+    approvedMessagesVal,
+    totalVisitsVal,
+    recentStudentsList,
+    topVisitedList,
+    recentMessagesList,
+    allStudents
+  ] = await Promise.all([
+    db.prepare('SELECT COUNT(*) as count FROM students').first(),
+    db.prepare('SELECT COUNT(*) as count FROM albums').first(),
+    db.prepare('SELECT COUNT(*) as count FROM photos').first(),
+    db.prepare('SELECT COUNT(*) as count FROM messages WHERE is_approved = 0').first(),
+    db.prepare('SELECT COUNT(*) as count FROM messages WHERE is_approved = 1').first(),
+    db.prepare('SELECT SUM(visit_count) as sum FROM students').first(),
+    db.prepare('SELECT name, slug, updated_at, info FROM students ORDER BY updated_at DESC LIMIT 5').all(),
+    db.prepare('SELECT name, slug, visit_count FROM students ORDER BY visit_count DESC LIMIT 5').all(),
+    db.prepare('SELECT id, author_name as authorName, student_slug as studentSlug, content, created_at as createdAt, is_approved as isApproved FROM messages ORDER BY created_at DESC LIMIT 5').all(),
+    db.prepare('SELECT name, slug, edit_secret_hash, info FROM students').all()
+  ])
+
+  // 内容与安全审计
+  const auditAlerts: string[] = []
+  for (const s of allStudents.results || []) {
+    const name = (s as any).name
+    let info: any = {}
+    try {
+      info = JSON.parse((s as any).info || '{}')
+    } catch {}
+    
+    if (!(s as any).edit_secret_hash) {
+      auditAlerts.push(`同学【${name}】尚未设置自助编辑口令，有被冒名篡改的风险。`)
+    }
+    
+    const visibility = info.visibility || {}
+    const sensitive: Record<string, string> = {
+      phone: '手机',
+      wechat: '微信',
+      qq: 'QQ',
+      email: '邮箱',
+      address: '常住地',
+      weibo: '微博',
+    }
+    const publicFields: string[] = []
+    for (const [key, label] of Object.entries(sensitive)) {
+      if (visibility[key] === 'public' && info[key]) {
+        publicFields.push(label)
+      }
+    }
+    if (publicFields.length > 0) {
+      auditAlerts.push(`同学【${name}】的 [${publicFields.join(', ')}] 联系方式设为“公开”，存在信息泄露隐患，建议改为仅同学可见。`)
+    }
+  }
+
+  const pendingCount = (pendingMessagesVal as any)?.count || 0
+  if (pendingCount > 0) {
+    auditAlerts.push(`当前有 ${pendingCount} 条待审核留言堆积，请及时处理。`)
+  }
 
   return c.json({
     success: true,
     data: {
-      studentCount: (students as any)?.count || 0,
-      albumCount: (albums as any)?.count || 0,
-      photoCount: (photos as any)?.count || 0,
+      studentCount: (studentsVal as any)?.count || 0,
+      albumCount: (albumsVal as any)?.count || 0,
+      photoCount: (photosVal as any)?.count || 0,
+      pendingMessageCount: pendingCount,
+      approvedMessageCount: (approvedMessagesVal as any)?.count || 0,
+      totalVisitCount: (totalVisitsVal as any)?.sum || 0,
+      recentStudents: recentStudentsList.results || [],
+      topVisited: topVisitedList.results || [],
+      recentMessages: recentMessagesList.results || [],
+      auditAlerts,
     },
   })
 })
 
+// base64url 解码和编码辅助函数
+function fromBase64url(str: string): string {
+  try {
+    return atob(str.replace(/-/g, '+').replace(/_/g, '/'))
+  } catch {
+    return ''
+  }
+}
+
+function base64url(str: string): string {
+  return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+async function hmacSign(data: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(data))
+  return base64url(String.fromCharCode(...new Uint8Array(sig)))
+}
+
+async function verifyClassmateToken(token: string, secret: string): Promise<string | null> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const slug = fromBase64url(parts[0])
+    const ts = parseInt(fromBase64url(parts[1]))
+    if (Date.now() - ts > 30 * 60 * 1000) return null
+    const derived = await hmacSign('classmate-auth', secret)
+    const expectedSig = await hmacSign(`${slug}:${ts}`, derived)
+    if (expectedSig !== parts[2]) return null
+    return slug
+  } catch {
+    return null
+  }
+}
+
+async function determineAudience(c: any, studentSlug: string): Promise<'public' | 'classmates' | 'owner' | 'admin'> {
+  const authHeader = c.req.header('Authorization')
+  const adminToken = authHeader?.replace('Bearer ', '')
+  if (adminToken) {
+    try {
+      const session = await c.env.DB.prepare(
+        "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')"
+      ).bind(adminToken).first()
+      if (session) return 'admin'
+    } catch {}
+  }
+
+  const classmateToken = c.req.header('X-Classmate-Token')
+  if (classmateToken) {
+    const authedSlug = await verifyClassmateToken(classmateToken, c.env.JWT_SECRET)
+    if (authedSlug) {
+      if (authedSlug === studentSlug) return 'owner'
+      return 'classmates'
+    }
+  }
+
+  const url = new URL(c.req.url)
+  const requestedAudience = url.searchParams.get('audience')
+  if (requestedAudience === 'public') {
+    return 'public'
+  }
+
+  return 'public'
+}
+
+function filterStudentForAudience(student: any, audience: 'public' | 'classmates' | 'owner' | 'admin') {
+  const info = { ...student.info }
+  const visibility = info.visibility || {}
+  
+  const sensitiveFields = ['qq', 'wechat', 'phone', 'email', 'address', 'weibo']
+  
+  for (const key of sensitiveFields) {
+    const level = visibility[key] || 'classmates'
+    
+    if (level === 'owner' && audience !== 'owner' && audience !== 'admin') {
+      delete info[key]
+    }
+    if (level === 'hidden' && audience !== 'admin') {
+      delete info[key]
+    }
+    if (level === 'classmates' && audience === 'public') {
+      delete info[key]
+    }
+  }
+  return { ...student, info }
+}
+
 // 错误处理
 app.onError((err, c) => {
+  const requestId = c.get('requestId') || 'unknown'
+  console.error(`[Request ID: ${requestId}] Worker error:`, err)
+  
   if (err instanceof HTTPException) {
-    return err.getResponse()
+    const res = err.getResponse()
+    res.headers.set('X-Request-Id', requestId)
+    return res
   }
-  console.error('Worker error:', err)
-  return c.json({ success: false, message: '服务器内部错误' }, 500)
+  return c.json({ success: false, message: '服务器内部错误', requestId }, 500)
 })
 
 app.notFound((c) => {
@@ -311,6 +572,7 @@ function formatStudent(row: any) {
     backgroundUrl: row.background_url,
     backgroundColor: row.background_color,
     customHtml: row.custom_html,
+    privacyLevel: row.privacy_level || 'classmates',
     info: {
       ...info,
       mbti: row.mbti || info.mbti || '',

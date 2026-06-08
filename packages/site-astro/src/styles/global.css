@@ -113,3 +113,23 @@ img { max-width: 100%; height: auto; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* focus-visible 键盘可访问性高亮 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--color-primary, #cc785c) !important;
+  outline-offset: 3px !important;
+}
+
+/* 尊重 prefers-reduced-motion 系统动画设置 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

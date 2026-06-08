@@ -4,7 +4,7 @@ compatibility_date = "2024-10-22"
 workers_dev = true
 
 [vars]
-CORS_ORIGIN = "*"
+CORS_ORIGIN = "https://flashnovayu.github.io"
 
 [[d1_databases]]
 binding = "DB"

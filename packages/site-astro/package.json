@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "npm run build:data && astro build",
     "build:data": "tsx scripts/fetch-data.ts",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts"
   },
   "dependencies": {
     "@astrojs/vue": "^5.0.0",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.6"
   }
 }

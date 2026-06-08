@@ -16,6 +16,8 @@ export interface Student {
   visitCount: number
   createdAt: string
   updatedAt: string
+  privacyLevel?: string
+  editSecret?: string
 }
 
 /** 学生详细信息 */
@@ -68,6 +70,11 @@ export interface StudentInfo {
   futureSelf: string
   letterToFuture: string
   letterToClassmates: string
+  profileModules?: Array<{
+    type?: string
+    title: string
+    content: string
+  }>
 }
 
 /** 同学名单条目 */

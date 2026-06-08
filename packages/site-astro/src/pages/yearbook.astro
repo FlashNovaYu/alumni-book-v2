@@ -1,0 +1,408 @@
+---
+import MainLayout from '../layouts/MainLayout.astro'
+
+interface Classmate {
+  name: string
+  slug: string
+  avatarUrl: string | null
+  motto: string
+  visitCount: number
+  updatedAt: string
+}
+
+interface Photo {
+  id: string
+  r2Key: string
+  caption: string
+}
+
+interface Album {
+  id: string
+  title: string
+  photos: Photo[]
+}
+
+interface Message {
+  id: string
+  authorName: string
+  content: string
+  createdAt: string
+  cardStyle: string
+}
+
+const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
+const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
+
+let students: Classmate[] = []
+let albums: Album[] = []
+let siteConfig: any = null
+let messages: Message[] = []
+
+try {
+  const [studentsRes, albumsRes, configRes] = await Promise.all([
+    fetch(`${API_BASE}/api/students?audience=public`),
+    fetch(`${API_BASE}/api/albums`),
+    fetch(`${API_BASE}/api/config`),
+  ])
+  
+  const studentsJson = await studentsRes.json() as any
+  const albumsJson = await albumsRes.json() as any
+  const configJson = await configRes.json() as any
+  
+  students = studentsJson.data || []
+  albums = albumsJson.data || []
+  siteConfig = configJson.data || {}
+} catch (e) {
+  console.error('Failed to pre-fetch yearbook data:', e)
+}
+
+// 年鉴只展示审核通过且未隐藏的公开留言。
+try {
+  const msgRes = await fetch(`${API_BASE}/api/messages/approved`)
+  const msgJson = await msgRes.json() as any
+  messages = msgJson.data || []
+} catch {}
+
+// 汇总统计
+const totalStudents = students.length
+const totalPhotos = albums.reduce((sum, a) => sum + (a.photos?.length || 0), 0)
+const totalVisits = students.reduce((sum, s) => sum + (s.visitCount || 0), 0)
+const totalMessages = messages.length
+
+// 排行
+const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).slice(0, 3)
+---
+
+<MainLayout>
+  <div class="yearbook-page">
+    <div class="container no-print text-center py-4">
+      <button class="print-btn btn-primary" onclick="window.print()">🖨️ 打印此纪念册 / 导出 PDF</button>
+    </div>
+
+    <!-- 纪念册封面页 -->
+    <div class="print-section page-break text-center">
+      <div class="cover-wrapper">
+        <p class="cover-tag">· CLASS YEARBOOK ·</p>
+        <h1 class="cover-title">青春不散场</h1>
+        <p class="cover-subtitle">班级纪念册 & 毕业年度报告</p>
+        <div class="cover-deco"></div>
+        <p class="cover-date">生成时间: {new Date().toLocaleDateString('zh-CN')}</p>
+      </div>
+    </div>
+
+    <!-- 班级寄语 -->
+    <div class="print-section page-break">
+      <h2 class="section-title">✍️ 班级寄语</h2>
+      <div class="preface-box card p-5 mt-4">
+        <h3 class="font-display text-xl mb-3">{siteConfig?.preface?.title || '致青春岁月'}</h3>
+        <h4 class="text-muted text-sm mb-4">{siteConfig?.preface?.subtitle || '写在翻开同学录之前'}</h4>
+        <p class="preface-content whitespace-pre-wrap">{siteConfig?.preface?.content || '那些年，我们一起走过的日子...'}</p>
+      </div>
+    </div>
+
+    <!-- 班级年度数据报告 -->
+    <div class="print-section page-break">
+      <h2 class="section-title">📊 青春数据报告</h2>
+      <div class="stats-cards-grid mt-4">
+        <div class="stat-item card">
+          <span class="stat-num">{totalStudents}</span>
+          <span class="stat-lbl">同窗好友</span>
+        </div>
+        <div class="stat-item card">
+          <span class="stat-num">{totalPhotos}</span>
+          <span class="stat-lbl">珍贵瞬间</span>
+        </div>
+        <div class="stat-item card">
+          <span class="stat-num">{totalVisits}</span>
+          <span class="stat-lbl">主页访问</span>
+        </div>
+        <div class="stat-item card">
+          <span class="stat-num">{totalMessages}</span>
+          <span class="stat-lbl">收到留言</span>
+        </div>
+      </div>
+      
+      <div class="rankings-box mt-5 card p-4">
+        <h3 class="font-display text-lg mb-3">🏆 班级人气王</h3>
+        <div class="rank-list-vertical">
+          {topVisited.map((s, idx) => (
+            <div class="rank-row">
+              <span class="rank-num-badge">{idx + 1}</span>
+              <span class="rank-name-lbl">{s.name}</span>
+              <span class="rank-val-lbl">主页被浏览了 {s.visitCount} 次</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- 同学录名录墙 -->
+    <div class="print-section page-break">
+      <h2 class="section-title">👥 同窗好友名录</h2>
+      <div class="yearbook-classmate-grid mt-4">
+        {students.map(mate => {
+          const motto = (mate as any).info?.motto || '这家伙很懒，什么都没留下'
+          return (
+            <div class="yearbook-mate-card card">
+              <div class="mate-avatar-box">
+                {mate.avatarUrl ? (
+                  <img src={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`} alt={mate.name} />
+                ) : (
+                  <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
+                )}
+              </div>
+              <h3 class="mate-name mt-2">{mate.name}</h3>
+              <p class="mate-motto mt-1">“{motto}”</p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+
+    <!-- 精选留言墙 -->
+    <div class="print-section">
+      <h2 class="section-title">💬 寄语留言板</h2>
+      <div class="yearbook-messages-list mt-4">
+        {messages.map(msg => (
+          <div class="yearbook-msg-card card p-4 mb-3">
+            <div class="msg-card-meta">
+              <span class="msg-card-author">{msg.authorName}</span>
+              <span class="msg-card-time">{new Date(msg.createdAt).toLocaleDateString('zh-CN')}</span>
+            </div>
+            <p class="msg-card-text mt-2">{msg.content}</p>
+          </div>
+        ))}
+        {messages.length === 0 && (
+          <p class="text-muted text-center py-4">暂无审核通过的班级留言</p>
+        )}
+      </div>
+    </div>
+  </div>
+</MainLayout>
+
+<style>
+  .yearbook-page {
+    padding-top: var(--nav-height);
+    max-width: 900px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+  }
+  .print-btn {
+    padding: 12px 24px;
+    font-size: 15px;
+    border-radius: 30px;
+  }
+  .print-section {
+    padding: var(--spacing-xl) 0;
+  }
+  .cover-wrapper {
+    min-height: calc(80vh - var(--nav-height));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .cover-tag {
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    color: var(--color-muted);
+  }
+  .cover-title {
+    font-family: var(--font-display);
+    font-size: 54px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-top: 16px;
+  }
+  .cover-subtitle {
+    font-size: 18px;
+    color: var(--color-muted);
+    margin-top: 8px;
+  }
+  .cover-deco {
+    width: 60px;
+    height: 4px;
+    background: var(--color-primary);
+    margin: 32px 0;
+    border-radius: 2px;
+  }
+  .cover-date {
+    font-size: 13px;
+    color: var(--color-muted);
+  }
+  .preface-box {
+    background: var(--color-surface-cream, #faf9f5);
+  }
+  .preface-content {
+    line-height: 1.8;
+    color: #4e342e;
+  }
+  .stats-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .stat-item {
+    padding: 24px 16px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: block;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-lbl {
+    font-size: 12px;
+    color: var(--color-muted);
+  }
+  .rankings-box {
+    background: var(--color-surface-card);
+  }
+  .rank-list-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-hairline-soft);
+  }
+  .rank-num-badge {
+    width: 24px;
+    height: 24px;
+    background: var(--color-surface-cream-strong);
+    color: var(--color-muted);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rank-row:nth-child(1) .rank-num-badge { background: #ffd700; color: #fff; }
+  .rank-row:nth-child(2) .rank-num-badge { background: #c0c0c0; color: #fff; }
+  .rank-row:nth-child(3) .rank-num-badge { background: #cd7f32; color: #fff; }
+  .rank-name-lbl {
+    font-weight: 600;
+    font-size: 14px;
+    width: 80px;
+  }
+  .rank-val-lbl {
+    font-size: 13px;
+    color: var(--color-muted);
+  }
+  .yearbook-classmate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .yearbook-mate-card {
+    padding: 20px 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .mate-avatar-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--color-surface-cream-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--color-hairline);
+  }
+  .mate-avatar-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mate-avatar-char {
+    font-size: 24px;
+    color: var(--color-muted);
+  }
+  .mate-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .mate-motto {
+    font-size: 11px;
+    color: var(--color-muted);
+    font-style: italic;
+  }
+  .yearbook-msg-card {
+    background: var(--color-surface-cream, #faf9f5);
+  }
+  .msg-card-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--color-muted);
+    border-bottom: 1px solid var(--color-hairline-soft);
+    padding-bottom: 4px;
+  }
+  .msg-card-author {
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+  .msg-card-text {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* 🖨️ 打印机优化 */
+  @media print {
+    nav, .no-print, .print-btn {
+      display: none !important;
+    }
+    body, html {
+      background: white !important;
+      color: black !important;
+      font-size: 12pt !important;
+    }
+    .yearbook-page {
+      padding-top: 0 !important;
+      max-width: 100% !important;
+      padding-bottom: 0 !important;
+    }
+    .card {
+      border: 1px solid #ddd !important;
+      box-shadow: none !important;
+      background: white !important;
+      transform: none !important;
+    }
+    .page-break {
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    .preface-box {
+      background: #fdfdfd !important;
+      border: 1px solid #ccc !important;
+    }
+    .stats-cards-grid {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
+    .yearbook-classmate-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .stats-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .yearbook-classmate-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

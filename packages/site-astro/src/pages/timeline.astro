@@ -2,6 +2,9 @@
 import MainLayout from '../layouts/MainLayout.astro'
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
+const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
+
 let items: any[] = []
 try {
   const res = await fetch(`${API_BASE}/api/timeline`)
@@ -11,12 +14,21 @@ try {
 ---
 
 <MainLayout>
-  <div class="timeline-page section">
+  <div class="timeline-page section" data-base-url={base}>
     <div class="container">
       <div class="timeline-header fade-in">
         <p class="timeline-label">· TIMELINE ·</p>
         <h1 class="timeline-title display-lg">时光轴</h1>
         <p class="timeline-subtitle">沿着时间的轨迹，翻阅我们的故事</p>
+      </div>
+
+      <!-- Tab 筛选栏 -->
+      <div class="timeline-tabs fade-in">
+        <button class="tab-btn active" data-type="all">全部</button>
+        <button class="tab-btn" data-type="event">班级大事</button>
+        <button class="tab-btn" data-type="message">新留言</button>
+        <button class="tab-btn" data-type="photo">新照片</button>
+        <button class="tab-btn" data-type="join">新同学页</button>
       </div>
 
       <div class="timeline-line">
@@ -31,7 +43,7 @@ try {
                 <img src={item.photoUrl.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl}`} alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />
               )}
               {item.type === 'join' && item.slug && (
-                <a href={`/student/${item.slug}`} class="tl-link">查看 TA 的主页 →</a>
+                <a href={href(`/student/${item.slug}`)} class="tl-link">查看 TA 的主页 →</a>
               )}
             </div>
           </div>
@@ -45,10 +57,80 @@ try {
       )}
     </div>
   </div>
+  <script id="timeline-data" type="application/json" set:html={JSON.stringify(items)}></script>
 </MainLayout>
 
 <script>
-  // 时间轴节点左右交替滑入
+  // 1. 客户端筛选逻辑
+  const dataEl = document.getElementById('timeline-data')
+  const allItems = JSON.parse(dataEl?.textContent || '[]')
+  const base = document.querySelector('.timeline-page')?.getAttribute('data-base-url') || '/'
+  const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
+  const API_BASE = (import.meta as any).env?.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+
+  function renderTimeline(type: string) {
+    const filtered = type === 'all' ? allItems : allItems.filter((item: any) => item.type === type)
+    const lineEl = document.querySelector('.timeline-line')
+    if (!lineEl) return
+
+    if (filtered.length === 0) {
+      lineEl.innerHTML = '<div class="empty-state"><p>时光轴上没有对应类别的记录</p></div>'
+      return
+    }
+
+    lineEl.innerHTML = filtered.map((item: any, i: number) => {
+      const isMilestone = item.isMilestone ? 'milestone' : ''
+      const dateStr = new Date(item.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+      let extraHtml = ''
+      
+      if (item.photoUrl) {
+        const fullPhoto = item.photoUrl.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl}`
+        extraHtml += `<img src="${fullPhoto}" alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />`
+      }
+      if (item.type === 'join' && item.slug) {
+        extraHtml += `<a href="${href(`/student/${item.slug}`)}" class="tl-link">查看 TA 的主页 →</a>`
+      }
+      
+      const nodeClass = `timeline-node fade-in ${isMilestone} type-${item.type}`
+      
+      return `
+        <div class="${nodeClass}">
+          <div class="tl-dot"></div>
+          <div class="tl-card">
+            <div class="tl-date">${dateStr}</div>
+            <h3 class="tl-title">${item.title}</h3>
+            ${item.description ? `<p class="tl-desc">${item.description}</p>` : ''}
+            ${extraHtml}
+          </div>
+        </div>
+      `
+    }).join('')
+
+    animateNodes()
+  }
+
+  // 动画触发函数
+  function animateNodes() {
+    import('gsap').then(({ default: gsap }) => {
+      gsap.fromTo('.timeline-node', 
+        { autoAlpha: 0, y: 20 },
+        { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.03, ease: 'power2.out' }
+      )
+    })
+  }
+
+  // 绑定 Tab 点击事件
+  const tabBtns = document.querySelectorAll('.timeline-tabs .tab-btn')
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      tabBtns.forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      const type = btn.getAttribute('data-type') || 'all'
+      renderTimeline(type)
+    })
+  })
+
+  // 首次载入动画
   import('gsap/ScrollTrigger').then(() => {
     import('gsap').then(({ default: gsap }) => {
       gsap.set('.timeline-node', { autoAlpha: 0, y: 30, x: 0 })

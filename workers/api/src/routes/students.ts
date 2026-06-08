@@ -6,6 +6,16 @@ type Bindings = {
   JWT_SECRET: string
 }
 
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
+  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+  const saltStr = btoa(String.fromCharCode(...salt))
+  return `pbkdf2:${saltStr}:${hash}`
+}
+
 export const studentsRoutes = new Hono<{ Bindings: Bindings }>()
 
 // 创建学生
@@ -62,6 +72,16 @@ studentsRoutes.put('/students/:slug', async (c) => {
   if (body.info?.class !== undefined) { fields.push('class_name = ?'); values.push(body.info.class) }
   if (body.info !== undefined) { fields.push('info = ?'); values.push(JSON.stringify(body.info)) }
   if (body.photos !== undefined) { fields.push('photos = ?'); values.push(JSON.stringify(body.photos)) }
+  if (body.editSecret !== undefined && body.editSecret !== null && body.editSecret !== '') {
+    const hash = await hashPassword(body.editSecret)
+    fields.push('edit_secret_hash = ?')
+    values.push(hash)
+    fields.push("edit_secret_updated_at = datetime('now')")
+  }
+  if (body.privacyLevel !== undefined) {
+    fields.push('privacy_level = ?')
+    values.push(body.privacyLevel)
+  }
 
   if (fields.length === 0) {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)

@@ -28,8 +28,21 @@ watch(keyword, () => {
   const cards = document.querySelectorAll('.classmate-card')
   let count = 0
   cards.forEach(card => {
-    const name = card.querySelector('.card-name')?.textContent?.toLowerCase() || ''
-    const show = !kw || name.includes(kw)
+    const name = card.getAttribute('data-search-name')?.toLowerCase() || ''
+    const nickname = card.getAttribute('data-search-nickname')?.toLowerCase() || ''
+    const school = card.getAttribute('data-search-school')?.toLowerCase() || ''
+    const className = card.getAttribute('data-search-class')?.toLowerCase() || ''
+    const motto = card.getAttribute('data-search-motto')?.toLowerCase() || ''
+    const mbti = card.getAttribute('data-search-mbti')?.toLowerCase() || ''
+    
+    const show = !kw || 
+      name.includes(kw) || 
+      nickname.includes(kw) || 
+      school.includes(kw) || 
+      className.includes(kw) || 
+      motto.includes(kw) || 
+      mbti.includes(kw)
+
     if (show) {
       ;(card as HTMLElement).classList.remove('card-hidden')
       ;(card as HTMLElement).style.display = ''

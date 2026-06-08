@@ -7,3 +7,9 @@ dist
 .env
 .env.local
 .env.*.local
+backups/
+deploy/
+yearbook.html
+memory/
+powershell.cmd
+

@@ -5,7 +5,10 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const API_BASE = process.env.VITE_API_BASE_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const API_BASE =
+  process.env.VITE_WORKER_URL ||
+  process.env.VITE_API_BASE_URL ||
+  'https://alumni-book-api.chenyuhao2263.workers.dev'
 
 async function fetchJSON(path: string) {
   const controller = new AbortController()
@@ -23,7 +26,8 @@ async function main() {
   const outDir = join(__dirname, '..', 'public', 'data')
   mkdirSync(outDir, { recursive: true })
 
-  console.log(`Fetching API data from ${API_BASE}...`)
+  console.log(`Fetching SSG data from ${API_BASE}`)
+  console.log(`Client API base will be ${process.env.VITE_API_BASE_URL || '(default worker)'}`)
 
   const endpoints = [
     { path: '/api/students', fallback: [] },

@@ -4,8 +4,10 @@ import App from './App.vue'
 import '@alumni/shared/src/tokens.css'
 import './styles/admin.css'
 
+const adminBase = import.meta.env.BASE_URL || '/admin/'
+
 const router = createRouter({
-  history: createWebHashHistory('/admin/'),
+  history: createWebHashHistory(adminBase),
   routes: [
     {
       path: '/login',
@@ -29,10 +31,35 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
-  const isLoggedIn = !!sessionStorage.getItem('admin_token')
-  if (to.name !== 'login' && !isLoggedIn) {
-    return { name: 'login' }
+router.beforeEach(async (to) => {
+  const token = sessionStorage.getItem('admin_token')
+  const isLoggedIn = !!token
+
+  if (to.name !== 'login') {
+    if (!isLoggedIn) {
+      return { name: 'login' }
+    }
+    if (!(window as any).__admin_token_verified) {
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+        const res = await fetch(`${API_BASE}/api/auth/verify`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!res.ok) {
+          sessionStorage.removeItem('admin_token')
+          return { name: 'login' }
+        }
+        (window as any).__admin_token_verified = true
+      } catch {
+        // 网络连接失败暂不强制退出，保持高可用性
+      }
+    }
+  } else {
+    if (isLoggedIn) {
+      return { name: 'dashboard' }
+    }
   }
 })
 

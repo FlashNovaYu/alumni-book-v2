@@ -143,6 +143,48 @@
         </div>
       </div>
 
+      <!-- 安全与隐私设置 -->
+      <div class="card">
+        <h2 class="title-md section-heading">安全与隐私设置</h2>
+        <div class="form-group">
+          <label class="form-label">重置自助编辑口令</label>
+          <div class="color-row">
+            <input v-model="tempEditSecret" :type="showSecret ? 'text' : 'password'" class="text-input" placeholder="留空则不修改已有口令" />
+            <button class="btn-secondary btn-sm" @click="generateRandomSecret">随机生成</button>
+            <button class="btn-secondary btn-sm" @click="showSecret = !showSecret">{{ showSecret ? '隐藏' : '显示' }}</button>
+          </div>
+          <p class="form-hint">留空表示不修改已有口令。口令保存后将以 PBKDF2 哈希安全存储。</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">页面隐私级别 (默认仅同学可见)</label>
+          <select v-model="student.privacyLevel" class="text-input">
+            <option value="public">公开 (任何人可见)</option>
+            <option value="classmates">仅同学可见 (需要验证姓名)</option>
+            <option value="owner">仅本人与管理员可见</option>
+            <option value="hidden">隐藏 (仅管理员可见)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 个人小传 -->
+      <div class="card">
+        <h2 class="title-md section-heading">个人小传</h2>
+        <div class="modules-list">
+          <div v-for="(mod, idx) in student.info?.profileModules" :key="idx" class="module-item p-3 mb-3">
+            <div class="module-item-header">
+              <input v-model="mod.title" type="text" class="text-input module-title-input" placeholder="模块标题（例如：现在的我）" />
+              <div class="module-actions">
+                <button class="btn-secondary btn-sm" @click="moveModule(idx, -1)" :disabled="idx === 0">▲</button>
+                <button class="btn-secondary btn-sm" @click="moveModule(idx, 1)" :disabled="idx === (student.info?.profileModules?.length ?? 0) - 1">▼</button>
+                <button class="btn-danger btn-sm" @click="removeModule(idx)">✕</button>
+              </div>
+            </div>
+            <textarea v-model="mod.content" class="textarea module-content-input mt-2" rows="3" placeholder="小传内容…"></textarea>
+          </div>
+          <button class="btn-secondary w-full" @click="addModule">+ 添加小传模块</button>
+        </div>
+      </div>
+
       <!-- 专属模板 -->
       <div v-if="student.isOwner" class="card">
         <h2 class="title-md section-heading">专属模板 HTML</h2>
@@ -275,14 +317,32 @@ async function handleMusicUpload(e: Event) {
   }
 }
 
+const tempEditSecret = ref('')
+const showSecret = ref(false)
+
+function generateRandomSecret() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  tempEditSecret.value = result
+  showSecret.value = true
+}
+
 async function handleSave() {
   saving.value = true
   try {
+    const payload = { ...student.value }
+    if (tempEditSecret.value) {
+      payload.editSecret = tempEditSecret.value
+    }
     await adminFetch(`/api/students/${student.value.slug}`, {
       method: 'PUT',
-      body: JSON.stringify(student.value),
+      body: JSON.stringify(payload),
     })
     showToast('success', '保存成功')
+    tempEditSecret.value = ''
   } catch (e: any) {
     showToast('error', e.message || '保存失败')
   } finally {
@@ -294,11 +354,44 @@ onMounted(async () => {
   const id = route.params.id as string
   try {
     const res = await adminFetch<ApiResponse<Student>>(`/api/students/${id}`)
-    if (res.data) student.value = res.data
+    if (res.data) {
+      student.value = res.data
+      if (!student.value.privacyLevel) {
+        student.value.privacyLevel = 'classmates'
+      }
+      if (!student.value.info) {
+        student.value.info = {} as any
+      }
+      if (!student.value.info.profileModules) {
+        student.value.info.profileModules = []
+      }
+    }
   } catch {
     router.replace('/students')
   }
 })
+
+function addModule() {
+  if (!student.value.info.profileModules) {
+    student.value.info.profileModules = []
+  }
+  student.value.info.profileModules.push({ type: 'custom', title: '', content: '' })
+}
+
+function removeModule(index: number) {
+  if (!student.value.info.profileModules) return
+  student.value.info.profileModules.splice(index, 1)
+}
+
+function moveModule(index: number, direction: number) {
+  const mods = student.value.info.profileModules
+  if (!mods) return
+  const targetIndex = index + direction
+  if (targetIndex < 0 || targetIndex >= mods.length) return
+  const temp = mods[index]
+  mods[index] = mods[targetIndex]
+  mods[targetIndex] = temp
+}
 </script>
 
 <style scoped>
@@ -394,5 +487,33 @@ onMounted(async () => {
   height: 32px;
   padding: 0 12px;
   font-size: 13px;
+}
+.module-item {
+  border: 1px solid var(--color-hairline);
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: var(--rounded-md);
+  background: var(--color-surface-card);
+}
+.module-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.module-title-input {
+  flex: 1;
+  font-weight: 600;
+}
+.module-actions {
+  display: flex;
+  gap: 4px;
+}
+.module-content-input {
+  width: 100%;
+  margin-top: 8px;
+}
+.w-full {
+  width: 100%;
 }
 </style>

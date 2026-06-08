@@ -7,12 +7,76 @@ type Bindings = {
 
 export const messagesRoutes = new Hono<{ Bindings: Bindings }>()
 
+function fromBase64url(str: string): string {
+  try {
+    return atob(str.replace(/-/g, '+').replace(/_/g, '/'))
+  } catch {
+    return ''
+  }
+}
+
+function base64url(str: string): string {
+  return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+async function hmacSign(data: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(data))
+  return base64url(String.fromCharCode(...new Uint8Array(sig)))
+}
+
+async function verifyClassmateToken(token: string, secret: string): Promise<string | null> {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const slug = fromBase64url(parts[0])
+    const ts = parseInt(fromBase64url(parts[1]))
+    if (Date.now() - ts > 30 * 60 * 1000) return null
+    const derived = await hmacSign('classmate-auth', secret)
+    const expectedSig = await hmacSign(`${slug}:${ts}`, derived)
+    if (expectedSig !== parts[2]) return null
+    return slug
+  } catch {
+    return null
+  }
+}
+
+async function authClassmate(c: any, secret: string): Promise<string | null> {
+  const token = c.req.header('X-Classmate-Token')
+  if (!token) return null
+  return verifyClassmateToken(token, secret)
+}
+
+// 公开获取所有已通过审核的留言列表
+messagesRoutes.get('/messages/approved', async (c) => {
+  const db = c.env.DB
+  const { results } = await db.prepare(
+    'SELECT id, author_name, content, created_at, card_style FROM messages WHERE is_approved = 1 AND is_hidden = 0 ORDER BY pinned DESC, created_at DESC LIMIT 200'
+  ).all()
+
+  return c.json({
+    success: true,
+    data: (results || []).map((r: any) => ({
+      id: r.id,
+      authorName: r.author_name,
+      content: r.content,
+      createdAt: r.created_at,
+      cardStyle: r.card_style || 'paper',
+    })),
+  })
+})
+
 // 公开获取留言（仅审核通过的）
 messagesRoutes.get('/messages/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
   const { results } = await db.prepare(
-    'SELECT id, author_name, content, reactions, reply, reply_at, created_at FROM messages WHERE student_slug = ? AND is_approved = 1 AND is_hidden = 0 ORDER BY created_at DESC'
+    'SELECT id, author_name, content, reactions, reply, reply_at, card_style, pinned, created_at FROM messages WHERE student_slug = ? AND is_approved = 1 AND is_hidden = 0 ORDER BY pinned DESC, created_at DESC'
   ).bind(slug).all()
 
   return c.json({
@@ -24,6 +88,8 @@ messagesRoutes.get('/messages/:slug', async (c) => {
       reactions: JSON.parse(r.reactions || '{}'),
       reply: r.reply || null,
       replyAt: r.reply_at || null,
+      cardStyle: r.card_style || 'paper',
+      pinned: !!r.pinned,
       createdAt: r.created_at,
     })),
   })
@@ -35,13 +101,16 @@ messagesRoutes.post('/messages/:slug', async (c) => {
   const db = c.env.DB
   const body = await c.req.json()
 
-  const { authorName, content } = body
+  const { authorName, content, cardStyle } = body
   if (!authorName || !authorName.trim()) {
     return c.json({ success: false, message: '请提供留言者姓名' }, 400)
   }
   if (!content || !content.trim() || content.trim().length > 500) {
     return c.json({ success: false, message: '留言内容必须在 1-500 字之间' }, 400)
   }
+
+  const ALLOWED_STYLES = ['paper', 'chalkboard', 'photoback', 'letter']
+  const style = ALLOWED_STYLES.includes(cardStyle) ? cardStyle : 'paper'
 
   const student = await db.prepare('SELECT id FROM students WHERE slug = ?').bind(slug).first()
   if (!student) {
@@ -50,8 +119,8 @@ messagesRoutes.post('/messages/:slug', async (c) => {
 
   const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   await db.prepare(
-    'INSERT INTO messages (id, student_slug, author_name, content, is_approved) VALUES (?, ?, ?, ?, 0)'
-  ).bind(id, slug, authorName.trim(), content.trim()).run()
+    'INSERT INTO messages (id, student_slug, author_name, content, card_style, is_approved) VALUES (?, ?, ?, ?, ?, 0)'
+  ).bind(id, slug, authorName.trim(), content.trim(), style).run()
 
   return c.json({ success: true, message: '留言已提交，等待审核' })
 })
@@ -89,20 +158,21 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
 messagesRoutes.put('/messages/:id/reply', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
-  const { reply, authorName } = await c.req.json()
+  const { reply } = await c.req.json()
 
   if (!reply || !reply.trim() || reply.trim().length > 500) {
     return c.json({ success: false, message: '回复内容必须在 1-500 字之间' }, 400)
   }
 
+  const authedSlug = await authClassmate(c, c.env.JWT_SECRET)
+  if (!authedSlug) {
+    return c.json({ success: false, message: '未授权，请先验证身份' }, 401)
+  }
+
   const msg = await db.prepare('SELECT student_slug FROM messages WHERE id = ?').bind(id).first()
   if (!msg) return c.json({ success: false, message: '留言不存在' }, 404)
 
-  const student = await db.prepare('SELECT name FROM students WHERE slug = ?')
-    .bind((msg as any).student_slug).first()
-  if (!student) return c.json({ success: false, message: '学生不存在' }, 404)
-
-  if ((authorName || '').trim() !== (student as any).name) {
+  if (authedSlug !== (msg as any).student_slug) {
     return c.json({ success: false, message: '只有页面主人可以回复' }, 403)
   }
 
@@ -125,7 +195,7 @@ messagesRoutes.get('/admin/messages', async (c) => {
   if (slug) { sql += ' AND student_slug = ?'; binds.push(slug) }
   if (approved === '0') { sql += ' AND is_approved = 0' }
   if (approved === '1') { sql += ' AND is_approved = 1' }
-  sql += ' ORDER BY created_at DESC LIMIT 100'
+  sql += ' ORDER BY pinned DESC, created_at DESC LIMIT 100'
 
   const { results } = await db.prepare(sql).bind(...binds).all()
   return c.json({
@@ -140,6 +210,8 @@ messagesRoutes.get('/admin/messages', async (c) => {
       replyAt: r.reply_at || null,
       isApproved: !!r.is_approved,
       isHidden: !!r.is_hidden,
+      cardStyle: r.card_style || 'paper',
+      pinned: !!r.pinned,
       createdAt: r.created_at,
     })),
   })
@@ -160,6 +232,37 @@ messagesRoutes.put('/admin/messages/:id/hide', async (c) => {
   const { hidden } = await c.req.json()
   await db.prepare('UPDATE messages SET is_hidden = ? WHERE id = ?').bind(hidden ? 1 : 0, id).run()
   return c.json({ success: true, message: hidden ? '已隐藏' : '已取消隐藏' })
+})
+
+// 置顶/取消置顶
+messagesRoutes.put('/admin/messages/:id/pin', async (c) => {
+  const id = c.req.param('id')
+  const db = c.env.DB
+  const { pinned } = await c.req.json()
+  await db.prepare('UPDATE messages SET pinned = ? WHERE id = ?').bind(pinned ? 1 : 0, id).run()
+  return c.json({ success: true, message: pinned ? '已置顶' : '已取消置顶' })
+})
+
+// 批量操作留言
+messagesRoutes.post('/admin/messages/batch', async (c) => {
+  const db = c.env.DB
+  const { ids, action, hidden } = await c.req.json()
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return c.json({ success: false, message: '无效的 ID 数组' }, 400)
+  }
+
+  const placeholders = ids.map(() => '?').join(',')
+  if (action === 'approve') {
+    await db.prepare(`UPDATE messages SET is_approved = 1 WHERE id IN (${placeholders})`).bind(...ids).run()
+  } else if (action === 'hide') {
+    await db.prepare(`UPDATE messages SET is_hidden = ? WHERE id IN (${placeholders})`).bind(hidden ? 1 : 0, ...ids).run()
+  } else if (action === 'delete') {
+    await db.prepare(`DELETE FROM messages WHERE id IN (${placeholders})`).bind(...ids).run()
+  } else {
+    return c.json({ success: false, message: '不支持的批量操作' }, 400)
+  }
+
+  return c.json({ success: true, message: '批量操作成功' })
 })
 
 // 删除留言

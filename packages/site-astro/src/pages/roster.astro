@@ -7,6 +7,9 @@ interface Classmate {
 }
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
+const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
+
 let classmates: Classmate[] = []
 try {
   const res = await fetch(`${API_BASE}/api/classmates`)
@@ -26,9 +29,21 @@ try {
 
       <div id="roster-search"></div>
 
+      <!-- 排行榜面板 -->
+      <div id="rankings-panel" class="mb-5 fade-in"></div>
+
       <div class="classmate-grid fade-in fade-in-stagger">
         {classmates.map(mate => (
-          <a href={mate.hasPage ? `/student/${mate.slug}` : '#'} class={`classmate-card fade-in ${!mate.hasPage ? 'no-page' : ''}`}>
+          <a 
+            href={mate.hasPage ? href(`/student/${mate.slug}`) : '#'} 
+            class={`classmate-card fade-in ${!mate.hasPage ? 'no-page' : ''}`}
+            data-search-name={mate.name}
+            data-search-nickname={mate.nickname}
+            data-search-school={mate.school}
+            data-search-class={mate.className}
+            data-search-motto={mate.motto}
+            data-search-mbti={mate.mbti}
+          >
             <div class="card-avatar">
               {mate.avatarUrl ? (
                 <img src={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`} alt={mate.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
@@ -48,12 +63,19 @@ try {
 <script>
   import { createApp } from 'vue'
   import RosterSearch from '../components/RosterSearch.vue'
+  import RankingsPanel from '../components/RankingsPanel.vue'
 
   const el = document.getElementById('roster-search')
   if (el) {
     const dataEl = document.getElementById('roster-data')
     const classmates = JSON.parse(dataEl?.textContent || '[]')
     createApp(RosterSearch, { classmates }).mount(el)
+  }
+
+  const rankEl = document.getElementById('rankings-panel')
+  if (rankEl) {
+    const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || ''
+    createApp(RankingsPanel, { apiBase }).mount(rankEl)
   }
 
   // 卡片错位弹性入场
