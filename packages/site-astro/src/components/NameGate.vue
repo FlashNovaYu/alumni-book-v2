@@ -24,7 +24,8 @@ import { ref } from 'vue'
 const name = ref('')
 const error = ref('')
 const loading = ref(false)
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const base = import.meta.env.BASE_URL || '/'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
 async function handleEnter() {
   const trimmed = name.value.trim()

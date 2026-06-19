@@ -11,7 +11,7 @@ export default defineConfig({
     define: {
       // 客户端运行时 API 地址（空字符串走同域代理，`` ?? `` 保本地开发回退 Worker）
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
-        process.env.VITE_API_BASE_URL ?? 'https://alumni-book-api.chenyuhao2263.workers.dev'
+        process.env.VITE_API_BASE_URL ?? ''
       ),
       // SSG 构建时 API 地址（始终走 Worker 域名）
       'import.meta.env.VITE_WORKER_URL': JSON.stringify(
