@@ -7,7 +7,8 @@
     "build": "npm run build:data && astro build",
     "build:data": "tsx scripts/fetch-data.ts",
     "preview": "astro preview",
-    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts"
+    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts",
+    "test:with-build": "pnpm build && pnpm test"
   },
   "dependencies": {
     "@astrojs/vue": "^5.0.0",

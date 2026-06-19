@@ -137,3 +137,66 @@ describe('Messages API', () => {
   })
 })
 
+describe('Classmate Self-Edit API', () => {
+  let classmateToken = ''
+
+  it('POST /api/classmate/token — 获取编辑 token 成功', async () => {
+    const req = new Request('http://localhost/api/classmate/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '测试', slug: 'test' }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+    expect(body.data.token).toBeTruthy()
+    classmateToken = body.data.token
+  })
+
+  it('PUT /api/classmate/students/test — 使用 token 更新资料成功', async () => {
+    const payload = {
+      name: '测试更新',
+      privacyLevel: 'classmates',
+      info: {
+        nickname: '测试昵称',
+        profileModules: [
+          { title: '模块1', content: '小传测试内容' }
+        ],
+        visibility: {
+          phone: 'owner',
+          wechat: 'classmates'
+        }
+      }
+    }
+
+    const req = new Request('http://localhost/api/classmate/students/test', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Classmate-Token': classmateToken
+      },
+      body: JSON.stringify(payload)
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+    expect(body.message).toBe('保存成功')
+
+    // 验证数据库是否已更新
+    const row = await env.DB.prepare('SELECT name, info, privacy_level FROM students WHERE slug = ?').bind('test').first() as any
+    expect(row.name).toBe('测试更新')
+    expect(row.privacy_level).toBe('classmates')
+    const info = JSON.parse(row.info)
+    expect(info.nickname).toBe('测试昵称')
+    expect(info.profileModules[0].title).toBe('模块1')
+  })
+})
+

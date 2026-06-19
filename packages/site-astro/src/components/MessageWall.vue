@@ -1,6 +1,7 @@
 <template>
-  <section class="message-wall-section">
+  <section ref="messageWallRoot" class="message-wall-section">
     <h2 class="section-title display-sm">同学留言</h2>
+
 
     <div class="msg-form">
       <textarea
@@ -80,8 +81,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { getSessionName } from '@alumni/shared'
+import { joinApiUrl } from '../utils/apiBase'
 
 interface Message {
   id: string; authorName: string; content: string; createdAt: string
@@ -89,7 +91,10 @@ interface Message {
   cardStyle?: string; pinned?: boolean
 }
 
-const props = defineProps<{ studentSlug: string; pageOwnerName?: string }>()
+const props = defineProps<{ studentSlug: string; pageOwnerName?: string; apiBase: string }>()
+
+const messageWallRoot = ref<HTMLElement | null>(null)
+let gsapCtx: any = null
 
 const messages = ref<Message[]>([])
 const loading = ref(true)
@@ -101,8 +106,7 @@ const submitResult = ref<{ type: 'success' | 'error'; message: string } | null>(
 const REACTIONS = ['❤️', '👍', '😂', '🎉']
 const isPageOwner = computed(() => getSessionName() === props.pageOwnerName)
 const replyTexts = ref<Record<string, string>>({})
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const reactingKeys = ref(new Set<string>())
 
 function getAuthorName() {
   return sessionStorage.getItem('classmate_name') || ''
@@ -115,7 +119,8 @@ function formatDate(d: string) {
 
 async function fetchMessages() {
   try {
-    const res = await fetch(`${API_BASE}/api/messages/${props.studentSlug}`)
+    const url = joinApiUrl(props.apiBase, `/api/messages/${props.studentSlug}`)
+    const res = await fetch(url)
     const data = await res.json()
     if (data.success) messages.value = data.data || []
   } catch {} finally { loading.value = false }
@@ -132,7 +137,8 @@ async function submitMessage() {
   submitting.value = true
   submitResult.value = null
   try {
-    const res = await fetch(`${API_BASE}/api/messages/${props.studentSlug}`, {
+    const url = joinApiUrl(props.apiBase, `/api/messages/${props.studentSlug}`)
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -155,8 +161,12 @@ async function submitMessage() {
 }
 
 async function react(msgId: string, emoji: string) {
+  const key = `${msgId}_${emoji}`
+  if (reactingKeys.value.has(key)) return
+  reactingKeys.value.add(key)
   try {
-    const res = await fetch(`${API_BASE}/api/messages/${msgId}/react`, {
+    const url = joinApiUrl(props.apiBase, `/api/messages/${msgId}/react`)
+    const res = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reaction: emoji }),
@@ -166,7 +176,9 @@ async function react(msgId: string, emoji: string) {
       const msg = messages.value.find(m => m.id === msgId)
       if (msg) msg.reactions = data.data.reactions
     }
-  } catch {}
+  } catch {} finally {
+    reactingKeys.value.delete(key)
+  }
 }
 
 async function ensureClassmateToken(): Promise<string | null> {
@@ -177,7 +189,8 @@ async function ensureClassmateToken(): Promise<string | null> {
   if (!name) return null
   
   try {
-    const res = await fetch(`${API_BASE}/api/classmate/token`, {
+    const url = joinApiUrl(props.apiBase, '/api/classmate/token')
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, slug: props.studentSlug }),
@@ -191,7 +204,7 @@ async function ensureClassmateToken(): Promise<string | null> {
       const secret = window.prompt('由于该页面已启用口令保护，请输入您的编辑口令以回复留言：')
       if (!secret) return null
       
-      const res2 = await fetch(`${API_BASE}/api/classmate/token`, {
+      const res2 = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, slug: props.studentSlug, editSecret: secret }),
@@ -221,7 +234,8 @@ async function submitReply(msgId: string) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/api/messages/${msgId}/reply`, {
+    const url = joinApiUrl(props.apiBase, `/api/messages/${msgId}/reply`)
+    const res = await fetch(url, {
       method: 'PUT',
       headers: { 
         'Content-Type': 'application/json',
@@ -252,11 +266,19 @@ onMounted(async () => {
   await fetchMessages()
   nextTick(() => {
     import('gsap').then(({ default: gsap }) => {
-      gsap.fromTo('.msg-item', { autoAlpha: 0, y: 16 },
-        { autoAlpha: 1, y: 0, stagger: 0.05, duration: 0.4, ease: 'power2.out', delay: 0.1 }
-      )
+      gsapCtx = gsap.context(() => {
+        gsap.fromTo('.msg-item', { autoAlpha: 0, y: 16 },
+          { autoAlpha: 1, y: 0, stagger: 0.05, duration: 0.4, ease: 'power2.out', delay: 0.1 }
+        )
+      }, messageWallRoot.value || undefined)
     })
   })
+})
+
+onUnmounted(() => {
+  if (gsapCtx) {
+    gsapCtx.revert()
+  }
 })
 </script>
 

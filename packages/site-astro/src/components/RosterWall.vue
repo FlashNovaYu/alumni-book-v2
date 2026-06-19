@@ -23,12 +23,13 @@
       >
         <div class="card-avatar">
           <img
-            v-if="mate.avatarUrl"
+            v-if="mate.avatarUrl && !avatarErrors[mate.slug]"
             :src="getAvatarUrl(mate.avatarUrl)"
             :alt="mate.name"
             loading="lazy"
             decoding="async"
             style="aspect-ratio: 1"
+            @error="avatarErrors[mate.slug] = true"
           />
           <span v-else class="avatar-char">{{ mate.name.charAt(0) }}</span>
         </div>
@@ -67,6 +68,8 @@ const props = defineProps<{
 
 const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
+const hasAnimated = ref(false)
+const avatarErrors = ref<Record<string, boolean>>({})
 
 const href = (path: string) => `${props.siteBase}${path.replace(/^\/+/, '')}`
 
@@ -91,7 +94,10 @@ function getAvatarUrl(url: string) {
   return `${props.apiBase}${url}`
 }
 
-function triggerAnimations() {
+function triggerAnimations(force = false) {
+  if (hasAnimated.value && !force) return
+  hasAnimated.value = true
+
   nextTick(() => {
     import('gsap/ScrollTrigger').then(() => {
       import('gsap').then(({ default: gsap }) => {
@@ -121,7 +127,7 @@ onMounted(async () => {
     const data = await res.json()
     if (data.success && data.data) {
       classmates.value = data.data
-      // 数据更新后再次平滑同步动画
+      // 数据更新后不做强制重头开始的闪烁动效
       triggerAnimations()
     }
   } catch (e) {
@@ -129,9 +135,9 @@ onMounted(async () => {
   }
 })
 
-// 监听关键词变化以在搜索结果变化后平滑重跑入场动画
+// 监听关键词变化时不强行重播大面积飞入动画，防止输入时卡顿和闪烁
 watch(keyword, () => {
-  triggerAnimations()
+  // 仅在必要时允许轻量更新，此处不需要重设透明度，跳过 triggerAnimations
 })
 </script>
 

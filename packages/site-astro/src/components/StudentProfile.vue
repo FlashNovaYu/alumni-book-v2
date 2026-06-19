@@ -25,7 +25,7 @@
         <div class="hero-bg" :style="bgStyle"></div>
         <div class="hero-content container">
           <div class="hero-avatar">
-            <img v-if="avatarSrc" :src="avatarSrc" :alt="student.name" loading="lazy" decoding="async" style="aspect-ratio: 1" />
+            <img v-if="avatarSrc && !avatarError" :src="avatarSrc" :alt="student.name" loading="eager" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
             <span v-else class="avatar-char">{{ student.name.charAt(0) }}</span>
           </div>
           <h1 class="hero-name display-md">{{ student.name }}</h1>
@@ -158,18 +158,31 @@
               <p class="share-qr-tip">扫码访问 TA 的主页</p>
             </div>
           </div>
-          <button class="btn-primary w-full mt-4" @click="printPage">打印 / 存为 PDF</button>
+          <div class="share-actions-grid mt-4">
+            <button class="btn-primary" @click="printPage">打印 / 存为 PDF</button>
+            <button class="btn-secondary" @click="copyShareLink">
+              {{ copySuccess ? '✓ 已复制' : '🔗 复制链接' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 背景音乐 -->
-    <audio v-if="student.musicUrl && student.musicAutoplay" :src="getPhotoUrl(student.musicUrl)" loop preload="auto" autoplay></audio>
+    <!-- 背景音乐悬浮播放器 -->
+    <div v-if="student.musicUrl" class="music-player-widget no-print">
+      <button class="music-toggle-btn" :class="{ playing: musicPlaying }" @click="toggleMusic" :title="student.musicTitle || '背景音乐'">
+        <span class="music-icon">🎵</span>
+      </button>
+      <transition name="fade">
+        <span v-if="showMusicTip" class="music-tip">点击播放背景音乐</span>
+      </transition>
+      <audio ref="audioRef" :src="getPhotoUrl(student.musicUrl)" loop preload="auto" @play="onMusicPlay" @pause="onMusicPause"></audio>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import PhotoWall from './PhotoWall.vue'
 import MessageWall from './MessageWall.vue'
 import SelfEditPanel from './SelfEditPanel.vue'
@@ -200,6 +213,11 @@ const props = defineProps<{
 const student = ref<Student | null>(props.initialStudent)
 const loading = ref(!props.initialStudent)
 const shareOpen = ref(false)
+const copySuccess = ref(false)
+const audioRef = ref<HTMLAudioElement | null>(null)
+const musicPlaying = ref(false)
+const showMusicTip = ref(false)
+const avatarError = ref(false)
 
 const slugVal = computed(() => {
   if (props.studentSlug) return props.studentSlug
@@ -300,22 +318,69 @@ function openShareModal() { shareOpen.value = true }
 function closeShareModal() { shareOpen.value = false }
 function printPage() { window.print() }
 
-function triggerGSAPAnimations() {
-  nextTick(() => {
-    import('gsap/ScrollTrigger').then(() => {
-      import('gsap').then(({ default: gsap }) => {
-        // Hero 背景视差
-        gsap.to('.hero-bg', {
-          y: 60, ease: 'none',
-          scrollTrigger: { trigger: '.student-hero', start: 'top top', end: 'bottom top', scrub: true },
-        })
+function toggleMusic() {
+  if (!audioRef.value) return
+  if (musicPlaying.value) {
+    audioRef.value.pause()
+  } else {
+    audioRef.value.play().catch(err => {
+      console.warn('Playback prevented:', err)
+      showMusicTip.value = true
+      setTimeout(() => { showMusicTip.value = false }, 5000)
+    })
+  }
+}
+function onMusicPlay() { musicPlaying.value = true; showMusicTip.value = false }
+function onMusicPause() { musicPlaying.value = false }
 
-        // Info section 依次滑入
-        const sections = gsap.utils.toArray<HTMLElement>('.student-body > .fade-in')
-        sections.forEach((el) => {
-          gsap.from(el, {
-            autoAlpha: 0, y: 24, duration: 0.5,
-            scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+function copyShareLink() {
+  const url = window.location.href
+  navigator.clipboard.writeText(url).then(() => {
+    copySuccess.value = true
+    setTimeout(() => { copySuccess.value = false }, 2000)
+  }).catch(() => {
+    alert('无法自动复制，请手动复制浏览器地址栏的链接。')
+  })
+}
+
+const hasAnimated = ref(false)
+let gsapCtx: any = null
+
+function triggerGSAPAnimations() {
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (prefersReduced) {
+    nextTick(() => {
+      import('gsap').then(({ default: gsap }) => {
+        gsap.set('.student-body > .fade-in', { autoAlpha: 1, y: 0 })
+      })
+    })
+    return
+  }
+
+  if (hasAnimated.value) return
+  hasAnimated.value = true
+
+  nextTick(() => {
+    import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+      import('gsap').then(({ default: gsap }) => {
+        gsap.registerPlugin(ScrollTrigger)
+        if (gsapCtx) {
+          gsapCtx.revert()
+        }
+        gsapCtx = gsap.context(() => {
+          // Hero 背景视差
+          gsap.to('.hero-bg', {
+            y: 60, ease: 'none',
+            scrollTrigger: { trigger: '.student-hero', start: 'top top', end: 'bottom top', scrub: true },
+          })
+
+          // Info section 依次滑入
+          const sections = gsap.utils.toArray<HTMLElement>('.student-body > .fade-in')
+          sections.forEach((el) => {
+            gsap.from(el, {
+              autoAlpha: 0, y: 24, duration: 0.5,
+              scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+            })
           })
         })
       })
@@ -359,6 +424,25 @@ onMounted(async () => {
   // 若初始即有静态直出数据，先跑一次动画
   if (student.value) {
     triggerGSAPAnimations()
+  }
+
+  // 尝试自动播放背景音乐
+  nextTick(() => {
+    if (audioRef.value && student.value?.musicAutoplay) {
+      audioRef.value.play().then(() => {
+        musicPlaying.value = true
+      }).catch(err => {
+        console.log('Autoplay prevented by browser, showing play prompt:', err)
+        showMusicTip.value = true
+        setTimeout(() => { showMusicTip.value = false }, 6000)
+      })
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (gsapCtx) {
+    gsapCtx.revert()
   }
 })
 </script>
@@ -563,5 +647,72 @@ onMounted(async () => {
 
 @media (max-width: 768px) {
   .info-grid { grid-template-columns: 1fr; }
+}
+
+.share-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+}
+
+/* 音乐悬浮控件 */
+.music-player-widget {
+  position: fixed;
+  left: var(--spacing-lg);
+  bottom: var(--spacing-lg);
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+.music-toggle-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-elevated, 0 4px 12px rgba(0,0,0,0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--duration-fast), background var(--duration-fast);
+}
+.music-toggle-btn:hover {
+  transform: scale(1.05);
+}
+.music-toggle-btn:active {
+  transform: scale(0.95);
+}
+.music-toggle-btn.playing {
+  animation: spin 3s linear infinite;
+  background: var(--color-primary-soft, #fcf4f2);
+  border: 1px solid var(--color-primary);
+}
+.music-icon {
+  font-size: 16px;
+}
+.music-tip {
+  font-size: 11px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>

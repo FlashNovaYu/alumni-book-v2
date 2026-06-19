@@ -1,5 +1,9 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
+import NameGate from '../components/NameGate.vue'
+
+const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
+const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 ---
 
 <MainLayout>
@@ -10,7 +14,9 @@ import MainLayout from '../layouts/MainLayout.astro'
           <p class="hero-label fade-in">· CLASS OF MEMORIES ·</p>
           <h1 class="hero-title display-xl fade-in">时光荏苒<br>很高兴再次见到你</h1>
           <p class="hero-subtitle fade-in">每一段岁月都值得被铭记，让我们一起打开那本尘封的同学录</p>
-          <div id="name-gate" class="fade-in"></div>
+          <div id="name-gate" class="fade-in">
+            <NameGate client:load apiBase={CLIENT_API_BASE} />
+          </div>
         </div>
       </div>
     </section>
@@ -18,13 +24,6 @@ import MainLayout from '../layouts/MainLayout.astro'
 </MainLayout>
 
 <script>
-  import { createApp } from 'vue'
-  import NameGate from '../components/NameGate.vue'
-
-  const el = document.getElementById('name-gate')
-  if (el) {
-    createApp(NameGate).mount(el)
-  }
 
   // GSAP 首页入场动画
   import('gsap').then(({ default: gsap }) => {

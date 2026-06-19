@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import RosterWall from '../components/RosterWall.vue'
+import RankingsPanel from '../components/RankingsPanel.vue'
 
 interface Classmate {
   name: string; slug: string; hasPage: boolean
@@ -30,23 +31,12 @@ try {
       </div>
 
       <!-- 排行榜面板 -->
-      <div id="rankings-panel" class="mb-5 fade-in"></div>
+      <RankingsPanel client:load apiBase={CLIENT_API_BASE} />
 
       <RosterWall client:load initialClassmates={classmates} apiBase={CLIENT_API_BASE} siteBase={base} />
     </div>
   </div>
 </MainLayout>
-
-<script>
-  import { createApp } from 'vue'
-  import RankingsPanel from '../components/RankingsPanel.vue'
-
-  const rankEl = document.getElementById('rankings-panel')
-  if (rankEl) {
-    const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || ''
-    createApp(RankingsPanel, { apiBase }).mount(rankEl)
-  }
-</script>
 
 <style>
   .roster-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }

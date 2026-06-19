@@ -12,4 +12,7 @@ deploy/
 yearbook.html
 memory/
 powershell.cmd
+.astro/
+.astro
+
 

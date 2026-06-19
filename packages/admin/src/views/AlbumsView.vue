@@ -63,7 +63,9 @@
             </div>
             <div class="modal-actions">
               <button class="btn-secondary" @click="showCreate = false">取消</button>
-              <button class="btn-primary" @click="handleCreate">创建</button>
+              <button class="btn-primary" @click="handleCreate" :disabled="creating">
+                {{ creating ? '创建中...' : '创建' }}
+              </button>
             </div>
           </div>
         </div>
@@ -163,6 +165,7 @@ const albums = ref<any[]>([])
 const showCreate = ref(false)
 const uploadAlbum = ref<any | null>(null)
 const uploading = ref(false)
+const creating = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none' })
 
 const editAlbum = ref<any | null>(null)
@@ -190,6 +193,7 @@ async function loadAlbums() {
 
 async function handleCreate() {
   if (!newAlbum.value.title.trim()) return
+  creating.value = true
   try {
     await adminFetch('/api/albums', {
       method: 'POST',
@@ -200,6 +204,8 @@ async function handleCreate() {
     await loadAlbums()
   } catch (e: any) {
     alert(e.message || '创建失败')
+  } finally {
+    creating.value = false
   }
 }
 
@@ -528,4 +534,25 @@ onMounted(loadAlbums)
 }
 .mt-4 { margin-top: 16px; }
 .mb-3 { margin-bottom: 12px; }
+
+@media (max-width: 600px) {
+  .album-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  .album-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+  .album-actions button {
+    flex: 1;
+    min-width: 80px;
+  }
+  .manage-photo-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
 </style>

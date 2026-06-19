@@ -25,7 +25,7 @@
         <input v-model="form.photoR2Key" type="text" class="text-input" placeholder="photos/xxx.jpg" />
       </div>
       <div class="form-group">
-        <label><input type="checkbox" v-model="form.isMilestone" /> 标记为里程碑</label>
+        <label><input type="checkbox" v-model="form.isMilestone" /> 标记为里程碑（在年度册精选展示）</label>
       </div>
       <div class="form-actions">
         <button class="btn-primary" @click="handleSave" :disabled="saving">
@@ -40,7 +40,7 @@
           <span class="event-date">{{ event.eventDate }}</span>
           <h3 class="event-title">{{ event.title }}</h3>
           <p v-if="event.description" class="event-desc">{{ event.description }}</p>
-          <span v-if="event.isMilestone" class="badge-milestone">里程碑</span>
+          <span v-if="event.isMilestone" class="badge-milestone">里程碑 (年度册展示)</span>
         </div>
         <div class="event-actions">
           <button class="btn-secondary btn-sm" @click="editEvent(event)">编辑</button>

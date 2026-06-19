@@ -30,8 +30,21 @@ app.use('*', async (c, next) => {
 
 // CORS
 app.use('*', async (c, next) => {
+  const originVal = c.env.CORS_ORIGIN || '*'
   const corsMiddleware = cors({
-    origin: c.env.CORS_ORIGIN || '*',
+    origin: (origin) => {
+      if (!origin) return originVal
+      if (
+        origin === originVal ||
+        origin.endsWith('.pages.dev') ||
+        origin.endsWith('.github.io') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1')
+      ) {
+        return origin
+      }
+      return originVal
+    },
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Classmate-Token'],

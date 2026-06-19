@@ -28,7 +28,8 @@
         
         <div class="photo-grid" :class="'frame-' + album.frameStyle">
           <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(album.photos, i)">
-            <img :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" loading="lazy" decoding="async" style="aspect-ratio: 1" />
+            <img v-if="!photoErrors[photo.id]" :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="photoErrors[photo.id] = true" />
+            <div v-else class="photo-error-placeholder">⚠️ 图片加载失败</div>
             <div v-if="photo.caption" class="photo-caption">{{ photo.caption }}</div>
           </div>
         </div>
@@ -70,6 +71,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onUnmounted, onMounted } from 'vue'
+import { joinApiUrl } from '../utils/apiBase'
 
 const props = defineProps<{
   albums: Array<{
@@ -80,10 +82,11 @@ const props = defineProps<{
 }>()
 
 const albumsState = ref([...props.albums])
+const photoErrors = ref<Record<string, boolean>>({})
 
 function getPhotoUrl(r2Key: string) {
   if (r2Key.startsWith('http')) return r2Key
-  return `${props.apiBase}/api/files/${r2Key}`
+  return joinApiUrl(props.apiBase, `/api/files/${r2Key}`)
 }
 
 // 标签过滤
@@ -110,7 +113,8 @@ const filteredAlbums = computed(() => {
 
 onMounted(async () => {
   try {
-    const res = await fetch(`${props.apiBase}/api/albums`)
+    const url = joinApiUrl(props.apiBase, '/api/albums')
+    const res = await fetch(url)
     const data = await res.json()
     if (data.success && data.data) {
       albumsState.value = data.data
@@ -250,4 +254,17 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .lightbox-enter-from, .lightbox-leave-to { opacity: 0; }
 
 @media (max-width: 768px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.photo-error-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  background-color: var(--color-surface-soft, #f7f6f2);
+  color: var(--color-muted);
+  border: 1px dashed var(--color-hairline);
+  aspect-ratio: 1;
+}
 </style>

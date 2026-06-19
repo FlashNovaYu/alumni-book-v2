@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import IconCamera from '../components/icons/IconCamera.astro'
+import AlbumGrid from '../components/AlbumGrid.vue'
 
 interface Album {
   id: string; title: string; description: string; frameStyle: string
@@ -12,6 +13,9 @@ interface Photo {
 }
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
+const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
+
 let albums: Album[] = []
 try {
   const res = await fetch(`${API_BASE}/api/albums`)
@@ -36,26 +40,11 @@ try {
           <p>请前往管理后台上传</p>
         </div>
       ) : (
-        <div id="album-grid-root"></div>
+        <AlbumGrid client:load albums={albums} apiBase={CLIENT_API_BASE} />
       )}
     </div>
   </div>
 </MainLayout>
-
-<script>
-  import { createApp } from 'vue'
-  import AlbumGrid from '../components/AlbumGrid.vue'
-
-  const el = document.getElementById('album-grid-root')
-  if (el) {
-    const dataEl = document.getElementById('album-data')
-    const albums = JSON.parse(dataEl?.textContent || '[]')
-    const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || ''
-    createApp(AlbumGrid, { albums, apiBase }).mount(el)
-  }
-</script>
-
-<script id="album-data" type="application/json" set:html={JSON.stringify(albums)}></script>
 
 <style>
   .album-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }

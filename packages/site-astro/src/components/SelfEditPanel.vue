@@ -225,13 +225,13 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { getSessionName, compressImage, type Student } from '@alumni/shared'
+import { joinApiUrl } from '../utils/apiBase'
 
 const props = defineProps<{
   studentSlug: string
   studentName: string
+  apiBase: string
 }>()
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const show = ref(false)
 const saving = ref(false)
@@ -286,7 +286,8 @@ async function ensureToken(editSecretVal?: string): Promise<boolean> {
     if (editSecretVal) {
       body.editSecret = editSecretVal
     }
-    const res = await fetch(`${API_BASE}/api/classmate/token`, {
+    const url = joinApiUrl(props.apiBase, '/api/classmate/token')
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -320,7 +321,8 @@ async function openEditor() {
 
 async function openEditorAfterAuthed() {
   try {
-    const res = await fetch(`${API_BASE}/api/students/${props.studentSlug}`)
+    const url = joinApiUrl(props.apiBase, `/api/students/${props.studentSlug}`)
+    const res = await fetch(url)
     const data = await res.json()
     if (data.success && data.data) {
       const s = data.data as Student
@@ -394,7 +396,8 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
     fd.append('type', type)
     fd.append('slug', props.studentSlug)
 
-    const res = await fetch(`${API_BASE}/api/classmate/upload`, {
+    const url = joinApiUrl(props.apiBase, '/api/classmate/upload')
+    const res = await fetch(url, {
       method: 'POST',
       headers: authHeaders(),
       body: fd,
@@ -431,7 +434,8 @@ async function save() {
     if (form.backgroundColor) body.backgroundColor = form.backgroundColor
     if (form.editSecret) body.editSecret = form.editSecret
 
-    const res = await fetch(`${API_BASE}/api/classmate/students/${props.studentSlug}`, {
+    const url = joinApiUrl(props.apiBase, `/api/classmate/students/${props.studentSlug}`)
+    const res = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
@@ -515,7 +519,7 @@ function moveModule(index: number, direction: number) {
 </script>
 
 <style scoped>
-.self-edit { position: fixed; bottom: 24px; right: 24px; z-index: var(--z-nav); }
+.self-edit { position: fixed; bottom: 84px; right: 24px; z-index: var(--z-nav); }
 .edit-trigger {
   padding: 10px 20px;
   background: var(--color-primary, #cc785c);

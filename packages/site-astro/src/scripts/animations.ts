@@ -3,32 +3,31 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 gsap.registerPlugin(ScrollTrigger)
 
+let initialized = false
+
 export function initAnimations() {
-  // 减少动效模式 — 所有动画即时完成
-  ScrollTrigger.matchMedia({
-    '(prefers-reduced-motion: no-preference)': function () {
-      // 通用滚动渐显 — 替代 ScrollReveal.astro 的 IntersectionObserver
-      const fadeEls = gsap.utils.toArray<HTMLElement>('.fade-in')
-      if (fadeEls.length) {
-        ScrollTrigger.batch(fadeEls, {
-          onEnter: (batch) =>
-            gsap.fromTo(
-              batch,
-              { autoAlpha: 0, y: 24 },
-              { autoAlpha: 1, y: 0, stagger: 0.06, duration: 0.55, ease: 'power2.out', overwrite: true }
-            ),
-          start: 'top 85%',
-          once: true,
-        })
-      }
+  // 如果是减少动效模式，即使已初始化也直接重设以确保可见，常规模式则跳过重复初始化
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (prefersReduced) {
+    gsap.set('.fade-in', { autoAlpha: 1, y: 0 })
+    return
+  }
 
-      // 错位容器 — 子元素已在 .fade-in-stagger 渲染时带 delay，仅触发根元素
-      // ScrollTrigger 统一处理，清除 CSS 延迟后一致体验
-    },
+  if (initialized) return
+  initialized = true
 
-    '(prefers-reduced-motion: reduce)': function () {
-      // 所有 .fade-in 元素即时设为可见
-      gsap.set('.fade-in', { autoAlpha: 1, y: 0 })
-    },
-  })
+  // 仅在非减少动效模式下注册滚动动画
+  const fadeEls = gsap.utils.toArray<HTMLElement>('.fade-in')
+  if (fadeEls.length) {
+    ScrollTrigger.batch(fadeEls, {
+      onEnter: (batch) =>
+        gsap.fromTo(
+          batch,
+          { autoAlpha: 0, y: 24 },
+          { autoAlpha: 1, y: 0, stagger: 0.06, duration: 0.55, ease: 'power2.out', overwrite: true }
+        ),
+      start: 'top 85%',
+      once: true,
+    })
+  }
 }

@@ -38,21 +38,25 @@ let students: Classmate[] = []
 let albums: Album[] = []
 let siteConfig: any = null
 let messages: Message[] = []
+let timelineEvents: any[] = []
 
 try {
-  const [studentsRes, albumsRes, configRes] = await Promise.all([
+  const [studentsRes, albumsRes, configRes, timelineRes] = await Promise.all([
     fetch(`${API_BASE}/api/students?audience=public`),
     fetch(`${API_BASE}/api/albums`),
     fetch(`${API_BASE}/api/config`),
+    fetch(`${API_BASE}/api/timeline`),
   ])
   
   const studentsJson = await studentsRes.json() as any
   const albumsJson = await albumsRes.json() as any
   const configJson = await configRes.json() as any
+  const timelineJson = await timelineRes.json() as any
   
   students = studentsJson.data || []
   albums = albumsJson.data || []
   siteConfig = configJson.data || {}
+  timelineEvents = (timelineJson.data || []).filter((e: any) => e.isMilestone)
 } catch (e) {
   console.error('Failed to pre-fetch yearbook data:', e)
 }
@@ -158,6 +162,47 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
           )
         })}
       </div>
+    </div>
+
+    <!-- 青春瞬间（精选照片） -->
+    <div class="print-section page-break">
+      <h2 class="section-title">🖼️ 青春瞬间</h2>
+      {totalPhotos === 0 ? (
+        <p class="text-muted text-center py-4">暂无照片记录，请在后台上传</p>
+      ) : (
+        <div class="yearbook-photo-grid mt-4">
+          {albums.map(album => 
+            (album.photos || []).slice(0, 3).map(photo => (
+              <div class="yearbook-photo-card card">
+                <div class="yearbook-photo-img-wrapper">
+                  <img src={photo.r2Key.startsWith('http') ? photo.r2Key : `${API_BASE}/api/files/${photo.r2Key}`} alt={photo.caption} loading="lazy" />
+                </div>
+                {photo.caption && <p class="yearbook-photo-caption mt-1">{photo.caption}</p>}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+
+    <!-- 时光足迹（时间轴） -->
+    <div class="print-section page-break">
+      <h2 class="section-title">⏳ 时光足迹</h2>
+      {timelineEvents.length === 0 ? (
+        <p class="text-muted text-center py-4">暂无时光足迹记录</p>
+      ) : (
+        <div class="yearbook-timeline mt-4">
+          {timelineEvents.map(event => (
+            <div class="timeline-event card p-4 mb-3">
+              <div class="timeline-event-header">
+                <span class="timeline-event-date">{event.eventDate || event.date}</span>
+                <span class="timeline-event-title">{event.title}</span>
+              </div>
+              {event.description && <p class="timeline-event-desc mt-2">{event.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
 
     <!-- 精选留言墙 -->
@@ -403,6 +448,97 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     }
     .yearbook-classmate-grid {
       grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* 青春瞬间网格 */
+  .yearbook-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .yearbook-photo-card {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+  }
+  .yearbook-photo-img-wrapper {
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: var(--rounded-sm);
+    background: var(--color-surface-soft);
+  }
+  .yearbook-photo-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--duration-normal);
+  }
+  .yearbook-photo-card:hover .yearbook-photo-img-wrapper img {
+    transform: scale(1.03);
+  }
+  .yearbook-photo-caption {
+    font-size: 12px;
+    color: var(--color-muted);
+    text-align: center;
+  }
+
+  /* 时光足迹时间轴 */
+  .yearbook-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    padding-left: 20px;
+    border-left: 2px solid var(--color-hairline);
+    margin-bottom: 24px;
+  }
+  .timeline-event {
+    position: relative;
+  }
+  .timeline-event::before {
+    content: '';
+    position: absolute;
+    left: -27px;
+    top: 22px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    border: 2px solid var(--color-canvas);
+  }
+  .timeline-event-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .timeline-event-date {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--color-primary);
+    font-size: 14px;
+  }
+  .timeline-event-title {
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .timeline-event-desc {
+    font-size: 13px;
+    color: var(--color-muted);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 768px) {
+    .yearbook-photo-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+  @media print {
+    .yearbook-photo-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+    .yearbook-timeline {
+      border-left: 1px solid #ccc !important;
     }
   }
 </style>

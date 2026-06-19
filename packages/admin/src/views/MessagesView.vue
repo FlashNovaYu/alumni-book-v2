@@ -13,11 +13,11 @@
     <div v-if="selectedIds.length > 0" class="batch-actions-panel card">
       <span class="batch-count">已选中 <strong>{{ selectedIds.length }}</strong> 条：</span>
       <div class="batch-buttons">
-        <button class="btn-primary btn-sm" @click="batchAction('approve')">批量通过</button>
-        <button class="btn-secondary btn-sm" @click="batchAction('hide', true)">批量隐藏</button>
-        <button class="btn-secondary btn-sm" @click="batchAction('hide', false)">批量取消隐藏</button>
-        <button class="btn-danger btn-sm" @click="batchAction('delete')">批量删除</button>
-        <button class="btn-secondary btn-sm" @click="selectedIds = []">取消选择</button>
+        <button class="btn-primary btn-sm" @click="batchAction('approve')" :disabled="processing">批量通过</button>
+        <button class="btn-secondary btn-sm" @click="batchAction('hide', true)" :disabled="processing">批量隐藏</button>
+        <button class="btn-secondary btn-sm" @click="batchAction('hide', false)" :disabled="processing">批量取消隐藏</button>
+        <button class="btn-danger btn-sm" @click="batchAction('delete')" :disabled="processing">批量删除</button>
+        <button class="btn-secondary btn-sm" @click="selectedIds = []" :disabled="processing">取消选择</button>
       </div>
     </div>
 
@@ -48,13 +48,13 @@
             </div>
             <div v-if="msg.reply" class="msg-reply-inline">回复：{{ msg.reply }}</div>
             <div class="msg-actions">
-              <button v-if="!msg.isApproved" class="btn-primary btn-sm" @click="approve(msg.id)">审核通过</button>
-              <button class="btn-secondary btn-sm" @click="togglePin(msg.id, !msg.pinned)">
+              <button v-if="!msg.isApproved" class="btn-primary btn-sm" @click="approve(msg.id)" :disabled="processing">审核通过</button>
+              <button class="btn-secondary btn-sm" @click="togglePin(msg.id, !msg.pinned)" :disabled="processing">
                 {{ msg.pinned ? '取消置顶' : '置顶' }}
               </button>
-              <button v-if="!msg.isHidden" class="btn-secondary btn-sm" @click="toggleHide(msg.id, true)">隐藏</button>
-              <button v-else class="btn-secondary btn-sm" @click="toggleHide(msg.id, false)">取消隐藏</button>
-              <button class="btn-danger btn-sm" @click="remove(msg.id)">删除</button>
+              <button v-if="!msg.isHidden" class="btn-secondary btn-sm" @click="toggleHide(msg.id, true)" :disabled="processing">隐藏</button>
+              <button v-else class="btn-secondary btn-sm" @click="toggleHide(msg.id, false)" :disabled="processing">取消隐藏</button>
+              <button class="btn-danger btn-sm" @click="remove(msg.id)" :disabled="processing">删除</button>
             </div>
           </div>
         </div>
@@ -84,6 +84,7 @@ interface Message {
 const messages = ref<Message[]>([])
 const filter = ref('pending')
 const loading = ref(true)
+const processing = ref(false)
 const selectedIds = ref<string[]>([])
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
@@ -118,6 +119,7 @@ async function load() {
 }
 
 async function approve(id: string) {
+  processing.value = true
   try {
     await adminFetch(`/api/admin/messages/${id}/approve`, { method: 'PUT' })
     const msg = messages.value.find(m => m.id === id)
@@ -125,10 +127,13 @@ async function approve(id: string) {
     showToast('success', '已审核通过')
   } catch (e: any) {
     showToast('error', e.message)
+  } finally {
+    processing.value = false
   }
 }
 
 async function togglePin(id: string, pinned: boolean) {
+  processing.value = true
   try {
     await adminFetch(`/api/admin/messages/${id}/pin`, {
       method: 'PUT',
@@ -139,10 +144,13 @@ async function togglePin(id: string, pinned: boolean) {
     showToast('success', pinned ? '已置顶' : '已取消置顶')
   } catch (e: any) {
     showToast('error', e.message)
+  } finally {
+    processing.value = false
   }
 }
 
 async function toggleHide(id: string, hidden: boolean) {
+  processing.value = true
   try {
     await adminFetch(`/api/admin/messages/${id}/hide`, {
       method: 'PUT',
@@ -153,22 +161,28 @@ async function toggleHide(id: string, hidden: boolean) {
     showToast('success', hidden ? '已隐藏' : '已取消隐藏')
   } catch (e: any) {
     showToast('error', e.message)
+  } finally {
+    processing.value = false
   }
 }
 
 async function remove(id: string) {
   if (!confirm('确定删除？')) return
+  processing.value = true
   try {
     await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE' })
     messages.value = messages.value.filter(m => m.id !== id)
     showToast('success', '已删除')
   } catch (e: any) {
     showToast('error', e.message)
+  } finally {
+    processing.value = false
   }
 }
 
 async function batchAction(action: string, hidden?: boolean) {
   if (action === 'delete' && !confirm(`确定删除选中的 ${selectedIds.value.length} 条留言？`)) return
+  processing.value = true
   try {
     await adminFetch('/api/admin/messages/batch', {
       method: 'POST',
@@ -189,6 +203,8 @@ async function batchAction(action: string, hidden?: boolean) {
     selectedIds.value = []
   } catch (e: any) {
     showToast('error', e.message)
+  } finally {
+    processing.value = false
   }
 }
 
@@ -270,4 +286,41 @@ onMounted(load)
   font-size: var(--type-body-md-size);
 }
 
+@media (max-width: 600px) {
+  .msg-card-inner {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  .msg-select-col {
+    padding-top: 0;
+  }
+  .msg-meta {
+    gap: var(--spacing-xs);
+  }
+  .msg-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: var(--spacing-xxs);
+  }
+  .msg-actions .btn-sm {
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+  }
+  .batch-actions-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+  .batch-buttons {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-xs);
+  }
+  .batch-buttons .btn-sm {
+    width: 100%;
+    text-align: center;
+  }
+}
 </style>

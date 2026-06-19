@@ -216,4 +216,17 @@ const getFrontUrl = (slug: string) => {
   align-items: center;
   justify-content: center;
 }
+
+@media (max-width: 600px) {
+  .student-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+  }
+  .student-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
 </style>

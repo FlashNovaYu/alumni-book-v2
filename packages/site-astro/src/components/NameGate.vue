@@ -18,14 +18,17 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import { joinApiUrl } from '../utils/apiBase'
+
+const props = defineProps<{
+  apiBase: string
+}>()
 
 const name = ref('')
 const error = ref('')
 const loading = ref(false)
-const base = import.meta.env.BASE_URL || '/'
-const API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
 async function handleEnter() {
   const trimmed = name.value.trim()
@@ -33,12 +36,17 @@ async function handleEnter() {
   if (!trimmed) { error.value = '请输入你的姓名'; return }
   loading.value = true
   try {
-    const res = await fetch(`${API_BASE}/api/classmates`)
+    const url = joinApiUrl(props.apiBase, '/api/classmates')
+    const res = await fetch(url)
     const data = await res.json()
     const found = (data.data || []).find(c => c.name === trimmed)
     if (!found) { error.value = '姓名未在同学录中找到，请确认后重试'; return }
     sessionStorage.setItem('classmate_name', trimmed)
-    window.location.href = `${import.meta.env.BASE_URL}preface`
+    
+    // 确保使用斜杠前缀安全跳转
+    const baseUrl = import.meta.env.BASE_URL || '/'
+    const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+    window.location.href = `${prefix}preface`
   } catch {
     error.value = '验证失败，请稍后重试'
   } finally { loading.value = false }
