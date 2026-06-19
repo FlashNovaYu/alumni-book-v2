@@ -134,7 +134,7 @@
       </div>
 
       <!-- 自助编辑入口 -->
-      <SelfEditPanel :studentSlug="student.slug" :apiBase="apiBase" />
+      <SelfEditPanel :studentSlug="student.slug" :studentName="student.name" :apiBase="apiBase" />
 
       <!-- 分享按钮触发器 -->
       <div class="share-trigger-container">
