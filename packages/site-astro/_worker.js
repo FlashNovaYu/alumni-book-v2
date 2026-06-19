@@ -10,6 +10,12 @@ export default {
     try {
       const url = new URL(request.url)
 
+      // Strip subpath prefix for Cloudflare Pages routing compatibility
+      if (url.pathname.startsWith('/alumni-book-v2/')) {
+        url.pathname = url.pathname.replace(/^\/alumni-book-v2/, '') || '/'
+        request = new Request(url.toString(), request)
+      }
+
       if (url.pathname.startsWith('/api/')) {
         const workerUrl = `${WORKER_HOST}${url.pathname}${url.search}`
         const proxy = new Request(workerUrl, request)
