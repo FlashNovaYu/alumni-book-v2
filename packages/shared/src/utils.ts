@@ -23,18 +23,29 @@ export async function apiFetch<T>(
 }
 
 export function getSessionName(): string | null {
+  if (typeof sessionStorage === 'undefined') return null
   return sessionStorage.getItem('classmate_name')
 }
 
 export function setSessionName(name: string): void {
+  if (typeof sessionStorage === 'undefined') return
   sessionStorage.setItem('classmate_name', name)
 }
 
 export function clearSession(): void {
+  if (typeof sessionStorage === 'undefined') return
   sessionStorage.removeItem('classmate_name')
 }
 
 export function escapeHtml(text: string): string {
+  if (typeof document === 'undefined') {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+  }
   const div = document.createElement('div')
   div.textContent = text
   return div.innerHTML

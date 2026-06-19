@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { getSessionName } from '@alumni/shared'
 
 interface Message {
@@ -99,7 +99,7 @@ const submitting = ref(false)
 const submitResult = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
 const REACTIONS = ['❤️', '👍', '😂', '🎉']
-const isPageOwner = getSessionName() === props.pageOwnerName
+const isPageOwner = computed(() => getSessionName() === props.pageOwnerName)
 const replyTexts = ref<Record<string, string>>({})
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
