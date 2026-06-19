@@ -11,6 +11,19 @@ import '../styles/global.css'
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>同学录</title>
+    <script is:inline>
+      (function() {
+        const name = sessionStorage.getItem('classmate_name');
+        const path = window.location.pathname;
+        const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/');
+        const isAdmin = path.includes('/admin/');
+        const is404 = path.includes('/404');
+        if (!name && !isHome && !isAdmin && !is404) {
+          const base = path.includes('/alumni-book-v2/') ? '/alumni-book-v2/' : '/';
+          window.location.href = base;
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet" />

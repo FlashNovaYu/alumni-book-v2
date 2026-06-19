@@ -4,6 +4,7 @@
       <h1 class="page-title">编辑学生: {{ student.name }}</h1>
       <div class="header-actions">
         <button class="btn-secondary" @click="router.back()">返回</button>
+        <button class="btn-secondary" @click="handlePreview" :disabled="!student.slug">预览前台</button>
         <button class="btn-primary" @click="handleSave" :disabled="saving">
           {{ saving ? '保存中...' : '保存' }}
         </button>
@@ -391,6 +392,19 @@ function moveModule(index: number, direction: number) {
   const temp = mods[index]
   mods[index] = mods[targetIndex]
   mods[targetIndex] = temp
+}
+
+const getFrontUrl = (slug: string) => {
+  if (!slug) return '#'
+  const isDev = window.location.port === '5173'
+  const origin = isDev ? 'http://localhost:4321' : window.location.origin
+  const hasSubpath = window.location.pathname.startsWith('/alumni-book-v2')
+  const base = hasSubpath ? '/alumni-book-v2/' : '/'
+  return `${origin}${base}student/${slug}/`
+}
+
+function handlePreview() {
+  window.open(getFrontUrl(student.value.slug), '_blank')
 }
 </script>
 

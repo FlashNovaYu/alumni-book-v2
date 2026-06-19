@@ -1,5 +1,6 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
+import RosterWall from '../components/RosterWall.vue'
 
 interface Classmate {
   name: string; slug: string; hasPage: boolean
@@ -27,74 +28,24 @@ try {
         <p class="roster-subtitle">点击同学头像，进入 TA 的专属主页</p>
       </div>
 
-      <div id="roster-search"></div>
-
       <!-- 排行榜面板 -->
       <div id="rankings-panel" class="mb-5 fade-in"></div>
 
-      <div class="classmate-grid fade-in fade-in-stagger">
-        {classmates.map(mate => (
-          <a 
-            href={mate.hasPage ? href(`/student/${mate.slug}`) : '#'} 
-            class={`classmate-card fade-in ${!mate.hasPage ? 'no-page' : ''}`}
-            data-search-name={mate.name}
-            data-search-nickname={mate.nickname}
-            data-search-school={mate.school}
-            data-search-class={mate.className}
-            data-search-motto={mate.motto}
-            data-search-mbti={mate.mbti}
-          >
-            <div class="card-avatar">
-              {mate.avatarUrl ? (
-                <img src={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`} alt={mate.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
-              ) : (
-                <span class="avatar-char">{mate.name.charAt(0)}</span>
-              )}
-            </div>
-            <div class="card-name title-sm">{mate.name}</div>
-            <div class="card-motto">{mate.hasPage ? (mate.motto || '点击查看 TA 的故事') : '页面待建'}</div>
-          </a>
-        ))}
-      </div>
+      <RosterWall client:load initialClassmates={classmates} apiBase={API_BASE} siteBase={base} />
     </div>
   </div>
 </MainLayout>
 
 <script>
   import { createApp } from 'vue'
-  import RosterSearch from '../components/RosterSearch.vue'
   import RankingsPanel from '../components/RankingsPanel.vue'
-
-  const el = document.getElementById('roster-search')
-  if (el) {
-    const dataEl = document.getElementById('roster-data')
-    const classmates = JSON.parse(dataEl?.textContent || '[]')
-    createApp(RosterSearch, { classmates }).mount(el)
-  }
 
   const rankEl = document.getElementById('rankings-panel')
   if (rankEl) {
     const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || ''
     createApp(RankingsPanel, { apiBase }).mount(rankEl)
   }
-
-  // 卡片错位弹性入场
-  import('gsap/ScrollTrigger').then(() => {
-    import('gsap').then(({ default: gsap }) => {
-      const cards = gsap.utils.toArray<HTMLElement>('.classmate-card')
-      if (cards.length) {
-        gsap.set(cards, { autoAlpha: 0, y: 40 })
-        gsap.to(cards, {
-          autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.04,
-          ease: 'back.out(1.7)',
-          scrollTrigger: { trigger: '.classmate-grid', start: 'top 88%', once: true },
-        })
-      }
-    })
-  })
 </script>
-
-<script id="roster-data" type="application/json" set:html={JSON.stringify(classmates)}></script>
 
 <style>
   .roster-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }

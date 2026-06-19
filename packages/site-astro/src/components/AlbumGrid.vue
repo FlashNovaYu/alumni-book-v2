@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onUnmounted, onMounted } from 'vue'
 
 const props = defineProps<{
   albums: Array<{
@@ -78,6 +78,8 @@ const props = defineProps<{
   }>
   apiBase: string
 }>()
+
+const albumsState = ref([...props.albums])
 
 function getPhotoUrl(r2Key: string) {
   if (r2Key.startsWith('http')) return r2Key
@@ -89,7 +91,7 @@ const selectedTag = ref('全部')
 
 const allTags = computed(() => {
   const tagsSet = new Set<string>()
-  props.albums.forEach(album => {
+  albumsState.value.forEach(album => {
     if (album.tags && Array.isArray(album.tags)) {
       album.tags.forEach(tag => {
         if (tag && tag.trim()) tagsSet.add(tag.trim())
@@ -100,10 +102,22 @@ const allTags = computed(() => {
 })
 
 const filteredAlbums = computed(() => {
-  if (selectedTag.value === '全部') return props.albums
-  return props.albums.filter(album => 
+  if (selectedTag.value === '全部') return albumsState.value
+  return albumsState.value.filter(album => 
     album.tags && Array.isArray(album.tags) && album.tags.includes(selectedTag.value)
   )
+})
+
+onMounted(async () => {
+  try {
+    const res = await fetch(`${props.apiBase}/api/albums`)
+    const data = await res.json()
+    if (data.success && data.data) {
+      albumsState.value = data.data
+    }
+  } catch (e) {
+    console.error('Failed to sync albums via SWR:', e)
+  }
 })
 
 const lightbox = reactive({ open: false, photos: [] as any[], index: 0 })

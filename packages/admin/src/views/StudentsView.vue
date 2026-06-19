@@ -22,6 +22,7 @@
           </div>
         </div>
         <div class="student-actions">
+          <a :href="getFrontUrl(student.slug)" target="_blank" class="btn-secondary button-link">预览</a>
           <router-link :to="`/students/${student.slug}`" class="btn-secondary">编辑</router-link>
           <button class="btn-danger" @click="handleDelete(student)">删除</button>
         </div>
@@ -110,6 +111,15 @@ async function handleDelete(student: Student) {
 }
 
 onMounted(loadStudents)
+
+const getFrontUrl = (slug: string) => {
+  if (!slug) return '#'
+  const isDev = window.location.port === '5173'
+  const origin = isDev ? 'http://localhost:4321' : window.location.origin
+  const hasSubpath = window.location.pathname.startsWith('/alumni-book-v2')
+  const base = hasSubpath ? '/alumni-book-v2/' : '/'
+  return `${origin}${base}student/${slug}/`
+}
 </script>
 
 <style scoped>
@@ -198,5 +208,12 @@ onMounted(loadStudents)
   justify-content: flex-end;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-lg);
+}
+
+.btn-secondary.button-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

@@ -59,7 +59,11 @@
             <div class="recent-list">
               <div v-for="item in stats.recentStudents" :key="item.slug" class="list-item">
                 <div class="item-info">
-                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-name">
+                    {{ item.name }}
+                    <a :href="getFrontUrl(item.slug)" target="_blank" class="preview-badge-link" title="预览前台">🔗</a>
+                    <router-link :to="'/students/' + item.slug" class="edit-badge-link" title="编辑">✏️</router-link>
+                  </span>
                   <span class="item-time">更新于 {{ formatDate(item.updated_at) }}</span>
                 </div>
                 <div class="completeness-bar-wrapper">
@@ -106,7 +110,9 @@
             <div class="rank-list">
               <div v-for="(item, index) in stats.topVisited" :key="item.slug" class="rank-item">
                 <span class="rank-number" :class="'rank-' + (index + 1)">{{ index + 1 }}</span>
-                <span class="rank-name">{{ item.name }}</span>
+                <span class="rank-name">
+                  <a :href="getFrontUrl(item.slug)" target="_blank" class="rank-name-link" title="点击预览">{{ item.name }}</a>
+                </span>
                 <span class="rank-count">{{ item.visit_count }} 次</span>
               </div>
             </div>
@@ -190,6 +196,15 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const getFrontUrl = (slug: string) => {
+  if (!slug) return '#'
+  const isDev = window.location.port === '5173'
+  const origin = isDev ? 'http://localhost:4321' : window.location.origin
+  const hasSubpath = window.location.pathname.startsWith('/alumni-book-v2')
+  const base = hasSubpath ? '/alumni-book-v2/' : '/'
+  return `${origin}${base}student/${slug}/`
+}
 </script>
 
 <style scoped>
@@ -490,6 +505,25 @@ onMounted(async () => {
 }
 .mb-4 {
   margin-bottom: var(--spacing-lg);
+}
+
+.preview-badge-link, .edit-badge-link {
+  font-size: 12px;
+  margin-left: 6px;
+  text-decoration: none;
+  opacity: 0.65;
+  cursor: pointer;
+}
+.preview-badge-link:hover, .edit-badge-link:hover {
+  opacity: 1;
+}
+.rank-name-link {
+  color: inherit;
+  text-decoration: none;
+}
+.rank-name-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 </style>
 

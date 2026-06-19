@@ -43,7 +43,15 @@ export default {
         return fetch(proxy)
       }
 
-      return env.ASSETS.fetch(request)
+      let response = await env.ASSETS.fetch(request)
+      if (response.status === 404) {
+        const testUrl = new URL(request.url)
+        if (testUrl.pathname.startsWith('/student/') && !testUrl.pathname.includes('.')) {
+          testUrl.pathname = '/student/template/'
+          response = await env.ASSETS.fetch(new Request(testUrl.toString(), request))
+        }
+      }
+      return response
     } catch (e) {
       // _worker.js 崩溃时回退到静态资源
       return env.ASSETS.fetch(request)

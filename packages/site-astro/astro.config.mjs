@@ -18,6 +18,14 @@ export default defineConfig({
         process.env.VITE_WORKER_URL ?? 'https://alumni-book-api.chenyuhao2263.workers.dev'
       ),
     },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'https://alumni-book-api.chenyuhao2263.workers.dev',
+          changeOrigin: true,
+        }
+      }
+    }
   },
   build: {
     assets: 'assets',

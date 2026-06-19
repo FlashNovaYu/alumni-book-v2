@@ -63,10 +63,23 @@ try {
 <script>
   // 1. 客户端筛选逻辑
   const dataEl = document.getElementById('timeline-data')
-  const allItems = JSON.parse(dataEl?.textContent || '[]')
+  let allItems = JSON.parse(dataEl?.textContent || '[]')
   const base = document.querySelector('.timeline-page')?.getAttribute('data-base-url') || '/'
   const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
-  const API_BASE = (import.meta as any).env?.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
+
+  // SWR: 抓取最新时光轴数据并更新渲染
+  fetch(`${API_BASE}/api/timeline`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.data) {
+        allItems = data.data
+        const activeTab = document.querySelector('.timeline-tabs .tab-btn.active')
+        const type = activeTab?.getAttribute('data-type') || 'all'
+        renderTimeline(type)
+      }
+    })
+    .catch(e => console.error('Timeline SWR sync failed:', e))
 
   function renderTimeline(type: string) {
     const filtered = type === 'all' ? allItems : allItems.filter((item: any) => item.type === type)

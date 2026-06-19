@@ -1,0 +1,10 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro'
+import StudentProfile from '../../components/StudentProfile.vue'
+
+const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
+---
+
+<MainLayout>
+  <StudentProfile client:load initialStudent={null} studentSlug="" apiBase={API_BASE} />
+</MainLayout>
