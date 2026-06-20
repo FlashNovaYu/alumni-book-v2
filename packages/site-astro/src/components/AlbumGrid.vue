@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onUnmounted, onMounted } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
+import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
 
 const props = defineProps<{
   albums: Array<{
@@ -111,17 +112,21 @@ const filteredAlbums = computed(() => {
   )
 })
 
-onMounted(async () => {
-  try {
-    const url = joinApiUrl(props.apiBase, '/api/albums')
-    const res = await fetch(url)
-    const data = await res.json()
-    if (data.success && data.data) {
-      albumsState.value = data.data
+onMounted(() => {
+  runWhenIdle(async () => {
+    try {
+      const url = joinApiUrl(props.apiBase, '/api/albums')
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success && data.data) {
+        if (!isDeepEqual(data.data, albumsState.value)) {
+          albumsState.value = data.data
+        }
+      }
+    } catch (e) {
+      console.error('Failed to sync albums via SWR:', e)
     }
-  } catch (e) {
-    console.error('Failed to sync albums via SWR:', e)
-  }
+  })
 })
 
 const lightbox = reactive({ open: false, photos: [] as any[], index: 0 })

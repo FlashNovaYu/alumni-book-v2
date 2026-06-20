@@ -10,6 +10,7 @@ dist
 backups/
 deploy/
 yearbook.html
+packages/site-astro/public/data/*.json
 memory/
 powershell.cmd
 .astro/

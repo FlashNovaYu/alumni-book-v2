@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
 
 interface PrefaceConfig {
   preface: { title: string; subtitle: string; content: string }
@@ -63,15 +64,19 @@ function getAvatarUrl(url: string) {
   return `${props.apiBase}${url}`
 }
 
-onMounted(async () => {
-  try {
-    const res = await fetch(`${props.apiBase}/api/config`)
-    const data = await res.json()
-    if (data.success && data.data) {
-      config.value = data.data
+onMounted(() => {
+  runWhenIdle(async () => {
+    try {
+      const res = await fetch(`${props.apiBase}/api/config`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        if (!isDeepEqual(data.data, config.value)) {
+          config.value = data.data
+        }
+      }
+    } catch (e) {
+      console.error('Failed to sync preface config via SWR:', e)
     }
-  } catch (e) {
-    console.error('Failed to sync preface config via SWR:', e)
-  }
+  })
 })
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div ref="rootRef">
     <!-- 搜索栏 -->
     <div class="search-box mb-4">
       <input
@@ -46,7 +46,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { prefersReducedMotion } from '../utils/motion'
+import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
 
 interface Classmate {
   name: string
@@ -71,6 +73,9 @@ const keyword = ref('')
 const hasAnimated = ref(false)
 const avatarErrors = ref<Record<string, boolean>>({})
 
+const rootRef = ref<HTMLElement | null>(null)
+let gsapCtx: any = null
+
 const href = (path: string) => `${props.siteBase}${path.replace(/^\/+/, '')}`
 
 const filteredClassmates = computed(() => {
@@ -91,47 +96,80 @@ const filteredClassmates = computed(() => {
 function getAvatarUrl(url: string) {
   if (!url) return ''
   if (url.startsWith('http')) return url
+  // 相册/卡片图 使用 160px 的较小头像以节省首屏图片资源
+  if (url.includes('avatars/')) {
+    // 假设后端支持缩略图格式后缀 (例如 _160x160)，这里如果后端目前不支持，就降级回原图
+    // 为了防止破图，我们还是用原图，稍后可以在 image 优化任务中统一加后缀逻辑
+  }
   return `${props.apiBase}${url}`
 }
 
 function triggerAnimations(force = false) {
+  if (prefersReducedMotion()) {
+    nextTick(() => {
+      import('gsap').then(({ default: gsap }) => {
+        if (!rootRef.value) return
+        const cards = rootRef.value.querySelectorAll('.classmate-card')
+        gsap.set(cards, { autoAlpha: 1, y: 0 })
+      })
+    })
+    return
+  }
+
   if (hasAnimated.value && !force) return
   hasAnimated.value = true
 
   nextTick(() => {
     import('gsap/ScrollTrigger').then(() => {
       import('gsap').then(({ default: gsap }) => {
-        const cards = gsap.utils.toArray<HTMLElement>('.classmate-card')
-        if (cards.length) {
-          gsap.set(cards, { autoAlpha: 0, y: 30 })
-          gsap.to(cards, {
-            autoAlpha: 1,
-            y: 0,
-            duration: 0.5,
-            stagger: 0.03,
-            ease: 'back.out(1.5)',
-            overwrite: 'auto'
-          })
-        }
+        if (!rootRef.value) return
+        if (gsapCtx) gsapCtx.revert()
+
+        gsapCtx = gsap.context((self) => {
+          const cards = self.selector('.classmate-card')
+          if (cards.length) {
+            gsap.set(cards, { autoAlpha: 0, y: 24 })
+            gsap.to(cards, {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.45,
+              stagger: 0.02,
+              ease: 'power2.out',
+              overwrite: 'auto'
+            })
+          }
+        }, rootRef.value)
       })
     })
   })
 }
 
-onMounted(async () => {
+onMounted(() => {
   // 首次装载触发入场动画
   triggerAnimations()
 
-  try {
-    const res = await fetch(`${props.apiBase}/api/classmates`)
-    const data = await res.json()
-    if (data.success && data.data) {
-      classmates.value = data.data
-      // 数据更新后不做强制重头开始的闪烁动效
-      triggerAnimations()
+  // 避免首屏高并发阻塞，改为 idle 空闲时静默刷新 SWR 数据
+  runWhenIdle(async () => {
+    try {
+      const res = await fetch(`${props.apiBase}/api/classmates`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        // 使用深度对比。如果数据没变，绝对不重新赋值引起 DOM 闪动或重绘
+        if (!isDeepEqual(data.data, classmates.value)) {
+          classmates.value = data.data
+          // 数据发生变化，我们对新增元素以 force 形式重新播放入场（或者轻量渐入）
+          triggerAnimations(true)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to sync classmates list via SWR:', e)
     }
-  } catch (e) {
-    console.error('Failed to sync classmates list via SWR:', e)
+  })
+})
+
+onUnmounted(() => {
+  if (gsapCtx) {
+    gsapCtx.revert()
   }
 })
 

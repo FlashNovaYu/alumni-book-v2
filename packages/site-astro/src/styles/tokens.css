@@ -58,8 +58,8 @@
   --spacing-section: 96px;
 
   /* ── 字体 ── */
-  --font-display: 'Cormorant Garamond', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: Georgia, 'Cormorant Garamond', Garamond, 'Times New Roman', serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-code: 'JetBrains Mono', ui-monospace, monospace;
 
   /* ── 排版: 显示 ── */

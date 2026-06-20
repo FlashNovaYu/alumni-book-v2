@@ -280,7 +280,7 @@ async function handleAvatarUpload(e: Event) {
 async function handleBackgroundUpload(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  const compressed = await compressImage(file, 1920, 0.85)
+  const compressed = await compressImage(file, 1280, 0.8)
   const formData = new FormData()
   formData.append('file', compressed)
   formData.append('type', 'background')

@@ -87,6 +87,7 @@ app.get('/api/classmates', async (c) => {
     }
   })
 
+  c.header('Cache-Control', 'public, max-age=60')
   return c.json({ success: true, data: classmates })
 })
 
@@ -132,6 +133,7 @@ app.get('/api/config', async (c) => {
     }
   }
 
+  c.header('Cache-Control', 'public, max-age=60')
   return c.json({
     success: true,
     data: {
@@ -178,6 +180,7 @@ app.get('/api/albums', async (c) => {
     })
   )
 
+  c.header('Cache-Control', 'public, max-age=60')
   return c.json({ success: true, data: albumsWithPhotos })
 })
 
@@ -228,6 +231,7 @@ app.get('/api/rankings', async (c) => {
       }
     })
 
+    c.header('Cache-Control', 'public, max-age=60')
     return c.json({
       success: true,
       data: { visits, messages, recent }

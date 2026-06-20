@@ -23,20 +23,6 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
   </div>
 </MainLayout>
 
-<script>
-
-  // GSAP 首页入场动画
-  import('gsap').then(({ default: gsap }) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    gsap.set('.hero-content > *', { autoAlpha: 0, y: 30 })
-    gsap.timeline({ defaults: { duration: 0.6, ease: 'power2.out' } })
-      .to('.hero-label', { autoAlpha: 1, y: 0 })
-      .to('.hero-title', { autoAlpha: 1, y: 0 }, '-=0.3')
-      .to('.hero-subtitle', { autoAlpha: 1, y: 0 }, '-=0.3')
-      .to('#name-gate', { autoAlpha: 1, y: 0 }, '-=0.3')
-  })
-</script>
-
 <style>
   .home-page {
     min-height: 100vh;
@@ -58,8 +44,18 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     font-weight: var(--type-caption-uppercase-weight);
     letter-spacing: var(--type-caption-uppercase-letter-spacing);
     color: var(--color-muted);
+    
+    opacity: 0;
+    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.1s;
   }
-  .hero-title { font-size: var(--type-display-xl-size); }
+  .hero-title { 
+    font-size: var(--type-display-xl-size);
+    
+    opacity: 0;
+    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.25s;
+  }
   .hero-subtitle {
     font-family: var(--font-display);
     font-size: 18px;
@@ -67,9 +63,41 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     letter-spacing: 0.05em;
     max-width: 480px;
     line-height: 1.8;
+    
+    opacity: 0;
+    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.4s;
   }
+  
+  #name-gate {
+    width: 100%;
+    opacity: 0;
+    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: 0.55s;
+  }
+
+  @keyframes heroFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-label, .hero-title, .hero-subtitle, #name-gate {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+    }
+  }
+
   @media (max-width: 768px) {
     .hero-title { font-size: 32px; }
     .hero-subtitle { font-size: 15px; }
   }
 </style>
+

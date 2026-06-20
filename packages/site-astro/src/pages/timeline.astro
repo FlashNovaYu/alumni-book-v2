@@ -4,6 +4,7 @@ import MainLayout from '../layouts/MainLayout.astro'
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
+const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
 let items: any[] = []
 try {
@@ -14,7 +15,7 @@ try {
 ---
 
 <MainLayout>
-  <div class="timeline-page section" data-base-url={base}>
+  <div class="timeline-page section" data-base-url={base} data-api-base={CLIENT_API_BASE}>
     <div class="container">
       <div class="timeline-header fade-in">
         <p class="timeline-label">· TIMELINE ·</p>
@@ -32,8 +33,8 @@ try {
       </div>
 
       <div class="timeline-line">
-        {items.map((item) => (
-          <div class={`timeline-node fade-in ${item.isMilestone ? 'milestone' : ''} type-${item.type}`}>
+        {items.map((item, i) => (
+          <div class={`timeline-node anim-enter ${item.isMilestone ? 'milestone' : ''} type-${item.type}`} style={`animation-delay: ${Math.min(i * 0.05, 0.4)}s`}>
             <div class="tl-dot"></div>
             <div class="tl-card">
               <div class="tl-date">{new Date(item.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
@@ -61,18 +62,19 @@ try {
 </MainLayout>
 
 <script>
-  // 1. 客户端筛选逻辑
   const dataEl = document.getElementById('timeline-data')
   let allItems = JSON.parse(dataEl?.textContent || '[]')
-  const base = document.querySelector('.timeline-page')?.getAttribute('data-base-url') || '/'
+  const pageEl = document.querySelector('.timeline-page')
+  const base = pageEl?.getAttribute('data-base-url') || '/'
+  const API_BASE = pageEl?.getAttribute('data-api-base') || ''
   const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
-  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
 
   // SWR: 抓取最新时光轴数据并更新渲染
   fetch(`${API_BASE}/api/timeline`)
     .then(r => r.json())
     .then(data => {
       if (data.success && data.data) {
+        if (JSON.stringify(data.data) === JSON.stringify(allItems)) return
         allItems = data.data
         const activeTab = document.querySelector('.timeline-tabs .tab-btn.active')
         const type = activeTab?.getAttribute('data-type') || 'all'
@@ -104,10 +106,11 @@ try {
         extraHtml += `<a href="${href(`/student/${item.slug}`)}" class="tl-link">查看 TA 的主页 →</a>`
       }
       
-      const nodeClass = `timeline-node fade-in ${isMilestone} type-${item.type}`
+      const nodeClass = `timeline-node anim-enter ${isMilestone} type-${item.type}`
+      const delay = Math.min(i * 0.05, 0.4)
       
       return `
-        <div class="${nodeClass}">
+        <div class="${nodeClass}" style="animation-delay: ${delay}s">
           <div class="tl-dot"></div>
           <div class="tl-card">
             <div class="tl-date">${dateStr}</div>
@@ -118,18 +121,6 @@ try {
         </div>
       `
     }).join('')
-
-    animateNodes()
-  }
-
-  // 动画触发函数
-  function animateNodes() {
-    import('gsap').then(({ default: gsap }) => {
-      gsap.fromTo('.timeline-node', 
-        { autoAlpha: 0, y: 20 },
-        { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.03, ease: 'power2.out' }
-      )
-    })
   }
 
   // 绑定 Tab 点击事件
@@ -140,22 +131,6 @@ try {
       btn.classList.add('active')
       const type = btn.getAttribute('data-type') || 'all'
       renderTimeline(type)
-    })
-  })
-
-  // 首次载入动画
-  import('gsap/ScrollTrigger').then(() => {
-    import('gsap').then(({ default: gsap }) => {
-      gsap.set('.timeline-node', { autoAlpha: 0, y: 30, x: 0 })
-      gsap.utils.toArray<HTMLElement>('.timeline-node').forEach((node, i) => {
-        gsap.fromTo(node,
-          { autoAlpha: 0, x: i % 2 === 0 ? -50 : 50, y: 20 },
-          {
-            autoAlpha: 1, x: 0, y: 0, duration: 0.55, ease: 'power2.out',
-            scrollTrigger: { trigger: node, start: 'top 85%', once: true },
-          }
-        )
-      })
     })
   })
 </script>
@@ -184,6 +159,32 @@ try {
   .timeline-node { position: relative; display: flex; margin-bottom: var(--spacing-xl); }
   .timeline-node:nth-child(odd) { padding-right: 50%; }
   .timeline-node:nth-child(even) { padding-left: 50%; justify-content: flex-end; }
+  
+  /* CSS-first 入场动画 */
+  .anim-enter {
+    opacity: 0;
+    animation: nodeEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes nodeEnter {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .anim-enter {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+    }
+  }
+
   .tl-dot {
     position: absolute;
     left: 50%;
@@ -201,6 +202,10 @@ try {
     border-radius: var(--rounded-md);
     padding: var(--spacing-lg);
     max-width: 340px;
+    transition: transform 0.3s var(--ease-out-quart);
+  }
+  .tl-card:hover {
+    transform: translateY(-2px);
   }
   .tl-date { font-size: var(--type-caption-size); color: var(--color-muted); margin-bottom: var(--spacing-xs); }
   .tl-title { font-size: var(--type-title-sm-size); margin-bottom: var(--spacing-xs); }

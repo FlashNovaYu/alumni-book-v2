@@ -31,7 +31,7 @@ try {
       </div>
 
       <!-- 排行榜面板 -->
-      <RankingsPanel client:load apiBase={CLIENT_API_BASE} />
+      <RankingsPanel client:visible apiBase={CLIENT_API_BASE} />
 
       <RosterWall client:load initialClassmates={classmates} apiBase={CLIENT_API_BASE} siteBase={base} />
     </div>

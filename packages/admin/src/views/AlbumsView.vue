@@ -221,7 +221,7 @@ async function handlePhotoUpload(e: Event) {
   try {
     for (const file of files) {
       const formData = new FormData()
-      const compressed = await compressImage(file)
+      const compressed = await compressImage(file, 1280, 0.8)
       formData.append('file', compressed)
       formData.append('type', 'photo')
       formData.append('albumId', uploadAlbum.value.id)
