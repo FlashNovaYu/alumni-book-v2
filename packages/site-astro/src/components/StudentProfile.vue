@@ -260,6 +260,7 @@ const processedHtml = computed(() => {
 })
 
 function getPhotoUrl(r2Key: string) {
+  if (!r2Key) return ''
   if (r2Key.startsWith('http')) return r2Key
   return `${props.apiBase}/api/files/${r2Key}`
 }

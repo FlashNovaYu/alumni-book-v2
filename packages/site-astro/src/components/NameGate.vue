@@ -60,7 +60,7 @@ async function handleEnter() {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-lg);
+  margin: var(--spacing-lg) auto 0 auto;
 }
 .input-group { display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .hero-input { text-align: center; font-size: 16px; height: 48px; }

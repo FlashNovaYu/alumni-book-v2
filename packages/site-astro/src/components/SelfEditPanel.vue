@@ -2,7 +2,7 @@
   <div v-if="isOwner" class="self-edit">
     <button class="edit-trigger" @click="openEditor">编辑我的资料</button>
 
-    <Teleport to="body">
+    <Teleport v-if="isMounted" to="body">
       <!-- 口令锁卡片 -->
       <Transition name="modal">
         <div v-if="showSecretPrompt" class="editor-overlay" @click.self="showSecretPrompt = false">
@@ -223,7 +223,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { getSessionName, compressImage, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
@@ -232,6 +232,11 @@ const props = defineProps<{
   studentName: string
   apiBase: string
 }>()
+
+const isMounted = ref(false)
+onMounted(() => {
+  isMounted.value = true
+})
 
 const show = ref(false)
 const saving = ref(false)

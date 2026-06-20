@@ -12,6 +12,7 @@ import '../styles/global.css'
     <title>同学录</title>
     <script is:inline>
       (function() {
+        document.documentElement.classList.add('js');
         const name = sessionStorage.getItem('classmate_name');
         const path = window.location.pathname;
         const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/');

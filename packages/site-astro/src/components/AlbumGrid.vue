@@ -41,7 +41,7 @@
     </div>
 
     <!-- 灯箱 -->
-    <Teleport to="body">
+    <Teleport v-if="isMounted" to="body">
       <Transition name="lightbox">
       <div v-if="lightbox.open" class="lightbox" @click.self="closeLightbox">
         <button class="lightbox-close" @click="closeLightbox">
@@ -82,10 +82,12 @@ const props = defineProps<{
   apiBase: string
 }>()
 
+const isMounted = ref(false)
 const albumsState = ref([...props.albums])
 const photoErrors = ref<Record<string, boolean>>({})
 
 function getPhotoUrl(r2Key: string) {
+  if (!r2Key) return ''
   if (r2Key.startsWith('http')) return r2Key
   return joinApiUrl(props.apiBase, `/api/files/${r2Key}`)
 }
@@ -113,6 +115,7 @@ const filteredAlbums = computed(() => {
 })
 
 onMounted(() => {
+  isMounted.value = true
   runWhenIdle(async () => {
     try {
       const url = joinApiUrl(props.apiBase, '/api/albums')

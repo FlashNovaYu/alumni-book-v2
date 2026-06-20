@@ -133,3 +133,45 @@ select:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── 全局 CSS-first 淡入动画 ── */
+@keyframes globalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  opacity: 0;
+  animation: globalFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── FOUC 动画闪烁/闪现防护 (CSS-first 初始状态隐藏) ── */
+.js [data-motion="global-reveal"],
+.js .classmate-card,
+.js .student-body .fade-in {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(24px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  
+  .js [data-motion="global-reveal"],
+  .js .classmate-card,
+  .js .student-body .fade-in {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
+}

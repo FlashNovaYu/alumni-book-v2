@@ -14,7 +14,7 @@
     </div>
 
     <!-- 灯箱大图预览 -->
-    <Teleport to="body">
+    <Teleport v-if="isMounted" to="body">
       <Transition name="lightbox">
         <div v-if="lightbox.open" class="lightbox" @click.self="closeLightbox">
           <button class="lightbox-close" @click="closeLightbox">
@@ -58,6 +58,7 @@ import { joinApiUrl } from '../utils/apiBase'
 
 const props = defineProps<{ photos: string[]; apiBase: string }>()
 
+const isMounted = ref(false)
 const photoWallRoot = ref<HTMLElement | null>(null)
 const photoErrors = ref<Record<string, boolean>>({})
 const lightboxErrors = ref<Record<number, boolean>>({})
@@ -69,6 +70,7 @@ const lightbox = reactive({
 })
 
 function photoUrl(p: string) {
+  if (!p) return ''
   if (p.startsWith('http')) return p
   return joinApiUrl(props.apiBase, p)
 }
@@ -117,6 +119,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  isMounted.value = true
   import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
     import('gsap').then(({ default: gsap }) => {
       gsap.registerPlugin(ScrollTrigger)
