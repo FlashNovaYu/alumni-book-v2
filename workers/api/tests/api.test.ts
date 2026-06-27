@@ -295,3 +295,85 @@ describe('Museum Gallery & Timeline API', () => {
   })
 })
 
+describe('Admin Student API & Message Submission', () => {
+  it('PUT /api/students/:slug — 管理员更新学生档案与隐私权限', async () => {
+    // 1. 登录获取 admin token
+    const loginReq = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'admin888' }),
+    })
+    const loginCtx = createExecutionContext()
+    const loginRes = await worker.fetch(loginReq, env, loginCtx)
+    await waitOnExecutionContext(loginCtx)
+    const loginBody = await loginRes.json() as any
+    const token = loginBody.data.token
+
+    // 2. 发送 PUT 更新请求
+    const payload = {
+      name: '测试更新_管理员',
+      privacyLevel: 'public',
+      isOwner: true,
+      avatarUrl: '/api/files/avatars/test.jpg',
+      musicUrl: '/api/files/music/test.mp3',
+      musicTitle: '测试音乐',
+      musicAutoplay: true,
+      backgroundUrl: '/api/files/backgrounds/test.png',
+      backgroundColor: '#ffffff',
+      customHtml: '<h1>Custom</h1>',
+      info: {
+        nickname: '管理员改名',
+        mbti: 'INTJ',
+        graduationYear: '2026',
+        school: '测试大学',
+        class: '测试班级'
+      }
+    }
+
+    const req = new Request('http://localhost/api/students/test', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+
+    // 3. 验证数据库
+    const row = await env.DB.prepare('SELECT name, privacy_level, is_owner, avatar_url, info FROM students WHERE slug = ?').bind('test').first() as any
+    expect(row.name).toBe('测试更新_管理员')
+    expect(row.privacy_level).toBe('public')
+    expect(row.is_owner).toBe(1)
+    expect(row.avatar_url).toBe('/api/files/avatars/test.jpg')
+    const info = JSON.parse(row.info)
+    expect(info.nickname).toBe('管理员改名')
+    expect(info.mbti).toBe('INTJ')
+  })
+
+  it('POST /api/messages/:slug — 提交留言正常', async () => {
+    const payload = {
+      authorName: '留言测试者',
+      content: '这是一条由单元测试发出的祝福贴纸内容',
+      cardStyle: 'letter'
+    }
+    const req = new Request('http://localhost/api/messages/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+    expect(body.message).toContain('等待审核')
+  })
+})
+
