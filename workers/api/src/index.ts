@@ -83,6 +83,13 @@ app.get('/api/classmates', async (c) => {
 
   const classmates = (results || []).map((row: any) => {
     const info = JSON.parse(row.info || '{}')
+    const required = ['nickname', 'motto', 'bestMemory', 'favoriteSong', 'futureSelf', 'letterToClassmates', 'mbti', 'bestSubject']
+    const filled = required.filter((key) => info[key] && String(info[key]).trim()).length + (row.avatar_url ? 1 : 0)
+    const tags = [info.mbti, info.favoriteSong, info.bestSubject, info.school || row.school]
+      .filter(Boolean)
+      .map((value: string) => String(value).trim())
+      .slice(0, 4)
+
     return {
       name: row.name,
       slug: row.slug,
@@ -93,6 +100,11 @@ app.get('/api/classmates', async (c) => {
       school: row.school || info.school || '',
       className: row.class_name || info.class || '',
       mbti: row.mbti || info.mbti || '',
+      seatNo: info.seatNo || '',
+      dormNo: info.dormNo || '',
+      groupName: info.groupName || '',
+      completion: Math.round((filled / 9) * 100),
+      tags,
     }
   })
 

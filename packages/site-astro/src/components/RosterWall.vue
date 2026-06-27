@@ -1,42 +1,19 @@
 <template>
   <div ref="rootRef">
-    <!-- 搜索栏 -->
-    <div class="search-box mb-4">
-      <input
-        v-model="keyword"
-        type="text"
-        class="text-input search-input"
-        placeholder="搜索同学姓名、昵称、学校、座右铭…"
-        autocomplete="off"
-      />
-      <p v-if="keyword.trim()" class="search-count">找到 {{ filteredClassmates.length }} 位同学</p>
+    <div class="archive-search museum-paper">
+      <p class="museum-kicker">人物长廊</p>
+      <input v-model="keyword" type="text" class="text-input search-input" placeholder="档案检索：姓名、昵称、学校、座右铭、MBTI" autocomplete="off" />
+      <p class="search-count">{{ keyword.trim() ? `找到 ${filteredClassmates.length} 位同学` : '浏览所有同学档案（若 TA 的页面待完善，欢迎联系管理员补全资料）' }}</p>
     </div>
 
     <!-- 同学列表网格 -->
-    <div class="classmate-grid">
-      <a
-        v-for="(mate, idx) in filteredClassmates"
+    <div class="archive-grid">
+      <ArchiveRosterCard
+        v-for="mate in filteredClassmates"
         :key="mate.slug"
-        :href="mate.hasPage ? href(`/student/${mate.slug}`) : '#'"
-        class="classmate-card fade-in"
-        :class="{ 'no-page': !mate.hasPage }"
-        :style="{ animationDelay: `${Math.min(idx * 0.02, 1.2)}s` }"
-      >
-        <div class="card-avatar">
-          <img
-            v-if="mate.avatarUrl && !avatarErrors[mate.slug]"
-            :src="getAvatarUrl(mate.avatarUrl)"
-            :alt="mate.name"
-            loading="lazy"
-            decoding="async"
-            style="aspect-ratio: 1"
-            @error="avatarErrors[mate.slug] = true"
-          />
-          <span v-else class="avatar-char">{{ mate.name.charAt(0) }}</span>
-        </div>
-        <div class="card-name title-sm">{{ mate.name }}</div>
-        <div class="card-motto">{{ mate.hasPage ? (mate.motto || '点击查看 TA 的故事') : '页面待建' }}</div>
-      </a>
+        :card="toArchiveClassmateCard(mate, siteBase)"
+        :api-base="apiBase"
+      />
     </div>
 
     <!-- 空状态 -->
@@ -49,6 +26,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
+import ArchiveRosterCard from './ArchiveRosterCard.vue'
+import { toArchiveClassmateCard } from '../utils/museumViewModels'
 
 interface Classmate {
   name: string
@@ -60,6 +39,8 @@ interface Classmate {
   school?: string
   className?: string
   mbti?: string
+  completion?: number
+  tags?: string[]
 }
 
 const props = defineProps<{
@@ -70,11 +51,8 @@ const props = defineProps<{
 
 const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
-const avatarErrors = ref<Record<string, boolean>>({})
 
 const rootRef = ref<HTMLElement | null>(null)
-
-const href = (path: string) => `${props.siteBase}${path.replace(/^\/+/, '')}`
 
 const filteredClassmates = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
@@ -90,12 +68,6 @@ const filteredClassmates = computed(() => {
     )
   })
 })
-
-function getAvatarUrl(url: string) {
-  if (!url) return ''
-  if (url.startsWith('http')) return url
-  return `${props.apiBase}${url}`
-}
 
 onMounted(() => {
   // 避免首屏高并发阻塞，改为 idle 空闲时静默刷新 SWR 数据
@@ -118,9 +90,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.search-box {
-  max-width: 500px;
+.archive-search {
+  max-width: 600px;
   margin: 0 auto var(--spacing-xl);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-radius: var(--rounded-md);
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -136,63 +111,10 @@ onMounted(() => {
   font-size: var(--type-body-sm-size);
   color: var(--color-muted);
 }
-.classmate-grid {
+.archive-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--spacing-lg);
-}
-.classmate-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--spacing-lg) var(--spacing-md);
-  background-color: var(--color-surface-card);
-  border-radius: var(--rounded-lg);
-  text-decoration: none;
-  color: inherit;
-  transition: transform var(--duration-normal) var(--ease-out-quart),
-              box-shadow var(--duration-normal) var(--ease-out-quart);
-}
-.classmate-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-card-hover);
-}
-.classmate-card.no-page {
-  opacity: 0.55;
-  pointer-events: none;
-}
-.card-avatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--color-surface-cream-strong), var(--color-hairline));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: var(--spacing-sm);
-  border: 2px solid var(--color-hairline);
-}
-.card-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatar-char {
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 500;
-  color: var(--color-muted);
-}
-.card-name {
-  margin-bottom: var(--spacing-xxs);
-  text-align: center;
-}
-.card-motto {
-  font-size: var(--type-body-sm-size);
-  color: var(--color-muted);
-  text-align: center;
-  font-style: italic;
 }
 .empty-state {
   text-align: center;
@@ -200,13 +122,9 @@ onMounted(() => {
   color: var(--color-muted);
 }
 @media (max-width: 768px) {
-  .classmate-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .archive-grid {
+    grid-template-columns: 1fr;
     gap: var(--spacing-md);
-  }
-  .card-avatar {
-    width: 58px;
-    height: 58px;
   }
 }
 </style>

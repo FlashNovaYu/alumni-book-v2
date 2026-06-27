@@ -56,6 +56,10 @@ describe('Public API', () => {
   })
 
   it('GET /api/classmates — 返回同学名单', async () => {
+    await env.DB.prepare(
+      "INSERT INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)"
+    ).bind('test-uuid-classmate', '测试同学', 'test-classmate', JSON.stringify({ motto: '我的一天', nickname: '小测' })).run()
+
     const req = new Request('http://localhost/api/classmates')
     const ctx = createExecutionContext()
     const res = await worker.fetch(req, env, ctx)
@@ -64,6 +68,9 @@ describe('Public API', () => {
     const body = await res.json() as any
     expect(body.success).toBe(true)
     expect(Array.isArray(body.data)).toBe(true)
+    expect(body.data[0]).toHaveProperty('completion')
+    expect(body.data[0]).toHaveProperty('tags')
+    expect(Array.isArray(body.data[0].tags)).toBe(true)
   })
 
   it('GET /api/config — 返回站点配置', async () => {
