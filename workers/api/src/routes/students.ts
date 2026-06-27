@@ -34,7 +34,25 @@ studentsRoutes.post('/students', async (c) => {
   }
 
   const id = `stu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  const info = JSON.stringify({ name, nickname: '', gender: '', birthday: '', school: '', class: '', graduationYear: '', motto: '' })
+  const info = JSON.stringify({
+    name,
+    nickname: '',
+    gender: '',
+    birthday: '',
+    school: '',
+    class: '',
+    studentId: '',
+    seatNo: '',
+    dormNo: '',
+    groupName: '',
+    graduationYear: '',
+    motto: '',
+    bestMemory: '',
+    deskmateFun: '',
+    classMeme: '',
+    futureSelf: '',
+    letterToClassmates: ''
+  })
 
   await db.prepare(
     'INSERT INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)'
@@ -70,7 +88,11 @@ studentsRoutes.put('/students/:slug', async (c) => {
   if (body.info?.graduationYear !== undefined) { fields.push('graduation_year = ?'); values.push(body.info.graduationYear) }
   if (body.info?.school !== undefined) { fields.push('school = ?'); values.push(body.info.school) }
   if (body.info?.class !== undefined) { fields.push('class_name = ?'); values.push(body.info.class) }
-  if (body.info !== undefined) { fields.push('info = ?'); values.push(JSON.stringify(body.info)) }
+  if (body.info !== undefined) {
+    // 确保整个 info JSON 字符串（包括座位、宿舍、回忆与寄语等新字段）被整体解析和保存到数据库中
+    fields.push('info = ?')
+    values.push(JSON.stringify(body.info))
+  }
   if (body.photos !== undefined) { fields.push('photos = ?'); values.push(JSON.stringify(body.photos)) }
   if (body.editSecret !== undefined && body.editSecret !== null && body.editSecret !== '') {
     const hash = await hashPassword(body.editSecret)

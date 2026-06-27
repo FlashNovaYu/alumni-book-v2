@@ -89,9 +89,48 @@
             <input v-model="student.info.graduationYear" type="text" class="text-input" />
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">座位号</label>
+            <input v-model="student.info.seatNo" type="text" class="text-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">宿舍号</label>
+            <input v-model="student.info.dormNo" type="text" class="text-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">小组/圈子</label>
+            <input v-model="student.info.groupName" type="text" class="text-input" />
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-label">座右铭</label>
           <input v-model="student.info.motto" type="text" class="text-input" />
+        </div>
+      </div>
+
+      <!-- 校园回忆与未来 -->
+      <div class="card">
+        <h2 class="title-md section-heading">校园回忆与未来</h2>
+        <div class="form-group">
+          <label class="form-label">最难忘的一件事</label>
+          <textarea v-model="student.info.bestMemory" class="textarea" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">同桌趣事</label>
+          <textarea v-model="student.info.deskmateFun" class="textarea" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">班级经典梗</label>
+          <textarea v-model="student.info.classMeme" class="textarea" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">十年后的自己</label>
+          <textarea v-model="student.info.futureSelf" class="textarea" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">给同学的话</label>
+          <textarea v-model="student.info.letterToClassmates" class="textarea" rows="3"></textarea>
         </div>
       </div>
 
@@ -362,6 +401,28 @@ onMounted(async () => {
       }
       if (!student.value.info) {
         student.value.info = {} as any
+      }
+      const defaults = {
+        nickname: '',
+        gender: '',
+        birthday: '',
+        school: '',
+        class: '',
+        studentId: '',
+        seatNo: '',
+        dormNo: '',
+        groupName: '',
+        graduationYear: '',
+        motto: '',
+        bestMemory: '',
+        deskmateFun: '',
+        classMeme: '',
+        futureSelf: '',
+        letterToClassmates: '',
+      }
+      student.value.info = {
+        ...defaults,
+        ...student.value.info,
       }
       if (!student.value.info.profileModules) {
         student.value.info.profileModules = []

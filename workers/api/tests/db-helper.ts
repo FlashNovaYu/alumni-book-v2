@@ -101,4 +101,19 @@ export const testMigrations = [
 
 export async function initTestDb(db: any) {
   await applyD1Migrations(db, testMigrations)
+  await db.prepare(`
+    INSERT OR REPLACE INTO students (id, name, slug, info)
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    'stu_test_init',
+    '测试同学',
+    'test_init',
+    JSON.stringify({
+      name: '测试同学',
+      nickname: '测试',
+      motto: '天天向上',
+      tags: ['打球', '看书'],
+      completion: 80
+    })
+  ).run()
 }

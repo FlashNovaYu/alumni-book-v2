@@ -31,6 +31,7 @@ export interface StudentInfo {
   studentId: string
   seatNo: string
   dormNo: string
+  groupName: string
   graduationYear: string
   qq: string
   wechat: string
