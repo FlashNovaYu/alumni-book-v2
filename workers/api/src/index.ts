@@ -176,6 +176,49 @@ app.get('/api/config', async (c) => {
       preface: config.preface || { title: '致青春岁月', subtitle: '写在翻开同学录之前', content: '' },
       acknowledgments: config.acknowledgments || [],
       typography: config.typography || { fontFamily: 'default', fontSize: 15 },
+      museum: config.museum || {
+        enabled: true,
+        heroEyebrow: 'CLASS MEMORY MUSEUM',
+        heroTitle: '青春纪念馆',
+        heroSubtitle: '翻开这本会呼吸的同学录，重新走过我们的青春长廊。',
+        particleLevel: 'low',
+        enableClassGraph: false,
+        enableSeatMap: false,
+      },
+    },
+  })
+})
+
+app.get('/api/admin/config', async (c) => {
+  const db = c.env.DB
+  const { results } = await db.prepare('SELECT key, value FROM site_config').all()
+
+  const config: Record<string, any> = {}
+  for (const row of results || []) {
+    try {
+      config[(row as any).key] = JSON.parse((row as any).value)
+    } catch {
+      config[(row as any).key] = (row as any).value
+    }
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      particles: config.particles || {},
+      footer: config.footer || { copyright: '同学录 · 青春回忆', beian: '', beianUrl: '' },
+      preface: config.preface || { title: '致青春岁月', subtitle: '写在翻开同学录之前', content: '' },
+      acknowledgments: config.acknowledgments || [],
+      typography: config.typography || { fontFamily: 'default', fontSize: 15 },
+      museum: config.museum || {
+        enabled: true,
+        heroEyebrow: 'CLASS MEMORY MUSEUM',
+        heroTitle: '青春纪念馆',
+        heroSubtitle: '翻开这本会呼吸的同学录，重新走过我们的青春长廊。',
+        particleLevel: 'low',
+        enableClassGraph: false,
+        enableSeatMap: false,
+      },
     },
   })
 })
@@ -200,6 +243,7 @@ app.get('/api/albums', async (c) => {
         sortOrder: album.sort_order,
         coverR2Key: album.cover_r2_key,
         tags: JSON.parse(album.tags || '[]'),
+        featured: !!album.featured,
         photos: (photos || []).map((p: any) => ({
           id: p.id,
           albumId: p.album_id,

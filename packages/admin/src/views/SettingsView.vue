@@ -61,6 +61,49 @@
         </div>
       </div>
 
+      <!-- 纪念馆主题设置 -->
+      <div class="card" v-if="config.museum">
+        <h2 class="title-md section-heading">纪念馆主题设置</h2>
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input v-model="config.museum.enabled" type="checkbox" />
+            启用纪念馆主题
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hero 眉标 (Hero Eyebrow)</label>
+          <input v-model="config.museum.heroEyebrow" type="text" class="text-input" :disabled="!config.museum.enabled" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hero 标题 (Hero Title)</label>
+          <input v-model="config.museum.heroTitle" type="text" class="text-input" :disabled="!config.museum.enabled" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hero 副标题 (Hero Subtitle)</label>
+          <input v-model="config.museum.heroSubtitle" type="text" class="text-input" :disabled="!config.museum.enabled" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">粒子浓度 (Particle Level)</label>
+          <select v-model="config.museum.particleLevel" class="text-input" :disabled="!config.museum.enabled">
+            <option value="off">关闭 (off)</option>
+            <option value="low">低 (low)</option>
+            <option value="medium">中 (medium)</option>
+          </select>
+        </div>
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input v-model="config.museum.enableClassGraph" type="checkbox" :disabled="!config.museum.enabled" />
+            启用班级关系图谱
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input v-model="config.museum.enableSeatMap" type="checkbox" :disabled="!config.museum.enabled" />
+            启用座位表
+          </label>
+        </div>
+      </div>
+
       <!-- 致谢 -->
       <div class="card">
         <h2 class="title-md section-heading">特别致谢</h2>
@@ -87,12 +130,23 @@ import type { SiteConfig, ApiResponse } from '@alumni/shared'
 const saving = ref(false)
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
+const defaultMuseumConfig = {
+  enabled: true,
+  heroEyebrow: 'CLASS MEMORY MUSEUM',
+  heroTitle: '青春纪念馆',
+  heroSubtitle: '翻开这本会呼吸的同学录，重新走过我们的青春长廊。',
+  particleLevel: 'low' as const,
+  enableClassGraph: false,
+  enableSeatMap: false,
+}
+
 const config = ref<SiteConfig>({
   particles: {},
   footer: { copyright: '', beian: '', beianUrl: '' },
   preface: { title: '', subtitle: '', content: '' },
   acknowledgments: [],
   typography: { fontFamily: 'default', fontSize: 15 },
+  museum: { ...defaultMuseumConfig },
 })
 
 function showToast(type: 'success' | 'error', message: string) {
@@ -126,7 +180,12 @@ async function handleSave() {
 onMounted(async () => {
   try {
     const res = await adminFetch<ApiResponse<SiteConfig>>('/api/config')
-    if (res.data) config.value = res.data
+    if (res.data) {
+      config.value = {
+        ...res.data,
+        museum: { ...defaultMuseumConfig, ...res.data.museum },
+      }
+    }
   } catch {
     // 使用默认值
   }
@@ -151,6 +210,18 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr auto;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-sm);
+}
+
+.checkbox-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  user-select: none;
 }
 
 .btn-sm {
