@@ -126,6 +126,7 @@
               <router-link to="/messages" class="btn-action">同学留言墙审核</router-link>
               <router-link to="/albums" class="btn-action">班级相册库管理</router-link>
               <router-link to="/config" class="btn-action">前言寄语与致谢设置</router-link>
+              <a :href="getYearbookUrl()" target="_blank" class="btn-action btn-yearbook">📖 毕业纪念册 (打印/导出 PDF)</a>
             </div>
           </div>
         </div>
@@ -204,6 +205,14 @@ const getFrontUrl = (slug: string) => {
   const hasSubpath = window.location.pathname.startsWith('/alumni-book-v2')
   const base = hasSubpath ? '/alumni-book-v2/' : '/'
   return `${origin}${base}student/${slug}/`
+}
+
+const getYearbookUrl = () => {
+  const isDev = window.location.port === '5173'
+  const origin = isDev ? 'http://localhost:4321' : window.location.origin
+  const hasSubpath = window.location.pathname.startsWith('/alumni-book-v2')
+  const base = hasSubpath ? '/alumni-book-v2/' : '/'
+  return `${origin}${base}yearbook/`
 }
 </script>
 
@@ -524,6 +533,16 @@ const getFrontUrl = (slug: string) => {
 .rank-name-link:hover {
   color: var(--color-primary);
   text-decoration: underline;
+}
+.btn-yearbook {
+  background-color: var(--color-surface-cream-strong, #eedfd4) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-primary) !important;
+  margin-top: var(--spacing-xs);
+}
+.btn-yearbook:hover {
+  background-color: var(--color-primary) !important;
+  color: #fff !important;
 }
 </style>
 

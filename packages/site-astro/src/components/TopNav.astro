@@ -19,7 +19,7 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
       <a href={href('/roster')} class={`nav-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/roster')) ? 'page' : undefined}>同学录</a>
       <a href={href('/album')} class={`nav-link ${currentPath.startsWith(href('/album')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/album')) ? 'page' : undefined}>相册</a>
       <a href={href('/timeline')} class={`nav-link ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/timeline')) ? 'page' : undefined}>时光轴</a>
-      <a href={href('/yearbook')} class={`nav-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/yearbook')) ? 'page' : undefined}>年度册</a>
+      <a href={href('/yearbook')} class={`nav-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/yearbook')) ? 'page' : undefined}>纪念册 (PDF)</a>
     </div>
   </div>
 </nav>
