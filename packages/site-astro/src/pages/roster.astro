@@ -2,6 +2,8 @@
 import MainLayout from '../layouts/MainLayout.astro'
 import RosterWall from '../components/RosterWall.vue'
 import RankingsPanel from '../components/RankingsPanel.vue'
+import ClassGraphPreview from '../components/ClassGraphPreview.vue'
+import SeatMapPreview from '../components/SeatMapPreview.vue'
 
 interface Classmate {
   name: string; slug: string; hasPage: boolean
@@ -34,11 +36,27 @@ try {
       <RankingsPanel client:visible apiBase={CLIENT_API_BASE} />
 
       <RosterWall client:load initialClassmates={classmates} apiBase={CLIENT_API_BASE} siteBase={base} />
+
+      <div class="lazy-highlights">
+        <ClassGraphPreview client:visible sampleNames={['张三', '李四', '王五']} />
+        <SeatMapPreview client:visible seats={['1-1', '1-2', '2-1', '2-2']} />
+      </div>
     </div>
   </div>
 </MainLayout>
 
 <style>
+  .lazy-highlights {
+    margin-top: var(--spacing-xl);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+  }
+  @media (max-width: 768px) {
+    .lazy-highlights {
+      grid-template-columns: 1fr;
+    }
+  }
   .roster-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
   .roster-header { text-align: center; margin-bottom: var(--spacing-xl); }
   .roster-label {

@@ -110,7 +110,9 @@ describe('Performance Static Constraints Test', () => {
     const scripts = getReferencedScripts(htmlPath)
     expectScriptsNotToReference(scripts, [
       'ClassGraph',
+      'ClassGraphPreview',
       'SeatMap',
+      'SeatMapPreview',
       'Panorama',
       'ScrollTrigger',
       'gsap',

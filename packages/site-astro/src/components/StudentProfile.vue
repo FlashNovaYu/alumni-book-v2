@@ -143,6 +143,14 @@
             <MessageWall v-if="messageWallVisible" :studentSlug="student.slug" :apiBase="apiBase" />
           </div>
 
+          <!-- 延迟加载亮点入口，视口可见后加载 -->
+          <div ref="highlightsAnchor">
+            <div v-if="highlightsVisible" class="lazy-highlights">
+              <ClassGraphPreview :sampleNames="['张三', '李四', '王五']" />
+              <SeatMapPreview :seats="['1-1', '1-2', '2-1', '2-2']" />
+            </div>
+          </div>
+
           <!-- 底部签章 -->
           <div class="seal-area fade-in">
             <span class="visits">浏览 <span>{{ student.visitCount || 0 }}</span> 次</span>
@@ -193,6 +201,8 @@ import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredF
 const PhotoWall = defineAsyncComponent(() => import('./PhotoWall.vue'))
 const MessageWall = defineAsyncComponent(() => import('./MessageWall.vue'))
 const StudentShareCard = defineAsyncComponent(() => import('./StudentShareCard.vue'))
+const ClassGraphPreview = defineAsyncComponent(() => import('./ClassGraphPreview.vue'))
+const SeatMapPreview = defineAsyncComponent(() => import('./SeatMapPreview.vue'))
 
 interface Student {
   id: string
@@ -231,6 +241,8 @@ const photoWallAnchor = ref<HTMLElement | null>(null)
 const photoWallVisible = ref(false)
 const messageWallAnchor = ref<HTMLElement | null>(null)
 const messageWallVisible = ref(false)
+const highlightsAnchor = ref<HTMLElement | null>(null)
+const highlightsVisible = ref(false)
 
 const slugVal = computed(() => {
   if (props.studentSlug) return props.studentSlug
@@ -444,10 +456,21 @@ onMounted(() => {
       }, { rootMargin: '150px' })
       mObserver.observe(messageWallAnchor.value)
     }
+
+    if (highlightsAnchor.value) {
+      const hObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          highlightsVisible.value = true
+          hObserver.disconnect()
+        }
+      }, { rootMargin: '150px' })
+      hObserver.observe(highlightsAnchor.value)
+    }
   } else {
     // 降级，不支持观察器时直接展示
     photoWallVisible.value = true
     messageWallVisible.value = true
+    highlightsVisible.value = true
   }
 })
 
@@ -601,6 +624,20 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .info-grid { grid-template-columns: 1fr; }
+}
+
+.lazy-highlights {
+  margin-top: var(--spacing-xl);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+  .lazy-highlights {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hero-tags {
