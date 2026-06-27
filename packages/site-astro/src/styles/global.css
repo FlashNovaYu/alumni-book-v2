@@ -182,3 +182,44 @@ select:focus-visible {
     transform: none !important;
   }
 }
+
+.museum-paper {
+  background-color: var(--color-museum-paper);
+  background-image: var(--texture-paper-line);
+  background-size: 100% 28px;
+  border: 1px solid color-mix(in srgb, var(--color-museum-gold) 36%, transparent);
+  box-shadow: var(--shadow-museum-paper);
+}
+
+.museum-kicker {
+  font-size: var(--type-caption-uppercase-size);
+  font-weight: var(--type-caption-uppercase-weight);
+  letter-spacing: 0.16em;
+  color: var(--color-museum-gold);
+  text-transform: uppercase;
+}
+
+.museum-reveal {
+  opacity: 0;
+  animation: museumReveal 0.68s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes museumReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .museum-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+

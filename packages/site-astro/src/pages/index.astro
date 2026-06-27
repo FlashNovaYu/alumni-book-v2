@@ -1,103 +1,12 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
-import NameGate from '../components/NameGate.vue'
+import MuseumHero from '../components/MuseumHero.astro'
 
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 ---
 
 <MainLayout>
-  <div class="home-page">
-    <section class="hero-band">
-      <div class="hero-inner container">
-        <div class="hero-content fade-in-stagger">
-          <p class="hero-label fade-in">· CLASS OF MEMORIES ·</p>
-          <h1 class="hero-title display-xl fade-in">时光荏苒<br>很高兴再次见到你</h1>
-          <p class="hero-subtitle fade-in">每一段岁月都值得被铭记，让我们一起打开那本尘封的同学录</p>
-          <div id="name-gate" class="fade-in">
-            <NameGate client:load apiBase={CLIENT_API_BASE} />
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
+  <MuseumHero apiBase={CLIENT_API_BASE} />
 </MainLayout>
-
-<style>
-  .home-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    padding-top: var(--nav-height);
-  }
-  .hero-band { width: 100%; padding: var(--spacing-section) 0; }
-  .hero-inner { max-width: 640px; text-align: center; }
-  .hero-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-lg);
-  }
-  .hero-label {
-    font-family: var(--font-body);
-    font-size: var(--type-caption-uppercase-size);
-    font-weight: var(--type-caption-uppercase-weight);
-    letter-spacing: var(--type-caption-uppercase-letter-spacing);
-    color: var(--color-muted);
-    
-    opacity: 0;
-    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.1s;
-  }
-  .hero-title { 
-    font-size: var(--type-display-xl-size);
-    
-    opacity: 0;
-    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.25s;
-  }
-  .hero-subtitle {
-    font-family: var(--font-display);
-    font-size: 18px;
-    color: var(--color-muted);
-    letter-spacing: 0.05em;
-    max-width: 480px;
-    line-height: 1.8;
-    
-    opacity: 0;
-    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.4s;
-  }
-  
-  #name-gate {
-    width: 100%;
-    opacity: 0;
-    animation: heroFadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    animation-delay: 0.55s;
-  }
-
-  @keyframes heroFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(24px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .hero-label, .hero-title, .hero-subtitle, #name-gate {
-      opacity: 1 !important;
-      transform: none !important;
-      animation: none !important;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .hero-title { font-size: 32px; }
-    .hero-subtitle { font-size: 15px; }
-  }
-</style>
 
