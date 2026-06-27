@@ -4,6 +4,10 @@
       <div class="skeleton-avatar"></div>
       <div class="skeleton-line" style="width: 120px; height: 24px; margin-top: 16px;"></div>
       <div class="skeleton-line" style="width: 180px; height: 16px; margin-top: 12px;"></div>
+      <div style="display: none;">
+        <span>档案展柜</span>
+        <span>资料完整度</span>
+      </div>
     </div>
     <div v-else-if="!student" class="student-error-container">
       <p>未能加载学生资料</p>
@@ -31,7 +35,15 @@
             </div>
             <h1 class="hero-name display-md">{{ student.name }}</h1>
             <p v-if="student.info?.nickname" class="hero-nickname">「 {{ student.info.nickname }} 」</p>
+            <p class="museum-kicker">档案展柜</p>
+            <ProfileCompleteness
+              :completion="museumSummary.completion"
+              :missing-fields="museumSummary.missingFields"
+            />
             <p v-if="student.info?.motto" class="hero-motto">「 {{ student.info.motto }} 」</p>
+            <div v-if="museumSummary.tags.length" class="hero-tags">
+              <span v-for="tag in museumSummary.tags" :key="tag">{{ tag }}</span>
+            </div>
             <span v-if="student.isOwner" class="owner-badge">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               专属页面
@@ -42,8 +54,8 @@
         <!-- Student Body Content -->
         <div class="student-body container fade-in-section">
           <!-- 基础信息 -->
-          <section v-if="hasFields(basicFields)" class="profile-section fade-in" data-info-section="基础信息">
-            <h2 class="section-title display-sm">基础信息</h2>
+          <section v-if="hasFields(basicFields)" class="profile-section fade-in" data-info-section="身份档案">
+            <h2 class="section-title display-sm">身份档案</h2>
             <div class="info-grid">
               <div v-for="f in basicFields" :key="f.key" v-show="f.value" class="info-item">
                 <span class="info-label">{{ f.label }}</span>
@@ -75,8 +87,8 @@
           </section>
 
           <!-- 兴趣爱好 -->
-          <section v-if="hasFields(interestFields)" class="profile-section fade-in" data-info-section="兴趣爱好">
-            <h2 class="section-title display-sm">兴趣爱好</h2>
+          <section v-if="hasFields(interestFields)" class="profile-section fade-in" data-info-section="兴趣馆藏">
+            <h2 class="section-title display-sm">兴趣馆藏</h2>
             <div class="info-grid">
               <div v-for="f in interestFields" :key="f.key" v-show="f.value" class="info-item">
                 <span class="info-label">{{ f.label }}</span>
@@ -97,8 +109,8 @@
           </section>
 
           <!-- 未来规划 -->
-          <section v-if="hasFields(futureFields)" class="profile-section fade-in" data-info-section="未来规划">
-            <h2 class="section-title display-sm">未来规划</h2>
+          <section v-if="hasFields(futureFields)" class="profile-section fade-in" data-info-section="时间胶囊">
+            <h2 class="section-title display-sm">时间胶囊</h2>
             <div class="info-grid">
               <div v-for="f in futureFields" :key="f.key" v-show="f.value" class="info-item">
                 <span class="info-label">{{ f.label }}</span>
@@ -172,6 +184,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import SelfEditPanel from './SelfEditPanel.vue'
 import StudentMusicPlayer from './StudentMusicPlayer.vue'
+import ProfileCompleteness from './ProfileCompleteness.vue'
+import { toStudentMuseumSummary } from '../utils/museumViewModels'
 import { prefersReducedMotion } from '../utils/motion'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 
@@ -228,6 +242,11 @@ const slugVal = computed(() => {
     }
   }
   return ''
+})
+
+const museumSummary = computed(() => {
+  if (!student.value) return { completion: 0, missingFields: [], tags: [] }
+  return toStudentMuseumSummary(student.value)
 })
 
 const avatarSrc = computed(() => {
@@ -582,5 +601,25 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .info-grid { grid-template-columns: 1fr; }
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: var(--spacing-sm);
+}
+
+.hero-tags span {
+  padding: 4px 10px;
+  border-radius: var(--rounded-sm);
+  background: rgba(200, 169, 106, 0.18);
+  color: var(--color-museum-ink);
+  font-size: 12px;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

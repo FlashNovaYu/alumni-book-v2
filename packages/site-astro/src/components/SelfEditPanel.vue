@@ -71,9 +71,9 @@
                 </div>
               </section>
 
-              <!-- 基础信息 -->
+              <!-- 身份档案 -->
               <section class="edit-section">
-                <h3 class="section-label">基础信息</h3>
+                <h3 class="section-label">身份档案</h3>
                 <div class="field-grid">
                   <div class="form-group">
                     <label class="form-label">昵称</label>
@@ -122,6 +122,22 @@
                     <label class="form-label">血型</label>
                     <input v-model="form.info.bloodType" class="text-input" maxlength="5" />
                   </div>
+                  <div class="form-group">
+                    <label class="form-label">擅长的事</label>
+                    <input v-model="form.info.strengths" class="text-input" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">不擅长的事</label>
+                    <input v-model="form.info.weaknesses" class="text-input" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">最喜欢科目</label>
+                    <input v-model="form.info.bestSubject" class="text-input" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">最讨厌科目</label>
+                    <input v-model="form.info.worstSubject" class="text-input" />
+                  </div>
                 </div>
               </section>
 
@@ -144,9 +160,9 @@
                 </div>
               </section>
 
-              <!-- 兴趣爱好 -->
+              <!-- 兴趣馆藏 -->
               <section class="edit-section">
-                <h3 class="section-label">兴趣爱好</h3>
+                <h3 class="section-label">兴趣馆藏</h3>
                 <div class="field-grid">
                   <div class="form-group" v-for="f in interestFields" :key="f.key">
                     <label class="form-label">{{ f.label }}</label>
@@ -164,9 +180,9 @@
                 </div>
               </section>
 
-              <!-- 未来规划 -->
+              <!-- 时间胶囊 -->
               <section class="edit-section">
-                <h3 class="section-label">未来规划</h3>
+                <h3 class="section-label">时间胶囊</h3>
                 <div v-for="f in futureFields" :key="f.key" class="form-group">
                   <label class="form-label">{{ f.label }}</label>
                   <textarea v-model="form.info[f.key]" class="textarea" rows="2" maxlength="500" />
