@@ -18,7 +18,7 @@ pnpm build:site
 pnpm build:admin
 
 # Worker 部署
-pnpm deploy:worker
+pnpm --filter worker run deploy
 
 # 数据迁移
 pnpm migrate:data               # 运行 scripts/migrate.ts
@@ -76,13 +76,33 @@ Schema 定义在 `workers/api/src/db/schema.sql`，迁移文件在 `workers/api/
 
 文件上传后以 `/api/files/<r2Key>` 的相对 URL 形式存储。Worker 通过通配路由 `GET /api/files/:key+` 直接提供 R2 文件内容，设置 `Cache-Control: public, max-age=31536000`。前端拼接 API base 前缀得到完整 URL。R2 key 遵循约定的目录结构：`avatars/`、`music/`、`photos/`、`backgrounds/`、`misc/`。
 
-### 部署：GitHub Pages + Cloudflare Workers
+### 部署与发布流程
 
-- **Site + Admin** (`deploy-site.yml`)：同时构建 site 和 admin，将 site 放到 `deploy/` 根目录，admin 放到 `deploy/admin/`，作为单个 Pages artifact 部署。触发条件为 `packages/**` 或 `workers/**` 变更时。
-- **Admin 独立部署** (`deploy-worker.yml`)：仅构建和部署 admin。触发条件为 `packages/admin/**` 或 `packages/shared/**` 变更时。
-- **Worker**：通过 `wrangler deploy` 部署到 Cloudflare。
+1. **自动 CI/CD 部署**
+   - **Site + Admin** (`deploy-site.yml`)：向 `master` 分支 push 更改后，会自动触发 GitHub Actions 编译并将 site 部署到 Cloudflare Pages（同时把 admin SPA 部署在 `deploy/admin/` 子目录下）。
+   - **Worker**：通过 GitHub Actions 或本地命令推送至 Cloudflare Workers。
 
-GitHub Pages 的 base path 为 `/alumni-book-v2/`。所有前端路由和 Vite 构建均使用该 base 配置。
+2. **本地手动热部署 (备用/跳过 CI)**
+   如果遇到 Git 权限报错 403 或 CI/CD 暂不可用时，可直接在本地使用 Wrangler 命令行热部署。
+   - **Worker 部署**：
+     ```bash
+     pnpm --filter worker run deploy
+     ```
+   - **Pages 前端部署**（同时发布 Astro 站点与 Admin 后台）：
+     ```powershell
+     # 1. 编译前后台
+     pnpm --filter site-astro build
+     # 2. 编译后台 SPA
+     pnpm --filter admin build
+     # 3. 本地打包发布
+     if (Test-Path deploy) { Remove-Item -Recurse -Force deploy }
+     New-Item -ItemType Directory -Path deploy
+     New-Item -ItemType Directory -Path deploy/admin
+     Copy-Item -Path packages/site-astro/dist/* -Destination deploy -Recurse
+     Copy-Item -Path packages/admin/dist/* -Destination deploy/admin -Recurse
+     Copy-Item -Path packages/site-astro/_worker.js -Destination deploy/
+     npx wrangler pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
+     ```
 
 ### 专属模板系统
 
