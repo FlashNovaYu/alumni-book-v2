@@ -39,6 +39,19 @@
   --color-warning: #d4a017;
   --color-error: #c64545;
 
+  /* ── Museum hybrid redesign tokens ── */
+  --color-museum-ink: #26303a;
+  --color-museum-ink-soft: #52606c;
+  --color-museum-gold: #c8a96a;
+  --color-museum-gold-soft: #ead9a6;
+  --color-museum-paper: #fbf6ec;
+  --color-museum-paper-strong: #f0e3cf;
+  --color-museum-film-blue: #8aa2b6;
+  --color-museum-stamp-red: #a84f3d;
+  --shadow-museum-panel: 0 18px 46px rgba(38, 48, 58, 0.14);
+  --shadow-museum-paper: 0 10px 28px rgba(92, 74, 48, 0.12);
+  --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
+
   /* ── 圆角 ── */
   --rounded-xs: 4px;
   --rounded-sm: 6px;

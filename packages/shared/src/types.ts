@@ -75,6 +75,7 @@ export interface StudentInfo {
     title: string
     content: string
   }>
+  visibility?: Record<string, 'public' | 'classmates' | 'owner' | 'hidden'>
 }
 
 /** 同学名单条目 */
@@ -84,6 +85,25 @@ export interface ClassmateEntry {
   hasPage: boolean
   avatarUrl: string | null
   motto: string
+  nickname?: string
+  school?: string
+  className?: string
+  mbti?: string
+  seatNo?: string
+  dormNo?: string
+  groupName?: string
+  completion?: number
+  tags?: string[]
+}
+
+export interface MuseumThemeConfig {
+  enabled: boolean
+  heroEyebrow: string
+  heroTitle: string
+  heroSubtitle: string
+  particleLevel: 'off' | 'low' | 'medium'
+  enableClassGraph: boolean
+  enableSeatMap: boolean
 }
 
 /** 站点配置 */
@@ -104,6 +124,7 @@ export interface SiteConfig {
     fontFamily: string
     fontSize: number
   }
+  museum?: MuseumThemeConfig
 }
 
 /** 致谢人物 */

@@ -15,7 +15,7 @@ describe('museum profile helpers', () => {
       futureSelf: '成为老师',
     }
 
-    expect(computeProfileCompleteness(info)).toBe(25)
+    expect(computeProfileCompleteness(info)).toBe(31)
   })
 
   it('returns readable missing profile fields for content audit and self-edit hints', () => {
