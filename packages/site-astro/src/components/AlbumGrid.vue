@@ -194,11 +194,11 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 }
 
 .tag-filter-btn {
-  padding: 6px 16px;
+  padding: var(--spacing-xxs) var(--spacing-md);
   background: var(--color-surface-card, #fff);
   color: var(--color-muted);
   border: 1px solid var(--color-hairline);
-  border-radius: 20px;
+  border-radius: var(--rounded-pill);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -231,15 +231,15 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
 .album-card-tags {
   display: flex;
-  gap: 4px;
+  gap: var(--spacing-xxs);
   flex-wrap: wrap;
 }
 .album-tag-badge {
   font-size: 11px;
   background: var(--color-surface-cream-strong);
   color: var(--color-primary);
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--rounded-pill);
 }
 
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm); }
@@ -253,7 +253,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .fade-in-img.img-loaded {
   opacity: 1;
 }
-.photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 6px 10px; background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); color: var(--color-on-dark); font-size: var(--type-caption-size); opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quart); }
+.photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: var(--spacing-xxs) var(--spacing-xs); background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); color: var(--color-on-dark); font-size: var(--type-caption-size); opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quart); }
 .photo-item:hover .photo-caption { opacity: 1; }
 
 .frame-retro .photo-item { border: 6px solid #e8d5a8; box-shadow: 0 0 0 2px #b8903a; border-radius: 2px; }
@@ -263,7 +263,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; }
 .lightbox-close { position: absolute; top: 20px; right: 24px; color: rgba(240,210,150,0.6); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
 .lightbox-close:hover { color: var(--color-on-dark); transform: rotate(90deg); }
-.lightbox-img { max-width: 90vw; max-height: 85vh; border-radius: 2px; box-shadow: 0 10px 60px rgba(0,0,0,0.5); }
+.lightbox-img { max-width: 90vw; max-height: 85vh; border-radius: var(--rounded-xs); box-shadow: 0 10px 60px rgba(0,0,0,0.5); }
 .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: rgba(240,210,150,0.5); font-size: 36px; background: rgba(0,0,0,0.3); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
 .lightbox-nav:hover { background: rgba(0,0,0,0.6); color: var(--color-on-dark); }
 .lightbox-nav.prev:hover { transform: translateY(-50%) translateX(-2px); }

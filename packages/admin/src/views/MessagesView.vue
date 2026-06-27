@@ -227,8 +227,8 @@ onMounted(load)
 .msg-list { display: flex; flex-direction: column; gap: var(--spacing-md); margin-top: var(--spacing-lg); }
 .msg-card { padding: var(--spacing-lg); border-left: 4px solid transparent; transition: all 0.3s; }
 .msg-pinned {
-  border-left-color: #ffd700;
-  background-color: #fffde7;
+  border-left-color: var(--color-gold);
+  background-color: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-cream));
 }
 .msg-card-inner {
   display: flex;
@@ -249,14 +249,13 @@ onMounted(load)
 .msg-meta { display: flex; gap: var(--spacing-md); flex-wrap: wrap; font-size: var(--type-caption-size); color: var(--color-muted); margin-bottom: var(--spacing-sm); }
 .msg-content { font-size: var(--type-body-md-size); line-height: 1.6; margin-bottom: var(--spacing-sm); }
 .msg-reactions-inline { margin-bottom: 8px; display: flex; gap: 6px; }
-.react-badge { font-size: 12px; padding: 2px 8px; background: var(--color-surface-cream-strong); border-radius: 10px; }
-.msg-reply-inline { font-size: 13px; padding: 8px 12px; background: rgba(204,120,92,0.08); border-left: 3px solid var(--color-primary); border-radius: 4px; margin-bottom: 8px; }
+.react-badge { font-size: 12px; padding: 2px 8px; background: var(--color-surface-cream-strong); border-radius: var(--rounded-pill); }
+.msg-reply-inline { font-size: 13px; padding: 8px 12px; background: color-mix(in srgb, var(--color-primary) 8%, transparent); border-left: 3px solid var(--color-primary); border-radius: var(--rounded-sm); margin-bottom: 8px; }
 .msg-actions { display: flex; gap: var(--spacing-xs); }
 .badge { padding: 2px 8px; border-radius: var(--rounded-pill); font-size: 11px; }
 .badge-pending { background: var(--color-warning); color: white; }
 .badge-hidden { background: var(--color-muted); color: white; }
-.badge-pinned { background: #ffd700; color: #5d4037; font-weight: 600; }
-.btn-sm { height: 28px; padding: 0 10px; font-size: 12px; cursor: pointer; }
+.badge-pinned { background: var(--color-gold); color: #fff; font-weight: 600; }
 .loading { text-align: center; padding: var(--spacing-xxl); color: var(--color-muted); }
 
 .batch-actions-panel {
@@ -264,7 +263,7 @@ onMounted(load)
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md) var(--spacing-lg);
-  background-color: var(--color-surface-cream-strong, #eedfd4);
+  background-color: var(--color-surface-cream-strong);
   border: 1px solid var(--color-hairline);
   margin-top: var(--spacing-lg);
   flex-wrap: wrap;

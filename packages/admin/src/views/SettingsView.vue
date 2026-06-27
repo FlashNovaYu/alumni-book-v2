@@ -223,10 +223,4 @@ onMounted(async () => {
   cursor: pointer;
   user-select: none;
 }
-
-.btn-sm {
-  height: 40px;
-  padding: 0 12px;
-  font-size: 13px;
-}
 </style>

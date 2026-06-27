@@ -297,7 +297,6 @@ onMounted(async () => {
 .msg-result { margin-top: var(--spacing-xs); font-size: var(--type-body-sm-size); }
 .msg-result.success { color: var(--color-success); }
 .msg-result.error { color: var(--color-error); }
-.btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
 .msg-loading, .msg-empty { text-align: center; padding: var(--spacing-xl); color: var(--color-muted); font-size: var(--type-body-sm-size); }
 .msg-list { display: flex; flex-direction: column; }
 .msg-item { padding: var(--spacing-md) 0; border-bottom: 1px solid var(--color-hairline-soft); }
@@ -321,33 +320,33 @@ onMounted(async () => {
 }
 
 /* Reactions */
-.msg-reactions { display: flex; gap: 8px; margin-top: 10px; }
+.msg-reactions { display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs); }
 .react-btn {
   border: 1px solid var(--color-hairline); background: var(--color-canvas);
-  border-radius: 20px; padding: 4px 12px; font-size: 14px; cursor: pointer;
+  border-radius: var(--rounded-pill); padding: 4px var(--spacing-sm); font-size: 14px; cursor: pointer;
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 .react-btn:hover { background: var(--color-surface-cream-strong); }
-.react-btn.active { border-color: var(--color-primary); background: rgba(204,120,92,0.08); }
+.react-btn.active { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
 .react-count { font-size: 12px; color: var(--color-muted); margin-left: 2px; }
 
 /* Reply */
 .msg-reply {
-  margin-top: 10px; padding: 10px 14px;
+  margin-top: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--color-surface-cream-strong); border-radius: var(--rounded-md);
   border-left: 3px solid var(--color-primary);
 }
-.reply-label { font-size: 12px; color: var(--color-muted); display: block; margin-bottom: 4px; }
-.reply-form { margin-top: 10px; display: flex; gap: 8px; align-items: flex-end; }
+.reply-label { font-size: 12px; color: var(--color-muted); display: block; margin-bottom: var(--spacing-xxs); }
+.reply-form { margin-top: var(--spacing-xs); display: flex; gap: var(--spacing-xs); align-items: flex-end; }
 .reply-textarea { flex: 1; min-height: 36px; font-size: 13px; }
 
 /* Pinned badge */
 .pinned-badge {
   display: inline-block;
   font-size: 11px;
-  background-color: #ffe082;
-  color: #5d4037;
-  padding: 2px 8px;
+  background-color: color-mix(in srgb, var(--color-warning) 16%, #fff);
+  color: var(--color-warning);
+  padding: 2px var(--spacing-xs);
   border-radius: var(--rounded-sm);
   font-weight: 600;
   margin-bottom: var(--spacing-sm);
@@ -357,9 +356,9 @@ onMounted(async () => {
 .msg-style-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  margin-bottom: 12px;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
   flex-wrap: wrap;
 }
 .style-label {

@@ -75,6 +75,18 @@ img { max-width: 100%; display: block; }
 .btn-danger:hover { opacity: 0.9; text-decoration: none; }
 .btn-danger:active { transform: scale(0.97); }
 
+.btn-sm {
+  height: 32px;
+  padding: 0 var(--spacing-sm);
+  font-size: var(--type-body-sm-size);
+  border-radius: var(--rounded-sm);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
 .text-input {
   height: 40px;
   padding: 10px 14px;

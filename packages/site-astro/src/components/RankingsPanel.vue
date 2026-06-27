@@ -119,8 +119,8 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--color-hairline);
-  padding-bottom: 12px;
-  margin-bottom: 12px;
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
 }
 
 .rankings-title {
@@ -133,15 +133,15 @@ onMounted(async () => {
 .rankings-tabs {
   display: flex;
   gap: 4px;
-  background: var(--color-surface-cream-strong, #e8d5a8);
+  background: var(--color-surface-cream-strong);
   padding: 2px;
-  border-radius: 14px;
+  border-radius: var(--rounded-md);
 }
 
 .tab-btn {
   font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 4px var(--spacing-xs);
+  border-radius: var(--rounded-sm);
   border: none;
   background: none;
   cursor: pointer;
@@ -159,7 +159,7 @@ onMounted(async () => {
 .rank-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .rank-item {
@@ -167,13 +167,13 @@ onMounted(async () => {
   align-items: center;
   text-decoration: none;
   color: inherit;
-  padding: 6px 8px;
+  padding: var(--spacing-xxs) var(--spacing-xs);
   border-radius: var(--rounded-sm);
   transition: background var(--duration-fast);
 }
 
 .rank-item:hover {
-  background: var(--color-surface-cream, #fcfaf7);
+  background: var(--color-surface-cream);
 }
 
 .rank-badge {
@@ -185,21 +185,21 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 12px;
+  margin-right: var(--spacing-sm);
   background: var(--color-surface-cream-strong);
   color: var(--color-muted);
 }
 
-.rank-1 { background: #ffd700; color: #fff; }
-.rank-2 { background: #c0c0c0; color: #fff; }
-.rank-3 { background: #cd7f32; color: #fff; }
+.rank-1 { background: var(--color-gold); color: #fff; }
+.rank-2 { background: var(--color-silver); color: #fff; }
+.rank-3 { background: var(--color-bronze); color: #fff; }
 
 .rank-avatar-wrapper {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  margin-right: 10px;
+  margin-right: var(--spacing-xs);
   background: var(--color-surface-cream-strong);
   display: flex;
   align-items: center;

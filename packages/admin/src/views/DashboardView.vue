@@ -245,9 +245,9 @@ const getYearbookUrl = () => {
   color: var(--color-muted);
 }
 
-.font-warning .stat-number { color: #f57c00; }
-.font-success .stat-number { color: #388e3c; }
-.font-info .stat-number { color: #1976d2; }
+.font-warning .stat-number { color: var(--color-warning); }
+.font-success .stat-number { color: var(--color-success); }
+.font-info .stat-number { color: var(--color-accent-teal); }
 
 /* Dashboard layout */
 .dashboard-layout {
@@ -390,13 +390,13 @@ const getYearbookUrl = () => {
 }
 
 .msg-status.pending {
-  background-color: #ffe0b2;
-  color: #e65100;
+  background-color: color-mix(in srgb, var(--color-warning) 16%, #fff);
+  color: var(--color-warning);
 }
 
 .msg-status.approved {
-  background-color: #c8e6c9;
-  color: #1b5e20;
+  background-color: color-mix(in srgb, var(--color-success) 16%, #fff);
+  color: var(--color-success);
 }
 
 .msg-text {
@@ -444,9 +444,9 @@ const getYearbookUrl = () => {
   color: var(--color-muted);
 }
 
-.rank-1 { background-color: #ffd700; color: #5d4037; } /* Gold */
-.rank-2 { background-color: #c0c0c0; color: #424242; } /* Silver */
-.rank-3 { background-color: #cd7f32; color: #5d4037; } /* Bronze */
+.rank-1 { background-color: var(--color-gold); color: #fff; } /* Gold */
+.rank-2 { background-color: var(--color-silver); color: #fff; } /* Silver */
+.rank-3 { background-color: var(--color-bronze); color: #fff; } /* Bronze */
 
 .rank-name {
   flex: 1;
@@ -501,10 +501,10 @@ const getYearbookUrl = () => {
   margin-bottom: var(--spacing-sm);
 }
 .text-warning {
-  color: #b78103 !important;
+  color: var(--color-warning) !important;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
   margin-bottom: var(--spacing-xs);
 }
 .audit-list {
@@ -513,12 +513,12 @@ const getYearbookUrl = () => {
 }
 .audit-item {
   font-size: 13px;
-  color: #c62828;
+  color: var(--color-error);
   line-height: 1.6;
   margin-bottom: var(--spacing-xxs);
 }
 .text-success {
-  color: #2e7d32 !important;
+  color: var(--color-success) !important;
   font-size: 13px;
   margin: var(--spacing-xs) 0 0;
 }
@@ -542,7 +542,7 @@ const getYearbookUrl = () => {
   text-decoration: underline;
 }
 .btn-yearbook {
-  background-color: var(--color-surface-cream-strong, #eedfd4) !important;
+  background-color: var(--color-surface-cream-strong) !important;
   border-color: var(--color-primary) !important;
   color: var(--color-primary) !important;
   margin-top: var(--spacing-xs);

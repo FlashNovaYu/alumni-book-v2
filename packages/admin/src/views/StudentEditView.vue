@@ -558,15 +558,10 @@ function handlePreview() {
   tab-size: 2;
 }
 
-.btn-sm {
-  height: 32px;
-  padding: 0 12px;
-  font-size: 13px;
-}
 .module-item {
   border: 1px solid var(--color-hairline);
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
   border-radius: var(--rounded-md);
   background: var(--color-surface-card);
 }
@@ -574,7 +569,7 @@ function handlePreview() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 .module-title-input {
   flex: 1;
@@ -582,11 +577,11 @@ function handlePreview() {
 }
 .module-actions {
   display: flex;
-  gap: 4px;
+  gap: var(--spacing-xxs);
 }
 .module-content-input {
   width: 100%;
-  margin-top: 8px;
+  margin-top: var(--spacing-xs);
 }
 .w-full {
   width: 100%;

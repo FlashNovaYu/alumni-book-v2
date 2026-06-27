@@ -15,6 +15,7 @@
   --color-canvas: #faf9f5;
   --color-surface-soft: #f5f0e8;
   --color-surface-card: #efe9de;
+  --color-surface-cream: #faf9f5;
   --color-surface-cream-strong: #e8e0d2;
   --color-surface-dark: #181715;
   --color-surface-dark-elevated: #252320;
@@ -38,6 +39,9 @@
   --color-success: #5db872;
   --color-warning: #d4a017;
   --color-error: #c64545;
+  --color-gold: #ffd700;
+  --color-silver: #c0c0c0;
+  --color-bronze: #cd7f32;
 
   /* ── 圆角 ── */
   --rounded-xs: 4px;

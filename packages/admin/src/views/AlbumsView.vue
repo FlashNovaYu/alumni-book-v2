@@ -391,11 +391,11 @@ onMounted(loadAlbums)
 .featured-badge {
   display: inline-block;
   padding: 1px 6px;
-  background: var(--color-accent-amber, #e8a55a);
+  background: var(--color-accent-amber);
   color: #fff;
   font-size: 10px;
   font-weight: bold;
-  border-radius: 4px;
+  border-radius: var(--rounded-xs);
   margin-left: 6px;
   vertical-align: middle;
 }
@@ -505,12 +505,12 @@ onMounted(loadAlbums)
 
 .tag-badge {
   display: inline-block;
-  padding: 2px 8px;
-  background: var(--color-surface-cream-strong, #e8d5a8);
-  color: var(--color-primary, #cc785c);
+  padding: 2px var(--spacing-xs);
+  background: var(--color-surface-cream-strong);
+  color: var(--color-primary);
   font-size: 11px;
   font-weight: 500;
-  border-radius: 10px;
+  border-radius: var(--rounded-pill);
   margin-right: 4px;
 }
 
@@ -535,21 +535,21 @@ onMounted(loadAlbums)
 .manage-photo-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: var(--spacing-sm);
   max-height: 240px;
   overflow-y: auto;
   padding: 4px;
   border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-sm);
-  background: var(--color-surface-cream, #fcfaf7);
+  background: var(--color-surface-cream);
 }
 
 .manage-photo-item {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-xs);
   background: #fff;
   border: 1px solid var(--color-hairline);
-  padding: 8px;
+  padding: var(--spacing-xs);
   border-radius: var(--rounded-sm);
 }
 
@@ -568,13 +568,13 @@ onMounted(loadAlbums)
 }
 
 .photo-caption-input {
-  padding: 4px 6px;
+  padding: var(--spacing-xxs) var(--spacing-xs);
   font-size: 12px;
 }
 
 .photo-actions {
   display: flex;
-  gap: 2px;
+  gap: var(--spacing-xxs);
 }
 
 .btn-action-sm {

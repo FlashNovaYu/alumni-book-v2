@@ -335,9 +335,9 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     align-items: center;
     justify-content: center;
   }
-  .rank-row:nth-child(1) .rank-num-badge { background: #ffd700; color: #fff; }
-  .rank-row:nth-child(2) .rank-num-badge { background: #c0c0c0; color: #fff; }
-  .rank-row:nth-child(3) .rank-num-badge { background: #cd7f32; color: #fff; }
+  .rank-row:nth-child(1) .rank-num-badge { background: var(--color-gold); color: #fff; }
+  .rank-row:nth-child(2) .rank-num-badge { background: var(--color-silver); color: #fff; }
+  .rank-row:nth-child(3) .rank-num-badge { background: var(--color-bronze); color: #fff; }
   .rank-name-lbl {
     font-weight: 600;
     font-size: 14px;
