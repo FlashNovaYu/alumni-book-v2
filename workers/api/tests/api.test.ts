@@ -106,6 +106,9 @@ describe('Public API', () => {
     const body = await res.json() as any
     expect(body.success).toBe(true)
     expect(body.data.preface).toBeDefined()
+    expect(body.data.museum).toBeDefined()
+    expect(body.data.museum.heroEyebrow).toBe('CLASS MEMORY MUSEUM')
+    expect(body.data.museum.particleLevel).toBe('low')
   })
 
   it('POST /api/students/:slug/visit — 增加访问计数', async () => {
@@ -166,6 +169,28 @@ describe('Messages API', () => {
     expect(body.success).toBe(true)
     expect(Array.isArray(body.data)).toBe(true)
   })
+
+  it('POST /api/messages/:slug preserves sticker card style', async () => {
+    const req = new Request('http://localhost/api/messages/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authorName: '李四',
+        content: '祝你毕业快乐',
+        cardStyle: 'letter',
+      }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+
+    const row = await env.DB.prepare('SELECT card_style FROM messages WHERE author_name = ? ORDER BY created_at DESC LIMIT 1').bind('李四').first() as any
+    expect(row.card_style).toBe('letter')
+  })
 })
 
 describe('Classmate Self-Edit API', () => {
@@ -194,6 +219,10 @@ describe('Classmate Self-Edit API', () => {
       privacyLevel: 'classmates',
       info: {
         nickname: '测试昵称',
+        groupName: '第一小组',
+        seatNo: '3-2',
+        dormNo: 'A302',
+        letterToClassmates: '同学们未来见',
         profileModules: [
           { title: '模块1', content: '小传测试内容' }
         ],
@@ -227,7 +256,42 @@ describe('Classmate Self-Edit API', () => {
     expect(row.privacy_level).toBe('classmates')
     const info = JSON.parse(row.info)
     expect(info.nickname).toBe('测试昵称')
+    expect(info.letterToClassmates).toBe('同学们未来见')
+    expect(info.groupName).toBe('第一小组')
+    expect(info.seatNo).toBe('3-2')
+    expect(info.dormNo).toBe('A302')
     expect(info.profileModules[0].title).toBe('模块1')
+  })
+})
+
+describe('Museum Gallery & Timeline API', () => {
+  it('GET /api/albums — 包含 tags 与 featured', async () => {
+    const req = new Request('http://localhost/api/albums')
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+    expect(Array.isArray(body.data)).toBe(true)
+    if (body.data.length > 0) {
+      expect(body.data[0]).toHaveProperty('tags')
+      expect(body.data[0]).toHaveProperty('featured')
+    }
+  })
+
+  it('GET /api/timeline — 包含 eventType 且为合法值', async () => {
+    const req = new Request('http://localhost/api/timeline')
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+    expect(Array.isArray(body.data)).toBe(true)
+    if (body.data.length > 0 && body.data.some((item: any) => item.type === 'event')) {
+      const eventItem = body.data.find((item: any) => item.type === 'event')
+      expect(eventItem).toHaveProperty('eventType')
+      expect(['class_event', 'activity', 'exam', 'graduation', 'funny']).toContain(eventItem.eventType)
+    }
   })
 })
 

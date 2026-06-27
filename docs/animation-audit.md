@@ -46,3 +46,16 @@
 | **详情留言墙** | `.msg-item` | 纯 CSS Animation + Inline Delay | 直接显示 | 移除 GSAP，全新留言提交时直接无闪烁淡入。 |
 | **详情照片墙** | `.photo-item` | GSAP + ScrollTrigger (Lazy loaded) | 直接显示 | 仅当 PhotoWall 进入视口 150px 挂载后，才按需异步加载 GSAP 播放。 |
 | **学生详情页** | `.hero-bg` | GSAP + ScrollTrigger (Lazy loaded) | 移动端关闭 / 直接显示 | 仅在非移动端 (大屏) 且 mounted 后应用背景视差滚动。 |
+
+---
+
+## 4. Phase 10 优化后动画 Owner 矩阵 (2026-06-27)
+
+在混合重新设计中，我们对手账与纪念馆主题动效进行了精细管控，确保其在可访问性（减弱动效）及延迟加载层面完全达标：
+
+| 页面/组件 | 影响选择器 (DOM) | 动画引擎/所有权 | 降级/Reduced Motion 策略 | 说明 |
+|---|---|---|---|---|
+| **祝福贴纸墙 (MessageWall)** | `.msg-item` | CSS-first Transition (随机倾斜 & 悬浮上滑投影) | **强制复位重置**：`transform: none`, `transition: none`, `animation: none` | 在 reduced motion 激活时，彻底移除了倾斜、悬浮位移、放大和淡入动效，符合无障碍强制重置规范。 |
+| **影像馆 (AlbumGrid)** | `.fade-in-img` | CSS-first Transition (onload 触发 `.img-loaded`) | 直接显示 | 绝无 GSAP 依赖。基于 onload 侦测确保图片无闪烁渐入，支持 aspect-ratio 消除 CLS。 |
+| **校史走廊 (timeline.astro)** | `.timeline-item` | CSS-first Transition + Inline Delay | **彻底关闭**：`animation: none`, `transform: none` | 支持了过滤时多分类平滑淡入。当减弱动效开启时，动画延迟及位移完全停用。 |
+| **亮点预览延迟入口** | `ClassGraphPreview`, `SeatMapPreview` | Vue Async Component + IntersectionObserver | 直接显示（按需加载） | 延迟到亮点锚点滚动到视区 150px 内才触发 chunk 下载与水合。组件卸载时在 `onUnmounted` 彻底 disconnect observer 释放强引用。 |

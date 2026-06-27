@@ -83,8 +83,17 @@ app.get('/api/classmates', async (c) => {
 
   const classmates = (results || []).map((row: any) => {
     const info = JSON.parse(row.info || '{}')
-    const required = ['nickname', 'motto', 'bestMemory', 'favoriteSong', 'futureSelf', 'letterToClassmates', 'mbti', 'bestSubject']
-    const filled = required.filter((key) => info[key] && String(info[key]).trim()).length + (row.avatar_url ? 1 : 0)
+    const required = [
+      'nickname', 'motto', 'bestMemory', 'favoriteSong', 'futureSelf',
+      'letterToClassmates', 'profileModules', 'favoriteFood', 'bestSubject',
+      'targetUniversity', 'futureCareer', 'bestLesson', 'deskmateFun',
+      'classMeme', 'mbti'
+    ]
+    const hasValue = (val: any) => {
+      if (Array.isArray(val)) return val.length > 0
+      return val !== null && val !== undefined && String(val).trim().length > 0
+    }
+    const filled = required.filter((key) => hasValue(info[key])).length + (row.avatar_url ? 1 : 0)
     const tags = [info.mbti, info.favoriteSong, info.bestSubject, info.school || row.school]
       .filter(Boolean)
       .map((value: string) => String(value).trim())
@@ -103,7 +112,7 @@ app.get('/api/classmates', async (c) => {
       seatNo: info.seatNo || '',
       dormNo: info.dormNo || '',
       groupName: info.groupName || '',
-      completion: Math.round((filled / 9) * 100),
+      completion: Math.round((filled / 16) * 100),
       tags,
     }
   })

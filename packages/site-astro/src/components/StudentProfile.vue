@@ -435,33 +435,37 @@ onMounted(() => {
     }
   })
 
+  let pObserver: IntersectionObserver | null = null
+  let mObserver: IntersectionObserver | null = null
+  let hObserver: IntersectionObserver | null = null
+
   // 视口观察器延迟加载非关键岛屿
   if (typeof window !== 'undefined' && 'IntersectionObserver' in window) {
     if (photoWallAnchor.value) {
-      const pObserver = new IntersectionObserver((entries) => {
+      pObserver = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           photoWallVisible.value = true
-          pObserver.disconnect()
+          pObserver?.disconnect()
         }
       }, { rootMargin: '150px' })
       pObserver.observe(photoWallAnchor.value)
     }
 
     if (messageWallAnchor.value) {
-      const mObserver = new IntersectionObserver((entries) => {
+      mObserver = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           messageWallVisible.value = true
-          mObserver.disconnect()
+          mObserver?.disconnect()
         }
       }, { rootMargin: '150px' })
       mObserver.observe(messageWallAnchor.value)
     }
 
     if (highlightsAnchor.value) {
-      const hObserver = new IntersectionObserver((entries) => {
+      hObserver = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           highlightsVisible.value = true
-          hObserver.disconnect()
+          hObserver?.disconnect()
         }
       }, { rootMargin: '150px' })
       hObserver.observe(highlightsAnchor.value)
@@ -475,6 +479,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  pObserver?.disconnect()
+  mObserver?.disconnect()
+  hObserver?.disconnect()
   if (gsapCtx) {
     gsapCtx.revert()
   }

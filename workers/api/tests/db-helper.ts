@@ -96,6 +96,10 @@ export const testMigrations = [
     `ALTER TABLE messages ADD COLUMN pinned INTEGER DEFAULT 0`,
     `ALTER TABLE albums ADD COLUMN cover_r2_key TEXT`,
     `ALTER TABLE albums ADD COLUMN tags TEXT DEFAULT '[]'`,
+  ]},
+  { name: '0009_upgrade_museum', queries: [
+    `ALTER TABLE albums ADD COLUMN featured INTEGER DEFAULT 0`,
+    `ALTER TABLE timeline_events ADD COLUMN event_type TEXT DEFAULT 'class_event'`,
   ]}
 ]
 

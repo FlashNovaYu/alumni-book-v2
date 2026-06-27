@@ -72,7 +72,7 @@ Phase 10.1 and 10.2 are the first implementation batch. Phase 10.3 and 10.4 are 
 
 ---
 
-## Task 1: Add Museum Contract Tests
+## [x] Task 1: Add Museum Contract Tests
 
 **Files:**
 - Modify: `packages/site-astro/tests/feature-static.test.ts`
@@ -1808,9 +1808,9 @@ Create `docs/phase-10-acceptance-report.md` with these sections:
 
 ## 完成范围
 
-- 首页入馆仪式
-- 人物长廊同学录
-- 档案展柜个人页
+- [/] Task 3: 首页“入馆仪式”改造
+- [ ] Task 4: 同学录“人物长廊”改造
+- [/] Task 5: 个人页“档案展柜”改造个人页
 - 祝福贴纸留言墙
 - 后台字段联通与内容巡检
 - 影像馆与校史走廊

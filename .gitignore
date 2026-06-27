@@ -16,5 +16,7 @@ memory/
 powershell.cmd
 .astro/
 .astro
+.superpowers/
+.playwright-mcp/
 
 
