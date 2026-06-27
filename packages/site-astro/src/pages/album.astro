@@ -28,15 +28,15 @@ try {
   <div class="album-page section">
     <div class="container">
       <div class="album-header fade-in">
-        <p class="album-label">· CLASS ALBUM ·</p>
-        <h1 class="album-title display-lg">我们的时光</h1>
-        <p class="album-subtitle">每一张照片，都是一段珍贵的回忆</p>
+        <p class="museum-kicker">IMAGE GALLERY</p>
+        <h1 class="album-title display-lg">影像馆</h1>
+        <p class="album-subtitle">每一幅影像，都是一段珍贵的回忆</p>
       </div>
 
       {albums.length === 0 ? (
         <div class="empty-state">
           <div class="empty-icon"><IconCamera size={48} /></div>
-          <p>暂无照片</p>
+          <p>暂无影像</p>
           <p>请前往管理后台上传</p>
         </div>
       ) : (
@@ -49,7 +49,7 @@ try {
 <style>
   .album-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
   .album-header { text-align: center; margin-bottom: var(--spacing-xl); }
-  .album-label {
+  .museum-kicker {
     font-size: var(--type-caption-uppercase-size);
     font-weight: var(--type-caption-uppercase-weight);
     letter-spacing: var(--type-caption-uppercase-letter-spacing);

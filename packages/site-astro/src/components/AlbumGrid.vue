@@ -28,7 +28,18 @@
         
         <div class="photo-grid" :class="'frame-' + album.frameStyle">
           <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(album.photos, i)">
-            <img v-if="!photoErrors[photo.id]" :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="photoErrors[photo.id] = true" />
+            <img
+              v-if="!photoErrors[photo.id]"
+              :src="getPhotoUrl(photo.r2Key)"
+              :alt="photo.caption"
+              loading="lazy"
+              decoding="async"
+              style="aspect-ratio: 1"
+              @error="photoErrors[photo.id] = true"
+              @load="loadedPhotos[photo.id] = true"
+              :class="{ 'img-loaded': loadedPhotos[photo.id] }"
+              class="fade-in-img"
+            />
             <div v-else class="photo-error-placeholder">⚠️ 图片加载失败</div>
             <div v-if="photo.caption" class="photo-caption">{{ photo.caption }}</div>
           </div>
@@ -37,7 +48,7 @@
     </div>
     
     <div v-else class="empty-state">
-      <p>在此分类下暂无相册</p>
+      <p>在此分类下暂无影像</p>
     </div>
 
     <!-- 灯箱 -->
@@ -85,6 +96,7 @@ const props = defineProps<{
 const isMounted = ref(false)
 const albumsState = ref([...props.albums])
 const photoErrors = ref<Record<string, boolean>>({})
+const loadedPhotos = ref<Record<string, boolean>>({})
 
 function getPhotoUrl(r2Key: string) {
   if (!r2Key) return ''
@@ -234,6 +246,13 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .photo-item { position: relative; aspect-ratio: 1; border-radius: var(--rounded-sm); overflow: hidden; cursor: pointer; transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart); }
 .photo-item:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
 .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+.fade-in-img {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+.fade-in-img.img-loaded {
+  opacity: 1;
+}
 .photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 6px 10px; background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); color: var(--color-on-dark); font-size: var(--type-caption-size); opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quart); }
 .photo-item:hover .photo-caption { opacity: 1; }
 

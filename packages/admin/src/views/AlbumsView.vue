@@ -9,7 +9,10 @@
       <div v-for="album in albums" :key="album.id" class="album-card card">
         <div class="album-header-row">
           <div>
-            <h3 class="title-md">{{ album.title }}</h3>
+            <h3 class="title-md">
+              {{ album.title }}
+              <span v-if="album.featured" class="featured-badge">精选</span>
+            </h3>
             <div class="album-tags mt-1">
               <span v-for="tag in album.tags" :key="tag" class="tag-badge">{{ tag }}</span>
             </div>
@@ -61,6 +64,16 @@
                 <option value="polaroid">拍立得</option>
               </select>
             </div>
+            <div class="form-group">
+              <label class="form-label">标签 (多个标签用逗号隔开)</label>
+              <input v-model="newAlbum.tagsInput" type="text" class="text-input" placeholder="例如: 毕业照, 运动会, 旅行" />
+            </div>
+            <div class="form-group checkbox-group">
+              <label class="checkbox-label">
+                <input v-model="newAlbum.featured" type="checkbox" />
+                <span class="ml-2">精选相册</span>
+              </label>
+            </div>
             <div class="modal-actions">
               <button class="btn-secondary" @click="showCreate = false">取消</button>
               <button class="btn-primary" @click="handleCreate" :disabled="creating">
@@ -88,7 +101,13 @@
             </div>
             <div class="form-group">
               <label class="form-label">标签 (多个标签用逗号隔开)</label>
-              <input v-model="editForm.tagsString" type="text" class="text-input" placeholder="例如: 毕业照, 运动会, 旅行" />
+              <input v-model="editForm.tagsInput" type="text" class="text-input" placeholder="例如: 毕业照, 运动会, 旅行" />
+            </div>
+            <div class="form-group checkbox-group">
+              <label class="checkbox-label">
+                <input v-model="editForm.featured" type="checkbox" />
+                <span class="ml-2">精选相册</span>
+              </label>
             </div>
             <div class="form-group">
               <label class="form-label">相框样式</label>
@@ -166,15 +185,16 @@ const showCreate = ref(false)
 const uploadAlbum = ref<any | null>(null)
 const uploading = ref(false)
 const creating = ref(false)
-const newAlbum = ref({ title: '', description: '', frameStyle: 'none' })
+const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
 
 const editAlbum = ref<any | null>(null)
 const editForm = ref({
   title: '',
   description: '',
   frameStyle: 'none',
-  tagsString: '',
+  tagsInput: '',
   coverR2Key: '',
+  featured: false,
 })
 
 function getPhotoUrl(r2Key: string): string {
@@ -194,13 +214,22 @@ async function loadAlbums() {
 async function handleCreate() {
   if (!newAlbum.value.title.trim()) return
   creating.value = true
+  const tags = newAlbum.value.tagsInput
+    ? newAlbum.value.tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0)
+    : []
   try {
     await adminFetch('/api/albums', {
       method: 'POST',
-      body: JSON.stringify(newAlbum.value),
+      body: JSON.stringify({
+        title: newAlbum.value.title,
+        description: newAlbum.value.description,
+        frameStyle: newAlbum.value.frameStyle,
+        tags,
+        featured: newAlbum.value.featured,
+      }),
     })
     showCreate.value = false
-    newAlbum.value = { title: '', description: '', frameStyle: 'none' }
+    newAlbum.value = { title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false }
     await loadAlbums()
   } catch (e: any) {
     alert(e.message || '创建失败')
@@ -258,8 +287,9 @@ function startEdit(album: any) {
     title: album.title || '',
     description: album.description || '',
     frameStyle: album.frameStyle || 'none',
-    tagsString: album.tags ? album.tags.join(', ') : '',
+    tagsInput: album.tags ? album.tags.join(', ') : '',
     coverR2Key: album.coverR2Key || '',
+    featured: !!album.featured,
   }
 }
 
@@ -328,7 +358,7 @@ async function handleSaveEdit() {
   if (!editAlbum.value) return
   saving.value = true
   
-  const tags = editForm.value.tagsString
+  const tags = editForm.value.tagsInput
     .split(',')
     .map(t => t.trim())
     .filter(t => t.length > 0)
@@ -342,6 +372,7 @@ async function handleSaveEdit() {
         frameStyle: editForm.value.frameStyle,
         coverR2Key: editForm.value.coverR2Key,
         tags,
+        featured: editForm.value.featured,
       })
     })
     closeEdit()
@@ -357,6 +388,42 @@ onMounted(loadAlbums)
 </script>
 
 <style scoped>
+.featured-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  background: var(--color-accent-amber, #e8a55a);
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  margin-top: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--type-body-sm-size);
+  color: var(--color-body);
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
+
 .album-list {
   display: flex;
   flex-direction: column;

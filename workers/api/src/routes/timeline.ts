@@ -28,6 +28,7 @@ timelineRoutes.get('/timeline', async (c) => {
               date: (e as any).event_date,
               photoUrl: (e as any).photo_r2_key ? `/api/files/${(e as any).photo_r2_key}` : null,
               isMilestone: !!(e as any).is_milestone,
+              eventType: (e as any).event_type || 'class_event',
             })
           }
         })
@@ -104,8 +105,8 @@ timelineRoutes.post('/timeline/events', async (c) => {
   }
   const id = `tle_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   await db.prepare(
-    'INSERT INTO timeline_events (id, title, description, event_date, photo_r2_key, is_milestone) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(id, body.title, body.description || '', body.eventDate, body.photoR2Key || null, body.isMilestone ? 1 : 0).run()
+    'INSERT INTO timeline_events (id, title, description, event_date, photo_r2_key, is_milestone, event_type) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, body.title, body.description || '', body.eventDate, body.photoR2Key || null, body.isMilestone ? 1 : 0, body.eventType || 'class_event').run()
   return c.json({ success: true, data: { id } })
 })
 
@@ -120,6 +121,7 @@ timelineRoutes.put('/timeline/events/:id', async (c) => {
   if (body.eventDate !== undefined) { fields.push('event_date = ?'); values.push(body.eventDate) }
   if (body.photoR2Key !== undefined) { fields.push('photo_r2_key = ?'); values.push(body.photoR2Key) }
   if (body.isMilestone !== undefined) { fields.push('is_milestone = ?'); values.push(body.isMilestone ? 1 : 0) }
+  if (body.eventType !== undefined) { fields.push('event_type = ?'); values.push(body.eventType) }
   if (fields.length === 0) {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)
   }

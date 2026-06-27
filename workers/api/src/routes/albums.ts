@@ -19,14 +19,15 @@ albumsRoutes.post('/albums', async (c) => {
   const id = `album_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
   await db.prepare(
-    'INSERT INTO albums (id, title, description, frame_style, cover_r2_key, tags) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO albums (id, title, description, frame_style, cover_r2_key, tags, featured) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).bind(
     id,
     body.title,
     body.description || '',
     body.frameStyle || 'none',
     body.coverR2Key || null,
-    body.tags ? JSON.stringify(body.tags) : '[]'
+    body.tags ? JSON.stringify(body.tags) : '[]',
+    body.featured ? 1 : 0
   ).run()
 
   return c.json({ success: true, data: { id } })
@@ -47,6 +48,7 @@ albumsRoutes.put('/albums/:id', async (c) => {
   if (body.sortOrder !== undefined) { fields.push('sort_order = ?'); values.push(body.sortOrder) }
   if (body.coverR2Key !== undefined) { fields.push('cover_r2_key = ?'); values.push(body.coverR2Key) }
   if (body.tags !== undefined) { fields.push('tags = ?'); values.push(JSON.stringify(body.tags)) }
+  if (body.featured !== undefined) { fields.push('featured = ?'); values.push(body.featured ? 1 : 0) }
 
   if (fields.length === 0) {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)

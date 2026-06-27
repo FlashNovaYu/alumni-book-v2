@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS albums (
   sort_order INTEGER DEFAULT 0,
   cover_r2_key TEXT,
   tags TEXT DEFAULT '[]',
+  featured INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS timeline_events (
   photo_r2_key TEXT,
   is_milestone INTEGER DEFAULT 0,
   sort_order INTEGER DEFAULT 0,
+  event_type TEXT DEFAULT 'class_event',
   created_at TEXT DEFAULT (datetime('now'))
 );
 

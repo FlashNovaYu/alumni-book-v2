@@ -25,6 +25,16 @@
         <input v-model="form.photoR2Key" type="text" class="text-input" placeholder="photos/xxx.jpg" />
       </div>
       <div class="form-group">
+        <label class="form-label">事件类型</label>
+        <select v-model="form.eventType" class="text-input">
+          <option value="class_event">班级大事</option>
+          <option value="activity">活动</option>
+          <option value="exam">考试节点</option>
+          <option value="graduation">毕业节点</option>
+          <option value="funny">班级趣事</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label><input type="checkbox" v-model="form.isMilestone" /> 标记为里程碑（在年度册精选展示）</label>
       </div>
       <div class="form-actions">
@@ -38,6 +48,7 @@
       <div v-for="event in events" :key="event.id" class="card event-card">
         <div class="event-info">
           <span class="event-date">{{ event.eventDate }}</span>
+          <span class="badge-event-type ml-2">{{ getEventTypeName(event.eventType) }}</span>
           <h3 class="event-title">{{ event.title }}</h3>
           <p v-if="event.description" class="event-desc">{{ event.description }}</p>
           <span v-if="event.isMilestone" class="badge-milestone">里程碑 (年度册展示)</span>
@@ -62,7 +73,7 @@ import { adminFetch } from '@/api/client'
 
 interface Event {
   id: string; title: string; description: string; eventDate: string
-  photoR2Key: string | null; isMilestone: boolean
+  photoR2Key: string | null; isMilestone: boolean; eventType: string
 }
 
 const events = ref<Event[]>([])
@@ -72,11 +83,11 @@ const saving = ref(false)
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
 const form = ref({
-  title: '', eventDate: '', description: '', photoR2Key: '', isMilestone: false,
+  title: '', eventDate: '', description: '', photoR2Key: '', isMilestone: false, eventType: 'class_event',
 })
 
 function resetForm() {
-  form.value = { title: '', eventDate: '', description: '', photoR2Key: '', isMilestone: false }
+  form.value = { title: '', eventDate: '', description: '', photoR2Key: '', isMilestone: false, eventType: 'class_event' }
   editingId.value = null
 }
 
@@ -123,9 +134,21 @@ function editEvent(event: Event) {
     description: event.description,
     photoR2Key: event.photoR2Key || '',
     isMilestone: event.isMilestone,
+    eventType: event.eventType || 'class_event',
   }
   editingId.value = event.id
   showForm.value = true
+}
+
+function getEventTypeName(type: string) {
+  const map: Record<string, string> = {
+    class_event: '班级大事',
+    activity: '活动',
+    exam: '考试节点',
+    graduation: '毕业节点',
+    funny: '班级趣事',
+  }
+  return map[type] || '班级大事'
 }
 
 async function deleteEvent(id: string) {
@@ -155,6 +178,18 @@ onMounted(load)
 .event-title { font-size: var(--type-title-sm-size); margin: var(--spacing-xxs) 0; }
 .event-desc { font-size: var(--type-body-sm-size); color: var(--color-body); }
 .badge-milestone { display: inline-block; margin-top: var(--spacing-xs); padding: 2px 8px; background: var(--color-accent-amber); color: white; border-radius: var(--rounded-pill); font-size: 11px; }
+.badge-event-type {
+  display: inline-block;
+  padding: 1px 6px;
+  background: var(--color-surface-cream-strong, #e8d5a8);
+  color: var(--color-primary, #cc785c);
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 4px;
+}
+.ml-2 {
+  margin-left: 8px;
+}
 .event-actions { display: flex; gap: var(--spacing-xs); align-items: flex-start; }
 .empty { text-align: center; padding: var(--spacing-xxl); color: var(--color-muted); }
 </style>

@@ -18,8 +18,8 @@ try {
   <div class="timeline-page section" data-base-url={base} data-api-base={CLIENT_API_BASE}>
     <div class="container">
       <div class="timeline-header fade-in">
-        <p class="timeline-label">· TIMELINE ·</p>
-        <h1 class="timeline-title display-lg">时光轴</h1>
+        <p class="museum-kicker">CLASS HISTORY CORRIDOR</p>
+        <h1 class="timeline-title display-lg">校史走廊</h1>
         <p class="timeline-subtitle">沿着时间的轨迹，翻阅我们的故事</p>
       </div>
 
@@ -53,7 +53,7 @@ try {
 
       {items.length === 0 && (
         <div class="empty-state">
-          <p>时光轴尚未写入内容</p>
+          <p>校史走廊尚未写入内容</p>
         </div>
       )}
     </div>
@@ -89,7 +89,7 @@ try {
     if (!lineEl) return
 
     if (filtered.length === 0) {
-      lineEl.innerHTML = '<div class="empty-state"><p>时光轴上没有对应类别的记录</p></div>'
+      lineEl.innerHTML = '<div class="empty-state"><p>校史走廊上没有对应类别的记录</p></div>'
       return
     }
 
@@ -138,7 +138,7 @@ try {
 <style>
   .timeline-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
   .timeline-header { text-align: center; margin-bottom: var(--spacing-xxl); }
-  .timeline-label {
+  .museum-kicker {
     font-size: var(--type-caption-uppercase-size);
     font-weight: var(--type-caption-uppercase-weight);
     letter-spacing: var(--type-caption-uppercase-letter-spacing);
