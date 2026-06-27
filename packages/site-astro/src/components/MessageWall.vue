@@ -1,6 +1,6 @@
 <template>
   <section ref="messageWallRoot" class="message-wall-section">
-    <h2 class="section-title display-sm">同学留言</h2>
+    <h2 class="section-title display-sm">祝福贴纸墙</h2>
 
 
     <div class="msg-form">
@@ -8,18 +8,18 @@
         v-model="newContent"
         class="text-input msg-textarea"
         :class="'style-preview-' + selectedCardStyle"
-        placeholder="写下一段话，留作彼此的纪念…"
+        placeholder="把这句话贴进 TA 的青春档案里…"
         maxlength="500"
         rows="3"
       ></textarea>
       
-      <!-- 明信片款式选择器 -->
+      <!-- 贴纸款式选择器 -->
       <div class="msg-style-selector">
-        <span class="style-label">明信片款式：</span>
-        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'paper' }" @click="selectedCardStyle = 'paper'">复古纸张</button>
-        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'chalkboard' }" @click="selectedCardStyle = 'chalkboard'">粉笔黑板</button>
-        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'photoback' }" @click="selectedCardStyle = 'photoback'">相片背面</button>
-        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'letter' }" @click="selectedCardStyle = 'letter'">横格信笺</button>
+        <span class="style-label">贴纸款式：</span>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'paper' }" @click="selectedCardStyle = 'paper'">复古胶带</button>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'chalkboard' }" @click="selectedCardStyle = 'chalkboard'">黑板贴纸</button>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'photoback' }" @click="selectedCardStyle = 'photoback'">拍立得贴纸</button>
+        <button class="style-select-btn" :class="{ active: selectedCardStyle === 'letter' }" @click="selectedCardStyle = 'letter'">横格便签</button>
       </div>
 
       <div class="msg-form-footer">
@@ -49,7 +49,7 @@
         :class="'style-' + (msg.cardStyle || 'paper')"
         :style="{ animationDelay: `${Math.min(idx * 0.05, 1.2)}s` }"
       >
-        <div v-if="msg.pinned" class="pinned-badge">📌 置顶留言</div>
+        <div v-if="msg.pinned" class="pinned-badge" aria-label="置顶留言">置顶贴纸</div>
         <div class="msg-header">
           <span class="msg-author">{{ msg.authorName }}</span>
           <span class="msg-time">{{ formatDate(msg.createdAt) }}</span>
@@ -386,10 +386,18 @@ onMounted(async () => {
   margin-bottom: var(--spacing-lg);
   padding: var(--spacing-lg) !important;
   border-radius: var(--rounded-md);
-  transition: transform var(--duration-fast);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+.msg-item:nth-child(even) {
+  transform: rotate(-1deg);
+}
+.msg-item:nth-child(odd) {
+  transform: rotate(1.2deg);
 }
 .msg-item:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  z-index: 10;
 }
 
 .style-paper {
@@ -461,6 +469,22 @@ onMounted(async () => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in-msg {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .msg-item, .msg-item:nth-child(even), .msg-item:nth-child(odd) {
+    transform: none !important;
+    transition: none !important;
+  }
+  .msg-item:hover {
+    transform: none !important;
+    box-shadow: none !important;
   }
 }
 </style>
