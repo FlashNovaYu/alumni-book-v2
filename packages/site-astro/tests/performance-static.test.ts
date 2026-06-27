@@ -12,32 +12,66 @@ describe('Performance Static Constraints Test', () => {
     }
   })
 
-  it('首页 HTML 中不应该异步引入 ScrollTrigger 脚本', () => {
+  const getReferencedScripts = (htmlPath: string): string[] => {
+    if (!fs.existsSync(htmlPath)) return []
+    const content = fs.readFileSync(htmlPath, 'utf-8')
+    const scripts: string[] = []
+    
+    // 匹配 <script type="module" src="..."> 或者普通 script
+    const srcMatches = content.matchAll(/src="([^"]+\.js)"/g)
+    for (const match of srcMatches) {
+      scripts.push(match[1])
+    }
+    
+    // 匹配 component-url="..."
+    const componentMatches = content.matchAll(/component-url="([^"]+\.js)"/g)
+    for (const match of componentMatches) {
+      scripts.push(match[1])
+    }
+    
+    // 匹配 preload-helper (link rel="modulepreload")
+    const preloadMatches = content.matchAll(/href="([^"]+\.js)"/g)
+    for (const match of preloadMatches) {
+      scripts.push(match[1])
+    }
+    
+    return Array.from(new Set(
+      scripts
+        .map(src => {
+          const cleanSrc = src
+            .replace(/^\/alumni-book-v2/, '')
+            .replace(/^\/+/, '')
+          return path.join(distDir, cleanSrc)
+        })
+        .filter(p => p.startsWith(distDir) && fs.existsSync(p))
+    ))
+  }
+
+  const expectScriptsNotToReference = (scripts: string[], forbidden: string[]) => {
+    for (const file of scripts) {
+      const content = fs.readFileSync(file, 'utf-8')
+      for (const token of forbidden) {
+        expect(content, `${path.basename(file)} should not contain references to '${token}'`).not.toContain(token)
+      }
+    }
+  }
+
+  it('首页 HTML 及其关联的所有 JS 依赖链中不应该包含 ScrollTrigger 或是 gsap', () => {
     const htmlPath = path.join(distDir, 'index.html')
     expect(fs.existsSync(htmlPath)).toBe(true)
-    const content = fs.readFileSync(htmlPath, 'utf-8')
     
-    // 检查首页生成的静态 HTML 中是否有包含 ScrollTrigger 的 JS Chunk
-    // 我们可以检索 dist/assets 下的 js 文件，找到哪些文件包含 ScrollTrigger 注册，并确认这些文件没有在 index.html 中被 <link rel="modulepreload"> 或者是 <script src="..."> 载入
-    const assets = fs.readdirSync(assetsDir)
-    const scrollTriggerJs = assets.find(file => file.includes('ScrollTrigger') && file.endsWith('.js'))
-    
-    if (scrollTriggerJs) {
-      expect(content).not.toContain(scrollTriggerJs)
-    }
+    const scripts = getReferencedScripts(htmlPath)
+    expect(scripts.length).toBeGreaterThan(0)
+    expectScriptsNotToReference(scripts, ['ScrollTrigger', 'gsap'])
   })
 
-  it('时间轴页面 HTML 中不应该引入 ScrollTrigger 或 GSAP 脚本', () => {
+  it('时间轴页面 HTML 及其关联的所有 JS 依赖链中不应该包含 ScrollTrigger 或是 gsap', () => {
     const htmlPath = path.join(distDir, 'timeline/index.html')
     expect(fs.existsSync(htmlPath)).toBe(true)
-    const content = fs.readFileSync(htmlPath, 'utf-8')
     
-    const assets = fs.readdirSync(assetsDir)
-    const scrollTriggerJs = assets.find(file => file.includes('ScrollTrigger') && file.endsWith('.js'))
-    
-    if (scrollTriggerJs) {
-      expect(content).not.toContain(scrollTriggerJs)
-    }
+    const scripts = getReferencedScripts(htmlPath)
+    expect(scripts.length).toBeGreaterThan(0)
+    expectScriptsNotToReference(scripts, ['ScrollTrigger', 'gsap'])
   })
 
   it('静态页面生成的 HTML 中的关键图片应包含宽度与高度或 aspect-ratio 样式，防止 CLS 抖动', () => {

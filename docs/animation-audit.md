@@ -31,3 +31,18 @@
 ### 冲突 3：无隔离的全局元素选择器污染 (RosterWall.vue)
 - **原因**：`RosterWall.vue` 在 GSAP 动画中直接通过 `gsap.utils.toArray('.classmate-card')` 获取节点。若同页面挂载了其他也含有 `.classmate-card` 类的节点（如未来新增的分支卡片或排行榜），会导致误操作，且由于没有 reversible context，销毁组件后 ScrollTrigger 无法有效注销。
 - **解决**：在组件模板中绑定根容器 `rootRef`，通过 `gsap.context()` 对组件做完美沙箱隔离。
+
+---
+
+## 3. Phase 9 优化后动画 Owner 矩阵 (2026-06-27)
+
+优化后，我们重新定义并归拢了全站元素动画的所有权，彻底切断了全局对于常规 `.fade-in` 元素的抓取，让职责分配极其单一清晰：
+
+| 页面/组件 | 影响选择器 (DOM) | 动画引擎/所有权 | 降级/Reduced Motion 策略 | 说明 |
+|---|---|---|---|---|
+| **MainLayout (全局)** | `[data-motion="global-reveal"]` | 原生 IntersectionObserver | 直接显示 (Opacity: 1, Transform: none) | 全局只负责无 GSAP 的轻量首屏进入，完全没有第三方库开销。 |
+| **首页 (index)** | `.hero-content > *` | 纯 CSS Animation (`globalFadeIn`) | 直接显示 | 彻底移除了内联 JS 和 GSAP。 |
+| **同学录 (Roster)** | `.classmate-card` | 纯 CSS Animation + Inline Delay | 直接显示 | 移除 GSAP，完全通过 CSS Stagger 渲染，SWR 和过滤时无闪烁。 |
+| **详情留言墙** | `.msg-item` | 纯 CSS Animation + Inline Delay | 直接显示 | 移除 GSAP，全新留言提交时直接无闪烁淡入。 |
+| **详情照片墙** | `.photo-item` | GSAP + ScrollTrigger (Lazy loaded) | 直接显示 | 仅当 PhotoWall 进入视口 150px 挂载后，才按需异步加载 GSAP 播放。 |
+| **学生详情页** | `.hero-bg` | GSAP + ScrollTrigger (Lazy loaded) | 移动端关闭 / 直接显示 | 仅在非移动端 (大屏) 且 mounted 后应用背景视差滚动。 |

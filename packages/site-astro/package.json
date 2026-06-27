@@ -8,7 +8,8 @@
     "build:data": "tsx scripts/fetch-data.ts",
     "preview": "astro preview",
     "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts tests/feature-static.test.ts tests/performance-static.test.ts",
-    "test:with-build": "pnpm build && pnpm test"
+    "test:with-build": "pnpm build && pnpm test",
+    "test:perf-network": "playwright test tests/performance-network.spec.ts"
   },
   "dependencies": {
     "@astrojs/vue": "^5.0.0",

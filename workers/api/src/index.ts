@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth'
 import { messagesRoutes } from './routes/messages'
 import { timelineRoutes } from './routes/timeline'
 import { classmateRoutes } from './routes/classmate'
+import { etag } from 'hono/etag'
 
 type Bindings = {
   DB: D1Database
@@ -52,6 +53,14 @@ app.use('*', async (c, next) => {
   return corsMiddleware(c, next)
 })
 
+// 为公开 JSON 接口启用 ETag 自动缓存校验
+app.use('/api/classmates', etag())
+app.use('/api/students', etag())
+app.use('/api/students/*', etag())
+app.use('/api/config', etag())
+app.use('/api/albums', etag())
+app.use('/api/rankings', etag())
+
 // 创建 JWT 中间件
 function createJwtMiddleware(secret: string) {
   return jwt({ secret, alg: 'HS256' })
@@ -89,6 +98,19 @@ app.get('/api/classmates', async (c) => {
 
   c.header('Cache-Control', 'public, max-age=60')
   return c.json({ success: true, data: classmates })
+})
+
+app.get('/api/classmates/verify', async (c) => {
+  const name = c.req.query('name')
+  if (!name) {
+    return c.json({ success: false, message: '姓名不能为空' }, 400)
+  }
+  const db = c.env.DB
+  const row = await db.prepare('SELECT slug FROM students WHERE name = ?').bind(name).first()
+  if (row) {
+    return c.json({ success: true, data: { found: true, slug: (row as any).slug } })
+  }
+  return c.json({ success: true, data: { found: false } })
 })
 
 app.get('/api/students', async (c) => {
@@ -251,15 +273,24 @@ app.get('/api/files/*', async (c) => {
   if (!c.env.R2) {
     return c.json({ success: false, message: '文件存储(R2)未启用' }, 503)
   }
+  
   const object = await c.env.R2.get(key)
 
   if (!object) {
     return c.json({ success: false, message: '文件不存在' }, 404)
   }
 
+  const clientEtag = c.req.header('If-None-Match')
+  if (object.httpEtag && clientEtag === object.httpEtag) {
+    return new Response(null, { status: 304 })
+  }
+
   const headers = new Headers()
   headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream')
-  headers.set('Cache-Control', 'public, max-age=31536000')
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+  if (object.httpEtag) {
+    headers.set('ETag', object.httpEtag)
+  }
 
   return new Response(object.body, { headers })
 })
@@ -422,6 +453,15 @@ app.get('/api/admin/stats', async (c) => {
     
     if (!(s as any).edit_secret_hash) {
       auditAlerts.push(`同学【${name}】尚未设置自助编辑口令，有被冒名篡改的风险。`)
+    }
+    
+    if (!(s as any).avatar_url) {
+      auditAlerts.push(`同学【${name}】尚未上传头像，前台将降级显示。`)
+    }
+    
+    const filledKeys = Object.keys(info).filter(k => k !== 'visibility' && info[k] && String(info[k]).trim())
+    if (filledKeys.length < 5) {
+      auditAlerts.push(`同学【${name}】的个人录入资料严重缺失（已填少于 5 项）。`)
     }
     
     const visibility = info.visibility || {}

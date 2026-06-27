@@ -34,3 +34,40 @@ export function isDeepEqual(obj1: any, obj2: any): boolean {
 
   return true
 }
+
+export async function fetchJsonIfChanged(url: string, etagKey: string, customHeaders: Record<string, string> = {}) {
+  if (typeof window === 'undefined') {
+    const res = await fetch(url, { headers: customHeaders })
+    return { changed: true, data: await res.json() }
+  }
+
+  const headers: Record<string, string> = { ...customHeaders }
+  const oldEtag = sessionStorage.getItem(`etag_${etagKey}`)
+  const cachedData = sessionStorage.getItem(`data_${etagKey}`)
+
+  if (oldEtag && cachedData) {
+    headers['If-None-Match'] = oldEtag
+  }
+
+  try {
+    const res = await fetch(url, { headers })
+    if (res.status === 304 && cachedData) {
+      return { changed: false, data: JSON.parse(cachedData) }
+    }
+
+    const newEtag = res.headers.get('ETag')
+    const data = await res.json()
+
+    if (newEtag) {
+      sessionStorage.setItem(`etag_${etagKey}`, newEtag)
+      sessionStorage.setItem(`data_${etagKey}`, JSON.stringify(data))
+    }
+
+    return { changed: true, data }
+  } catch (e) {
+    if (cachedData) {
+      return { changed: false, data: JSON.parse(cachedData) }
+    }
+    throw e;
+  }
+}

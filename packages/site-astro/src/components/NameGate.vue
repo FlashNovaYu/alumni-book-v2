@@ -36,11 +36,13 @@ async function handleEnter() {
   if (!trimmed) { error.value = '请输入你的姓名'; return }
   loading.value = true
   try {
-    const url = joinApiUrl(props.apiBase, '/api/classmates')
+    const url = joinApiUrl(props.apiBase, `/api/classmates/verify?name=${encodeURIComponent(trimmed)}`)
     const res = await fetch(url)
     const data = await res.json()
-    const found = (data.data || []).find(c => c.name === trimmed)
-    if (!found) { error.value = '姓名未在同学录中找到，请确认后重试'; return }
+    if (!data.success || !data.data || !data.data.found) {
+      error.value = '姓名未在同学录中找到，请确认后重试'
+      return
+    }
     sessionStorage.setItem('classmate_name', trimmed)
     
     // 确保使用斜杠前缀安全跳转

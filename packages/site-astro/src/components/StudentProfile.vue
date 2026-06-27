@@ -173,7 +173,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent }
 import SelfEditPanel from './SelfEditPanel.vue'
 import StudentMusicPlayer from './StudentMusicPlayer.vue'
 import { prefersReducedMotion } from '../utils/motion'
-import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
+import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 
 // 异步载入较重组件以剔除首屏打包体积与减少 hydration 开销
 const PhotoWall = defineAsyncComponent(() => import('./PhotoWall.vue'))
@@ -314,13 +314,6 @@ function closeShareModal() { shareOpen.value = false }
 
 function triggerGSAPAnimations() {
   if (prefersReducedMotion()) {
-    nextTick(() => {
-      import('gsap').then(({ default: gsap }) => {
-        if (!rootRef.value) return
-        const sections = rootRef.value.querySelectorAll('.student-body .fade-in')
-        gsap.set(sections, { autoAlpha: 1, y: 0 })
-      })
-    })
     return
   }
 
@@ -335,21 +328,15 @@ function triggerGSAPAnimations() {
         
         if (gsapCtx) gsapCtx.revert()
 
-        gsapCtx = gsap.context((self) => {
-          // Hero 背景视差，只限于组件自身结构下
-          gsap.to('.hero-bg', {
-            y: 60, ease: 'none',
-            scrollTrigger: { trigger: '.student-hero', start: 'top top', end: 'bottom top', scrub: true },
-          })
-
-          // Info section 依次滑入，只捕获组件内的 fade-in 元素，不污染全局
-          const sections = self.selector('.student-body .fade-in')
-          sections.forEach((el: HTMLElement) => {
-            gsap.from(el, {
-              autoAlpha: 0, y: 24, duration: 0.5,
-              scrollTrigger: { trigger: el, start: 'top 85%', once: true },
+        gsapCtx = gsap.context(() => {
+          // Hero 背景视差，只限于组件自身大屏结构下，移动端屏蔽以保流畅
+          const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+          if (!isMobile) {
+            gsap.to('.hero-bg', {
+              y: 60, ease: 'none',
+              scrollTrigger: { trigger: '.student-hero', start: 'top top', end: 'bottom top', scrub: true },
             })
-          })
+          }
         }, rootRef.value)
       })
     })
@@ -384,12 +371,30 @@ onMounted(() => {
   // 避免首屏主线程抢占，将 SWR 状态水合改为 idle 空闲时进行
   runWhenIdle(async () => {
     try {
-      const res = await fetch(`${props.apiBase}/api/students/${slugVal.value}?audience=public`)
-      const data = await res.json()
-      if (data.success && data.data) {
-        if (!isDeepEqual(data.data, student.value)) {
+      const classmateToken = sessionStorage.getItem(`classmate_token_${slugVal.value}`)
+      const customHeaders: Record<string, string> = {}
+      if (classmateToken) {
+        customHeaders['X-Classmate-Token'] = classmateToken
+      }
+      const fetchUrl = classmateToken
+        ? `${props.apiBase}/api/students/${slugVal.value}`
+        : `${props.apiBase}/api/students/${slugVal.value}?audience=public`
+
+      const { changed, data } = await fetchJsonIfChanged(
+        fetchUrl,
+        `student_${slugVal.value}`,
+        customHeaders
+      )
+      if (data && data.success && data.data) {
+        if (changed && !isDeepEqual(data.data, student.value)) {
           student.value = data.data
-          triggerGSAPAnimations()
+          if (hasAnimated.value && !prefersReducedMotion()) {
+            import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+              ScrollTrigger.refresh()
+            })
+          } else {
+            triggerGSAPAnimations()
+          }
         }
       }
     } catch (e) {

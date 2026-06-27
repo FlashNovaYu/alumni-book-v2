@@ -42,7 +42,13 @@
       <p>暂无留言，成为第一个留言的人吧</p>
     </div>
     <div v-else class="msg-list">
-      <div v-for="msg in messages" :key="msg.id" class="msg-item" :class="'style-' + (msg.cardStyle || 'paper')">
+      <div
+        v-for="(msg, idx) in messages"
+        :key="msg.id"
+        class="msg-item fade-in-msg"
+        :class="'style-' + (msg.cardStyle || 'paper')"
+        :style="{ animationDelay: `${Math.min(idx * 0.05, 1.2)}s` }"
+      >
         <div v-if="msg.pinned" class="pinned-badge">📌 置顶留言</div>
         <div class="msg-header">
           <span class="msg-author">{{ msg.authorName }}</span>
@@ -81,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getSessionName } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
@@ -92,9 +98,6 @@ interface Message {
 }
 
 const props = defineProps<{ studentSlug: string; pageOwnerName?: string; apiBase: string }>()
-
-const messageWallRoot = ref<HTMLElement | null>(null)
-let gsapCtx: any = null
 
 const messages = ref<Message[]>([])
 const loading = ref(true)
@@ -264,21 +267,6 @@ async function submitReply(msgId: string) {
 
 onMounted(async () => {
   await fetchMessages()
-  nextTick(() => {
-    import('gsap').then(({ default: gsap }) => {
-      gsapCtx = gsap.context(() => {
-        gsap.fromTo('.msg-item', { autoAlpha: 0, y: 16 },
-          { autoAlpha: 1, y: 0, stagger: 0.05, duration: 0.4, ease: 'power2.out', delay: 0.1 }
-        )
-      }, messageWallRoot.value || undefined)
-    })
-  })
-})
-
-onUnmounted(() => {
-  if (gsapCtx) {
-    gsapCtx.revert()
-  }
 })
 </script>
 
@@ -458,5 +446,21 @@ onUnmounted(() => {
   background-image: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 27px, #e0d4c9 28px);
   line-height: 28px;
   color: #3e2723;
+}
+
+.fade-in-msg {
+  opacity: 0;
+  animation: msgFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes msgFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

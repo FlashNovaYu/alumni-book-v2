@@ -2,110 +2,192 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 
-const assetsDir = path.resolve('packages/site-astro/dist/assets');
+const distDir = path.resolve('packages/site-astro/dist');
 
-if (!fs.existsSync(assetsDir)) {
-  console.error(`❌ assets 目录不存在，请先执行打包: pnpm --filter site-astro build`);
+if (!fs.existsSync(distDir)) {
+  console.error(`❌ dist 目录不存在，请先执行打包: pnpm --filter site-astro build`);
   process.exit(1);
 }
 
-const files = fs.readdirSync(assetsDir);
-const report = [];
+// 辅助函数：提取 HTML 关联的入口 JS 文件（包括 <script src>，component-url 和 link rel="modulepreload"）
+function getPageEntryScripts(htmlPath) {
+  if (!fs.existsSync(htmlPath)) return [];
+  const content = fs.readFileSync(htmlPath, 'utf-8');
+  const scripts = [];
+  
+  // script src
+  const srcMatches = content.matchAll(/src="([^"]+\.js)"/g);
+  for (const match of srcMatches) {
+    scripts.push(match[1]);
+  }
+  
+  // component-url
+  const componentMatches = content.matchAll(/component-url="([^"]+\.js)"/g);
+  for (const match of componentMatches) {
+    scripts.push(match[1]);
+  }
+  
+  // modulepreload href
+  const preloadMatches = content.matchAll(/href="([^"]+\.js)"/g);
+  for (const match of preloadMatches) {
+    scripts.push(match[1]);
+  }
+  
+  // 转换成绝对物理路径并去重
+  return Array.from(new Set(
+    scripts
+      .map(src => {
+        const cleanSrc = src
+          .replace(/^\/alumni-book-v2/, '')
+          .replace(/^\/+/, '');
+        return path.resolve(distDir, cleanSrc);
+      })
+      .filter(p => p.startsWith(distDir) && fs.existsSync(p))
+  ));
+}
 
-let totalJsSize = 0;
-let totalJsGzip = 0;
-
-for (const file of files) {
-  const filePath = path.join(assetsDir, file);
-  const stat = fs.statSync(filePath);
-  if (stat.isDirectory()) continue;
-
-  const ext = path.extname(file);
-  if (ext === '.js' || ext === '.css') {
-    const content = fs.readFileSync(filePath);
-    const gzip = zlib.gzipSync(content).length;
-    report.push({
-      file,
-      ext,
-      size: stat.size,
-      gzip,
-    });
-
-    if (ext === '.js') {
-      totalJsSize += stat.size;
-      totalJsGzip += gzip;
+// 辅助函数：递归提取 JS 的全部依赖链
+function getRecursiveImports(entryJsPath, visited = new Set()) {
+  if (visited.has(entryJsPath)) return visited;
+  visited.add(entryJsPath);
+  
+  if (!fs.existsSync(entryJsPath)) return visited;
+  const content = fs.readFileSync(entryJsPath, 'utf-8');
+  
+  // 静态 import
+  const importRegex = /import\s+(?:[\w*\s{},]+from\s+)?['"](\.\/[^'"]+\.js)['"]/g;
+  let match;
+  while ((match = importRegex.exec(content)) !== null) {
+    const importedPath = path.resolve(path.dirname(entryJsPath), match[1]);
+    getRecursiveImports(importedPath, visited);
+  }
+  
+  // Vite mapDeps preload
+  const mapDepsRegex = /m\.f\s*=\s*(\[[^\]]+\])/g;
+  const mapDepsMatch = mapDepsRegex.exec(content);
+  if (mapDepsMatch) {
+    try {
+      const depsArray = JSON.parse(mapDepsMatch[1].replace(/'/g, '"'));
+      for (const dep of depsArray) {
+        const depPath = path.resolve(distDir, dep);
+        getRecursiveImports(depPath, visited);
+      }
+    } catch (e) {
+      // ignore
     }
+  }
+  
+  return visited;
+}
+
+// 预算设定
+const pagesBudget = {
+  '/': {
+    name: '首页 (Home)',
+    html: 'index.html',
+    maxInitialJsGzipKb: 55,
+    forbiddenAssets: ['ScrollTrigger', 'gsap'],
+  },
+  '/timeline/': {
+    name: '时光轴 (Timeline)',
+    html: 'timeline/index.html',
+    maxInitialJsGzipKb: 45,
+    forbiddenAssets: ['ScrollTrigger', 'gsap'],
+  },
+  '/roster/': {
+    name: '同学录 (Roster)',
+    html: 'roster/index.html',
+    maxInitialJsGzipKb: 95,
+    forbiddenAssets: ['ScrollTrigger', 'gsap'],
+  },
+  '/student/template/': {
+    name: '学生详情页 (Student Template)',
+    html: 'student/template/index.html',
+    maxInitialJsGzipKb: 145,
+    forbiddenAssets: [],
+  }
+};
+
+let budgetViolated = false;
+
+console.log('\n📊 --- 页面级首屏 JS 真实体积及依赖审计 ---');
+
+for (const [pagePath, config] of Object.entries(pagesBudget)) {
+  const htmlFilePath = path.join(distDir, config.html);
+  if (!fs.existsSync(htmlFilePath)) {
+    console.log(`- ⚠️ 页面 ${config.name} 对应的 HTML 不存在，跳过。`);
+    continue;
+  }
+  
+  const entries = getPageEntryScripts(htmlFilePath);
+  const allDeps = new Set();
+  for (const entry of entries) {
+    getRecursiveImports(entry, allDeps);
+  }
+  
+  let pageJsTotalSize = 0;
+  let pageJsTotalGzip = 0;
+  const filesList = [];
+  const hitForbidden = [];
+  
+  for (const file of allDeps) {
+    if (!fs.existsSync(file)) continue;
+    const content = fs.readFileSync(file);
+    const size = content.length;
+    const gzip = zlib.gzipSync(content).length;
+    
+    pageJsTotalSize += size;
+    pageJsTotalGzip += gzip;
+    
+    const fileBasename = path.basename(file);
+    filesList.push({ name: fileBasename, size, gzip });
+    
+    // 检查禁用资源
+    const jsText = content.toString('utf-8');
+    for (const token of config.forbiddenAssets) {
+      if (jsText.includes(token)) {
+        hitForbidden.push({ file: fileBasename, token });
+      }
+    }
+  }
+  
+  const totalGzipKb = (pageJsTotalGzip / 1024).toFixed(2);
+  const statusOk = pageJsTotalGzip <= config.maxInitialJsGzipKb * 1024 && hitForbidden.length === 0;
+  
+  console.log(`\n📄 页面: ${config.name} (${pagePath})`);
+  console.log(`- HTML 入口 js 数量: ${entries.length}，依赖链合计 JS 数量: ${allDeps.size}`);
+  console.log(`- 首屏 JS 合计大小: ${(pageJsTotalSize / 1024).toFixed(2)} KB (Gzip: ${totalGzipKb} KB)`);
+  console.log(`- 页面预算限制: Gzip <= ${config.maxInitialJsGzipKb} KB`);
+  
+  if (pageJsTotalGzip > config.maxInitialJsGzipKb * 1024) {
+    console.warn(`❌ [ALERT] 超过 Gzip 体积预算！实际: ${totalGzipKb} KB, 预算: ${config.maxInitialJsGzipKb} KB`);
+    budgetViolated = true;
+  }
+  
+  if (hitForbidden.length > 0) {
+    console.warn(`❌ [ALERT] 违规包含禁止依赖！`);
+    for (const hit of hitForbidden) {
+      console.warn(`  - 文件 ${hit.file} 中包含禁止标记: '${hit.token}'`);
+    }
+    budgetViolated = true;
+  }
+  
+  if (statusOk) {
+    console.log(`✅ 该页面预算审计通过。`);
+  }
+  
+  // 打印详细文件列表
+  if (process.env.DEBUG || budgetViolated) {
+    console.log(`  细节依赖列表:`);
+    filesList.forEach(f => {
+      console.log(`    * ${f.name} (大小: ${(f.size/1024).toFixed(2)}KB, Gzip: ${(f.gzip/1024).toFixed(2)}KB)`);
+    });
   }
 }
 
-// 排序
-report.sort((a, b) => b.gzip - a.gzip);
-
-console.log('\n📊 --- 静态资源体积扫描报告 ---');
-console.table(
-  report.map((r) => ({
-    文件: r.file,
-    类型: r.ext,
-    '物理体积 (KB)': (r.size / 1024).toFixed(2),
-    'Gzip 体积 (KB)': (r.gzip / 1024).toFixed(2),
-  }))
-);
-
-console.log(`\n📦 总 JS 物理大小: ${(totalJsSize / 1024).toFixed(2)} KB (Gzip: ${(totalJsGzip / 1024).toFixed(2)} KB)`);
-
-// 提取关键 Chunk 的 Gzip 占用
-const getChunkGzip = (pattern) => {
-  const match = report.find((r) => r.file.includes(pattern));
-  return match ? match.gzip : 0;
-};
-
-const runtimeCoreGzip = getChunkGzip('runtime-core');
-const runtimeDomGzip = getChunkGzip('runtime-dom');
-const gsapGzip = getChunkGzip('index.'); // gsap index.xxxx.js
-const scrollTriggerGzip = getChunkGzip('ScrollTrigger');
-const nameGateGzip = getChunkGzip('NameGate');
-const rosterWallGzip = getChunkGzip('RosterWall');
-const studentProfileGzip = getChunkGzip('StudentProfile');
-const rankingsPanelGzip = getChunkGzip('RankingsPanel');
-
-console.log('\n⚙️  关键组件依赖 Gzip 估计:');
-console.log(`- Vue Runtime (Core): ${(runtimeCoreGzip / 1024).toFixed(2)} KB`);
-console.log(`- Vue DOM: ${(runtimeDomGzip / 1024).toFixed(2)} KB`);
-console.log(`- GSAP Core: ${(gsapGzip / 1024).toFixed(2)} KB`);
-console.log(`- ScrollTrigger: ${(scrollTriggerGzip / 1024).toFixed(2)} KB`);
-console.log(`- NameGate Island: ${(nameGateGzip / 1024).toFixed(2)} KB`);
-console.log(`- RosterWall Island: ${(rosterWallGzip / 1024).toFixed(2)} KB`);
-console.log(`- StudentProfile Island: ${(studentProfileGzip / 1024).toFixed(2)} KB`);
-
-// 估计各页面首屏 JS 大小
-const homeJs = runtimeCoreGzip + runtimeDomGzip + nameGateGzip + gsapGzip;
-const rosterJs = runtimeCoreGzip + runtimeDomGzip + rosterWallGzip + rankingsPanelGzip + gsapGzip + scrollTriggerGzip;
-const studentJs = runtimeCoreGzip + runtimeDomGzip + studentProfileGzip + gsapGzip + scrollTriggerGzip;
-
-console.log('\n📱 页面级估算首屏 JS (Gzip):');
-console.log(`- 首页 (Home): ${(homeJs / 1024).toFixed(2)} KB  (预算 <= 80 KB)`);
-console.log(`- 同学录页 (Roster): ${(rosterJs / 1024).toFixed(2)} KB  (预算 <= 140 KB)`);
-console.log(`- 学生详情页 (Student): ${(studentJs / 1024).toFixed(2)} KB  (预算 <= 180 KB)`);
-
-// 检查预算是否超标
-let budgetViolated = false;
-
-if (homeJs > 80 * 1024) {
-  console.warn('⚠️  [ALERT] 首页 JS 超过 80 KB 预算！');
-  budgetViolated = true;
-}
-if (rosterJs > 140 * 1024) {
-  console.warn('⚠️  [ALERT] 同学录页 JS 超过 140 KB 预算！');
-  budgetViolated = true;
-}
-if (studentJs > 180 * 1024) {
-  console.warn('⚠️  [ALERT] 学生详情页 JS 超过 180 KB 预算！');
-  budgetViolated = true;
-}
-
 if (budgetViolated) {
-  console.log('\n❌ 性能预算校验未通过，请继续优化体积。');
-  // 暂时先不直接 exit(1)，以防阻塞当前的 build 流程，优化完成后可改为限制硬拦截
+  console.error('\n❌ 性能预算校验未通过，请检查上述页面依赖链。');
+  process.exit(1);
 } else {
-  console.log('\n✅ 页面性能体积预算校验成功！');
+  console.log('\n✅ 所有页面首屏体积及禁用依赖审计全部成功！');
 }
