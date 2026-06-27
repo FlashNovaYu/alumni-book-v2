@@ -451,55 +451,31 @@ app.get('/api/admin/stats', async (c) => {
     db.prepare('SELECT name, slug, updated_at, info FROM students ORDER BY updated_at DESC LIMIT 5').all(),
     db.prepare('SELECT name, slug, visit_count FROM students ORDER BY visit_count DESC LIMIT 5').all(),
     db.prepare('SELECT id, author_name as authorName, student_slug as studentSlug, content, created_at as createdAt, is_approved as isApproved FROM messages ORDER BY created_at DESC LIMIT 5').all(),
-    db.prepare('SELECT name, slug, edit_secret_hash, info FROM students').all()
+    db.prepare('SELECT name, avatar_url, info FROM students').all()
   ])
 
   // 内容与安全审计
   const auditAlerts: string[] = []
   for (const s of allStudents.results || []) {
-    const name = (s as any).name
+    const row = s as any
+    const name = row.name
     let info: any = {}
     try {
-      info = JSON.parse((s as any).info || '{}')
+      info = JSON.parse(row.info || '{}')
     } catch {}
-    
-    if (!(s as any).edit_secret_hash) {
-      auditAlerts.push(`同学【${name}】尚未设置自助编辑口令，有被冒名篡改的风险。`)
+
+    if (!row.avatar_url) {
+      auditAlerts.push(`${name} 未上传头像`)
     }
-    
-    if (!(s as any).avatar_url) {
-      auditAlerts.push(`同学【${name}】尚未上传头像，前台将降级显示。`)
+    if (!info.motto) {
+      auditAlerts.push(`${name} 缺少座右铭`)
     }
-    
-    const filledKeys = Object.keys(info).filter(k => k !== 'visibility' && info[k] && String(info[k]).trim())
-    if (filledKeys.length < 5) {
-      auditAlerts.push(`同学【${name}】的个人录入资料严重缺失（已填少于 5 项）。`)
-    }
-    
-    const visibility = info.visibility || {}
-    const sensitive: Record<string, string> = {
-      phone: '手机',
-      wechat: '微信',
-      qq: 'QQ',
-      email: '邮箱',
-      address: '常住地',
-      weibo: '微博',
-    }
-    const publicFields: string[] = []
-    for (const [key, label] of Object.entries(sensitive)) {
-      if (visibility[key] === 'public' && info[key]) {
-        publicFields.push(label)
-      }
-    }
-    if (publicFields.length > 0) {
-      auditAlerts.push(`同学【${name}】的 [${publicFields.join(', ')}] 联系方式设为“公开”，存在信息泄露隐患，建议改为仅同学可见。`)
+    if (!info.bestMemory || !info.letterToClassmates) {
+      auditAlerts.push(`${name} 档案内容待完善`)
     }
   }
 
   const pendingCount = (pendingMessagesVal as any)?.count || 0
-  if (pendingCount > 0) {
-    auditAlerts.push(`当前有 ${pendingCount} 条待审核留言堆积，请及时处理。`)
-  }
 
   return c.json({
     success: true,

@@ -39,14 +39,16 @@
         </div>
       </div>
 
-      <!-- 审计警报 -->
-      <div v-if="stats.auditAlerts && stats.auditAlerts.length" class="card audit-card mb-4">
-        <h2 class="panel-title text-warning">⚠️ 同学录运营审计与安全漏洞警报</h2>
-        <ul class="audit-list">
+      <!-- 同学录内容巡检 -->
+      <div class="card mt-4">
+        <h2 class="panel-title text-warning">同学录内容巡检</h2>
+        <p class="audit-summary">这里列出会影响前台显示、隐私或资料完整度的问题。</p>
+        <ul v-if="stats.auditAlerts && stats.auditAlerts.length" class="audit-list">
           <li v-for="(alert, idx) in stats.auditAlerts" :key="idx" class="audit-item">
-            {{ alert }}
+            <span>{{ alert }}</span>
           </li>
         </ul>
+        <p v-else class="text-success">目前没有发现任何内容缺失问题！</p>
       </div>
 
       <!-- 两栏控制台底座 -->
@@ -489,11 +491,14 @@ const getYearbookUrl = () => {
   animation: shimmer 1.5s infinite;
 }
 
-.audit-card {
-  border: 1px solid #ffe082 !important;
-  background-color: #fffde7 !important;
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+.mt-4 {
+  margin-top: var(--spacing-lg) !important;
+}
+.audit-summary {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
 }
 .text-warning {
   color: #b78103 !important;
@@ -508,12 +513,14 @@ const getYearbookUrl = () => {
 }
 .audit-item {
   font-size: 13px;
-  color: #5d4037;
+  color: #c62828;
   line-height: 1.6;
   margin-bottom: var(--spacing-xxs);
 }
-.mb-4 {
-  margin-bottom: var(--spacing-lg);
+.text-success {
+  color: #2e7d32 !important;
+  font-size: 13px;
+  margin: var(--spacing-xs) 0 0;
 }
 
 .preview-badge-link, .edit-badge-link {

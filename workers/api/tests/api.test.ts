@@ -42,6 +42,30 @@ describe('Auth API', () => {
     await waitOnExecutionContext(ctx)
     expect(res.status).toBe(401)
   })
+
+  it('GET /api/admin/stats — 成功返回统计信息与巡检数据', async () => {
+    const loginReq = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'admin888' }),
+    })
+    const loginCtx = createExecutionContext()
+    const loginRes = await worker.fetch(loginReq, env, loginCtx)
+    await waitOnExecutionContext(loginCtx)
+    const loginBody = await loginRes.json() as any
+    const token = loginBody.data.token
+
+    const req = new Request('http://localhost/api/admin/stats', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.success).toBe(true)
+    expect(Array.isArray(body.data.auditAlerts)).toBe(true)
+  })
 })
 
 describe('Public API', () => {
