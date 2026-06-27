@@ -102,4 +102,18 @@ describe('Performance Static Constraints Test', () => {
       expect(size).toBeLessThan(200 * 1024)
     }
   })
+
+  it('museum redesign does not put graph or panorama modules on the homepage critical path', () => {
+    const htmlPath = path.join(distDir, 'index.html')
+    expect(fs.existsSync(htmlPath)).toBe(true)
+
+    const scripts = getReferencedScripts(htmlPath)
+    expectScriptsNotToReference(scripts, [
+      'ClassGraph',
+      'SeatMap',
+      'Panorama',
+      'ScrollTrigger',
+      'gsap',
+    ])
+  })
 })

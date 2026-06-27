@@ -51,4 +51,26 @@ describe('Feature visibility smoke test', () => {
       expect(timelineHtml).not.toContain('VITE_API_BASE_URL')
     }
   })
+
+  it('ships the museum redesign markers on core public pages', () => {
+    const homeHtml = readDistHtml('index.html')
+    const rosterHtml = readDistHtml('roster/index.html')
+    const studentHtml = readDistHtml('student/template/index.html')
+
+    expect(homeHtml).toContain('CLASS MEMORY MUSEUM')
+    expect(homeHtml).toContain('访客登记')
+    expect(rosterHtml).toContain('人物长廊')
+    expect(rosterHtml).toContain('档案检索')
+    expect(studentHtml).toContain('档案展柜')
+    expect(studentHtml).toContain('资料完整度')
+  })
+
+  it('keeps visible empty states for incomplete content instead of hiding features', () => {
+    const rosterHtml = readDistHtml('roster/index.html')
+    const yearbookHtml = readDistHtml('yearbook/index.html')
+
+    expect(rosterHtml).toContain('页面待完善')
+    expect(rosterHtml).toContain('补全资料')
+    expect(yearbookHtml).toContain('馆藏缺失提示')
+  })
 })
