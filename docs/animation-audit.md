@@ -59,3 +59,9 @@
 | **影像馆 (AlbumGrid)** | `.fade-in-img` | CSS-first Transition (onload 触发 `.img-loaded`) | 直接显示 | 绝无 GSAP 依赖。基于 onload 侦测确保图片无闪烁渐入，支持 aspect-ratio 消除 CLS。 |
 | **校史走廊 (timeline.astro)** | `.timeline-item` | CSS-first Transition + Inline Delay | **彻底关闭**：`animation: none`, `transform: none` | 支持了过滤时多分类平滑淡入。当减弱动效开启时，动画延迟及位移完全停用。 |
 | **亮点预览延迟入口** | `ClassGraphPreview`, `SeatMapPreview` | Vue Async Component + IntersectionObserver | 直接显示（按需加载） | 延迟到亮点锚点滚动到视区 150px 内才触发 chunk 下载与水合。组件卸载时在 `onUnmounted` 彻底 disconnect observer 释放强引用。 |
+
+## Phase 11 动画所有权约束
+
+- 全站不再保留旧 `scripts/animations.ts` 作为全局 GSAP owner。
+- 首页、列表、留言、时间轴默认使用 CSS-first 动效。
+- GSAP/ScrollTrigger 只能出现在局部组件的懒加载路径中，并必须带有卸载清理和 reduced-motion 降级。

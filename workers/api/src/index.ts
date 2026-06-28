@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth'
 import { messagesRoutes } from './routes/messages'
 import { timelineRoutes } from './routes/timeline'
 import { classmateRoutes } from './routes/classmate'
+import { highlightsRoutes } from './routes/highlights'
 import { etag } from 'hono/etag'
 
 type Bindings = {
@@ -51,6 +52,41 @@ app.use('*', async (c, next) => {
     allowHeaders: ['Content-Type', 'Authorization', 'X-Classmate-Token'],
   })
   return corsMiddleware(c, next)
+})
+
+const PUBLIC_REVALIDATED_GET_PREFIXES = [
+  '/api/classmates',
+  '/api/students',
+  '/api/config',
+  '/api/albums',
+  '/api/rankings',
+  '/api/messages',
+  '/api/timeline',
+  '/api/highlights',
+]
+
+function isPublicRevalidatedGet(path: string) {
+  return PUBLIC_REVALIDATED_GET_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+}
+
+// 动态 API 缓存策略：
+// - 公开 GET JSON 允许浏览器保存并用 ETag 重新验证，避免重复下载完整响应。
+// - 管理、认证、写操作仍禁用存储，避免隐私与后台状态污染。
+// - R2 文件路由保留后续专用 immutable 缓存头。
+app.use('/api/*', async (c, next) => {
+  await next()
+
+  const path = c.req.path
+  if (path.startsWith('/api/files/')) return
+
+  if (c.req.method === 'GET' && isPublicRevalidatedGet(path)) {
+    c.res.headers.set('Cache-Control', 'no-cache, max-age=0, must-revalidate')
+    return
+  }
+
+  c.res.headers.set('Cache-Control', 'no-store, must-revalidate')
+  c.res.headers.set('Pragma', 'no-cache')
+  c.res.headers.set('Expires', '0')
 })
 
 // 为公开 JSON 接口启用 ETag 自动缓存校验
@@ -191,8 +227,8 @@ app.get('/api/config', async (c) => {
         heroTitle: '青春纪念馆',
         heroSubtitle: '翻开这本会呼吸的同学录，重新走过我们的青春长廊。',
         particleLevel: 'low',
-        enableClassGraph: false,
-        enableSeatMap: false,
+        enableClassGraph: true,
+        enableSeatMap: true,
       },
     },
   })
@@ -225,8 +261,8 @@ app.get('/api/admin/config', async (c) => {
         heroTitle: '青春纪念馆',
         heroSubtitle: '翻开这本会呼吸的同学录，重新走过我们的青春长廊。',
         particleLevel: 'low',
-        enableClassGraph: false,
-        enableSeatMap: false,
+        enableClassGraph: true,
+        enableSeatMap: true,
       },
     },
   })
@@ -478,6 +514,7 @@ app.route('/api', albumsRoutes)
 app.route('/api', uploadRoutes)
 app.route('/api', messagesRoutes)
 app.route('/api', timelineRoutes)
+app.route('/api/highlights', highlightsRoutes)
 
 // 管理后台统计
 app.get('/api/admin/stats', async (c) => {
@@ -508,7 +545,7 @@ app.get('/api/admin/stats', async (c) => {
   ])
 
   // 内容与安全审计
-  const auditAlerts: string[] = []
+  const auditAlerts: any[] = []
   for (const s of allStudents.results || []) {
     const row = s as any
     const name = row.name
@@ -518,13 +555,19 @@ app.get('/api/admin/stats', async (c) => {
     } catch {}
 
     if (!row.avatar_url) {
-      auditAlerts.push(`${name} 未上传头像`)
+      auditAlerts.push({ type: 'missingAvatar', message: `${name} 未上传头像` })
     }
     if (!info.motto) {
-      auditAlerts.push(`${name} 缺少座右铭`)
+      auditAlerts.push({ type: 'missingMotto', message: `${name} 缺少座右铭` })
     }
     if (!info.bestMemory || !info.letterToClassmates) {
-      auditAlerts.push(`${name} 档案内容待完善`)
+      auditAlerts.push({ type: 'incompleteProfile', message: `${name} 档案内容待完善` })
+    }
+    if (!info.seatNo) {
+      auditAlerts.push({ type: 'missingSeatNo', message: `${name} 缺少座位号 (seatNo)` })
+    }
+    if (!info.groupName) {
+      auditAlerts.push({ type: 'missingGroupName', message: `${name} 缺少小组信息 (groupName)` })
     }
   }
 

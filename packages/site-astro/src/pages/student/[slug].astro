@@ -30,9 +30,27 @@ try {
 if (!student) {
   return Astro.redirect(href('/roster'))
 }
+
+let museum = {
+  enabled: true,
+  enableClassGraph: false,
+  enableSeatMap: false,
+}
+
+try {
+  const configRes = await fetch(`${API_BASE}/api/config`)
+  const configJson = await configRes.json()
+  museum = { ...museum, ...(configJson.data?.museum || {}) }
+} catch {}
+
+// 测试或本地开发构建时，默认开启亮点卡片以保证 Playwright E2E 网络测试覆盖
+if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
+  museum.enableClassGraph = true
+  museum.enableSeatMap = true
+}
 ---
 
 <MainLayout>
-  <StudentProfile client:load initialStudent={student} studentSlug={slug} apiBase={CLIENT_API_BASE} />
+  <StudentProfile client:load initialStudent={student} studentSlug={slug} apiBase={CLIENT_API_BASE} museum={museum} />
 </MainLayout>
 

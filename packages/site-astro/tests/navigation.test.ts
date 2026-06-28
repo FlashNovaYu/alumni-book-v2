@@ -97,7 +97,7 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
   it('admin production build does not emit source maps', () => {
     const adminAssets = resolve(__dirname, '../../admin/dist/assets')
     expect(existsSync(adminAssets)).toBe(true)
-    const maps = readdirSync(adminAssets).filter((name) => name.endsWith('.map'))
+    const maps = readdirSync(adminAssets).filter((name: string) => name.endsWith('.map'))
     expect(maps).toEqual([])
   })
 })

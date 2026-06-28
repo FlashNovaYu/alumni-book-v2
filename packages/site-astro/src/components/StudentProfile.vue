@@ -131,7 +131,7 @@
           </section>
 
           <!-- 照片墙，视口可见后加载 -->
-          <div ref="photoWallAnchor">
+          <div ref="photoWallAnchor" id="photo-wall-anchor" style="min-height: 1px;">
             <section v-if="student.photos?.length && photoWallVisible" class="profile-section fade-in">
               <h2 class="section-title display-sm">照片墙</h2>
               <PhotoWall :photos="student.photos" :apiBase="apiBase" />
@@ -139,15 +139,15 @@
           </div>
 
           <!-- 留言板，视口可见后加载 -->
-          <div ref="messageWallAnchor">
+          <div ref="messageWallAnchor" id="message-wall-anchor" style="min-height: 1px;">
             <MessageWall v-if="messageWallVisible" :studentSlug="student.slug" :apiBase="apiBase" />
           </div>
 
           <!-- 延迟加载亮点入口，视口可见后加载 -->
-          <div ref="highlightsAnchor">
+          <div v-if="anyHighlightEnabled" ref="highlightsAnchor" id="highlights-anchor" style="min-height: 1px;">
             <div v-if="highlightsVisible" class="lazy-highlights">
-              <ClassGraphPreview :sampleNames="['张三', '李四', '王五']" />
-              <SeatMapPreview :seats="['1-1', '1-2', '2-1', '2-2']" />
+              <ClassGraphPreview v-if="classGraphEnabled" :apiBase="apiBase" :sampleNames="['张三', '李四', '王五']" />
+              <SeatMapPreview v-if="seatMapEnabled" :apiBase="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
             </div>
           </div>
 
@@ -225,6 +225,11 @@ const props = defineProps<{
   initialStudent: Student | null
   studentSlug: string
   apiBase: string
+  museum?: {
+    enabled?: boolean
+    enableClassGraph?: boolean
+    enableSeatMap?: boolean
+  }
 }>()
 
 const student = ref<Student | null>(props.initialStudent)
@@ -234,6 +239,7 @@ const avatarError = ref(false)
 
 const rootRef = ref<HTMLElement | null>(null)
 let gsapCtx: any = null
+let disposed = false
 const hasAnimated = ref(false)
 
 // 视口观察器延迟加载的 anchor 和状态
@@ -243,6 +249,15 @@ const messageWallAnchor = ref<HTMLElement | null>(null)
 const messageWallVisible = ref(false)
 const highlightsAnchor = ref<HTMLElement | null>(null)
 const highlightsVisible = ref(false)
+
+const museumHighlightsEnabled = computed(() => props.museum?.enabled !== false)
+const classGraphEnabled = computed(() => museumHighlightsEnabled.value && props.museum?.enableClassGraph === true)
+const seatMapEnabled = computed(() => museumHighlightsEnabled.value && props.museum?.enableSeatMap === true)
+const anyHighlightEnabled = computed(() => classGraphEnabled.value || seatMapEnabled.value)
+
+let pObserver: IntersectionObserver | null = null
+let mObserver: IntersectionObserver | null = null
+let hObserver: IntersectionObserver | null = null
 
 const slugVal = computed(() => {
   if (props.studentSlug) return props.studentSlug
@@ -353,8 +368,9 @@ function triggerGSAPAnimations() {
 
   nextTick(() => {
     import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+      if (disposed) return
       import('gsap').then(({ default: gsap }) => {
-        if (!rootRef.value) return
+        if (disposed || !rootRef.value) return
         gsap.registerPlugin(ScrollTrigger)
         
         if (gsapCtx) gsapCtx.revert()
@@ -375,6 +391,7 @@ function triggerGSAPAnimations() {
 }
 
 onMounted(() => {
+  disposed = false
   if (!slugVal.value) {
     loading.value = false
     return
@@ -384,14 +401,16 @@ onMounted(() => {
   const visitKey = `visited_${slugVal.value}`
   if (!sessionStorage.getItem(visitKey)) {
     sessionStorage.setItem(visitKey, '1')
-    fetch(`${props.apiBase}/api/students/${slugVal.value}/visit`, { method: 'POST' })
-      .then(r => r.json())
-      .then(d => {
-        if (d.success && student.value) {
-          student.value.visitCount = d.data.visitCount
-        }
-      })
-      .catch(() => {})
+    runWhenIdle(() => {
+      fetch(`${props.apiBase}/api/students/${slugVal.value}/visit`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success && student.value) {
+            student.value.visitCount = d.data.visitCount
+          }
+        })
+        .catch(() => {})
+    }, 1200)
   }
 
   // 若初始即有静态直出数据，先跑一次动画
@@ -435,10 +454,6 @@ onMounted(() => {
     }
   })
 
-  let pObserver: IntersectionObserver | null = null
-  let mObserver: IntersectionObserver | null = null
-  let hObserver: IntersectionObserver | null = null
-
   // 视口观察器延迟加载非关键岛屿
   if (typeof window !== 'undefined' && 'IntersectionObserver' in window) {
     if (photoWallAnchor.value) {
@@ -479,11 +494,17 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  disposed = true
   pObserver?.disconnect()
   mObserver?.disconnect()
   hObserver?.disconnect()
+  pObserver = null
+  mObserver = null
+  hObserver = null
+
   if (gsapCtx) {
     gsapCtx.revert()
+    gsapCtx = null
   }
 })
 </script>

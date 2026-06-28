@@ -2,9 +2,9 @@ export function runWhenIdle(task: () => void, timeout = 2500) {
   if (typeof window === 'undefined') return
   if ('requestIdleCallback' in window) {
     (window as any).requestIdleCallback(task, { timeout })
-  } else {
-    window.setTimeout(task, timeout)
+    return
   }
+  setTimeout(task, Math.min(timeout, 80))
 }
 
 /**
@@ -50,7 +50,7 @@ export async function fetchJsonIfChanged(url: string, etagKey: string, customHea
   }
 
   try {
-    const res = await fetch(url, { headers })
+    const res = await fetch(url, { headers, cache: 'no-cache' })
     if (res.status === 304 && cachedData) {
       return { changed: false, data: JSON.parse(cachedData) }
     }

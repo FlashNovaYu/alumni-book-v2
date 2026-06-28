@@ -28,7 +28,7 @@ describe('Feature visibility smoke test', () => {
     const assetDir = join(distDir, 'assets')
     expect(existsSync(assetDir), 'assets directory should exist').toBe(true)
 
-    const rankingAssetName = readdirSync(assetDir).find((name) => /^RankingsPanel\..+\.js$/.test(name))
+    const rankingAssetName = readdirSync(assetDir).find((name: string) => /^RankingsPanel\..+\.js$/.test(name))
     expect(rankingAssetName).toBeTruthy()
 
     const rankingAsset = readFileSync(join(assetDir, rankingAssetName!), 'utf-8')
@@ -39,7 +39,7 @@ describe('Feature visibility smoke test', () => {
   it('uses an injected timeline API base instead of reading VITE_API_BASE_URL in client code', () => {
     const timelineHtml = readDistHtml('timeline/index.html')
     const assetDir = join(distDir, 'assets')
-    const timelineAssetName = readdirSync(assetDir).find((name) => /^timeline\.astro_astro_type_script.+\.js$/.test(name))
+    const timelineAssetName = readdirSync(assetDir).find((name: string) => /^timeline\.astro_astro_type_script.+\.js$/.test(name))
     
     expect(timelineHtml).toContain('data-api-base')
 

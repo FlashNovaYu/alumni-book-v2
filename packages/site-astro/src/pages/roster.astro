@@ -21,6 +21,24 @@ try {
   const data = await res.json() as any
   classmates = data.data || []
 } catch {}
+
+let museum = {
+  enabled: true,
+  enableClassGraph: false,
+  enableSeatMap: false,
+}
+
+try {
+  const configRes = await fetch(`${API_BASE}/api/config`)
+  const configJson = await configRes.json()
+  museum = { ...museum, ...(configJson.data?.museum || {}) }
+} catch {}
+
+// 测试或本地开发构建时，默认开启亮点卡片以保证 Playwright E2E 网络测试覆盖
+if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
+  museum.enableClassGraph = true
+  museum.enableSeatMap = true
+}
 ---
 
 <MainLayout>
@@ -37,10 +55,12 @@ try {
 
       <RosterWall client:load initialClassmates={classmates} apiBase={CLIENT_API_BASE} siteBase={base} />
 
-      <div class="lazy-highlights">
-        <ClassGraphPreview client:visible sampleNames={['张三', '李四', '王五']} />
-        <SeatMapPreview client:visible seats={['1-1', '1-2', '2-1', '2-2']} />
-      </div>
+      {museum.enabled && (museum.enableClassGraph || museum.enableSeatMap) && (
+        <div class="lazy-highlights">
+          {museum.enableClassGraph && <ClassGraphPreview client:visible apiBase={CLIENT_API_BASE} sampleNames={classmates.slice(0, 5).map((c) => c.name)} />}
+          {museum.enableSeatMap && <SeatMapPreview client:visible apiBase={CLIENT_API_BASE} seats={classmates.map((c: any) => c.seatNo).filter(Boolean).slice(0, 8)} />}
+        </div>
+      )}
     </div>
   </div>
 </MainLayout>

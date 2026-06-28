@@ -28,7 +28,7 @@ export function toArchiveClassmateCard(mate: ClassmateEntry, siteBase: string): 
   }
 }
 
-export function toStudentMuseumSummary(student: Student) {
+export function toStudentMuseumSummary(student: any) {
   const info = student.info || {}
   return {
     completion: computeProfileCompleteness(info, student.avatarUrl),

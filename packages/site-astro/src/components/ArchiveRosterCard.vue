@@ -1,5 +1,5 @@
 <template>
-  <a :href="card.hasPage ? card.href : '#'" class="archive-card" :class="{ 'is-empty': !card.hasPage }">
+  <a :href="card.hasPage ? card.href : '#'" class="archive-card museum-motion-soft" :class="{ 'is-empty': !card.hasPage }">
     <div class="archive-card__avatar">
       <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" loading="lazy" decoding="async" @error="avatarError = true" />
       <span v-else>{{ card.name.charAt(0) }}</span>
@@ -42,12 +42,6 @@ const avatarSrc = computed(() => {
   border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-md);
   box-shadow: var(--shadow-museum-paper);
-  transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart);
-}
-
-.archive-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-museum-panel);
 }
 
 .archive-card.is-empty {
@@ -57,6 +51,7 @@ const avatarSrc = computed(() => {
 .archive-card__avatar {
   width: 72px;
   height: 72px;
+  flex: 0 0 72px;
   border-radius: 50%;
   overflow: hidden;
   display: grid;
@@ -105,5 +100,6 @@ const avatarSrc = computed(() => {
   margin-top: 12px;
   font-size: 12px;
   color: var(--color-museum-stamp-red);
+  min-height: 22px;
 }
 </style>

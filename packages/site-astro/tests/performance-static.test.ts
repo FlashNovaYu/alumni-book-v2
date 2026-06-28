@@ -94,7 +94,7 @@ describe('Performance Static Constraints Test', () => {
 
   it('静态打包的所有 JS 体积不应严重超限', () => {
     const assets = fs.readdirSync(assetsDir)
-    const jsFiles = assets.filter(file => file.endsWith('.js'))
+    const jsFiles = assets.filter((file: string) => file.endsWith('.js'))
     
     for (const file of jsFiles) {
       const size = fs.statSync(path.join(assetsDir, file)).size
@@ -117,5 +117,18 @@ describe('Performance Static Constraints Test', () => {
       'ScrollTrigger',
       'gsap',
     ])
+  })
+
+  it('does not ship eager audio preload by default', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../src/components/StudentMusicPlayer.vue'), 'utf-8')
+    expect(source).not.toContain('preload="auto"')
+    expect(source).toContain(":preload=\"musicAutoplay ? 'metadata' : 'none'\"")
+  })
+
+  it('museum hover motion has reduced-motion overrides', () => {
+    const globalCss = fs.readFileSync(path.resolve(__dirname, '../src/styles/global.css'), 'utf-8')
+    expect(globalCss).toContain('.museum-motion-soft')
+    expect(globalCss).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(globalCss).toContain('.museum-motion-soft:hover')
   })
 })

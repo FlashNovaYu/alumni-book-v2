@@ -45,7 +45,7 @@
       <div
         v-for="(msg, idx) in messages"
         :key="msg.id"
-        class="msg-item fade-in-msg"
+        class="msg-item fade-in-msg museum-motion-soft"
         :class="'style-' + (msg.cardStyle || 'paper')"
         :style="{ animationDelay: `${Math.min(idx * 0.05, 1.2)}s` }"
       >
@@ -115,7 +115,7 @@ function getAuthorName() {
   return sessionStorage.getItem('classmate_name') || ''
 }
 
-function formatDate(d: string) {
+function formatDate(d: string | null) {
   if (!d) return ''
   return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 }

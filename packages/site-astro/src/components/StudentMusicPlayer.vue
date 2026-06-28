@@ -15,7 +15,7 @@
       ref="audioRef"
       :src="getPhotoUrl(musicUrl)"
       loop
-      preload="auto"
+      :preload="musicAutoplay ? 'metadata' : 'none'"
       @play="onMusicPlay"
       @pause="onMusicPause"
     ></audio>

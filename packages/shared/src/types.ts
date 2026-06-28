@@ -97,15 +97,17 @@ export interface ClassmateEntry {
   tags?: string[]
 }
 
-export interface MuseumThemeConfig {
+export interface MuseumConfig {
   enabled: boolean
   heroEyebrow: string
   heroTitle: string
   heroSubtitle: string
-  particleLevel: 'off' | 'low' | 'medium'
+  particleLevel: 'off' | 'low' | 'medium' | 'high'
   enableClassGraph: boolean
   enableSeatMap: boolean
 }
+
+export type MuseumThemeConfig = MuseumConfig
 
 /** 站点配置 */
 export interface SiteConfig {
@@ -186,3 +188,37 @@ export interface PaginatedResponse<T> {
   page: number
   pageSize: number
 }
+
+export interface ClassGraphNode {
+  slug: string
+  name: string
+  groupName?: string
+  mbti?: string
+  favoriteSong?: string
+  messageCount: number
+}
+
+export interface ClassGraphEdge {
+  from: string
+  to: string
+  reason: 'group' | 'message' | 'interest'
+  weight: number
+}
+
+export interface ClassGraphPayload {
+  nodes: ClassGraphNode[]
+  edges: ClassGraphEdge[]
+}
+
+export interface SeatMapSeat {
+  slug: string
+  name: string
+  seatNo: string
+  groupName?: string
+}
+
+export interface SeatMapPayload {
+  seats: SeatMapSeat[]
+  missingSeatCount: number
+}
+

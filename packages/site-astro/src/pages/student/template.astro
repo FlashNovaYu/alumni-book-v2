@@ -4,8 +4,60 @@ import StudentProfile from '../../components/StudentProfile.vue'
 
 const base = import.meta.env.BASE_URL || '/'
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
+const museum = {
+  enabled: true,
+  enableClassGraph: true,
+  enableSeatMap: true,
+}
+
+const testStudent = {
+  id: "test-id",
+  name: "测试同学",
+  slug: "template",
+  isOwner: false,
+  avatarUrl: null,
+  musicUrl: null,
+  musicTitle: null,
+  musicAutoplay: false,
+  backgroundUrl: null,
+  backgroundColor: null,
+  customHtml: null,
+  info: {
+    nickname: "小测",
+    motto: "路漫漫其修远兮",
+    bestMemory: "在测试里认识大家",
+    letterToClassmates: "祝大家越来越好",
+    favoriteSong: "夜空中最亮的星",
+    favoriteFood: "冰激凌",
+    bestSubject: "计算机科学",
+    targetUniversity: "深大",
+    futureCareer: "前端架构师",
+    bestLesson: "体育课",
+    deskmateFun: "一起写代码",
+    classMeme: "bug 也是功能",
+    mbti: "INTJ",
+    seatNo: "1-1",
+    dormNo: "A-101",
+    groupName: "探索小组",
+  },
+  photos: [
+    {
+      id: "photo-1",
+      filename: "test.jpg",
+      caption: "测试照片",
+      r2Key: "photos/test.jpg"
+    }
+  ],
+  visitCount: 1,
+}
 ---
 
 <MainLayout>
-  <StudentProfile client:load initialStudent={null} studentSlug="" apiBase={CLIENT_API_BASE} />
+  <StudentProfile client:load initialStudent={testStudent} studentSlug="template" apiBase={CLIENT_API_BASE} museum={museum} />
 </MainLayout>
+
+<style is:global>
+  #photo-wall-anchor, #message-wall-anchor, #highlights-anchor {
+    margin-bottom: 800px !important;
+  }
+</style>

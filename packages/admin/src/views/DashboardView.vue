@@ -44,8 +44,14 @@
         <h2 class="panel-title text-warning">同学录内容巡检</h2>
         <p class="audit-summary">这里列出会影响前台显示、隐私或资料完整度的问题。</p>
         <ul v-if="stats.auditAlerts && stats.auditAlerts.length" class="audit-list">
+          <li v-if="stats.auditAlerts?.some(a => a.type === 'missingSeatNo')" class="audit-item" style="color: var(--color-warning, #e65100); font-weight: 500;">
+            ⚠️ 座位记忆缺少座位号，请在学生档案中补全 seatNo。
+          </li>
+          <li v-if="stats.auditAlerts?.some(a => a.type === 'missingGroupName')" class="audit-item" style="color: var(--color-warning, #e65100); font-weight: 500;">
+            ⚠️ 班级图谱缺少小组信息，请在学生档案中补全 groupName。
+          </li>
           <li v-for="(alert, idx) in stats.auditAlerts" :key="idx" class="audit-item">
-            <span>{{ alert }}</span>
+            <span>{{ typeof alert === 'string' ? alert : alert.message }}</span>
           </li>
         </ul>
         <p v-else class="text-success">目前没有发现任何内容缺失问题！</p>
@@ -152,7 +158,7 @@ const stats = ref({
   recentStudents: [] as Array<{ name: string; slug: string; updated_at: string; info: string }>,
   topVisited: [] as Array<{ name: string; slug: string; visit_count: number }>,
   recentMessages: [] as Array<{ id: string; authorName: string; studentSlug: string; content: string; createdAt: string; isApproved: boolean }>,
-  auditAlerts: [] as string[]
+  auditAlerts: [] as any[]
 })
 
 const loading = ref(true)

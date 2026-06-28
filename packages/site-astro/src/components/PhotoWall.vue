@@ -63,6 +63,7 @@ const photoWallRoot = ref<HTMLElement | null>(null)
 const photoErrors = ref<Record<string, boolean>>({})
 const lightboxErrors = ref<Record<number, boolean>>({})
 let gsapCtx: any = null
+let disposed = false
 
 const lightbox = reactive({
   open: false,
@@ -119,9 +120,12 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  disposed = false
   isMounted.value = true
   import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+    if (disposed) return
     import('gsap').then(({ default: gsap }) => {
+      if (disposed || !photoWallRoot.value) return
       gsap.registerPlugin(ScrollTrigger)
       gsapCtx = gsap.context(() => {
         gsap.fromTo('.photo-item', { autoAlpha: 0, y: 24 },
@@ -130,14 +134,16 @@ onMounted(() => {
             scrollTrigger: { trigger: '.photo-wall', start: 'top 85%', once: true },
           }
         )
-      }, photoWallRoot.value || undefined)
+      }, photoWallRoot.value)
     })
   })
 })
 
 onUnmounted(() => {
+  disposed = true
   if (gsapCtx) {
     gsapCtx.revert()
+    gsapCtx = null
   }
   document.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''

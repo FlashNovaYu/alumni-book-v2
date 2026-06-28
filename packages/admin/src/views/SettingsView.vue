@@ -93,14 +93,16 @@
         <div class="form-group checkbox-group">
           <label class="checkbox-label">
             <input v-model="config.museum.enableClassGraph" type="checkbox" :disabled="!config.museum.enabled" />
-            启用班级关系图谱
+            <span>在公开页展示班级图谱入口</span>
           </label>
+          <p class="form-hint" style="margin-left: 20px; font-size: 12px; color: var(--color-muted); margin-top: 4px;">关闭后公开页不会渲染对应入口，也不会下载对应的懒加载组件。</p>
         </div>
         <div class="form-group checkbox-group">
           <label class="checkbox-label">
             <input v-model="config.museum.enableSeatMap" type="checkbox" :disabled="!config.museum.enabled" />
-            启用座位表
+            <span>在公开页展示座位记忆入口</span>
           </label>
+          <p class="form-hint" style="margin-left: 20px; font-size: 12px; color: var(--color-muted); margin-top: 4px;">关闭后公开页不会渲染对应入口，也不会下载对应的懒加载组件。</p>
         </div>
       </div>
 

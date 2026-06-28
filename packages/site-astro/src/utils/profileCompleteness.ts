@@ -27,7 +27,7 @@ function hasValue(value: unknown): boolean {
   return value !== null && value !== undefined && String(value).trim().length > 0
 }
 
-export function computeProfileCompleteness(info: Record<string, unknown>, avatarUrl?: string | null): number {
+export function computeProfileCompleteness(info: any, avatarUrl?: string | null): number {
   const filled = REQUIRED_FIELDS.filter((field) => {
     if (field.key === 'avatarUrl') return hasValue(avatarUrl)
     return hasValue(info[field.key])
@@ -35,14 +35,14 @@ export function computeProfileCompleteness(info: Record<string, unknown>, avatar
   return Math.round((filled / REQUIRED_FIELDS.length) * 100)
 }
 
-export function getMissingProfileFields(info: Record<string, unknown>, avatarUrl?: string | null): MissingProfileField[] {
+export function getMissingProfileFields(info: any, avatarUrl?: string | null): MissingProfileField[] {
   return REQUIRED_FIELDS.filter((field) => {
     if (field.key === 'avatarUrl') return !hasValue(avatarUrl)
     return !hasValue(info[field.key])
   })
 }
 
-export function buildInterestTags(info: Record<string, unknown>): string[] {
+export function buildInterestTags(info: any): string[] {
   const keys = ['mbti', 'favoriteSong', 'favoriteFood', 'bestSubject', 'favoriteSport', 'targetMajor']
   return keys
     .map((key) => info[key])

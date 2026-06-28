@@ -19,4 +19,7 @@ powershell.cmd
 .superpowers/
 .playwright-mcp/
 
-
+# 本机视觉伴随/brainstorming 辅助脚本，避免混入产品提交
+scripts/start-brainstorm-stable.ps1
+test-results/
+playwright-report/

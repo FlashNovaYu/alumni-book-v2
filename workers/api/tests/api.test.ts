@@ -139,6 +139,38 @@ describe('Public API', () => {
     expect(Array.isArray(body.data.messages)).toBe(true)
     expect(Array.isArray(body.data.recent)).toBe(true)
   })
+
+  it('GET /api/classmates uses revalidation-friendly cache headers instead of no-store', async () => {
+    const req = new Request('http://localhost/api/classmates')
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+
+    expect(res.status).toBe(200)
+    const cacheControl = res.headers.get('Cache-Control') || ''
+    expect(cacheControl).toContain('no-cache')
+    expect(cacheControl).not.toContain('no-store')
+  })
+
+  it('GET /api/config supports ETag conditional revalidation', async () => {
+    const firstReq = new Request('http://localhost/api/config')
+    const firstCtx = createExecutionContext()
+    const firstRes = await worker.fetch(firstReq, env, firstCtx)
+    await waitOnExecutionContext(firstCtx)
+
+    const etag = firstRes.headers.get('ETag')
+    expect(firstRes.status).toBe(200)
+    expect(etag).toBeTruthy()
+
+    const secondReq = new Request('http://localhost/api/config', {
+      headers: { 'If-None-Match': etag || '' },
+    })
+    const secondCtx = createExecutionContext()
+    const secondRes = await worker.fetch(secondReq, env, secondCtx)
+    await waitOnExecutionContext(secondCtx)
+
+    expect(secondRes.status).toBe(304)
+  })
 })
 
 describe('Messages API', () => {
@@ -374,6 +406,50 @@ describe('Admin Student API & Message Submission', () => {
     const body = await res.json() as any
     expect(body.success).toBe(true)
     expect(body.message).toContain('等待审核')
+  })
+
+  it('PUT /api/config persists museum highlight switches used by public pages', async () => {
+    const loginReq = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'admin888' }),
+    })
+    const loginCtx = createExecutionContext()
+    const loginRes = await worker.fetch(loginReq, env, loginCtx)
+    await waitOnExecutionContext(loginCtx)
+    const loginBody = await loginRes.json() as any
+
+    const req = new Request('http://localhost/api/config', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${loginBody.data.token}`,
+      },
+      body: JSON.stringify({
+        museum: {
+          enabled: true,
+          heroEyebrow: 'CLASS MEMORY MUSEUM',
+          heroTitle: '青春纪念馆',
+          heroSubtitle: '测试副标题',
+          particleLevel: 'low',
+          enableClassGraph: true,
+          enableSeatMap: true,
+        },
+      }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+
+    expect(res.status).toBe(200)
+
+    const readCtx = createExecutionContext()
+    const readRes = await worker.fetch(new Request('http://localhost/api/config'), env, readCtx)
+    await waitOnExecutionContext(readCtx)
+    const readBody = await readRes.json() as any
+
+    expect(readBody.data.museum.enableClassGraph).toBe(true)
+    expect(readBody.data.museum.enableSeatMap).toBe(true)
   })
 })
 
