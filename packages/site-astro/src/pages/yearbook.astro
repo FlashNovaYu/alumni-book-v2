@@ -68,11 +68,11 @@ try {
     fetchWithRetry(`${API_BASE}/api/messages/approved`),
   ])
   
-  students = studentsData || []
-  albums = albumsData || []
-  siteConfig = configData || {}
-  timelineEvents = (timelineData || []).filter((e: any) => e.isMilestone)
-  messages = msgData || []
+  students = studentsData?.data || []
+  albums = albumsData?.data || []
+  siteConfig = configData?.data || {}
+  timelineEvents = (timelineData?.data || []).filter((e: any) => e.isMilestone)
+  messages = msgData?.data || []
 } catch (e: any) {
   console.error(`❌ yearbook.astro failed to pre-fetch data: ${e.message}. Aborting build.`)
   throw e
