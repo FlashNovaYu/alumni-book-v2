@@ -12,11 +12,32 @@ let config: any = {
   acknowledgments: [],
 }
 
+async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`preface.astro fetch failed (attempt ${attempt + 1}/${retries + 1}) for ${url}: ${e.message}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      delay *= 2
+    }
+  }
+}
+
 try {
-  const res = await fetch(`${API_BASE}/api/config`)
-  const data = await res.json() as any
+  const data = await fetchWithRetry(`${API_BASE}/api/config`)
   if (data.success && data.data) config = data.data
-} catch {}
+} catch (e: any) {
+  console.error(`❌ preface.astro failed to fetch config: ${e.message}. Aborting build.`)
+  throw e
+}
 ---
 
 <MainLayout>

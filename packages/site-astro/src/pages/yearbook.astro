@@ -40,33 +40,43 @@ let siteConfig: any = null
 let messages: Message[] = []
 let timelineEvents: any[] = []
 
-try {
-  const [studentsRes, albumsRes, configRes, timelineRes] = await Promise.all([
-    fetch(`${API_BASE}/api/students?audience=public`),
-    fetch(`${API_BASE}/api/albums`),
-    fetch(`${API_BASE}/api/config`),
-    fetch(`${API_BASE}/api/timeline`),
-  ])
-  
-  const studentsJson = await studentsRes.json() as any
-  const albumsJson = await albumsRes.json() as any
-  const configJson = await configRes.json() as any
-  const timelineJson = await timelineRes.json() as any
-  
-  students = studentsJson.data || []
-  albums = albumsJson.data || []
-  siteConfig = configJson.data || {}
-  timelineEvents = (timelineJson.data || []).filter((e: any) => e.isMilestone)
-} catch (e) {
-  console.error('Failed to pre-fetch yearbook data:', e)
+async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`yearbook.astro fetch failed (attempt ${attempt + 1}/${retries + 1}) for ${url}: ${e.message}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      delay *= 2
+    }
+  }
 }
 
-// 年鉴只展示审核通过且未隐藏的公开留言。
 try {
-  const msgRes = await fetch(`${API_BASE}/api/messages/approved`)
-  const msgJson = await msgRes.json() as any
-  messages = msgJson.data || []
-} catch {}
+  const [studentsData, albumsData, configData, timelineData, msgData] = await Promise.all([
+    fetchWithRetry(`${API_BASE}/api/students?audience=public`),
+    fetchWithRetry(`${API_BASE}/api/albums`),
+    fetchWithRetry(`${API_BASE}/api/config`),
+    fetchWithRetry(`${API_BASE}/api/timeline`),
+    fetchWithRetry(`${API_BASE}/api/messages/approved`),
+  ])
+  
+  students = studentsData || []
+  albums = albumsData || []
+  siteConfig = configData || {}
+  timelineEvents = (timelineData || []).filter((e: any) => e.isMilestone)
+  messages = msgData || []
+} catch (e: any) {
+  console.error(`❌ yearbook.astro failed to pre-fetch data: ${e.message}. Aborting build.`)
+  throw e
+}
 
 // 汇总统计
 const totalStudents = students.length

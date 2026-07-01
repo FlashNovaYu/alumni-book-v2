@@ -16,12 +16,33 @@ const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.che
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
+async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`album.astro fetch failed (attempt ${attempt + 1}/${retries + 1}) for ${url}: ${e.message}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      delay *= 2
+    }
+  }
+}
+
 let albums: Album[] = []
 try {
-  const res = await fetch(`${API_BASE}/api/albums`)
-  const data = await res.json() as any
+  const data = await fetchWithRetry(`${API_BASE}/api/albums`)
   albums = data.data || []
-} catch {}
+} catch (e: any) {
+  console.error(`❌ album.astro failed to fetch albums: ${e.message}. Aborting build.`)
+  throw e
+}
 ---
 
 <MainLayout>

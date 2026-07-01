@@ -2,14 +2,35 @@
 import MainLayout from '../../layouts/MainLayout.astro'
 import StudentProfile from '../../components/StudentProfile.vue'
 
+async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`[slug].astro fetch failed (attempt ${attempt + 1}/${retries + 1}) for ${url}: ${e.message}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      delay *= 2
+    }
+  }
+}
+
 export async function getStaticPaths() {
   const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book-api.chenyuhao2263.workers.dev'
   let classmates: any[] = []
   try {
-    const res = await fetch(`${API_BASE}/api/classmates`)
-    const data = await res.json() as any
+    const data = await fetchWithRetry(`${API_BASE}/api/classmates`)
     classmates = data.data || []
-  } catch {}
+  } catch (e: any) {
+    console.error(`❌ [slug].astro getStaticPaths failed to fetch classmates: ${e.message}. Aborting build.`)
+    throw e
+  }
   return classmates.map(c => ({ params: { slug: c.slug } }))
 }
 
@@ -22,10 +43,12 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
 
 let student: any = null
 try {
-  const res = await fetch(`${API_BASE}/api/students/${slug}?audience=public`)
-  const data = await res.json() as any
+  const data = await fetchWithRetry(`${API_BASE}/api/students/${slug}?audience=public`)
   if (data.success && data.data) student = data.data
-} catch {}
+} catch (e: any) {
+  console.error(`❌ [slug].astro failed to fetch student detail for ${slug}: ${e.message}. Aborting build.`)
+  throw e
+}
 
 if (!student) {
   return Astro.redirect(href('/roster'))

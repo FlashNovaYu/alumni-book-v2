@@ -7,11 +7,32 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
 let items: any[] = []
+async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`timeline.astro fetch failed (attempt ${attempt + 1}/${retries + 1}) for ${url}: ${e.message}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      delay *= 2
+    }
+  }
+}
+
 try {
-  const res = await fetch(`${API_BASE}/api/timeline`)
-  const data = await res.json() as any
+  const data = await fetchWithRetry(`${API_BASE}/api/timeline`)
   items = data.data || []
-} catch {}
+} catch (e: any) {
+  console.error(`❌ timeline.astro failed to fetch timeline: ${e.message}. Aborting build.`)
+  throw e
+}
 ---
 
 <MainLayout>

@@ -15,12 +15,33 @@ const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
+async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`roster.astro fetch failed (attempt ${attempt + 1}/${retries + 1}) for ${url}: ${e.message}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      delay *= 2
+    }
+  }
+}
+
 let classmates: Classmate[] = []
 try {
-  const res = await fetch(`${API_BASE}/api/classmates`)
-  const data = await res.json() as any
+  const data = await fetchWithRetry(`${API_BASE}/api/classmates`)
   classmates = data.data || []
-} catch {}
+} catch (e: any) {
+  console.error(`❌ roster.astro failed to fetch classmates: ${e.message}. Aborting build.`)
+  throw e
+}
 
 let museum = {
   enabled: true,
@@ -29,10 +50,12 @@ let museum = {
 }
 
 try {
-  const configRes = await fetch(`${API_BASE}/api/config`)
-  const configJson = await configRes.json()
+  const configJson = await fetchWithRetry(`${API_BASE}/api/config`)
   museum = { ...museum, ...(configJson.data?.museum || {}) }
-} catch {}
+} catch (e: any) {
+  console.error(`❌ roster.astro failed to fetch config: ${e.message}. Aborting build.`)
+  throw e
+}
 
 // 测试或本地开发构建时，默认开启亮点卡片以保证 Playwright E2E 网络测试覆盖
 if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {

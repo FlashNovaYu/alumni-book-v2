@@ -10,15 +10,31 @@ const API_BASE =
   process.env.VITE_API_BASE_URL ||
   'https://alumni-book-api.chenyuhao2263.workers.dev'
 
-async function fetchJSON(path: string) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 15000)
-  try {
-    const res = await fetch(`${API_BASE}${path}`, { signal: controller.signal })
-    const data = await res.json()
-    return (data as any).data || data
-  } finally {
-    clearTimeout(timeout)
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function fetchJSON(path: string, retries = 4, delay = 1000) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
+    try {
+      const res = await fetch(`${API_BASE}${path}`, { signal: controller.signal })
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+      const data = await res.json()
+      return (data as any).data || data
+    } catch (e: any) {
+      if (attempt === retries) {
+        throw e
+      }
+      console.warn(`  Fetch ${path} failed (attempt ${attempt + 1}/${retries + 1}): ${e.message}. Retrying in ${delay}ms...`)
+      await sleep(delay)
+      delay *= 2
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 }
 
@@ -30,13 +46,13 @@ async function main() {
   console.log(`Client API base will be ${process.env.VITE_API_BASE_URL || '(default worker)'}`)
 
   const endpoints = [
-    { path: '/api/students', fallback: [] },
-    { path: '/api/classmates', fallback: [] },
-    { path: '/api/config', fallback: { preface: {}, footer: {}, particles: {}, acknowledgments: [], typography: {} } },
-    { path: '/api/albums', fallback: [] },
+    { path: '/api/students', required: true },
+    { path: '/api/classmates', required: true },
+    { path: '/api/config', required: true },
+    { path: '/api/albums', required: false, fallback: [] },
   ]
 
-  for (const { path, fallback } of endpoints) {
+  for (const { path, required, fallback } of endpoints) {
     const name = path.replace('/api/', '')
     try {
       const data = await fetchJSON(path)
@@ -44,7 +60,12 @@ async function main() {
       console.log(`  Fetched ${name}`)
     } catch (e: any) {
       console.error(`  Failed to fetch ${name}: ${e.message}`)
-      writeFileSync(join(outDir, `${name}.json`), JSON.stringify(fallback))
+      if (required) {
+        console.error(`❌ Critical data fetch failed: ${name}. Aborting build to prevent deploying empty site.`)
+        process.exit(1)
+      } else {
+        writeFileSync(join(outDir, `${name}.json`), JSON.stringify(fallback))
+      }
     }
   }
 
