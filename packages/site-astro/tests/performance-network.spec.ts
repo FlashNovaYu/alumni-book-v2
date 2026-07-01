@@ -1,4 +1,91 @@
 import { test, expect } from '@playwright/test'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+test.beforeEach(async ({ page }) => {
+  // 拦截并快速响应所有可能发起客户端 SWR 访问的 API 路由，防止测试环境由于真实公网慢网或者本地无端点而挂起
+  await page.route('**/api/**', async (route, request) => {
+    const url = request.url()
+
+    // 针对测试模板详情 API，单独返回合格的测试学生详情，保证 SWR 正常且不报错清空页面
+    if (url.includes('/api/students/template')) {
+      const testStudent = {
+        id: "test-id",
+        name: "测试同学",
+        slug: "template",
+        isOwner: false,
+        avatarUrl: null,
+        musicUrl: null,
+        musicTitle: null,
+        musicAutoplay: false,
+        backgroundUrl: null,
+        backgroundColor: null,
+        customHtml: null,
+        info: {
+          nickname: "小测",
+          motto: "路漫漫其修远兮",
+          bestMemory: "在测试里认识大家",
+          letterToClassmates: "祝大家越来越好",
+          favoriteSong: "夜空中最亮的星",
+          favoriteFood: "冰激凌",
+          bestSubject: "计算机科学",
+          targetUniversity: "深大",
+          futureCareer: "前端架构师",
+          bestLesson: "体育课",
+          deskmateFun: "一起写代码",
+          classMeme: "bug 也是功能",
+          mbti: "INTJ",
+          seatNo: "1-1",
+          dormNo: "A-101",
+          groupName: "探索小组",
+        },
+        photos: [
+          {
+            id: "photo-1",
+            filename: "test.jpg",
+            caption: "测试照片",
+            r2Key: "photos/test.jpg"
+          }
+        ],
+        visitCount: 1,
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: testStudent })
+      })
+      return
+    }
+
+    let filename = ''
+    if (url.includes('/api/classmates')) filename = 'classmates.json'
+    else if (url.includes('/api/students')) filename = 'students.json'
+    else if (url.includes('/api/config')) filename = 'config.json'
+    else if (url.includes('/api/albums')) filename = 'albums.json'
+    else if (url.includes('/api/timeline')) filename = 'timeline.json'
+
+    if (filename) {
+      try {
+        const filePath = join(process.cwd(), 'public', 'data', filename)
+        const fileContent = readFileSync(filePath, 'utf-8')
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, data: JSON.parse(fileContent) })
+        })
+        return
+      } catch (e: any) {
+        console.error(`[Playwright Mock] Failed to read ${filename}:`, e.message)
+      }
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: [] })
+    })
+  })
+})
 
 // 1. 首页测试：不加载 GSAP, ScrollTrigger, ClassGraphPreview, SeatMapPreview
 test('home page does not request GSAP, ScrollTrigger, ClassGraphPreview, or SeatMapPreview', async ({ page }) => {

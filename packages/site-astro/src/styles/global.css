@@ -260,3 +260,43 @@ select:focus-visible {
   }
 }
 
+/* 页面淡入与淡出丝滑切换动画 */
+.main-content {
+  animation: pageFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.main-content.page-fade-out {
+  animation: pageFadeOut 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-content,
+  .main-content.page-fade-out {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

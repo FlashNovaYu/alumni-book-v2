@@ -32,6 +32,10 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
     height: var(--nav-height);
     background-color: var(--color-canvas);
     border-bottom: 1px solid var(--color-hairline);
+    transition: box-shadow var(--duration-normal) var(--ease-out-quart);
+  }
+  .top-nav.scrolled {
+    box-shadow: var(--shadow-nav-scroll);
   }
   .nav-inner {
     height: 100%;
@@ -116,9 +120,6 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
   .menu-toggle-input:checked ~ .mobile-toggle .toggle-bar::after {
     top: 0;
     transform: rotate(-45deg);
-  }
-  .top-nav.scrolled {
-    box-shadow: var(--shadow-nav-scroll);
   }
 </style>
 

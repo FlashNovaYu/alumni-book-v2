@@ -33,7 +33,37 @@ import '../styles/global.css'
         <slot />
       </main>
       <script>
-        import('../scripts/globalReveal').then(m => m.initGlobalReveal())
+        import { initGlobalReveal } from '../scripts/globalReveal'
+        initGlobalReveal()
+
+        // 监听全局普通链接点击，做无缝淡出跳转过渡
+        document.addEventListener('click', (e) => {
+          const target = (e.target as HTMLElement).closest('a')
+          if (!target) return
+
+          const href = target.getAttribute('href')
+          if (!href) return
+
+          // 仅拦截站内普通页面跳转链接，排除锚点、新开窗口、外链、以及管理后台
+          const isExternal = href.startsWith('http') && !href.startsWith(window.location.origin)
+          const isTargetBlank = target.getAttribute('target') === '_blank'
+          const isAnchor = href.startsWith('#') || href.startsWith('javascript:')
+          const isAdmin = href.includes('/admin')
+
+          if (isExternal || isTargetBlank || isAnchor || isAdmin || e.metaKey || e.ctrlKey || e.shiftKey) {
+            return
+          }
+
+          e.preventDefault()
+          const mainContent = document.querySelector('.main-content')
+          if (mainContent) {
+            mainContent.classList.add('page-fade-out')
+          }
+
+          setTimeout(() => {
+            window.location.href = href
+          }, 180)
+        })
       </script>
       <AppFooter />
     </div>

@@ -2,7 +2,10 @@ import { prefersReducedMotion } from '../utils/motion'
 
 let initialized = false
 
-export function initGlobalReveal() {
+export function initGlobalReveal(force = false) {
+  if (force) {
+    initialized = false
+  }
   if (initialized) return
   initialized = true
 
