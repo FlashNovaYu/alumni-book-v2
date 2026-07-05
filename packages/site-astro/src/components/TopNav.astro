@@ -1,6 +1,5 @@
 ---
 import IconBrand from './icons/IconBrand.astro'
-import TopNavSession from './TopNavSession.vue'
 const currentPath = Astro.url.pathname
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
@@ -38,33 +37,49 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
         <span class="lamp-glow"></span>
       </a>
       
-      <!-- 静态存根：由 inline 脚本在 First Paint 前瞬间渲染，完美阻断 Vue 异步水合导致的宽度闪烁与消失变短现象 -->
-      <div id="classmate-static-session" class="nav-session classmate-static-session" style="display: none;">
-        <span id="classmate-static-name" class="session-name">同学</span>
-        <button class="btn-logout" onclick="if(confirm('确认关闭并退出你的纪念册？')){sessionStorage.clear();window.location.href='/'}">退出</button>
+      <!-- 静态与客户端完全一致的已登录身份栏：0 水合开销，0 nextTick 黑洞，彻底消灭消失又出现的闪烁 -->
+      <div id="classmate-nav-session" class="nav-session" style="display: none;">
+        <span id="classmate-nav-name" class="session-name">同学</span>
+        <button id="classmate-nav-logout" class="btn-logout">退出</button>
       </div>
 
-      <!-- 同步点亮静态登录态的原生极速 inline 脚本 -->
-      <script is:inline>
+      <!-- 同步点亮及绑定退出登录的原生极速 inline 脚本 -->
+      <script is:inline define:vars={{ CLIENT_API_BASE }}>
         (function() {
           try {
             const studentStr = sessionStorage.getItem('classmate_student');
-            if (studentStr) {
+            const token = sessionStorage.getItem('classmate_account_token');
+            if (studentStr && token) {
               const student = JSON.parse(studentStr);
               if (student && student.name) {
-                const el = document.getElementById('classmate-static-session');
-                const nameEl = document.getElementById('classmate-static-name');
-                if (el && nameEl) {
+                const el = document.getElementById('classmate-nav-session');
+                const nameEl = document.getElementById('classmate-nav-name');
+                const logoutBtn = document.getElementById('classmate-nav-logout');
+                
+                if (el && nameEl && logoutBtn) {
                   nameEl.textContent = student.name + '同学';
                   el.style.display = 'flex';
+                  
+                  // 绑定退出登录点击行为
+                  logoutBtn.addEventListener('click', async function() {
+                    if (confirm('确认关闭并退出你的纪念册？')) {
+                      try {
+                        // 在后台静默发送登出请求
+                        await fetch(CLIENT_API_BASE + '/api/classmate-auth/logout', {
+                          method: 'POST',
+                          headers: { 'X-Classmate-Token': token }
+                        });
+                      } catch (e) {}
+                      sessionStorage.clear();
+                      window.location.href = '/';
+                    }
+                  });
                 }
               }
             }
           } catch (e) {}
         })();
       </script>
-
-      <TopNavSession client:load apiBase={CLIENT_API_BASE} />
     </div>
   </div>
 </nav>
@@ -174,7 +189,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       0 0 35px rgba(204, 120, 92, 0.25);
   }
 
-  /* 静态存根与 Vue 岛的等高排版样式适配 */
+  /* 静态与客户端完全一致的已登录排版样式 */
   .nav-session {
     display: flex;
     align-items: center;
