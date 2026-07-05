@@ -187,13 +187,13 @@
       <div class="card">
         <h2 class="title-md section-heading">安全与隐私设置</h2>
         <div class="form-group">
-          <label class="form-label">重置自助编辑口令</label>
+          <label class="form-label">同学账号与初始密码</label>
           <div class="color-row">
-            <input v-model="tempEditSecret" :type="showSecret ? 'text' : 'password'" class="text-input" placeholder="留空则不修改已有口令" />
-            <button class="btn-secondary btn-sm" @click="generateRandomSecret">随机生成</button>
+            <input v-model="tempInitialPassword" :type="showSecret ? 'text' : 'password'" class="text-input" placeholder="留空则不修改已有密码" />
+            <button class="btn-secondary btn-sm" @click="generateRandomPassword">随机生成</button>
             <button class="btn-secondary btn-sm" @click="showSecret = !showSecret">{{ showSecret ? '隐藏' : '显示' }}</button>
           </div>
-          <p class="form-hint">留空表示不修改已有口令。口令保存后将以 PBKDF2 哈希安全存储。</p>
+          <p class="form-hint">保存后该同学下次使用此初始密码登录，并会被要求立即设置自己的密码。</p>
         </div>
         <div class="form-group">
           <label class="form-label">页面隐私级别 (默认仅同学可见)</label>
@@ -357,32 +357,32 @@ async function handleMusicUpload(e: Event) {
   }
 }
 
-const tempEditSecret = ref('')
+const tempInitialPassword = ref('')
 const showSecret = ref(false)
 
-function generateRandomSecret() {
+function generateRandomPassword() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
   let result = ''
   for (let i = 0; i < 8; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length))
   }
-  tempEditSecret.value = result
+  tempInitialPassword.value = result
   showSecret.value = true
 }
 
 async function handleSave() {
   saving.value = true
   try {
-    const payload = { ...student.value }
-    if (tempEditSecret.value) {
-      payload.editSecret = tempEditSecret.value
+    const payload = { ...student.value } as any
+    if (tempInitialPassword.value) {
+      payload.accountInitialPassword = tempInitialPassword.value
     }
     await adminFetch(`/api/students/${student.value.slug}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     })
     showToast('success', '保存成功')
-    tempEditSecret.value = ''
+    tempInitialPassword.value = ''
   } catch (e: any) {
     showToast('error', e.message || '保存失败')
   } finally {

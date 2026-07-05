@@ -96,6 +96,13 @@ studentsRoutes.put('/students/:slug', async (c) => {
     fields.push('privacy_level = ?')
     values.push(body.privacyLevel)
   }
+  if (body.accountInitialPassword !== undefined && body.accountInitialPassword !== null && body.accountInitialPassword !== '') {
+    const hash = await hashPassword(body.accountInitialPassword)
+    fields.push('account_password_hash = ?')
+    values.push(hash)
+    fields.push('account_initial_password_changed = 0')
+    fields.push("account_status = 'pending'")
+  }
 
   if (fields.length === 0) {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)

@@ -16,10 +16,15 @@
             <img v-if="student.avatarUrl" :src="student.avatarUrl" :alt="student.name" />
             <span v-else>{{ student.name.charAt(0) }}</span>
           </div>
-          <div>
-            <div class="student-name">{{ student.name }}</div>
-            <div class="student-slug">{{ student.slug }}</div>
-          </div>
+            <div>
+              <div class="student-name">
+                {{ student.name }}
+                <span :class="['status-badge', getStatusClass((student as any).accountStatus)]">
+                  {{ getStatusText((student as any).accountStatus) }}
+                </span>
+              </div>
+              <div class="student-slug">{{ student.slug }}</div>
+            </div>
         </div>
         <div class="student-actions">
           <a :href="getFrontUrl(student.slug)" target="_blank" class="btn-secondary button-link">预览</a>
@@ -119,6 +124,19 @@ const getFrontUrl = (slug: string) => {
   const hasSubpath = window.location.pathname.startsWith('/alumni-book-v2')
   const base = hasSubpath ? '/alumni-book-v2/' : '/'
   return `${origin}${base}student/${slug}/`
+}
+
+function getStatusText(status: string | undefined | null) {
+  if (!status) return '未初始化'
+  if (status === 'pending') return '待改密'
+  if (status === 'active') return '已激活'
+  if (status === 'locked') return '已锁定'
+  return '未初始化'
+}
+
+function getStatusClass(status: string | undefined | null) {
+  if (!status) return 'status-none'
+  return `status-${status}`
 }
 </script>
 
@@ -228,5 +246,30 @@ const getFrontUrl = (slug: string) => {
     width: 100%;
     justify-content: flex-end;
   }
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: normal;
+}
+.status-none {
+  background: var(--color-surface-cream-strong);
+  color: var(--color-muted);
+}
+.status-pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+.status-active {
+  background: #d1fae5;
+  color: #059669;
+}
+.status-locked {
+  background: #fee2e2;
+  color: #dc2626;
 }
 </style>

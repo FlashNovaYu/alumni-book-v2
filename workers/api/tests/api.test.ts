@@ -495,4 +495,43 @@ describe('Classmate Auth API', () => {
   })
 })
 
+async function loginAsAdminForTest(): Promise<string> {
+  const loginReq = new Request('http://localhost/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'admin888' }),
+  })
+  const loginCtx = createExecutionContext()
+  const loginRes = await worker.fetch(loginReq, env, loginCtx)
+  await waitOnExecutionContext(loginCtx)
+  const loginBody = await loginRes.json() as any
+  return loginBody.data.token
+}
+
+describe('Admin Classmate Account Management API', () => {
+  it('admin can set classmate initial password and mark account pending', async () => {
+    const token = await loginAsAdminForTest()
+    const req = new Request('http://localhost/api/students/test_init', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        name: '测试同学',
+        accountInitialPassword: 'init-123456',
+      }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(200)
+
+    const row = await env.DB.prepare(
+      'SELECT account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ?'
+    ).bind('test_init').first() as any
+    expect(row.account_password_hash).toMatch(/^pbkdf2:/)
+    expect(row.account_initial_password_changed).toBe(0)
+    expect(row.account_status).toBe('pending')
+  })
+})
+
+
 

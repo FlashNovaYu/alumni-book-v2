@@ -717,6 +717,8 @@ function formatStudent(row: any) {
     backgroundColor: row.background_color,
     customHtml: row.custom_html,
     privacyLevel: row.privacy_level || 'classmates',
+    accountStatus: row.account_status,
+    accountLastLoginAt: row.account_last_login_at,
     info: {
       ...info,
       mbti: row.mbti || info.mbti || '',
