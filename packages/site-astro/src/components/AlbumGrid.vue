@@ -66,7 +66,27 @@
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
-        <img :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)" class="lightbox-img" />
+        <div class="lightbox-content">
+          <!-- 模糊占位图（0 延迟，100% 缓存命中，作为大图载入前的优雅遮罩） -->
+          <img 
+            v-if="!highResLoaded"
+            :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)" 
+            class="lightbox-img placeholder-blur" 
+            alt="Loading..."
+          />
+          <!-- 高清大图 -->
+          <img 
+            :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)" 
+            class="lightbox-img real-img" 
+            :class="{ 'loaded': highResLoaded }"
+            :alt="lightbox.photos[lightbox.index]?.caption"
+            @load="onHighResLoad"
+          />
+          <!-- 精致 Spinner 指示器 -->
+          <div v-if="!highResLoaded" class="lightbox-spinner">
+            <div class="spinner-ring"></div>
+          </div>
+        </div>
         <button v-if="lightbox.index < lightbox.photos.length - 1" class="lightbox-nav next" @click="nextPhoto">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="9 18 15 12 9 6"/>
@@ -97,6 +117,7 @@ const isMounted = ref(false)
 const albumsState = ref([...props.albums])
 const photoErrors = ref<Record<string, boolean>>({})
 const loadedPhotos = ref<Record<string, boolean>>({})
+const highResLoaded = ref(false)
 
 function getPhotoUrl(r2Key: string) {
   if (!r2Key) return ''
@@ -146,7 +167,12 @@ onMounted(() => {
 
 const lightbox = reactive({ open: false, photos: [] as any[], index: 0 })
 
+function onHighResLoad() {
+  highResLoaded.value = true
+}
+
 function openLightbox(photos: any[], index: number) {
+  highResLoaded.value = false
   lightbox.photos = photos; lightbox.index = index; lightbox.open = true
   document.body.style.overflow = 'hidden'
   document.addEventListener('keydown', handleKeydown)
@@ -156,8 +182,18 @@ function closeLightbox() {
   lightbox.open = false; document.body.style.overflow = ''
   document.removeEventListener('keydown', handleKeydown)
 }
-function prevPhoto() { if (lightbox.index > 0) lightbox.index-- }
-function nextPhoto() { if (lightbox.index < lightbox.photos.length - 1) lightbox.index++ }
+function prevPhoto() {
+  if (lightbox.index > 0) {
+    highResLoaded.value = false
+    lightbox.index--
+  }
+}
+function nextPhoto() {
+  if (lightbox.index < lightbox.photos.length - 1) {
+    highResLoaded.value = false
+    lightbox.index++
+  }
+}
 
 // 预加载逻辑
 function preloadImages() {
@@ -173,8 +209,11 @@ function preloadImages() {
   }
 }
 
-// 监听索引变化进行预加载
-watch(() => lightbox.index, preloadImages)
+// 监听索引变化进行预加载并重置高清图加载态
+watch(() => lightbox.index, () => {
+  highResLoaded.value = false
+  preloadImages()
+})
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') closeLightbox()
@@ -263,7 +302,69 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; }
 .lightbox-close { position: absolute; top: 20px; right: 24px; color: rgba(240,210,150,0.6); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
 .lightbox-close:hover { color: var(--color-on-dark); transform: rotate(90deg); }
-.lightbox-img { max-width: 90vw; max-height: 85vh; border-radius: var(--rounded-xs); box-shadow: 0 10px 60px rgba(0,0,0,0.5); }
+
+/* 渐进式大图加载容器与图片样式 */
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--rounded-xs);
+  box-shadow: 0 10px 60px rgba(0,0,0,0.5);
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--rounded-xs);
+}
+
+.placeholder-blur {
+  filter: blur(15px);
+  transform: scale(1.08);
+  opacity: 0.5;
+}
+
+.real-img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.real-img.loaded {
+  position: relative;
+  width: auto; height: auto;
+  opacity: 1;
+}
+
+/* 精致圆环 Spinner 指示器 */
+.lightbox-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.spinner-ring {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(240, 210, 150, 0.1);
+  border-top: 3px solid rgba(240, 210, 150, 0.85);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: rgba(240,210,150,0.5); font-size: 36px; background: rgba(0,0,0,0.3); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
 .lightbox-nav:hover { background: rgba(0,0,0,0.6); color: var(--color-on-dark); }
 .lightbox-nav.prev:hover { transform: translateY(-50%) translateX(-2px); }
