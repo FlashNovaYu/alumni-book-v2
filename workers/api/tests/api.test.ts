@@ -462,3 +462,37 @@ describe('Admin Student API & Message Submission', () => {
   })
 })
 
+async function testHashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const salt = new Uint8Array(16)
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
+  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+  const saltStr = btoa(String.fromCharCode(...salt))
+  return `pbkdf2:${saltStr}:${hash}`
+}
+
+describe('Classmate Auth API', () => {
+  it('POST /api/classmate-auth/login returns mustChangePassword for initial password', async () => {
+    await env.DB.prepare(
+      "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 0, account_status = 'pending' WHERE slug = ?"
+    ).bind(await testHashPassword('123456'), 'test_init').run()
+
+    const req = new Request('http://localhost/api/classmate-auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: 'test_init', password: '123456' }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+
+    expect(res.status).toBe(200)
+    expect(body.data.token).toBeTruthy()
+    expect(body.data.mustChangePassword).toBe(true)
+    expect(body.data.student.slug).toBe('test_init')
+  })
+})
+
+

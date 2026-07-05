@@ -79,6 +79,20 @@ describe('Security and Session Revocation', () => {
   })
 
   it('classmate session token stops working after logout', async () => {
+    async function localHash(pwd: string): Promise<string> {
+      const encoder = new TextEncoder()
+      const salt = new Uint8Array(16)
+      const key = await crypto.subtle.importKey('raw', encoder.encode(pwd), 'PBKDF2', false, ['deriveBits'])
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
+      const hash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+      const saltStr = btoa(String.fromCharCode(...salt))
+      return `pbkdf2:${saltStr}:${hash}`
+    }
+
+    await env.DB.prepare(
+      "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = ?"
+    ).bind(await localHash('123456'), 'zhangsan').run()
+
     const login = await worker.fetch(new Request('http://localhost/api/classmate-auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

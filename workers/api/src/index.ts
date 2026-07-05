@@ -11,7 +11,9 @@ import { messagesRoutes } from './routes/messages'
 import { timelineRoutes } from './routes/timeline'
 import { classmateRoutes } from './routes/classmate'
 import { highlightsRoutes } from './routes/highlights'
+import { classmateAuthRoutes } from './routes/classmateAuth'
 import { etag } from 'hono/etag'
+
 
 type Bindings = {
   DB: D1Database
@@ -109,6 +111,7 @@ app.get('/api/health', (c) => {
 
 // 认证路由 (不需要 JWT)
 app.route('/api/auth', authRoutes)
+app.route('/api/classmate-auth', classmateAuthRoutes)
 
 // 公开路由 (不需要 JWT)
 app.get('/api/classmates', async (c) => {
