@@ -66,7 +66,16 @@ describe('Auth API', () => {
     expect(body.success).toBe(true)
     expect(Array.isArray(body.data.auditAlerts)).toBe(true)
   })
+
+  it('classmate account schema exposes first-login account fields', async () => {
+    const row = await env.DB.prepare('PRAGMA table_info(students)').all() as any
+    const names = row.results.map((item: any) => item.name)
+    expect(names).toContain('account_password_hash')
+    expect(names).toContain('account_initial_password_changed')
+    expect(names).toContain('account_status')
+  })
 })
+
 
 describe('Public API', () => {
   it('GET /api/health — 健康检查', async () => {

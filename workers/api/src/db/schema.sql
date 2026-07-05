@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS students (
   privacy_level TEXT DEFAULT 'classmates',
   info TEXT DEFAULT '{}',
   photos TEXT DEFAULT '[]',
+  account_password_hash TEXT,
+  account_initial_password_changed INTEGER DEFAULT 0,
+  account_status TEXT DEFAULT 'pending',
+  account_last_login_at TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -90,3 +94,15 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
   expires_at TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS classmate_sessions (
+  token TEXT PRIMARY KEY,
+  student_slug TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (student_slug) REFERENCES students(slug) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_classmate_sessions_slug ON classmate_sessions(student_slug);
+CREATE INDEX IF NOT EXISTS idx_classmate_sessions_expires ON classmate_sessions(expires_at);
+
