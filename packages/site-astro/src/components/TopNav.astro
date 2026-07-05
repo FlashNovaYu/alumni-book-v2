@@ -50,8 +50,8 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;
-    width: calc(100% - 2.5rem);
-    max-width: 960px;
+    width: 820px; /* 固定宽度，彻底消除不同页面间因滚动条产生的抖动与长度忽大忽小 */
+    max-width: calc(100% - 2.5rem);
     height: 54px;
     background-color: rgba(250, 249, 245, 0.85); /* 复古胶皮纸暖白 */
     backdrop-filter: blur(12px);
@@ -145,25 +145,6 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       0 0 10px rgba(204, 120, 92, 0.95),
       0 0 20px rgba(204, 120, 92, 0.5),
       0 0 35px rgba(204, 120, 92, 0.25);
-    animation: lamp-pulse 2s ease-in-out infinite alternate;
-  }
-
-  /* 呼吸动效让灯光更柔和逼真 */
-  @keyframes lamp-pulse {
-    0% {
-      opacity: 0.85;
-      box-shadow: 
-        0 0 8px rgba(204, 120, 92, 0.8),
-        0 0 16px rgba(204, 120, 92, 0.4),
-        0 0 30px rgba(204, 120, 92, 0.2);
-    }
-    100% {
-      opacity: 1;
-      box-shadow: 
-        0 0 12px rgba(204, 120, 92, 1),
-        0 0 24px rgba(204, 120, 92, 0.6),
-        0 0 40px rgba(204, 120, 92, 0.3);
-    }
   }
 
   .menu-toggle-input { display: none; }
@@ -242,5 +223,53 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
+
+    // --- 感知灯管滑移动效 (Sliding Lamp Illusion) ---
+    const links = Array.from(nav.querySelectorAll('.nav-link')) as HTMLElement[]
+    const activeLink = nav.querySelector('.nav-link.active') as HTMLElement
+    
+    if (activeLink) {
+      const activeIndex = links.indexOf(activeLink)
+      const prevIndexStr = localStorage.getItem('prev_nav_index')
+      
+      if (prevIndexStr !== null) {
+        const prevIndex = parseInt(prevIndexStr, 10)
+        if (prevIndex !== activeIndex && prevIndex >= 0 && prevIndex < links.length) {
+          const prevLink = links[prevIndex]
+          
+          // 计算上一个活动 Tab 与当前活动 Tab 中心点在水平方向上的偏移量
+          const dx = prevLink.offsetLeft + (prevLink.offsetWidth / 2) - (activeLink.offsetLeft + (activeLink.offsetWidth / 2))
+          
+          const glow = activeLink.querySelector('.lamp-glow') as HTMLElement
+          if (glow) {
+            // 1. 瞬间将灯管定位到上一个页面点击的 Tab 位置（不启用过渡动画）
+            glow.style.transition = 'none'
+            glow.style.transform = `translateX(calc(-50% + ${dx}px))`
+            
+            // 2. 强制触发重绘 (Reflow) 以确保 DOM 状态立即应用
+            glow.offsetHeight
+            
+            // 3. 开启平滑贝塞尔过渡，滑回 translateX(-50%)，产生丝滑滑入动效
+            glow.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s ease-in-out'
+            glow.style.transform = 'translateX(-50%)'
+            glow.style.boxShadow = `
+              0 0 10px rgba(204, 120, 92, 0.95),
+              0 0 20px rgba(204, 120, 92, 0.5),
+              0 0 35px rgba(204, 120, 92, 0.25)
+            `
+          }
+        }
+      }
+      
+      // 记录当前的 active 索引为下一次页面载入时的“上一次索引”
+      localStorage.setItem('prev_nav_index', activeIndex.toString())
+    }
+
+    // 监听导航栏内所有链接的点击事件，实时保存点击的索引
+    links.forEach((link, idx) => {
+      link.addEventListener('click', () => {
+        localStorage.setItem('prev_nav_index', idx.toString())
+      })
+    })
   }
 </script>
