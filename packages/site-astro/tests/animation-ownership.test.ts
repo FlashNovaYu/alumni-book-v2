@@ -25,7 +25,16 @@ describe('animation ownership', () => {
     }
 
     const source = fs.readFileSync(animationPath, 'utf-8')
-    expect(source).not.toContain("import gsap from 'gsap'")
+    expect(source).not.toContain("import gsap")
     expect(source).not.toContain("from 'gsap/ScrollTrigger'")
+  })
+
+  it('does not load GSAP or ScrollTrigger in classmate account login book component', () => {
+    const loginPath = path.join(siteRoot, 'components/ClassmateLoginBook.vue')
+    if (fs.existsSync(loginPath)) {
+      const source = fs.readFileSync(loginPath, 'utf-8')
+      expect(source).not.toContain("import gsap")
+      expect(source).not.toContain("gsap/ScrollTrigger")
+    }
   })
 })

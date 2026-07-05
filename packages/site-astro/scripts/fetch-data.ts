@@ -50,6 +50,7 @@ async function main() {
     { path: '/api/classmates', required: true },
     { path: '/api/config', required: true },
     { path: '/api/albums', required: false, fallback: [] },
+    { path: '/api/timeline', required: false, fallback: [] },
   ]
 
   for (const { path, required, fallback } of endpoints) {

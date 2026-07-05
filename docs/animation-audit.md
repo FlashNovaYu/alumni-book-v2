@@ -65,3 +65,15 @@
 - 全站不再保留旧 `scripts/animations.ts` 作为全局 GSAP owner。
 - 首页、列表、留言、时间轴默认使用 CSS-first 动效。
 - GSAP/ScrollTrigger 只能出现在局部组件的懒加载路径中，并必须带有卸载清理和 reduced-motion 降级。
+
+---
+
+## 5. Phase 12 优化后动画 Owner 矩阵 (2026-07-05)
+
+在同学账号登录系统改造中，我们增加了前台登录及改密流程交互，动效完全对齐 CSS-first 和非阻塞原则：
+
+| 页面/组件 | 影响选择器 (DOM) | 动画引擎/所有权 | 降级/Reduced Motion 策略 | 说明 |
+|---|---|---|---|---|
+| **登录书本 (ClassmateLoginBook)** | `.login-book-container` | 纯 CSS Animation (`fadeIn`) | 减弱动效下直接显示 (`animation: none`) | 复古纪念册左右翻书纸张感采用纯 CSS 缩放及透明度渐入。无 GSAP 依赖。 |
+| **首次改密 (FirstLoginPasswordGuide)** | `.modal-overlay`, `.change-password-modal` | CSS-first Transition (backdrop-filter) | 直接显示，关闭背景模糊滤镜 | 轻量弹窗式交互，使用纯 CSS 控制模糊遮罩与淡入。 |
+| **登录状态岛 (TopNavSession)** | `.nav-session` | CSS Transition (hover) | 无需处理（仅微小变色） | 位于导航条末端，退出按钮悬停提供轻微色值过渡。 |
