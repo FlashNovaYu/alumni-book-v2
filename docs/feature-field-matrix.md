@@ -13,6 +13,7 @@
 | **排行榜** | [RankingsPanel.vue](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/site-astro/src/components/RankingsPanel.vue) | - | `GET /api/rankings` | 聚合查询 visits, messages & updates | 公开 | - |
 | **年度册** | [yearbook.astro](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/site-astro/src/pages/yearbook.astro) | - | 聚合获取 `/api/students?audience=public`, `/api/albums`, `/api/messages/approved` | 多表聚合 | 仅使用 public 公开数据 | - |
 | **相册标签与排序** | [AlbumGrid.vue](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/site-astro/src/components/AlbumGrid.vue) | [AlbumsView.vue](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/admin/src/views/AlbumsView.vue) | `GET /api/albums`, `POST /api/admin/albums` | `albums.tags`, `albums.sort_order`, `photos.sort_order` | 公开 | `workers/api/tests/api.test.ts` |
+| **同学账号登录** | [ClassmateLoginBook.vue](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/site-astro/src/components/ClassmateLoginBook.vue) | [StudentEditView.vue](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/admin/src/views/StudentEditView.vue) / [StudentsView.vue](file:///c:/Users/Administrator/Projects/alumni-book-v2/packages/admin/src/views/StudentsView.vue) | `/api/classmate-auth/login` 等与管理后台 `PUT /api/students/:slug` 密码管理 | `classmate_sessions` 关系表，以及 `students.account_password_hash` 等字段 | 会话强限制，首次改密前限制访问 | `tests/classmate-login-flow.spec.ts` & `workers/api/tests/security.test.ts` |
 
 ## 字段规范
 

@@ -36,9 +36,11 @@ pnpm migrate:data               # 运行 scripts/migrate.ts
 - `workers/api` — Cloudflare Worker，框架为 Hono，绑定 D1（SQLite）和 R2（对象存储）
 - `scripts/migrate.ts` — 从旧版系统迁移数据的脚本
 
-### 公开站点的会话认证
+### 公开站点的同学账号会话认证
 
-公开站点**不使用 JWT**。访客通过在首页输入姓名来获得访问权限——姓名会匹配 `/api/classmates` 接口返回的同学录名单，匹配成功后写入 `sessionStorage.setItem('classmate_name', name)`。所有后续页面的 `onMounted` 中都会检查 `getSessionName()`，如果为空则重定向回首页。这是一个轻量级的"半公开"门控机制，而非真正安全的认证。
+公开站点通过“同学账号”进行半公开门控。访客在首页选择自己名字并输入密码（由管理员在后台生成/重置的初始密码，或其自定义密码）。密码在 Worker 后端使用 PBKDF2 算法与盐进行校验。
+
+成功后，后端会在 `classmate_sessions` 数据表中创建会话记录，并返回 Session Token。前台保存该 Token 并使用 `@alumni/shared` 提供的 helper 写入全局 Session；后续前台发起个人资料自助编辑（`PUT /api/classmate/students/:slug`）或头像背景上传（`POST /api/classmate/upload`）时，均在 `X-Classmate-Token` 请求头中附加此 Token 进行查表鉴权。此外，在页面切换时由 `MainLayout.astro` 中的重定向守卫对此 Token 进行解密与降级验证，未登录用户将被强制重定向回首页。
 
 ### 管理后台的 JWT 认证
 
