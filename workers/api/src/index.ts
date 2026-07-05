@@ -12,6 +12,7 @@ import { timelineRoutes } from './routes/timeline'
 import { classmateRoutes } from './routes/classmate'
 import { highlightsRoutes } from './routes/highlights'
 import { classmateAuthRoutes } from './routes/classmateAuth'
+import { verifyClassmateSession } from './lib/classmateSession'
 import { etag } from 'hono/etag'
 
 
@@ -647,7 +648,7 @@ async function determineAudience(c: any, studentSlug: string): Promise<'public' 
 
   const classmateToken = c.req.header('X-Classmate-Token')
   if (classmateToken) {
-    const authedSlug = await verifyClassmateToken(classmateToken, c.env.JWT_SECRET)
+    const authedSlug = await verifyClassmateSession(c.env.DB, classmateToken)
     if (authedSlug) {
       if (authedSlug === studentSlug) return 'owner'
       return 'classmates'

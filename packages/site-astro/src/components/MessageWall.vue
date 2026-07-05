@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { getSessionName } from '@alumni/shared'
+import { getSessionName, getClassmateToken, getClassmateStudent } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
 interface Message {
@@ -107,12 +107,16 @@ const submitting = ref(false)
 const submitResult = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
 const REACTIONS = ['❤️', '👍', '😂', '🎉']
-const isPageOwner = computed(() => getSessionName() === props.pageOwnerName)
+const isPageOwner = computed(() => {
+  const student = getClassmateStudent<{ name: string }>()
+  return student?.name === props.pageOwnerName
+})
 const replyTexts = ref<Record<string, string>>({})
 const reactingKeys = ref(new Set<string>())
 
 function getAuthorName() {
-  return sessionStorage.getItem('classmate_name') || ''
+  const student = getClassmateStudent<{ name: string }>()
+  return student?.name || getSessionName() || ''
 }
 
 function formatDate(d: string | null) {
@@ -185,45 +189,7 @@ async function react(msgId: string, emoji: string) {
 }
 
 async function ensureClassmateToken(): Promise<string | null> {
-  const cached = sessionStorage.getItem(`classmate_token_${props.studentSlug}`)
-  if (cached) return cached
-  
-  const name = getSessionName()
-  if (!name) return null
-  
-  try {
-    const url = joinApiUrl(props.apiBase, '/api/classmate/token')
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, slug: props.studentSlug }),
-    })
-    const data = await res.json()
-    if (data.success) {
-      sessionStorage.setItem(`classmate_token_${props.studentSlug}`, data.data.token)
-      return data.data.token
-    }
-    if (data.requireSecret) {
-      const secret = window.prompt('由于该页面已启用口令保护，请输入您的编辑口令以回复留言：')
-      if (!secret) return null
-      
-      const res2 = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, slug: props.studentSlug, editSecret: secret }),
-      })
-      const data2 = await res2.json()
-      if (data2.success) {
-        sessionStorage.setItem(`classmate_token_${props.studentSlug}`, data2.data.token)
-        return data2.data.token
-      } else {
-        alert(data2.message || '口令验证失败')
-      }
-    }
-  } catch {
-    alert('网络错误，请稍后重试')
-  }
-  return null
+  return getClassmateToken()
 }
 
 async function submitReply(msgId: string) {

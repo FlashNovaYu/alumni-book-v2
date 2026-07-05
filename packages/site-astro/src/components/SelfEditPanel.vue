@@ -3,30 +3,6 @@
     <button class="edit-trigger" @click="openEditor">编辑我的资料</button>
 
     <Teleport v-if="isMounted" to="body">
-      <!-- 口令锁卡片 -->
-      <Transition name="modal">
-        <div v-if="showSecretPrompt" class="editor-overlay" @click.self="showSecretPrompt = false">
-          <div class="secret-panel card">
-            <h3 class="secret-title">编辑口令验证</h3>
-            <p class="secret-desc">该页面已启用编辑口令保护，请输入口令以继续：</p>
-            <input
-              v-model="inputSecret"
-              type="password"
-              class="text-input secret-input"
-              placeholder="请输入编辑口令"
-              @keydown.enter="submitSecret"
-            />
-            <p v-if="secretError" class="error-text">{{ secretError }}</p>
-            <div class="secret-buttons">
-              <button class="btn-sm" @click="showSecretPrompt = false">取消</button>
-              <button class="btn-primary" @click="submitSecret" :disabled="submittingSecret">
-                {{ submittingSecret ? '验证中...' : '确认' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-
       <Transition name="modal">
         <div v-if="show" class="editor-overlay" @click.self="closeEditor">
           <div class="editor-panel card">
@@ -208,21 +184,7 @@
                 </div>
               </section>
 
-              <!-- 安全设置 -->
-              <section class="edit-section">
-                <h3 class="section-label">安全设置</h3>
-                <div class="field-grid">
-                  <div class="form-group full-width">
-                    <label class="form-label">编辑口令（不修改请留空）</label>
-                    <input
-                      v-model="form.editSecret"
-                      type="password"
-                      class="text-input"
-                      placeholder="请输入口令"
-                    />
-                  </div>
-                </div>
-              </section>
+
             </div>
 
             <div class="editor-footer">
@@ -239,8 +201,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { getSessionName, compressImage, type Student } from '@alumni/shared'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
 const props = defineProps<{
@@ -259,11 +221,6 @@ const saving = ref(false)
 const uploading = ref(false)
 const saveMsg = ref<{ type: string; text: string } | null>(null)
 const token = ref('')
-
-const showSecretPrompt = ref(false)
-const inputSecret = ref('')
-const secretError = ref('')
-const submittingSecret = ref(false)
 const needSetup = ref(false)
 
 const form = reactive<{
@@ -272,7 +229,6 @@ const form = reactive<{
   backgroundUrl: string | null
   backgroundColor: string | null
   info: Record<string, any>
-  editSecret: string
 }>({
   name: '',
   avatarUrl: null,
@@ -281,54 +237,25 @@ const form = reactive<{
   info: {
     visibility: {}
   },
-  editSecret: '',
 })
 
-const isOwner = getSessionName() === props.studentName
+const isOwner = computed(() => {
+  const currentStudent = getClassmateStudent<{ slug: string }>()
+  return currentStudent?.slug === props.studentSlug
+})
 
 function authHeaders(): Record<string, string> {
   return token.value ? { 'X-Classmate-Token': token.value } : {}
 }
 
-async function ensureToken(editSecretVal?: string): Promise<boolean> {
+async function ensureToken(): Promise<boolean> {
   if (token.value) return true
-  const cached = sessionStorage.getItem(`classmate_token_${props.studentSlug}`)
-  if (cached && !editSecretVal) {
-    token.value = cached
+  const t = getClassmateToken()
+  if (t) {
+    token.value = t
     return true
   }
-  const name = getSessionName()
-  if (!name) {
-    saveMsg.value = { type: 'error', text: '请先在首页验证身份' }
-    return false
-  }
-  try {
-    const body: any = { name, slug: props.studentSlug }
-    if (editSecretVal) {
-      body.editSecret = editSecretVal
-    }
-    const url = joinApiUrl(props.apiBase, '/api/classmate/token')
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const data = await res.json()
-    if (data.success) {
-      token.value = data.data.token
-      sessionStorage.setItem(`classmate_token_${props.studentSlug}`, token.value)
-      needSetup.value = data.data.needSetup
-      return true
-    }
-    if (data.requireSecret) {
-      showSecretPrompt.value = true
-      secretError.value = editSecretVal ? (data.message || '口令错误') : ''
-    } else {
-      saveMsg.value = { type: 'error', text: data.message || '身份验证失败' }
-    }
-  } catch {
-    saveMsg.value = { type: 'error', text: '网络错误，请稍后重试' }
-  }
+  saveMsg.value = { type: 'error', text: '请先登录同学账号' }
   return false
 }
 
@@ -373,30 +300,9 @@ async function openEditorAfterAuthed() {
           }
         }
       }
-      form.editSecret = ''
     }
   } catch { /* keep defaults */ }
   show.value = true
-}
-
-async function submitSecret() {
-  const secret = inputSecret.value.trim()
-  if (!secret) {
-    secretError.value = '请输入编辑口令'
-    return
-  }
-  submittingSecret.value = true
-  secretError.value = ''
-  try {
-    const success = await ensureToken(secret)
-    if (success) {
-      showSecretPrompt.value = false
-      inputSecret.value = ''
-      await openEditorAfterAuthed()
-    }
-  } finally {
-    submittingSecret.value = false
-  }
 }
 
 function closeEditor() {

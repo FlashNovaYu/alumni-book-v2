@@ -404,7 +404,48 @@ describe('Security and Session Revocation', () => {
     const req = new Request('http://localhost/api/health')
     const ctx = createExecutionContext()
     const res = await worker.fetch(req, env, ctx)
-    await waitOnExecutionContext(ctx)
     expect(res.headers.get('x-request-id')).toBeTruthy()
   })
+
+  it('logged-in classmate cannot edit another student profile', async () => {
+    async function localHash(pwd: string): Promise<string> {
+      const encoder = new TextEncoder()
+      const salt = new Uint8Array(16)
+      const key = await crypto.subtle.importKey('raw', encoder.encode(pwd), 'PBKDF2', false, ['deriveBits'])
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
+      const hash = btoa(String.fromCharCode(...new Uint8Array(bits)))
+      const saltStr = btoa(String.fromCharCode(...salt))
+      return `pbkdf2:${saltStr}:${hash}`
+    }
+
+    await env.DB.prepare(
+      "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = ?"
+    ).bind(await localHash('12345678'), 'zhangsan').run()
+
+    await env.DB.prepare(
+      "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = ?"
+    ).bind(await localHash('12345678'), 'lisi').run()
+
+    const loginReq = new Request('http://localhost/api/classmate-auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: 'zhangsan', password: '12345678' }),
+    })
+    const loginCtx = createExecutionContext()
+    const loginRes = await worker.fetch(loginReq, env, loginCtx)
+    await waitOnExecutionContext(loginCtx)
+    const loginBody = await loginRes.json() as any
+    const token = loginBody.data.token
+
+    const req = new Request('http://localhost/api/classmate/students/lisi', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Classmate-Token': token },
+      body: JSON.stringify({ info: { nickname: '越权修改' } }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(403)
+  })
 })
+

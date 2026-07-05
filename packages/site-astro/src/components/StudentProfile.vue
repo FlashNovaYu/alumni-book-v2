@@ -196,6 +196,7 @@ import ProfileCompleteness from './ProfileCompleteness.vue'
 import { toStudentMuseumSummary } from '../utils/museumViewModels'
 import { prefersReducedMotion } from '../utils/motion'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
+import { getClassmateToken } from '@alumni/shared'
 
 // 异步载入较重组件以剔除首屏打包体积与减少 hydration 开销
 const PhotoWall = defineAsyncComponent(() => import('./PhotoWall.vue'))
@@ -421,7 +422,7 @@ onMounted(() => {
   // 避免首屏主线程抢占，将 SWR 状态水合改为 idle 空闲时进行
   runWhenIdle(async () => {
     try {
-      const classmateToken = sessionStorage.getItem(`classmate_token_${slugVal.value}`)
+      const classmateToken = getClassmateToken()
       const customHeaders: Record<string, string> = {}
       if (classmateToken) {
         customHeaders['X-Classmate-Token'] = classmateToken

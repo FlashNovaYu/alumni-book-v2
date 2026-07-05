@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
+import { verifyClassmateSession } from '../lib/classmateSession'
 
 type Bindings = {
   DB: D1Database
@@ -73,10 +74,10 @@ async function verifyClassmateToken(token: string, secret: string): Promise<stri
 }
 
 /** 从请求头中提取并验证 token */
-async function authClassmate(c: any, secret: string): Promise<string | null> {
+async function authClassmate(c: any): Promise<string | null> {
   const token = c.req.header('X-Classmate-Token')
   if (!token) return null
-  return verifyClassmateToken(token, secret)
+  return verifyClassmateSession(c.env.DB, token)
 }
 
 // POST /api/classmate/token — 获取编辑凭证
@@ -109,6 +110,10 @@ classmateRoutes.post('/classmate/token', async (c) => {
   }
 
   const token = await generateClassmateToken(slug, await getClassmateSecret(c.env.JWT_SECRET))
+  await db.prepare(
+    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"
+  ).bind(token, slug).run()
+
   return c.json({
     success: true,
     data: {
@@ -123,7 +128,7 @@ classmateRoutes.put('/classmate/students/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
 
-  const authedSlug = await authClassmate(c, await getClassmateSecret(c.env.JWT_SECRET))
+  const authedSlug = await authClassmate(c)
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权，请先验证身份' }, 401)
   }
@@ -218,7 +223,7 @@ classmateRoutes.post('/classmate/upload', async (c) => {
     return c.json({ success: false, message: '不允许的上传类型' }, 400)
   }
 
-  const authedSlug = await authClassmate(c, await getClassmateSecret(c.env.JWT_SECRET))
+  const authedSlug = await authClassmate(c)
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权' }, 401)
   }
