@@ -37,6 +37,33 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
         <span class="link-text">年度册 (PDF)</span>
         <span class="lamp-glow"></span>
       </a>
+      
+      <!-- 静态存根：由 inline 脚本在 First Paint 前瞬间渲染，完美阻断 Vue 异步水合导致的宽度闪烁与消失变短现象 -->
+      <div id="classmate-static-session" class="nav-session classmate-static-session" style="display: none;">
+        <span id="classmate-static-name" class="session-name">同学</span>
+        <button class="btn-logout" onclick="if(confirm('确认关闭并退出你的纪念册？')){sessionStorage.clear();window.location.href='/'}">退出</button>
+      </div>
+
+      <!-- 同步点亮静态登录态的原生极速 inline 脚本 -->
+      <script is:inline>
+        (function() {
+          try {
+            const studentStr = sessionStorage.getItem('classmate_student');
+            if (studentStr) {
+              const student = JSON.parse(studentStr);
+              if (student && student.name) {
+                const el = document.getElementById('classmate-static-session');
+                const nameEl = document.getElementById('classmate-static-name');
+                if (el && nameEl) {
+                  nameEl.textContent = student.name + '同学';
+                  el.style.display = 'flex';
+                }
+              }
+            }
+          } catch (e) {}
+        })();
+      </script>
+
       <TopNavSession client:load apiBase={CLIENT_API_BASE} />
     </div>
   </div>
@@ -147,6 +174,39 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       0 0 35px rgba(204, 120, 92, 0.25);
   }
 
+  /* 静态存根与 Vue 岛的等高排版样式适配 */
+  .nav-session {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-left: var(--spacing-xs);
+    padding-left: var(--spacing-sm);
+    border-left: 1px solid var(--color-hairline);
+    font-size: var(--type-nav-link-size);
+    height: 20px;
+  }
+
+  .session-name {
+    color: var(--color-muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .btn-logout {
+    background: none;
+    border: none;
+    color: #cc785c;
+    cursor: pointer;
+    padding: 0;
+    font-weight: 500;
+    transition: color var(--duration-fast);
+    white-space: nowrap;
+  }
+
+  .btn-logout:hover {
+    color: #b36349;
+  }
+
   .menu-toggle-input { display: none; }
   .mobile-toggle { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; margin-left: auto; cursor: pointer; }
   .toggle-bar, .toggle-bar::before, .toggle-bar::after {
@@ -200,6 +260,16 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       bottom: 2px;
       width: 24px;
     }
+    .nav-session {
+      border-left: none;
+      border-top: 1px solid var(--color-hairline);
+      margin-left: 0;
+      padding-left: 0;
+      padding-top: var(--spacing-sm);
+      width: 100%;
+      height: auto;
+      justify-content: center;
+    }
   }
 
   .menu-toggle-input:checked ~ .mobile-toggle .toggle-bar {
@@ -224,7 +294,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
 
-    // --- 感知灯管滑移动效 (Sliding Lamp Illusion) ---
+    // --- 极速阻尼物理滑移灯管算法 (Spring Beziers Sliding Lamp) ---
     const links = Array.from(nav.querySelectorAll('.nav-link')) as HTMLElement[]
     const activeLink = nav.querySelector('.nav-link.active') as HTMLElement
     
@@ -237,20 +307,20 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
         if (prevIndex !== activeIndex && prevIndex >= 0 && prevIndex < links.length) {
           const prevLink = links[prevIndex]
           
-          // 计算上一个活动 Tab 与当前活动 Tab 中心点在水平方向上的偏移量
+          // 计算上一个活动 Tab 与当前活动 Tab 中心在水平上的偏差像素
           const dx = prevLink.offsetLeft + (prevLink.offsetWidth / 2) - (activeLink.offsetLeft + (activeLink.offsetWidth / 2))
           
           const glow = activeLink.querySelector('.lamp-glow') as HTMLElement
           if (glow) {
-            // 1. 瞬间将灯管定位到上一个页面点击的 Tab 位置（不启用过渡动画）
+            // 1. 瞬间定位灯光（无过渡动画）
             glow.style.transition = 'none'
             glow.style.transform = `translateX(calc(-50% + ${dx}px))`
             
-            // 2. 强制触发重绘 (Reflow) 以确保 DOM 状态立即应用
+            // 2. 强制 Reflow
             glow.offsetHeight
             
-            // 3. 开启平滑贝塞尔过渡，滑回 translateX(-50%)，产生丝滑滑入动效
-            glow.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s ease-in-out'
+            // 3. 采用高度拟合 spring(300, 30) 的高回弹阻尼贝塞尔曲线进行滑移动效
+            glow.style.transition = 'transform 0.48s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.48s cubic-bezier(0.34, 1.56, 0.64, 1)'
             glow.style.transform = 'translateX(-50%)'
             glow.style.boxShadow = `
               0 0 10px rgba(204, 120, 92, 0.95),
@@ -261,11 +331,9 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
         }
       }
       
-      // 记录当前的 active 索引为下一次页面载入时的“上一次索引”
       localStorage.setItem('prev_nav_index', activeIndex.toString())
     }
 
-    // 监听导航栏内所有链接的点击事件，实时保存点击的索引
     links.forEach((link, idx) => {
       link.addEventListener('click', () => {
         localStorage.setItem('prev_nav_index', idx.toString())
