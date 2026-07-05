@@ -78,6 +78,28 @@ describe('Security and Session Revocation', () => {
     expect(errBody.message).toContain('登录已失效')
   })
 
+  it('classmate session token stops working after logout', async () => {
+    const login = await worker.fetch(new Request('http://localhost/api/classmate-auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: 'zhangsan', password: '123456' }),
+    }), env, createExecutionContext())
+    expect(login.status).toBe(200)
+    const body = await login.json() as any
+    const token = body.data.token
+
+    const logout = await worker.fetch(new Request('http://localhost/api/classmate-auth/logout', {
+      method: 'POST',
+      headers: { 'X-Classmate-Token': token },
+    }), env, createExecutionContext())
+    expect(logout.status).toBe(200)
+
+    const me = await worker.fetch(new Request('http://localhost/api/classmate-auth/me', {
+      headers: { 'X-Classmate-Token': token },
+    }), env, createExecutionContext())
+    expect(me.status).toBe(401)
+  })
+
   it('Classmate Self-Service Auth Flow (No Secret -> Set Secret -> Require Secret -> Verify)', async () => {
     // 1. 张三目前没有设置密码，用名字和 slug 获取 token 应该成功且 needSetup = true
     const tokenReq1 = new Request('http://localhost/api/classmate/token', {

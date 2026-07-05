@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { hashPassword } from '../lib/password'
 
 type Bindings = {
   DB: D1Database
@@ -6,17 +7,8 @@ type Bindings = {
   JWT_SECRET: string
 }
 
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const salt = crypto.getRandomValues(new Uint8Array(16))
-  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'])
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100_000 }, key, 256)
-  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)))
-  const saltStr = btoa(String.fromCharCode(...salt))
-  return `pbkdf2:${saltStr}:${hash}`
-}
-
 export const studentsRoutes = new Hono<{ Bindings: Bindings }>()
+
 
 // 创建学生
 studentsRoutes.post('/students', async (c) => {
