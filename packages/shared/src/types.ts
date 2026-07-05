@@ -18,7 +18,22 @@ export interface Student {
   updatedAt: string
   privacyLevel?: string
   editSecret?: string
+  accountStatus?: string
+  accountLastLoginAt?: string
 }
+
+export interface ClassmateSessionStudent {
+  name: string
+  slug: string
+  avatarUrl: string | null
+}
+
+export interface ClassmateLoginResponse {
+  token: string
+  mustChangePassword: boolean
+  student: ClassmateSessionStudent
+}
+
 
 /** 学生详细信息 */
 export interface StudentInfo {
