@@ -17,35 +17,67 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       <span class="toggle-bar"></span>
     </label>
     <div class="nav-links">
-      <a href={href('/preface')} class={`nav-link ${currentPath.startsWith(href('/preface')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/preface')) ? 'page' : undefined}>前言</a>
-      <a href={href('/roster')} class={`nav-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/roster')) ? 'page' : undefined}>同学录</a>
-      <a href={href('/album')} class={`nav-link ${currentPath.startsWith(href('/album')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/album')) ? 'page' : undefined}>相册</a>
-      <a href={href('/timeline')} class={`nav-link ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/timeline')) ? 'page' : undefined}>时光轴</a>
-      <a href={href('/yearbook')} class={`nav-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/yearbook')) ? 'page' : undefined}>年度册 (PDF)</a>
+      <a href={href('/preface')} class={`nav-link ${currentPath.startsWith(href('/preface')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/preface')) ? 'page' : undefined}>
+        <span class="link-text">前言</span>
+        <span class="lamp-glow"></span>
+      </a>
+      <a href={href('/roster')} class={`nav-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/roster')) ? 'page' : undefined}>
+        <span class="link-text">同学录</span>
+        <span class="lamp-glow"></span>
+      </a>
+      <a href={href('/album')} class={`nav-link ${currentPath.startsWith(href('/album')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/album')) ? 'page' : undefined}>
+        <span class="link-text">相册</span>
+        <span class="lamp-glow"></span>
+      </a>
+      <a href={href('/timeline')} class={`nav-link ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/timeline')) ? 'page' : undefined}>
+        <span class="link-text">时光轴</span>
+        <span class="lamp-glow"></span>
+      </a>
+      <a href={href('/yearbook')} class={`nav-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/yearbook')) ? 'page' : undefined}>
+        <span class="link-text">年度册 (PDF)</span>
+        <span class="lamp-glow"></span>
+      </a>
       <TopNavSession client:load apiBase={CLIENT_API_BASE} />
     </div>
   </div>
 </nav>
 
 <style>
+  /* 悬浮胶囊毛玻璃顶栏 */
   .top-nav {
     position: fixed;
-    top: 0; left: 0; right: 0;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 100;
-    height: var(--nav-height);
-    background-color: var(--color-canvas);
-    border-bottom: 1px solid var(--color-hairline);
-    transition: box-shadow var(--duration-normal) var(--ease-out-quart);
+    width: calc(100% - 2.5rem);
+    max-width: 960px;
+    height: 54px;
+    background-color: rgba(250, 249, 245, 0.85); /* 复古胶皮纸暖白 */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-hairline);
+    border-radius: 9999px;
+    box-shadow: 0 8px 30px rgba(62, 50, 35, 0.05);
+    transition: all var(--duration-normal) var(--ease-out-quart);
   }
+  
+  /* 滚动时紧贴和加深 */
   .top-nav.scrolled {
-    box-shadow: var(--shadow-nav-scroll);
+    top: 0.75rem;
+    background-color: rgba(250, 249, 245, 0.93);
+    box-shadow: 0 10px 35px rgba(62, 50, 35, 0.08),
+                0 1px 3px rgba(62, 50, 35, 0.02);
   }
+
   .nav-inner {
     height: 100%;
     display: flex;
     align-items: center;
-    gap: var(--spacing-xl);
+    gap: var(--spacing-md);
+    padding: 0 1.5rem;
   }
+
   .nav-brand {
     display: flex;
     align-items: center;
@@ -53,11 +85,32 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     text-decoration: none;
     color: var(--color-ink);
   }
-  .brand-mark { font-size: 18px; color: var(--color-primary); }
-  .brand-text { font-family: var(--font-display); font-size: 20px; font-weight: 500; letter-spacing: -0.3px; }
-  .nav-links { display: flex; align-items: center; gap: var(--spacing-sm); margin-left: auto; }
+
+  .brand-mark { 
+    font-size: 18px; 
+    color: var(--color-primary); 
+    display: flex;
+    align-items: center;
+  }
+
+  .brand-text { 
+    font-family: var(--font-display); 
+    font-size: 19px; 
+    font-weight: 600; 
+    letter-spacing: 0.05em; 
+  }
+
+  .nav-links { 
+    display: flex; 
+    align-items: center; 
+    gap: var(--spacing-xs); 
+    margin-left: auto; 
+  }
+
+  /* 导航项 */
   .nav-link {
-    padding: 8px 14px;
+    position: relative;
+    padding: 6px 14px;
     font-size: var(--type-nav-link-size);
     font-weight: var(--type-nav-link-weight);
     color: var(--color-muted);
@@ -66,22 +119,53 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     transition: color var(--duration-fast) var(--ease-out-quart),
               background-color var(--duration-fast) var(--ease-out-quart);
   }
-  .nav-link:hover { color: var(--color-ink); background-color: var(--color-surface-card); }
-  .nav-link.active {
-    color: var(--color-ink);
-    position: relative;
+
+  .nav-link:hover { 
+    color: var(--color-ink); 
+    background-color: rgba(62, 50, 35, 0.03); 
   }
-  .nav-link.active::after {
-    content: '';
+
+  /* Active 状态 */
+  .nav-link.active {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* 复古床头灯泡渐变光晕 (Tubelight / Lamp Effect) */
+  .nav-link.active .lamp-glow {
     position: absolute;
-    bottom: 2px;
+    top: -4px; /* 贴近胶囊上边缘 */
     left: 50%;
     transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
+    width: 20px;
+    height: 2px;
     background-color: var(--color-primary);
+    border-radius: 9999px;
+    box-shadow: 
+      0 0 10px rgba(204, 120, 92, 0.95),
+      0 0 20px rgba(204, 120, 92, 0.5),
+      0 0 35px rgba(204, 120, 92, 0.25);
+    animation: lamp-pulse 2s ease-in-out infinite alternate;
   }
+
+  /* 呼吸动效让灯光更柔和逼真 */
+  @keyframes lamp-pulse {
+    0% {
+      opacity: 0.85;
+      box-shadow: 
+        0 0 8px rgba(204, 120, 92, 0.8),
+        0 0 16px rgba(204, 120, 92, 0.4),
+        0 0 30px rgba(204, 120, 92, 0.2);
+    }
+    100% {
+      opacity: 1;
+      box-shadow: 
+        0 0 12px rgba(204, 120, 92, 1),
+        0 0 24px rgba(204, 120, 92, 0.6),
+        0 0 40px rgba(204, 120, 92, 0.3);
+    }
+  }
+
   .menu-toggle-input { display: none; }
   .mobile-toggle { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; margin-left: auto; cursor: pointer; }
   .toggle-bar, .toggle-bar::before, .toggle-bar::after {
@@ -94,25 +178,49 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
   .toggle-bar::before, .toggle-bar::after { content: ''; position: absolute; left: 0; }
   .toggle-bar::before { top: -6px; }
   .toggle-bar::after { top: 6px; }
+
+  /* 响应式断点 */
   @media (max-width: 768px) {
+    .top-nav {
+      top: 1rem;
+      width: calc(100% - 1.5rem);
+    }
     .mobile-toggle { display: flex; }
     .nav-links {
       position: fixed;
-      top: var(--nav-height);
-      left: 0; right: 0; bottom: 0;
+      top: 64px;
+      left: 0; right: 0;
       flex-direction: column;
-      background-color: var(--color-canvas);
-      padding: var(--spacing-xl);
+      background-color: rgba(250, 249, 245, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--color-hairline);
+      border-radius: 20px;
+      padding: var(--spacing-lg);
       gap: var(--spacing-xs);
+      box-shadow: 0 15px 35px rgba(62, 50, 35, 0.1);
       opacity: 0; visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.2s ease, visibility 0.2s ease;
+      transform: translateY(-10px);
+      transition: all 0.25s var(--ease-out-quart);
     }
     .menu-toggle-input:checked ~ .nav-links {
       opacity: 1; visibility: visible; pointer-events: auto;
+      transform: translateY(0);
     }
-    .nav-link { font-size: 18px; padding: 14px 16px; }
+    .nav-link { 
+      font-size: 16px; 
+      padding: 10px 16px; 
+      width: 100%;
+      text-align: center;
+    }
+    .nav-link.active .lamp-glow {
+      top: auto;
+      bottom: 2px;
+      width: 24px;
+    }
   }
+
   .menu-toggle-input:checked ~ .mobile-toggle .toggle-bar {
     background-color: transparent;
   }
