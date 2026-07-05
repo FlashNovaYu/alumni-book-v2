@@ -1,7 +1,10 @@
+<!-- packages/site-astro/src/components/ClassmateLoginBook.vue -->
+<!-- CCSwitch: 同学录复古纪念册登录界面。用户自主输入姓名与密码，具有精致的书签、书写线动效和双页拟真设计。 -->
+
 <template>
   <div class="login-book-container fade-in">
     <div class="login-book">
-      <!-- 纪念册左页：温馨回忆与回忆寄语 -->
+      <!-- 纪念册左页：温馨回忆与寄语 -->
       <div class="book-page page-left">
         <div class="page-content">
           <div class="ink-title">同学录</div>
@@ -23,64 +26,51 @@
       <!-- 纪念册右页：入馆凭证/登录表单 -->
       <div class="book-page page-right">
         <div class="page-content">
-          <div class="form-title">验证身份</div>
+          <div class="form-title">身份验证</div>
           <p class="form-subtitle">请输入你的入馆凭证</p>
 
           <div class="login-form">
-            <!-- 账号选择 (带拼音与中文搜索的自定义下拉框) -->
+            <!-- 姓名输入框 -->
             <div class="form-group">
-              <label class="form-label" for="student-select">选择同学账号</label>
-              <div class="custom-select-wrapper" ref="selectWrapper">
-                <div class="select-trigger" @click="toggleDropdown" :class="{ 'is-active': dropdownOpen }">
-                  <span v-if="selectedStudent">{{ selectedStudent.name }}</span>
-                  <span v-else class="placeholder">请选择你的名字</span>
-                  <span class="select-arrow">▼</span>
-                </div>
-                
-                <div v-show="dropdownOpen" class="select-dropdown">
-                  <div class="dropdown-search">
-                    <input
-                      v-model="searchQuery"
-                      type="text"
-                      placeholder="输入姓名或拼音检索..."
-                      class="search-input"
-                      @click.stop
-                    />
-                  </div>
-                  <ul class="dropdown-list">
-                    <li
-                      v-for="item in filteredClassmates"
-                      :key="item.slug"
-                      @click="selectClassmate(item)"
-                      :class="{ 'is-selected': selectedSlug === item.slug }"
-                    >
-                      {{ item.name }} <span class="slug-hint">({{ item.slug }})</span>
-                    </li>
-                    <li v-if="filteredClassmates.length === 0" class="no-results">
-                      没有找到匹配的同学
-                    </li>
-                  </ul>
-                </div>
+              <label class="form-label" for="username-input">你的姓名</label>
+              <div class="input-wrapper">
+                <input
+                  id="username-input"
+                  v-model="username"
+                  type="text"
+                  class="retro-input"
+                  placeholder="请输入你的真实姓名或账号"
+                  autocomplete="username"
+                  @keydown.enter="handleLogin"
+                />
+                <span class="focus-line"></span>
+                <span class="input-icon">✍️</span>
               </div>
             </div>
 
             <!-- 密码输入框 -->
             <div class="form-group">
               <label class="form-label" for="password-input">入馆密码</label>
-              <input
-                id="password-input"
-                v-model="password"
-                type="password"
-                class="text-input password-input"
-                placeholder="请输入密码 (初始密码或自定义密码)"
-                @keydown.enter="handleLogin"
-              />
+              <div class="input-wrapper">
+                <input
+                  id="password-input"
+                  v-model="password"
+                  type="password"
+                  class="retro-input"
+                  placeholder="请输入你的入馆密码"
+                  autocomplete="current-password"
+                  @keydown.enter="handleLogin"
+                />
+                <span class="focus-line"></span>
+                <span class="input-icon">🔑</span>
+              </div>
             </div>
 
             <div v-if="error" class="error-msg">{{ error }}</div>
 
             <button class="btn-primary login-btn" @click="handleLogin" :disabled="loading">
-              {{ loading ? '翻阅中...' : '进入同学录' }}
+              <span class="btn-text">{{ loading ? '翻阅中...' : '翻开回忆' }}</span>
+              <span class="btn-hover-bg"></span>
             </button>
           </div>
         </div>
@@ -91,7 +81,7 @@
     <FirstLoginPasswordGuide
       v-if="showChangePasswordModal"
       :api-base="apiBase"
-      :slug="selectedSlug"
+      :slug="username.trim()"
       :old-password="password"
       @completed="handlePasswordChanged"
       @cancel="handlePasswordCancel"
@@ -100,112 +90,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { classmateLogin } from '../api/classmateAuth'
 import { setClassmateSession, clearClassmateSession } from '@alumni/shared'
 import FirstLoginPasswordGuide from './FirstLoginPasswordGuide.vue'
-
-interface Classmate {
-  name: string
-  slug: string
-  avatarUrl: string | null
-}
 
 const props = defineProps<{
   apiBase: string
 }>()
 
-const classmates = ref<Classmate[]>([])
-const selectedSlug = ref('')
+const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
-
-// 下拉搜索组件状态
-const dropdownOpen = ref(false)
-const searchQuery = ref('')
-const selectWrapper = ref<HTMLElement | null>(null)
-
-const selectedStudent = computed(() => {
-  return classmates.value.find(item => item.slug === selectedSlug.value) || null
-})
-
-const filteredClassmates = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return classmates.value
-  return classmates.value.filter(item => {
-    return (
-      item.name.toLowerCase().includes(query) ||
-      item.slug.toLowerCase().includes(query)
-    )
-  })
-})
-
 const showChangePasswordModal = ref(false)
-
-async function loadClassmates() {
-  try {
-    const res = await fetch(`${props.apiBase.replace(/\/$/, '')}/api/classmates`)
-    const data = await res.json()
-    if (data.success && Array.isArray(data.data)) {
-      classmates.value = data.data
-    }
-  } catch (err) {
-    error.value = '加载同学名单失败，请检查网络后重试'
-  }
-}
-
-onMounted(() => {
-  loadClassmates()
-  document.addEventListener('click', handleOutsideClick)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleOutsideClick)
-})
-
-function handleOutsideClick(e: MouseEvent) {
-  if (selectWrapper.value && !selectWrapper.value.contains(e.target as Node)) {
-    dropdownOpen.value = false
-  }
-}
-
-function toggleDropdown() {
-  dropdownOpen.value = !dropdownOpen.value
-  if (dropdownOpen.value) {
-    searchQuery.value = ''
-  }
-}
-
-function selectClassmate(item: Classmate) {
-  selectedSlug.value = item.slug
-  dropdownOpen.value = false
-  error.value = ''
-}
 
 async function handleLogin() {
   error.value = ''
-  if (!selectedSlug.value) {
-    error.value = '请选择你的名字'
+  const nameVal = username.value.trim()
+  const pwdVal = password.value
+
+  if (!nameVal) {
+    error.value = '请输入你的姓名'
     return
   }
-  if (!password.value) {
+  if (!pwdVal) {
     error.value = '请输入入馆密码'
     return
   }
 
   loading.value = true
   try {
-    const data = await classmateLogin(props.apiBase, selectedSlug.value, password.value)
+    const data = await classmateLogin(props.apiBase, nameVal, pwdVal)
     
-    // 保存会话信息
+    // 保存统一会话信息
     setClassmateSession(data.token, data.student)
 
     if (data.mustChangePassword) {
-      // 首次登录，需要改密
       showChangePasswordModal.value = true
     } else {
-      // 正常登录成功，跳转到前序页面
+      // 登录成功，跳转到前置页面
       const baseUrl = import.meta.env.BASE_URL || '/'
       const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
       window.location.href = `${prefix}preface`
@@ -225,7 +149,6 @@ function handlePasswordChanged() {
 }
 
 function handlePasswordCancel() {
-  // 清理临时会话状态并留在首页
   clearClassmateSession()
   showChangePasswordModal.value = false
   password.value = ''
@@ -238,80 +161,62 @@ function handlePasswordCancel() {
   justify-content: center;
   align-items: center;
   width: 100%;
-  max-width: 900px;
-  margin: 2rem auto;
-  perspective: 1000px;
+  padding: 2rem 1rem;
 }
 
+/* 书本主容器：拟真双页 */
 .login-book {
-  display: flex;
-  background-color: #faf9f5;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15), 
-              0 1px 3px rgba(0,0,0,0.05),
-              inset 0 0 40px rgba(230,225,205,0.3);
-  border: 1px solid #e3dec9;
-  width: 100%;
-  min-height: 480px;
   position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 820px;
+  min-height: 480px;
+  background-color: #fbfaf7;
+  border: 1px solid #dcd7ca;
+  border-radius: 8px;
+  box-shadow: 0 15px 45px rgba(62, 50, 35, 0.12),
+              inset 0 0 40px rgba(244, 240, 228, 0.6);
   overflow: hidden;
 }
 
+/* 书本单页 */
 .book-page {
   flex: 1;
   padding: 3rem 2.5rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
-}
-
-/* 纸张及书本内页设计 */
-.page-left {
-  background: linear-gradient(to right, #faf9f5 95%, #e8e3d0 100%);
-  border-right: 1px solid rgba(0,0,0,0.05);
-}
-
-.page-right {
-  background: linear-gradient(to left, #faf9f5 95%, #e8e3d0 100%);
-}
-
-.book-spine {
-  width: 16px;
-  background: linear-gradient(to right, 
-    rgba(0,0,0,0.03) 0%, 
-    rgba(0,0,0,0.1) 40%, 
-    rgba(0,0,0,0.15) 50%, 
-    rgba(0,0,0,0.1) 60%, 
-    rgba(0,0,0,0.03) 100%);
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.08);
-  border-left: 1px solid rgba(0,0,0,0.08);
-  border-right: 1px solid rgba(0,0,0,0.08);
   position: relative;
-  z-index: 10;
+}
+
+/* 左页设计：怀旧文艺 */
+.page-left {
+  background: linear-gradient(to right, #f7f5ee, #fbfaf7);
+  border-right: 1px solid rgba(62, 50, 35, 0.05);
 }
 
 .page-content {
-  width: 100%;
-  max-width: 320px;
-  margin: 0 auto;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
 }
 
-/* 左侧温馨排版 */
 .ink-title {
   font-family: var(--font-display), "Noto Serif SC", serif;
   font-size: 2.5rem;
   font-weight: 700;
   color: #3e3223;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.25rem;
 }
 
 .ink-subtitle {
-  font-size: 0.9rem;
-  color: #8c7f6e;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  color: #8c7f6e;
+  letter-spacing: 0.2em;
 }
 
 .decorative-line {
@@ -322,34 +227,53 @@ function handlePasswordCancel() {
 }
 
 .ink-text {
+  font-family: var(--font-display), "Noto Serif SC", serif;
   font-size: var(--type-body-md-size);
-  line-height: 1.8;
   color: #5c4e3c;
-  font-style: italic;
-  font-family: "Noto Serif SC", serif;
+  line-height: 2;
+  letter-spacing: 0.05em;
+  margin-bottom: 2rem;
 }
 
 .doodle-plane {
-  font-size: 2rem;
-  color: #cc785c;
-  opacity: 0.2;
-  position: absolute;
-  bottom: -30px;
-  right: 10px;
+  font-size: 1.5rem;
+  color: rgba(204, 120, 92, 0.4);
   transform: rotate(-15deg);
+  align-self: flex-start;
+  animation: float 4s ease-in-out infinite;
 }
 
-/* 右侧表单 */
+/* 书脊：中央阴影 */
+.book-spine {
+  width: 16px;
+  background: linear-gradient(to right, 
+    rgba(0, 0, 0, 0.05) 0%, 
+    rgba(0, 0, 0, 0.15) 30%, 
+    rgba(0, 0, 0, 0.0) 50%, 
+    rgba(0, 0, 0, 0.12) 70%, 
+    rgba(0, 0, 0, 0.03) 100%
+  );
+  border-left: 1px solid rgba(62, 50, 35, 0.06);
+  border-right: 1px solid rgba(62, 50, 35, 0.06);
+  flex-shrink: 0;
+}
+
+/* 右页设计：身份表单 */
+.page-right {
+  background: linear-gradient(to left, #f5f3eb, #fbfaf7);
+}
+
 .form-title {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 1.75rem;
+  font-weight: 700;
   color: #3e3223;
-  margin-bottom: 0.25rem;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.35rem;
 }
 
 .form-subtitle {
-  font-size: var(--type-body-sm-size);
+  font-size: 0.85rem;
   color: #8c7f6e;
   margin-bottom: 2rem;
 }
@@ -357,187 +281,180 @@ function handlePasswordCancel() {
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .form-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  color: #5c4e3c;
+  color: #8c7f6e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-/* 自定义下拉框 */
-.custom-select-wrapper {
+/* 输入框包装：底边书写线 */
+.input-wrapper {
   position: relative;
-  width: 100%;
-}
-
-.select-trigger {
-  width: 100%;
-  height: 44px;
-  padding: 0 1rem;
-  background-color: #fcfbfa;
-  border: 1px solid #d4cdb8;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #3e3223;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  user-select: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.select-trigger:hover {
-  border-color: #b5aa90;
-}
-
-.select-trigger.is-active {
-  border-color: #cc785c;
-  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
-}
-
-.select-trigger .placeholder {
-  color: #b5aa90;
-}
-
-.select-arrow {
-  font-size: 10px;
-  color: #8c7f6e;
-  transition: transform 0.2s ease;
-}
-
-.select-trigger.is-active .select-arrow {
-  transform: rotate(180deg);
-}
-
-.select-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background-color: #faf9f5;
-  border: 1px solid #d4cdb8;
-  border-radius: 6px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-  z-index: 50;
-  max-height: 250px;
-  display: flex;
-  flex-direction: column;
-}
-
-.dropdown-search {
-  padding: 6px;
-  border-bottom: 1px solid #e6e1d0;
-}
-
-.search-input {
+.retro-input {
   width: 100%;
-  height: 32px;
-  padding: 0 8px;
-  font-size: 13px;
-  background-color: #fcfbfa;
-  border: 1px solid #d4cdb8;
-  border-radius: 4px;
+  padding: 10px 30px 10px 0;
+  font-size: 15px;
+  color: #3e3223;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #dcd7ca;
   outline: none;
+  transition: border-color var(--duration-fast);
 }
 
-.search-input:focus {
-  border-color: #cc785c;
-}
-
-.dropdown-list {
-  list-style: none;
-  overflow-y: auto;
-  padding: 4px 0;
-  margin: 0;
-}
-
-.dropdown-list li {
-  padding: 8px 12px;
-  font-size: 14px;
-  color: #3e3223;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.dropdown-list li:hover {
-  background-color: #f0ebd9;
-}
-
-.dropdown-list li.is-selected {
-  background-color: #cc785c;
-  color: #ffffff;
-}
-
-.dropdown-list li.is-selected .slug-hint {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.slug-hint {
-  font-size: 11px;
-  color: #8c7f6e;
-}
-
-.no-results {
-  padding: 12px;
+.retro-input::placeholder {
+  color: #bfae99;
   font-size: 13px;
-  color: #8c7f6e;
-  text-align: center;
 }
 
-.password-input {
-  background-color: #fcfbfa;
-  border-color: #d4cdb8;
+/* 焦点书写线扩展动效 */
+.focus-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #cc785c;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--duration-normal) var(--ease-out-quart);
 }
 
-.password-input:focus {
-  border-color: #cc785c;
+.retro-input:focus ~ .focus-line {
+  transform: scaleX(1);
 }
 
+.input-icon {
+  position: absolute;
+  right: 4px;
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0.5;
+  transition: opacity var(--duration-fast);
+}
+
+.retro-input:focus ~ .input-icon {
+  opacity: 1;
+}
+
+/* 错误提示 */
 .error-msg {
   font-size: 13px;
   color: var(--color-error);
-  margin-top: 4px;
 }
 
+/* 翻开回忆按钮：复古墨水展开特效 */
 .login-btn {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 44px;
   margin-top: 1rem;
   background-color: #cc785c;
-  color: #fff;
+  border: none;
   border-radius: 6px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(204, 120, 92, 0.2);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .login-btn:hover {
-  background-color: #b36349;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(204, 120, 92, 0.3);
 }
 
-/* 适配移动端 */
+.login-btn:active {
+  transform: translateY(1px);
+}
+
+.login-btn:disabled {
+  background-color: #dfdcd3;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-text {
+  position: relative;
+  z-index: 2;
+  font-size: 15px;
+  font-weight: 500;
+  color: #ffffff;
+  letter-spacing: 0.1em;
+}
+
+.login-btn:disabled .btn-text {
+  color: #9c978b;
+}
+
+/* 墨水扩散动效 */
+.btn-hover-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  background-color: #b36349;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.6s var(--ease-out-quart);
+  z-index: 1;
+}
+
+.login-btn:hover .btn-hover-bg {
+  transform: translate(-50%, -50%) scale(25);
+}
+
+/* Float 浮动动画 */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-15deg); }
+  50% { transform: translateY(-8px) rotate(-10deg); }
+}
+
+/* 渐入动效 */
+.fade-in {
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 响应式断点 */
 @media (max-width: 768px) {
   .login-book {
     flex-direction: column;
     min-height: auto;
   }
+  .book-page {
+    padding: 2.25rem 1.75rem;
+  }
   .page-left {
-    display: none; /* 移动端隐藏左侧装饰页，避免过多堆叠 */
+    border-right: none;
+    border-bottom: 1px solid rgba(62, 50, 35, 0.08);
   }
   .book-spine {
     display: none;
   }
-  .book-page {
-    padding: 2.5rem 1.5rem;
+  .ink-title {
+    font-size: 2rem;
   }
 }
 </style>

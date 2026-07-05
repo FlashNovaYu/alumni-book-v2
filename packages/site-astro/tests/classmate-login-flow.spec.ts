@@ -29,9 +29,8 @@ test('first login requires changing the initial password before entering preface
 
   await page.goto('/')
   
-  // 选择同学账号
-  await page.click('.select-trigger')
-  await page.click('.dropdown-list li')
+  // 输入同学姓名
+  await page.locator('#username-input').fill('测试同学')
   
   // 输入初始密码并点击登录
   await page.locator('#password-input').fill('123456')

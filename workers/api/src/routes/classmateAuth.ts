@@ -17,8 +17,8 @@ classmateAuthRoutes.post('/login', async (c) => {
   if (!slug || !password) return c.json({ success: false, message: '账号和密码必填' }, 400)
 
   const student = await c.env.DB.prepare(
-    'SELECT name, slug, avatar_url, account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ?'
-  ).bind(slug).first() as any
+    'SELECT name, slug, avatar_url, account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ? OR name = ?'
+  ).bind(slug, slug).first() as any
 
   if (!student || student.account_status === 'locked') {
     return c.json({ success: false, message: '账号或密码错误' }, 401)
