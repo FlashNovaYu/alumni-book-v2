@@ -3,7 +3,7 @@
 
 <template>
   <div class="modal-overlay">
-    <div class="change-password-modal card">
+    <div class="change-password-modal paper-panel">
       <div class="modal-header">
         <h2 class="ink-title-sm">第一步：安全装订</h2>
         <p class="form-hint">为了你的账户安全，首次登录需要修改初始密码。</p>
@@ -118,7 +118,7 @@ function handleCancel() {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(62, 50, 35, 0.4);
+  background-color: rgba(47, 42, 35, 0.46);
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
@@ -129,10 +129,11 @@ function handleCancel() {
 .change-password-modal {
   width: 90%;
   max-width: 420px;
-  background-color: #faf9f5;
-  border: 1px solid #d4cdb8;
-  box-shadow: 0 10px 40px rgba(62, 50, 35, 0.15),
-              inset 0 0 30px rgba(230,225,205,0.2);
+  background:
+    var(--texture-paper-fiber),
+    var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  box-shadow: var(--shadow-paper-panel);
   padding: 2.25rem 2rem;
   display: flex;
   flex-direction: column;
@@ -143,14 +144,14 @@ function handleCancel() {
   font-family: var(--font-display), "Noto Serif SC", serif;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #3e3223;
+  color: var(--color-paper-ink);
   margin-bottom: 0.5rem;
   letter-spacing: 0.1em;
 }
 
 .form-hint {
   font-size: var(--type-body-sm-size);
-  color: #8c7f6e;
+  color: var(--color-paper-muted);
   line-height: 1.5;
 }
 
@@ -169,16 +170,16 @@ function handleCancel() {
 .form-label {
   font-size: 13px;
   font-weight: 500;
-  color: #5c4e3c;
+  color: var(--color-paper-ink-soft);
 }
 
 .text-input {
-  background-color: #fcfbfa;
-  border-color: #d4cdb8;
+  background-color: var(--color-paper-bg-soft);
+  border-color: var(--color-paper-border);
 }
 
 .text-input:focus {
-  border-color: #cc785c;
+  border-color: var(--color-paper-brown);
 }
 
 .error-msg {
@@ -200,22 +201,22 @@ function handleCancel() {
 }
 
 .btn-cancel {
-  border-color: #d4cdb8;
-  color: #5c4e3c;
+  border-color: var(--color-paper-border);
+  color: var(--color-paper-ink-soft);
 }
 
 .btn-cancel:hover {
-  background-color: #f0ebd9;
+  background-color: var(--color-paper-card-muted);
 }
 
 .change-password-btn {
-  background-color: #cc785c;
+  background-color: var(--color-paper-brown);
   color: #fff;
   border-radius: 6px;
   font-weight: 500;
 }
 
 .change-password-btn:hover {
-  background-color: #b36349;
+  background-color: var(--color-paper-brown-active);
 }
 </style>

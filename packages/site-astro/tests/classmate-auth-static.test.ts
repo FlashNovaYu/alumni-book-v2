@@ -23,6 +23,9 @@ describe('classmate account login frontend', () => {
 
     if (fs.existsSync(layoutPath)) {
       const source = fs.readFileSync(layoutPath, 'utf-8')
+      expect(source).toContain('classmate_account_token')
+      expect(source).not.toContain('classmate_student')
+      expect(source).not.toContain('classmate_name')
       expect(source).not.toContain("sessionStorage.getItem('classmate_name'")
     }
     if (fs.existsSync(navPath)) {

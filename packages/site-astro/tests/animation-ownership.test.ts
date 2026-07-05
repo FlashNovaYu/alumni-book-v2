@@ -37,4 +37,13 @@ describe('animation ownership', () => {
       expect(source).not.toContain("gsap/ScrollTrigger")
     }
   })
+
+  it('global reveal can be reinitialized per Astro page load without stacking duplicate state', () => {
+    const reveal = read('scripts/globalReveal.ts')
+    const layout = read('layouts/MainLayout.astro')
+
+    expect(reveal).toContain('let activeObserver')
+    expect(reveal).toContain('activeObserver.disconnect()')
+    expect(layout).toContain('initGlobalReveal(true)')
+  })
 })

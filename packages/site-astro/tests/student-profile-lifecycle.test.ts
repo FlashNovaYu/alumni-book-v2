@@ -23,4 +23,13 @@ describe('StudentProfile lazy observer lifecycle', () => {
       expect(source.slice(onUnmountedIndex), `${name} should be disconnected on unmount`).toContain(`${name}?.disconnect()`)
     }
   })
+
+  it('student profile keeps lazy component anchors with stable min-height placeholders', () => {
+    const source = fs.readFileSync(sourcePath, 'utf-8')
+
+    expect(source).toContain('id="photo-wall-anchor"')
+    expect(source).toContain('id="message-wall-anchor"')
+    expect(source).toContain('id="highlights-anchor"')
+    expect(source).toContain('class="lazy-anchor"')
+  })
 })

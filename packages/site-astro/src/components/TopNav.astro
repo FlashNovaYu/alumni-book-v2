@@ -47,7 +47,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       <script is:inline define:vars={{ CLIENT_API_BASE }}>
         function syncNavSession() {
           try {
-            const studentStr = sessionStorage.getItem('classmate_student');
+            const studentStr = sessionStorage.getItem('classmate_account_student');
             const token = sessionStorage.getItem('classmate_account_token');
             const el = document.getElementById('classmate-nav-session');
             const nameEl = document.getElementById('classmate-nav-name');
@@ -100,21 +100,20 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     width: 820px; /* 固定宽度，彻底消除不同页面间因滚动条产生的抖动与长度忽大忽小 */
     max-width: calc(100% - 2.5rem);
     height: 54px;
-    background-color: rgba(250, 249, 245, 0.85); /* 复古胶皮纸暖白 */
+    background-color: color-mix(in srgb, var(--color-paper-card) 86%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--color-hairline);
+    border: 1px solid var(--color-paper-border);
     border-radius: 9999px;
-    box-shadow: 0 8px 30px rgba(62, 50, 35, 0.05);
+    box-shadow: var(--shadow-paper-card);
     transition: all var(--duration-normal) var(--ease-out-quart);
   }
   
   /* 滚动时紧贴和加深 */
   .top-nav.scrolled {
     top: 0.75rem;
-    background-color: rgba(250, 249, 245, 0.93);
-    box-shadow: 0 10px 35px rgba(62, 50, 35, 0.08),
-                0 1px 3px rgba(62, 50, 35, 0.02);
+    background-color: color-mix(in srgb, var(--color-paper-card) 94%, transparent);
+    box-shadow: var(--shadow-paper-panel);
   }
 
   .nav-inner {
@@ -130,12 +129,12 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     align-items: center;
     gap: var(--spacing-xs);
     text-decoration: none;
-    color: var(--color-ink);
+    color: var(--color-paper-ink);
   }
 
   .brand-mark { 
     font-size: 18px; 
-    color: var(--color-primary); 
+    color: var(--color-paper-brown); 
     display: flex;
     align-items: center;
   }
@@ -160,7 +159,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     padding: 6px 14px;
     font-size: var(--type-nav-link-size);
     font-weight: var(--type-nav-link-weight);
-    color: var(--color-muted);
+    color: var(--color-paper-muted);
     border-radius: var(--rounded-md);
     text-decoration: none;
     transition: color var(--duration-fast) var(--ease-out-quart),
@@ -168,13 +167,13 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
   }
 
   .nav-link:hover { 
-    color: var(--color-ink); 
-    background-color: rgba(62, 50, 35, 0.03); 
+    color: var(--color-paper-ink); 
+    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent); 
   }
 
   /* Active 状态 */
   .nav-link.active {
-    color: var(--color-primary);
+    color: var(--color-paper-brown);
     font-weight: 600;
   }
 
@@ -186,7 +185,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     transform: translateX(-50%);
     width: 20px;
     height: 2px;
-    background-color: var(--color-primary);
+    background-color: var(--color-paper-brown);
     border-radius: 9999px;
     box-shadow: 
       0 0 10px rgba(204, 120, 92, 0.95),
@@ -201,13 +200,13 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     gap: var(--spacing-sm);
     margin-left: var(--spacing-xs);
     padding-left: var(--spacing-sm);
-    border-left: 1px solid var(--color-hairline);
+    border-left: 1px solid var(--color-paper-border);
     font-size: var(--type-nav-link-size);
     height: 20px;
   }
 
   .session-name {
-    color: var(--color-muted);
+    color: var(--color-paper-muted);
     font-weight: 500;
     white-space: nowrap;
   }
@@ -215,7 +214,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
   .btn-logout {
     background: none;
     border: none;
-    color: #cc785c;
+    color: var(--color-paper-stamp-red);
     cursor: pointer;
     padding: 0;
     font-weight: 500;
@@ -224,14 +223,14 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
   }
 
   .btn-logout:hover {
-    color: #b36349;
+    color: var(--color-paper-brown-active);
   }
 
   .menu-toggle-input { display: none; }
   .mobile-toggle { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; margin-left: auto; cursor: pointer; }
   .toggle-bar, .toggle-bar::before, .toggle-bar::after {
     display: block; width: 20px; height: 2px;
-    background-color: var(--color-ink); border-radius: 1px;
+    background-color: var(--color-paper-ink); border-radius: 1px;
     transition: transform var(--duration-normal) var(--ease-out-quart),
               background-color var(--duration-normal) var(--ease-out-quart);
   }
@@ -252,14 +251,14 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       top: 64px;
       left: 0; right: 0;
       flex-direction: column;
-      background-color: rgba(250, 249, 245, 0.96);
+      background-color: color-mix(in srgb, var(--color-paper-card) 96%, transparent);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--color-hairline);
+      border: 1px solid var(--color-paper-border);
       border-radius: 20px;
       padding: var(--spacing-lg);
       gap: var(--spacing-xs);
-      box-shadow: 0 15px 35px rgba(62, 50, 35, 0.1);
+      box-shadow: var(--shadow-paper-panel);
       opacity: 0; visibility: hidden;
       pointer-events: none;
       transform: translateY(-10px);
@@ -282,7 +281,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     }
     .nav-session {
       border-left: none;
-      border-top: 1px solid var(--color-hairline);
+      border-top: 1px solid var(--color-paper-border);
       margin-left: 0;
       padding-left: 0;
       padding-top: var(--spacing-sm);
@@ -306,13 +305,19 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
 </style>
 
 <script>
+  let topNavScrollCleanup
+
   function initScroll() {
+    if (topNavScrollCleanup) topNavScrollCleanup()
     const nav = document.querySelector('.top-nav')
     if (nav) {
       const onScroll = () => {
         nav.classList.toggle('scrolled', window.scrollY > 10)
       }
       window.addEventListener('scroll', onScroll, { passive: true })
+      topNavScrollCleanup = () => {
+        window.removeEventListener('scroll', onScroll)
+      }
       onScroll()
     }
   }

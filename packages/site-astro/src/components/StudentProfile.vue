@@ -24,9 +24,9 @@
       </div>
 
       <!-- 标准个人页模板 -->
-      <div v-else class="student-page">
+      <div v-else class="student-page page-shell">
         <!-- Student Hero Section -->
-        <section class="student-hero">
+        <section class="student-archive-hero paper-panel">
           <div class="hero-bg" :style="bgStyle"></div>
           <div class="hero-content container">
             <div class="hero-avatar">
@@ -52,7 +52,7 @@
         </section>
 
         <!-- Student Body Content -->
-        <div class="student-body container fade-in-section">
+        <div class="student-body container">
           <!-- 基础信息 -->
           <section v-if="hasFields(basicFields)" class="profile-section fade-in" data-info-section="身份档案">
             <h2 class="section-title display-sm">身份档案</h2>
@@ -131,7 +131,7 @@
           </section>
 
           <!-- 照片墙，视口可见后加载 -->
-          <div ref="photoWallAnchor" id="photo-wall-anchor" style="min-height: 1px;">
+          <div ref="photoWallAnchor" id="photo-wall-anchor" class="lazy-anchor">
             <section v-if="student.photos?.length && photoWallVisible" class="profile-section fade-in">
               <h2 class="section-title display-sm">照片墙</h2>
               <PhotoWall :photos="student.photos" :apiBase="apiBase" />
@@ -139,12 +139,12 @@
           </div>
 
           <!-- 留言板，视口可见后加载 -->
-          <div ref="messageWallAnchor" id="message-wall-anchor" style="min-height: 1px;">
+          <div ref="messageWallAnchor" id="message-wall-anchor" class="lazy-anchor">
             <MessageWall v-if="messageWallVisible" :studentSlug="student.slug" :apiBase="apiBase" />
           </div>
 
           <!-- 延迟加载亮点入口，视口可见后加载 -->
-          <div v-if="anyHighlightEnabled" ref="highlightsAnchor" id="highlights-anchor" style="min-height: 1px;">
+          <div v-if="anyHighlightEnabled" ref="highlightsAnchor" id="highlights-anchor" class="lazy-anchor">
             <div v-if="highlightsVisible" class="lazy-highlights">
               <ClassGraphPreview v-if="classGraphEnabled" :apiBase="apiBase" :sampleNames="['张三', '李四', '王五']" />
               <SeatMapPreview v-if="seatMapEnabled" :apiBase="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
@@ -511,6 +511,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.lazy-anchor {
+  min-height: 200px;
+}
+
 .student-loading-container {
   display: flex;
   flex-direction: column;
@@ -552,29 +556,58 @@ onUnmounted(() => {
   border: none;
 }
 
-.student-hero {
-  position: relative;
-  padding: var(--spacing-xxl) 0;
-  text-align: center;
-  background-color: var(--color-surface-soft);
-  overflow: hidden;
+.student-page {
+  color: var(--color-paper-ink);
 }
-.hero-bg { position: absolute; inset: 0; z-index: 0; opacity: 0.15; }
-.hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); }
+
+.student-archive-hero {
+  position: relative;
+  width: min(1120px, calc(100% - 2 * var(--spacing-lg)));
+  margin: calc(var(--nav-height) + var(--spacing-xl)) auto 0;
+  padding: var(--spacing-xl);
+  overflow: hidden;
+  background: var(--color-paper-card);
+}
+
+.student-archive-hero .hero-bg {
+  opacity: 0.1;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
 .hero-avatar {
   width: 96px; height: 96px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--color-surface-card), var(--color-hairline));
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--color-hairline);
+  border: 3px solid var(--color-paper-border);
+  background: var(--color-paper-card-muted);
   margin-bottom: var(--spacing-sm);
 }
 .hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-char { font-family: var(--font-display); font-size: 40px; font-weight: 500; color: var(--color-muted); }
-.hero-nickname, .hero-motto { font-size: var(--type-body-md-size); color: var(--color-muted); font-style: italic; }
+
+.hero-name,
+.section-title {
+  color: var(--color-paper-ink);
+}
+
+.hero-nickname,
+.hero-motto {
+  color: var(--color-paper-muted);
+  font-size: var(--type-body-md-size);
+  font-style: italic;
+}
+
 .owner-badge {
   display: inline-flex;
   align-items: center;
@@ -588,25 +621,38 @@ onUnmounted(() => {
 }
 
 .student-body {
-  padding-top: var(--spacing-section);
+  padding-top: var(--spacing-xl);
   padding-bottom: var(--spacing-section);
 }
 
-.profile-section { margin-bottom: var(--spacing-section); }
-.section-title {
+.profile-section {
   margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-hairline);
+  padding: var(--spacing-xl);
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-paper-card);
 }
+
+.section-title {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-paper-border);
+}
+
 .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md); }
 .memory-list { display: flex; flex-direction: column; gap: var(--spacing-md); }
-.info-item { padding: var(--spacing-sm) 0; }
-.info-label { display: block; font-size: var(--type-body-sm-size); font-weight: 500; color: var(--color-muted); margin-bottom: var(--spacing-xxs); }
-.info-value { font-size: var(--type-body-md-size); color: var(--color-ink); }
+.info-item {
+  padding: var(--spacing-sm);
+  border-radius: var(--rounded-sm);
+  background: var(--color-paper-bg-soft);
+}
+.info-label { display: block; font-size: var(--type-body-sm-size); font-weight: 500; color: var(--color-paper-muted); margin-bottom: var(--spacing-xxs); }
+.info-value { font-size: var(--type-body-md-size); color: var(--color-paper-ink); }
 
 .profile-module-item {
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-hairline);
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
   border-radius: var(--rounded-md);
 }
 
@@ -616,15 +662,15 @@ onUnmounted(() => {
   align-items: center;
   margin-top: var(--spacing-xxl);
   padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--color-hairline);
+  border-top: 1px solid var(--color-paper-border);
 }
 .visits { font-size: var(--type-body-sm-size); color: var(--color-muted); }
 .seal {
   font-family: var(--font-display);
   font-size: 20px;
   font-weight: 600;
-  color: var(--color-error);
-  border: 2px solid var(--color-error);
+  color: var(--color-paper-stamp-red);
+  border: 2px solid var(--color-paper-stamp-red);
   padding: 4px 12px;
   border-radius: var(--rounded-sm);
   transform: rotate(-12deg);
@@ -651,8 +697,30 @@ onUnmounted(() => {
 }
 .share-trigger-btn:hover { transform: scale(1.05); }
 
+@media (min-width: 960px) {
+  .student-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
+  .student-archive-hero {
+    width: calc(100% - 2 * var(--spacing-md));
+    margin-top: calc(var(--nav-height) + var(--spacing-lg));
+    padding: var(--spacing-lg);
+  }
+
+  .profile-section {
+    padding: var(--spacing-lg);
+  }
+
   .info-grid { grid-template-columns: 1fr; }
+
+  .share-trigger-container {
+    right: var(--spacing-md);
+    bottom: var(--spacing-md);
+  }
 }
 
 .lazy-highlights {

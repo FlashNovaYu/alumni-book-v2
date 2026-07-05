@@ -44,6 +44,17 @@ describe('responsive vintage paper redesign static constraints', () => {
     expect(hero).not.toContain('museum-hero__pass')
   })
 
+  it('homepage scroll entry uses CSS-first progressive reveal motion', () => {
+    const hero = read('components/MuseumHero.astro')
+
+    expect(hero).toContain('home-scroll-reveal')
+    expect(hero).toContain('animation-timeline: view()')
+    expect(hero).toContain('@supports (animation-timeline: view())')
+    expect(hero).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(hero).not.toContain('import gsap')
+    expect(hero).not.toContain('ScrollTrigger')
+  })
+
   it('login component remains testable and no longer depends on the double-page spine layout', () => {
     const login = read('components/ClassmateLoginBook.vue')
 

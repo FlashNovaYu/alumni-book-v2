@@ -2,11 +2,22 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "paths": {
-      "@/*": ["src/*"],
-      "@alumni/shared": ["../shared/src/index.ts"],
-      "@alumni/shared/*": ["../shared/src/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@alumni/shared": [
+        "../shared/src/index.ts"
+      ],
+      "@alumni/shared/*": [
+        "../shared/src/*"
+      ]
     }
-  }
+  },
+  "exclude": [
+    "src/components/ui"
+  ]
 }

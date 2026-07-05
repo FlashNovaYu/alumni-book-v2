@@ -28,6 +28,7 @@ test('first login requires changing the initial password before entering preface
   })
 
   await page.goto('/')
+  await page.getByTestId('home-login-cta').click()
   
   // 输入同学姓名
   await page.locator('#username-input').fill('测试同学')

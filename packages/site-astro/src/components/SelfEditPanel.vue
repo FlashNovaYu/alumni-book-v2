@@ -229,6 +229,7 @@ const form = reactive<{
   backgroundUrl: string | null
   backgroundColor: string | null
   info: Record<string, any>
+  editSecret?: string
 }>({
   name: '',
   avatarUrl: null,
@@ -308,6 +309,7 @@ async function openEditorAfterAuthed() {
 function closeEditor() {
   show.value = false
   saveMsg.value = null
+  form.editSecret = undefined
 }
 
 async function uploadFile(e: Event, type: 'avatar' | 'background') {

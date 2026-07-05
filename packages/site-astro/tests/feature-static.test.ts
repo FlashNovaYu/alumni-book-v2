@@ -58,7 +58,9 @@ describe('Feature visibility smoke test', () => {
     const studentHtml = readDistHtml('student/template/index.html')
 
     expect(homeHtml).toContain('CLASS MEMORY MUSEUM')
-    expect(homeHtml).toContain('访客登记')
+    expect(homeHtml).toContain('home-cover')
+    expect(homeHtml).toContain('CLASSMATE PASS')
+    expect(homeHtml).toContain('同学录登录')
     expect(rosterHtml).toContain('人物长廊')
     expect(rosterHtml).toContain('档案检索')
     expect(studentHtml).toContain('档案展柜')

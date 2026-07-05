@@ -87,6 +87,19 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+async function seedClassmateSession(page: any) {
+  await page.goto('/')
+  await page.evaluate(() => {
+    sessionStorage.setItem('classmate_account_token', 'test-classmate-token')
+    sessionStorage.setItem('classmate_account_student', JSON.stringify({
+      name: '测试同学',
+      slug: 'template',
+      avatarUrl: null,
+    }))
+    sessionStorage.setItem('classmate_name', '测试同学')
+  })
+}
+
 // 1. 首页测试：不加载 GSAP, ScrollTrigger, ClassGraphPreview, SeatMapPreview
 test('home page does not request GSAP, ScrollTrigger, ClassGraphPreview, or SeatMapPreview', async ({ page }) => {
   const requests: string[] = []
@@ -99,6 +112,7 @@ test('home page does not request GSAP, ScrollTrigger, ClassGraphPreview, or Seat
     const hasToken = requests.some(url => url.toLowerCase().includes(token) && (url.endsWith('.js') || url.includes('.js?')))
     expect(hasToken, `Home page should not load ${token}`).toBe(false)
   }
+  expect(requests.some(url => url.toLowerCase().includes('/api/classmates'))).toBe(false)
 })
 
 // 2. 时间轴页测试：不加载 GSAP, ScrollTrigger, ClassGraphPreview, SeatMapPreview
@@ -106,11 +120,8 @@ test('timeline page does not load GSAP, ScrollTrigger, ClassGraphPreview, or Sea
   const requests: string[] = []
   page.on('request', req => requests.push(req.url()))
 
-  // 先访问首页确立同源 origin，写入会话，避开重定向门控
-  await page.goto('/')
-  await page.evaluate(() => {
-    sessionStorage.setItem('classmate_name', '测试同学')
-  })
+  // 先访问首页确立同源 origin，写入账号会话，避开重定向门控
+  await seedClassmateSession(page)
 
   await page.goto('/timeline/', { waitUntil: 'networkidle' })
 
@@ -126,11 +137,8 @@ test('roster page: lazy loads ClassGraphPreview and SeatMapPreview on scroll, an
   const requests: string[] = []
   page.on('request', req => requests.push(req.url()))
 
-  // 先访问首页确立同源 origin，写入会话，避开重定向门控
-  await page.goto('/')
-  await page.evaluate(() => {
-    sessionStorage.setItem('classmate_name', '测试同学')
-  })
+  // 先访问首页确立同源 origin，写入账号会话，避开重定向门控
+  await seedClassmateSession(page)
 
   // 1. 访问人物长廊页，等待网络稳定（首屏加载完毕）
   await page.goto('/roster/', { waitUntil: 'networkidle' })
@@ -170,11 +178,8 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
     requests.push(req.url())
   })
 
-  // 先访问首页确立同源 origin，写入会话，避开重定向门控
-  await page.goto('/')
-  await page.evaluate(() => {
-    sessionStorage.setItem('classmate_name', '测试同学')
-  })
+  // 先访问首页确立同源 origin，写入账号会话，避开重定向门控
+  await seedClassmateSession(page)
 
   // 1. 访问学生详情页（用 template），等待网络稳定，但首屏不应该触发下半部分延迟加载的组件
   await page.goto('/student/template/', { waitUntil: 'networkidle' })

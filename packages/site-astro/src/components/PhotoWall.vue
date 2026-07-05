@@ -151,11 +151,40 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.photo-wall { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm); }
-.photo-item { aspect-ratio: 1; border-radius: var(--rounded-sm); overflow: hidden; cursor: pointer; transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart); position: relative; }
-.photo-item:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
-.photo-item img { width: 100%; height: 100%; object-fit: cover; }
-@media (max-width: 768px) { .photo-wall { grid-template-columns: repeat(2, 1fr); } }
+.photo-wall {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.photo-item {
+  aspect-ratio: 1;
+  border: 6px solid var(--color-paper-card);
+  border-radius: var(--rounded-sm);
+  background: var(--color-paper-card-muted);
+  box-shadow: var(--shadow-paper-card);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart);
+  position: relative;
+}
+
+.photo-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 768px) {
+  .photo-wall {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
 .photo-error-placeholder {
   width: 100%;

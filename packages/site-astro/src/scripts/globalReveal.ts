@@ -1,10 +1,15 @@
 import { prefersReducedMotion } from '../utils/motion'
 
 let initialized = false
+let activeObserver: IntersectionObserver | null = null
 
 export function initGlobalReveal(force = false) {
   if (force) {
     initialized = false
+    if (activeObserver) {
+      activeObserver.disconnect()
+      activeObserver = null
+    }
   }
   if (initialized) return
   initialized = true
@@ -32,5 +37,6 @@ export function initGlobalReveal(force = false) {
     })
   }, { rootMargin: '0px 0px -10% 0px' })
 
-  revealEls.forEach((el) => observer.observe(el))
+  activeObserver = observer
+  revealEls.forEach((el) => activeObserver?.observe(el))
 }

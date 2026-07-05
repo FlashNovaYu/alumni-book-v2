@@ -131,4 +131,14 @@ describe('Performance Static Constraints Test', () => {
     expect(globalCss).toContain('@media (prefers-reduced-motion: reduce)')
     expect(globalCss).toContain('.museum-motion-soft:hover')
   })
+
+  it('homepage cover flow stays CSS-first and does not ship heavy visual dependencies', () => {
+    const hero = fs.readFileSync(path.resolve(__dirname, '../src/components/MuseumHero.astro'), 'utf-8')
+
+    expect(hero).not.toContain('import gsap')
+    expect(hero).not.toContain('ScrollTrigger')
+    expect(hero).not.toContain('<img')
+    expect(hero).toContain('home-cover')
+    expect(hero).toContain('home-login-section')
+  })
 })

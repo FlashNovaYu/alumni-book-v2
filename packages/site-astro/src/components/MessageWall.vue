@@ -437,10 +437,45 @@ onMounted(async () => {
   }
 }
 
+@media (max-width: 768px) {
+  .msg-style-selector {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: var(--spacing-xxs);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .msg-style-selector::-webkit-scrollbar {
+    display: none;
+  }
+
+  .style-select-btn {
+    flex: 0 0 auto;
+  }
+
+  .msg-item,
+  .msg-item:nth-child(even),
+  .msg-item:nth-child(odd),
+  .msg-item:hover {
+    transform: none !important;
+  }
+
+  .msg-item:hover {
+    box-shadow: var(--shadow-paper-card) !important;
+  }
+
+  .reply-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-in-msg {
     opacity: 1 !important;
-    transform: none !important;
+    transform: rotate(0deg) !important;
     animation: none !important;
   }
   .msg-item, .msg-item:nth-child(even), .msg-item:nth-child(odd) {
