@@ -7,7 +7,7 @@
     "build": "npm run build:data && astro build",
     "build:data": "tsx scripts/fetch-data.ts",
     "preview": "astro preview",
-    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts tests/feature-static.test.ts tests/performance-static.test.ts tests/student-profile-lifecycle.test.ts tests/animation-ownership.test.ts tests/classmate-auth-static.test.ts",
+    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts tests/feature-static.test.ts tests/performance-static.test.ts tests/student-profile-lifecycle.test.ts tests/animation-ownership.test.ts tests/classmate-auth-static.test.ts tests/responsive-vintage-static.test.ts",
     "test:with-build": "pnpm build && pnpm test",
     "test:perf-network": "playwright test tests/performance-network.spec.ts tests/classmate-login-flow.spec.ts",
     "typecheck": "vue-tsc --noEmit"
