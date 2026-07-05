@@ -1,6 +1,7 @@
 ---
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
+import { ClientRouter } from 'astro:transitions' // 引入 Astro 5 视图过渡引擎
 // 全局样式与轻量 reveal 动效；页面级重动画必须按需加载
 import '../styles/global.css'
 ---
@@ -10,23 +11,16 @@ import '../styles/global.css'
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>同学录</title>
+    <ClientRouter /> <!-- 挂载视图过渡，接管 SPA 式局部渲染 -->
     <script is:inline>
       (function() {
         document.documentElement.classList.add('js');
-        const sessionName = (function() {
-          try {
-            const studentStr = sessionStorage.getItem('classmate_student');
-            if (studentStr) return JSON.parse(studentStr).name;
-          } catch(e) {}
-          const k = 'classmate_name';
-          return sessionStorage.getItem(k);
-        })();
-        const name = sessionName;
+        const token = sessionStorage.getItem('classmate_account_token');
         const path = window.location.pathname;
         const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/');
         const isAdmin = path.includes('/admin/');
         const is404 = path.includes('/404');
-        if (!name && !isHome && !isAdmin && !is404) {
+        if (!token && !isHome && !isAdmin && !is404) {
           const base = path.includes('/alumni-book-v2/') ? '/alumni-book-v2/' : '/';
           window.location.href = base;
         }
@@ -42,35 +36,10 @@ import '../styles/global.css'
       </main>
       <script>
         import { initGlobalReveal } from '../scripts/globalReveal'
-        initGlobalReveal()
 
-        // 监听全局普通链接点击，做无缝淡出跳转过渡
-        document.addEventListener('click', (e) => {
-          const target = (e.target as HTMLElement).closest('a')
-          if (!target) return
-
-          const href = target.getAttribute('href')
-          if (!href) return
-
-          // 仅拦截站内普通页面跳转链接，排除锚点、新开窗口、外链、以及管理后台
-          const isExternal = href.startsWith('http') && !href.startsWith(window.location.origin)
-          const isTargetBlank = target.getAttribute('target') === '_blank'
-          const isAnchor = href.startsWith('#') || href.startsWith('javascript:')
-          const isAdmin = href.includes('/admin')
-
-          if (isExternal || isTargetBlank || isAnchor || isAdmin || e.metaKey || e.ctrlKey || e.shiftKey) {
-            return
-          }
-
-          e.preventDefault()
-          const mainContent = document.querySelector('.main-content')
-          if (mainContent) {
-            mainContent.classList.add('page-fade-out')
-          }
-
-          setTimeout(() => {
-            window.location.href = href
-          }, 180)
+        // 监听视图过渡完成事件，每次进入新页面自动初始化全局 Reveal 动效
+        document.addEventListener('astro:page-load', () => {
+          initGlobalReveal()
         })
       </script>
       <AppFooter />

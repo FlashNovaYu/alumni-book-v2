@@ -18,23 +18,23 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
     <div class="nav-links">
       <a href={href('/preface')} class={`nav-link ${currentPath.startsWith(href('/preface')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/preface')) ? 'page' : undefined}>
         <span class="link-text">前言</span>
-        <span class="lamp-glow"></span>
+        {currentPath.startsWith(href('/preface')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
       </a>
       <a href={href('/roster')} class={`nav-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/roster')) ? 'page' : undefined}>
         <span class="link-text">同学录</span>
-        <span class="lamp-glow"></span>
+        {currentPath.startsWith(href('/roster')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
       </a>
       <a href={href('/album')} class={`nav-link ${currentPath.startsWith(href('/album')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/album')) ? 'page' : undefined}>
         <span class="link-text">相册</span>
-        <span class="lamp-glow"></span>
+        {currentPath.startsWith(href('/album')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
       </a>
       <a href={href('/timeline')} class={`nav-link ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/timeline')) ? 'page' : undefined}>
         <span class="link-text">时光轴</span>
-        <span class="lamp-glow"></span>
+        {currentPath.startsWith(href('/timeline')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
       </a>
       <a href={href('/yearbook')} class={`nav-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/yearbook')) ? 'page' : undefined}>
         <span class="link-text">年度册 (PDF)</span>
-        <span class="lamp-glow"></span>
+        {currentPath.startsWith(href('/yearbook')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
       </a>
       
       <!-- 静态与客户端完全一致的已登录身份栏：0 水合开销，0 nextTick 黑洞，彻底消灭消失又出现的闪烁 -->
@@ -43,42 +43,47 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
         <button id="classmate-nav-logout" class="btn-logout">退出</button>
       </div>
 
-      <!-- 同步点亮及绑定退出登录的原生极速 inline 脚本 -->
+      <!-- 同步点亮静态登录态的原生极速 inline 脚本 -->
       <script is:inline define:vars={{ CLIENT_API_BASE }}>
-        (function() {
+        function syncNavSession() {
           try {
             const studentStr = sessionStorage.getItem('classmate_student');
             const token = sessionStorage.getItem('classmate_account_token');
+            const el = document.getElementById('classmate-nav-session');
+            const nameEl = document.getElementById('classmate-nav-name');
+            const logoutBtn = document.getElementById('classmate-nav-logout');
+            
             if (studentStr && token) {
               const student = JSON.parse(studentStr);
-              if (student && student.name) {
-                const el = document.getElementById('classmate-nav-session');
-                const nameEl = document.getElementById('classmate-nav-name');
-                const logoutBtn = document.getElementById('classmate-nav-logout');
+              if (student && student.name && el && nameEl && logoutBtn) {
+                nameEl.textContent = student.name + '同学';
+                el.style.display = 'flex';
                 
-                if (el && nameEl && logoutBtn) {
-                  nameEl.textContent = student.name + '同学';
-                  el.style.display = 'flex';
-                  
-                  // 绑定退出登录点击行为
-                  logoutBtn.addEventListener('click', async function() {
-                    if (confirm('确认关闭并退出你的纪念册？')) {
-                      try {
-                        // 在后台静默发送登出请求
-                        await fetch(CLIENT_API_BASE + '/api/classmate-auth/logout', {
-                          method: 'POST',
-                          headers: { 'X-Classmate-Token': token }
-                        });
-                      } catch (e) {}
-                      sessionStorage.clear();
-                      window.location.href = '/';
-                    }
-                  });
-                }
+                // 重新绑定退出登录点击行为，防止 DOM 替换后事件丢失
+                logoutBtn.onclick = async function() {
+                  if (confirm('确认关闭并退出你的纪念册？')) {
+                    try {
+                      await fetch(CLIENT_API_BASE + '/api/classmate-auth/logout', {
+                        method: 'POST',
+                        headers: { 'X-Classmate-Token': token }
+                      });
+                    } catch (e) {}
+                    sessionStorage.clear();
+                    window.location.href = '/';
+                  }
+                };
               }
+            } else {
+              if (el) el.style.display = 'none';
             }
           } catch (e) {}
-        })();
+        }
+        
+        // 1. 首帧同步执行（First Paint 之前同步点亮）
+        syncNavSession();
+        
+        // 2. 视图过渡跳转后重新校验并绑定事件
+        document.addEventListener('astro:page-load', syncNavSession);
       </script>
     </div>
   </div>
@@ -174,7 +179,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
   }
 
   /* 复古床头灯泡渐变光晕 (Tubelight / Lamp Effect) */
-  .nav-link.active .lamp-glow {
+  .lamp-glow {
     position: absolute;
     top: -4px; /* 贴近胶囊上边缘 */
     left: 50%;
@@ -301,58 +306,20 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
 </style>
 
 <script>
-  const nav = document.querySelector('.top-nav')
-  if (nav) {
-    const onScroll = () => {
-      nav.classList.toggle('scrolled', window.scrollY > 10)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-
-    // --- 极速阻尼物理滑移灯管算法 (Spring Beziers Sliding Lamp) ---
-    const links = Array.from(nav.querySelectorAll('.nav-link')) as HTMLElement[]
-    const activeLink = nav.querySelector('.nav-link.active') as HTMLElement
-    
-    if (activeLink) {
-      const activeIndex = links.indexOf(activeLink)
-      const prevIndexStr = localStorage.getItem('prev_nav_index')
-      
-      if (prevIndexStr !== null) {
-        const prevIndex = parseInt(prevIndexStr, 10)
-        if (prevIndex !== activeIndex && prevIndex >= 0 && prevIndex < links.length) {
-          const prevLink = links[prevIndex]
-          
-          // 计算上一个活动 Tab 与当前活动 Tab 中心在水平上的偏差像素
-          const dx = prevLink.offsetLeft + (prevLink.offsetWidth / 2) - (activeLink.offsetLeft + (activeLink.offsetWidth / 2))
-          
-          const glow = activeLink.querySelector('.lamp-glow') as HTMLElement
-          if (glow) {
-            // 1. 瞬间定位灯光（无过渡动画）
-            glow.style.transition = 'none'
-            glow.style.transform = `translateX(calc(-50% + ${dx}px))`
-            
-            // 2. 强制 Reflow
-            glow.offsetHeight
-            
-            // 3. 采用高度拟合 spring(300, 30) 的高回弹阻尼贝塞尔曲线进行滑移动效
-            glow.style.transition = 'transform 0.48s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.48s cubic-bezier(0.34, 1.56, 0.64, 1)'
-            glow.style.transform = 'translateX(-50%)'
-            glow.style.boxShadow = `
-              0 0 10px rgba(204, 120, 92, 0.95),
-              0 0 20px rgba(204, 120, 92, 0.5),
-              0 0 35px rgba(204, 120, 92, 0.25)
-            `
-          }
-        }
+  function initScroll() {
+    const nav = document.querySelector('.top-nav')
+    if (nav) {
+      const onScroll = () => {
+        nav.classList.toggle('scrolled', window.scrollY > 10)
       }
-      
-      localStorage.setItem('prev_nav_index', activeIndex.toString())
+      window.addEventListener('scroll', onScroll, { passive: true })
+      onScroll()
     }
-
-    links.forEach((link, idx) => {
-      link.addEventListener('click', () => {
-        localStorage.setItem('prev_nav_index', idx.toString())
-      })
-    })
   }
+
+  // 1. 首屏加载时初始化滚动检测
+  initScroll();
+
+  // 2. 每次视图过渡跳转完毕后，重新绑定滚动检测
+  document.addEventListener('astro:page-load', initScroll);
 </script>
