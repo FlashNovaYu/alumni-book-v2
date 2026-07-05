@@ -101,7 +101,7 @@ async function handleSubmit() {
     successMsg.value = '密码已装订进你的纪念册！'
     setTimeout(() => {
       emit('completed')
-    }, 1500)
+    }, 500)
   } catch (err: any) {
     error.value = err.message || '更新密码失败，请稍后重试'
   } finally {

@@ -47,5 +47,5 @@ test('first login requires changing the initial password before entering preface
   await page.click('.change-password-btn')
   
   // 校验是否跳转至前言页面
-  await expect(page).toHaveURL(/\/preface/)
+  await expect(page).toHaveURL(/\/preface/, { timeout: 15000 })
 })

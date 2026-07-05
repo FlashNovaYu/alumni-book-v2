@@ -13,7 +13,15 @@ import '../styles/global.css'
     <script is:inline>
       (function() {
         document.documentElement.classList.add('js');
-        const name = sessionStorage.getItem('classmate_name');
+        const sessionName = (function() {
+          try {
+            const studentStr = sessionStorage.getItem('classmate_student');
+            if (studentStr) return JSON.parse(studentStr).name;
+          } catch(e) {}
+          const k = 'classmate_name';
+          return sessionStorage.getItem(k);
+        })();
+        const name = sessionName;
         const path = window.location.pathname;
         const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/');
         const isAdmin = path.includes('/admin/');

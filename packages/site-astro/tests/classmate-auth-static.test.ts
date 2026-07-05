@@ -16,4 +16,18 @@ describe('classmate account login frontend', () => {
     expect(source).toContain('setClassmateSession')
     expect(source).not.toContain("sessionStorage.setItem('classmate_name'")
   })
+
+  it('Layout and navigation files should use getClassmateStudent / clearClassmateSession instead of bare sessionStorage', () => {
+    const layoutPath = path.resolve(__dirname, '../src/layouts/MainLayout.astro')
+    const navPath = path.resolve(__dirname, '../src/components/TopNav.vue')
+
+    if (fs.existsSync(layoutPath)) {
+      const source = fs.readFileSync(layoutPath, 'utf-8')
+      expect(source).not.toContain("sessionStorage.getItem('classmate_name'")
+    }
+    if (fs.existsSync(navPath)) {
+      const source = fs.readFileSync(navPath, 'utf-8')
+      expect(source).not.toContain("sessionStorage.removeItem('classmate_name'")
+    }
+  })
 })

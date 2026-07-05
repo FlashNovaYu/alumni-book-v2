@@ -26,3 +26,15 @@ export async function changeClassmatePassword(apiBase: string, oldPassword: stri
   if (!res.ok || !data.success) throw new Error(data.message || '修改密码失败')
   return data
 }
+
+export async function logoutClassmate(apiBase: string) {
+  const token = getClassmateToken()
+  const res = await fetch(joinApiUrl(apiBase, '/api/classmate-auth/logout'), {
+    method: 'POST',
+    headers: token ? { 'X-Classmate-Token': token } : {},
+  })
+  const data = await res.json() as ApiResponse
+  if (!res.ok || !data.success) throw new Error(data.message || '登出失败')
+  return data
+}
+
