@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+  globalTeardown: require.resolve('./tests/teardown.ts'),
+  expect: {
+    timeout: 10000,
+  },
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   fullyParallel: true,
