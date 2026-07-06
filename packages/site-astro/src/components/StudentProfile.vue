@@ -144,8 +144,9 @@
           </div>
 
           <!-- 延迟加载亮点入口，视口可见后加载 -->
-          <div v-if="anyHighlightEnabled" ref="highlightsAnchor" id="highlights-anchor" class="lazy-anchor">
-            <div v-if="highlightsVisible" class="lazy-highlights">
+          <div v-if="anyHighlightEnabled">
+            <div id="highlights-anchor" class="lazy-anchor" ref="highlightsAnchor"></div>
+            <div v-if="highlightsVisible" class="profile-highlights paper-highlight-grid">
               <ClassGraphPreview v-if="classGraphEnabled" :apiBase="apiBase" :sampleNames="['张三', '李四', '王五']" />
               <SeatMapPreview v-if="seatMapEnabled" :apiBase="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
             </div>
@@ -676,18 +677,8 @@ onUnmounted(() => {
   }
 }
 
-.lazy-highlights {
+.profile-highlights {
   margin-top: var(--spacing-xl);
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
-}
-
-@media (max-width: 768px) {
-  .lazy-highlights {
-    grid-template-columns: 1fr;
-  }
 }
 
 .hero-tags {

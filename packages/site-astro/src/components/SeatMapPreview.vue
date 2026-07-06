@@ -1,10 +1,10 @@
 <template>
   <section class="seat-preview paper-panel museum-motion-soft">
-    <p class="museum-kicker">CLASSROOM MEMORY</p>
-    <h2>座位记忆</h2>
-    <p v-if="seatMap">已收录 {{ seatMap.seats.length }} 个座位，{{ seatMap.missingSeatCount }} 位同学待补充。</p>
-    <p v-else-if="loading">正在提取教室座位记忆...</p>
-    <p v-else>载入班级座位分布的记忆缩略。</p>
+    <p class="museum-kicker">ARCHIVE // 班级座位分布卷宗</p>
+    <h2>教室座位记忆图</h2>
+    <p v-if="seatMap" class="archive-desc">检索成功: 已收录 <span class="highlight-count">{{ seatMap.seats.length }}</span> 个座位，<span class="highlight-count">{{ seatMap.missingSeatCount }}</span> 位同学待补充。</p>
+    <p v-else-if="loading" class="archive-desc">正在提取教室座位记忆...</p>
+    <p v-else class="archive-desc">载入班级座位分布的档案缩略图解。</p>
     <div class="seat-preview__grid">
       <span v-for="seat in seats" :key="seat" class="seat-cell">{{ seat }}</span>
     </div>
@@ -50,14 +50,27 @@ onMounted(async () => {
 
 .museum-kicker {
   color: var(--color-paper-brown);
+  font-family: var(--font-display);
+  font-size: var(--type-caption-size);
+  letter-spacing: 0.1em;
 }
 
 .seat-preview h2 {
-  color: var(--color-paper-ink);
+  color: var(--color-paper-brown);
+  font-family: var(--font-display);
+  margin-top: var(--spacing-xxs);
+  margin-bottom: var(--spacing-xs);
 }
 
-.seat-preview p {
+.archive-desc {
   color: var(--color-paper-muted);
+  font-size: var(--type-body-sm-size);
+  margin-bottom: var(--spacing-md);
+}
+
+.highlight-count {
+  color: var(--color-paper-brown);
+  font-weight: bold;
 }
 
 .seat-preview__grid {

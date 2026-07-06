@@ -80,4 +80,15 @@ describe('public site major redesign constraints', () => {
     expect(photoWall).not.toContain("import('gsap/ScrollTrigger')")
     expect(photoWall).not.toContain('scrollTrigger:')
   })
+
+  it('student profile keeps interaction highlights lazy and paper grouped', () => {
+    const source = read('components/StudentProfile.vue')
+
+    expect(source).toContain('id="highlights-anchor"')
+    expect(source).toContain('class="lazy-anchor"')
+    expect(source).toContain('profile-highlights')
+    expect(source).toContain('ClassGraphPreview')
+    expect(source).toContain('SeatMapPreview')
+  })
 })
+

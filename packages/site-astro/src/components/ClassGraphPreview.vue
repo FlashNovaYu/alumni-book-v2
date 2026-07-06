@@ -1,11 +1,11 @@
 <template>
   <section class="graph-preview paper-panel museum-motion-soft">
-    <p class="museum-kicker">CLASS GRAPH</p>
-    <h2>班级图谱</h2>
-    <p v-if="graph">已整理 {{ graph.nodes.length }} 位同学与 {{ graph.edges.length }} 条关系线索。</p>
-    <p v-else-if="loading">正在整理班级关系线索...</p>
-    <p v-else>根据兴趣、座位、小组和留言互动生成的班级关系入口。</p>
-    <button class="btn-secondary" @click="loaded = true">查看图谱预览</button>
+    <p class="museum-kicker">ARCHIVE // 班级图谱卷宗</p>
+    <h2>班级社交网络图谱</h2>
+    <p v-if="graph" class="archive-desc">检索成功: 已整理 <span class="highlight-count">{{ graph.nodes.length }}</span> 位同学与 <span class="highlight-count">{{ graph.edges.length }}</span> 条关系线索。</p>
+    <p v-else-if="loading" class="archive-desc">正在检索班级关系卷宗...</p>
+    <p v-else class="archive-desc">基于同桌、留言及共同兴趣分析生成的网络关联检索入口。</p>
+    <button class="btn-secondary" @click="loaded = true">调阅图谱预览</button>
     <div v-if="loaded" class="graph-preview__nodes">
       <span v-for="name in sampleNames" :key="name">{{ name }}</span>
     </div>
@@ -52,14 +52,27 @@ onMounted(async () => {
 
 .museum-kicker {
   color: var(--color-paper-brown);
+  font-family: var(--font-display);
+  font-size: var(--type-caption-size);
+  letter-spacing: 0.1em;
 }
 
 .graph-preview h2 {
-  color: var(--color-paper-ink);
+  color: var(--color-paper-brown);
+  font-family: var(--font-display);
+  margin-top: var(--spacing-xxs);
+  margin-bottom: var(--spacing-xs);
 }
 
-.graph-preview p {
+.archive-desc {
   color: var(--color-paper-muted);
+  font-size: var(--type-body-sm-size);
+  margin-bottom: var(--spacing-md);
+}
+
+.highlight-count {
+  color: var(--color-paper-brown);
+  font-weight: bold;
 }
 
 .graph-preview__nodes {

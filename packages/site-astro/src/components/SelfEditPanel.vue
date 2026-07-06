@@ -496,11 +496,19 @@ function moveModule(index: number, direction: number) {
   padding: var(--spacing-md) var(--spacing-lg);
 }
 .edit-section {
+  padding: var(--spacing-lg);
+  background: var(--color-paper-bg-soft);
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-md);
   margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-md);
-  border-bottom: 1px solid var(--color-hairline);
 }
-.section-label { font-size: 13px; color: var(--color-muted); margin-bottom: var(--spacing-xs); text-transform: uppercase; letter-spacing: .05em; }
+.section-label {
+  color: var(--color-paper-brown);
+  font-size: 13px;
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
 
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-sm); }
 .form-group { display: flex; flex-direction: column; gap: var(--spacing-xxs); }
