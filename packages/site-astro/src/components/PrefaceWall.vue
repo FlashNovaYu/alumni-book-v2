@@ -83,13 +83,69 @@ onMounted(() => {
 .preface-content {
   color: var(--color-paper-ink-soft);
   line-height: 2.15;
+  text-indent: 2em;
+  text-align: justify;
+}
+
+.hairline {
+  border: none;
+  border-top: 1px solid var(--color-paper-border-soft);
+}
+
+.acknowledgment {
+  text-align: center;
+}
+
+.ack-title {
+  margin-bottom: var(--spacing-xl);
+}
+
+.ack-grid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xl);
 }
 
 .ack-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
   color: var(--color-paper-ink);
 }
 
+.ack-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-paper-card-muted), var(--color-paper-brown-soft));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-paper-border);
+}
+
+.ack-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--color-paper-muted);
+}
+
+.ack-name {
+  font-size: var(--type-title-sm-size);
+}
+
 .ack-role {
+  font-size: var(--type-body-sm-size);
   color: var(--color-paper-muted);
 }
 </style>
