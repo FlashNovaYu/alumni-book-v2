@@ -1,12 +1,12 @@
 <template>
-  <section class="seat-preview museum-paper museum-motion-soft">
+  <section class="seat-preview paper-panel museum-motion-soft">
     <p class="museum-kicker">CLASSROOM MEMORY</p>
     <h2>座位记忆</h2>
     <p v-if="seatMap">已收录 {{ seatMap.seats.length }} 个座位，{{ seatMap.missingSeatCount }} 位同学待补充。</p>
     <p v-else-if="loading">正在提取教室座位记忆...</p>
     <p v-else>载入班级座位分布的记忆缩略。</p>
     <div class="seat-preview__grid">
-      <span v-for="seat in seats" :key="seat">{{ seat }}</span>
+      <span v-for="seat in seats" :key="seat" class="seat-cell">{{ seat }}</span>
     </div>
   </section>
 </template>
@@ -42,6 +42,22 @@ onMounted(async () => {
 .seat-preview {
   padding: var(--spacing-lg);
   border-radius: var(--rounded-md);
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  color: var(--color-paper-ink);
+  box-shadow: var(--shadow-paper-card);
+}
+
+.museum-kicker {
+  color: var(--color-paper-brown);
+}
+
+.seat-preview h2 {
+  color: var(--color-paper-ink);
+}
+
+.seat-preview p {
+  color: var(--color-paper-muted);
 }
 
 .seat-preview__grid {
@@ -51,12 +67,12 @@ onMounted(async () => {
   margin-top: var(--spacing-md);
 }
 
-.seat-preview__grid span {
+.seat-cell {
   min-height: 38px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--color-hairline);
+  border: 1px solid var(--color-paper-border);
   border-radius: var(--rounded-sm);
-  background: var(--color-canvas);
+  background: var(--color-paper-bg-soft);
 }
 </style>

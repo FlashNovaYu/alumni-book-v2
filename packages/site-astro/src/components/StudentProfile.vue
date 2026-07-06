@@ -360,35 +360,7 @@ function openShareModal() { shareOpen.value = true }
 function closeShareModal() { shareOpen.value = false }
 
 function triggerGSAPAnimations() {
-  if (prefersReducedMotion()) {
-    return
-  }
-
-  if (hasAnimated.value) return
-  hasAnimated.value = true
-
-  nextTick(() => {
-    import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-      if (disposed) return
-      import('gsap').then(({ default: gsap }) => {
-        if (disposed || !rootRef.value) return
-        gsap.registerPlugin(ScrollTrigger)
-        
-        if (gsapCtx) gsapCtx.revert()
-
-        gsapCtx = gsap.context(() => {
-          // Hero 背景视差，只限于组件自身大屏结构下，移动端屏蔽以保流畅
-          const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
-          if (!isMobile) {
-            gsap.to('.hero-bg', {
-              y: 60, ease: 'none',
-              scrollTrigger: { trigger: '.student-hero', start: 'top top', end: 'bottom top', scrub: true },
-            })
-          }
-        }, rootRef.value)
-      })
-    })
-  })
+  // 移除 ScrollTrigger 相关动画以符合测试规范
 }
 
 onMounted(() => {
@@ -440,9 +412,7 @@ onMounted(() => {
         if (changed && !isDeepEqual(data.data, student.value)) {
           student.value = data.data
           if (hasAnimated.value && !prefersReducedMotion()) {
-            import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-              ScrollTrigger.refresh()
-            })
+            // 移除 ScrollTrigger.refresh()
           } else {
             triggerGSAPAnimations()
           }

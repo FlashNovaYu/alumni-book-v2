@@ -1,5 +1,5 @@
 <template>
-  <div v-if="hasData" class="rankings-card card">
+  <div v-if="hasData" class="rankings-card paper-panel">
     <div class="card-header-row">
       <h3 class="rankings-title">🌟 班级风云榜</h3>
       <div class="rankings-tabs">
@@ -105,13 +105,19 @@ onMounted(async () => {
 <style scoped>
 .rankings-card {
   max-width: 480px;
-  margin: 0 auto 24px;
-  padding: 16px 20px;
-  background: var(--color-surface-card, #fff);
-  border-radius: var(--rounded-lg);
-  border: 1px solid var(--color-hairline);
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+  margin: 0 auto var(--spacing-xl);
+  padding: var(--spacing-xl);
+  color: var(--color-paper-ink);
+}
+
+.ranking-item {
+  background: var(--color-paper-bg-soft);
+  border: 1px solid var(--color-paper-border-soft);
+}
+
+.ranking-label,
+.ranking-meta {
+  color: var(--color-paper-muted);
 }
 
 .card-header-row {
@@ -173,7 +179,7 @@ onMounted(async () => {
 }
 
 .rank-item:hover {
-  background: var(--color-surface-cream);
+  background: var(--color-paper-bg-soft);
 }
 
 .rank-badge {

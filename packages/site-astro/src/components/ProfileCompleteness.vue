@@ -1,5 +1,5 @@
 <template>
-  <aside class="profile-completeness museum-paper" aria-label="资料完整度">
+  <aside class="profile-completeness" aria-label="资料完整度">
     <div class="profile-completeness__top">
       <span>资料完整度</span>
       <strong>{{ completion }}%</strong>
@@ -33,7 +33,7 @@ defineProps<{
   display: flex;
   justify-content: space-between;
   gap: var(--spacing-md);
-  color: var(--color-museum-ink);
+  color: var(--color-paper-ink);
 }
 
 .profile-completeness__track {
@@ -47,12 +47,12 @@ defineProps<{
 .profile-completeness__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-museum-gold), var(--color-primary));
+  background: linear-gradient(90deg, var(--color-paper-brown), var(--color-primary));
   transition: width var(--duration-slow) var(--ease-out-quart);
 }
 
 .profile-completeness__hint {
-  color: var(--color-muted);
+  color: var(--color-paper-muted);
   font-size: 13px;
   line-height: 1.6;
 }

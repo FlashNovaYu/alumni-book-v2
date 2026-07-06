@@ -1,5 +1,5 @@
 <template>
-  <a :href="card.hasPage ? card.href : '#'" class="archive-card museum-motion-soft" :class="{ 'is-empty': !card.hasPage }">
+  <a :href="card.hasPage ? card.href : '#'" class="archive-card">
     <div class="archive-card__avatar">
       <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" loading="lazy" decoding="async" @error="avatarError = true" />
       <span v-else>{{ card.name.charAt(0) }}</span>
@@ -34,30 +34,29 @@ const avatarSrc = computed(() => {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
   gap: var(--spacing-md);
-  min-height: 152px;
   padding: var(--spacing-lg);
-  color: inherit;
   text-decoration: none;
-  background: var(--color-museum-paper);
-  border: 1px solid var(--color-hairline);
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
   border-radius: var(--rounded-md);
-  box-shadow: var(--shadow-museum-paper);
+  transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart);
 }
 
-.archive-card.is-empty {
-  opacity: 0.72;
+.archive-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-paper-panel);
 }
 
 .archive-card__avatar {
   width: 72px;
   height: 72px;
-  flex: 0 0 72px;
   border-radius: 50%;
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--color-museum-paper-strong), var(--color-museum-film-blue));
-  color: var(--color-museum-ink);
+  background: linear-gradient(135deg, var(--color-paper-card-muted), var(--color-paper-brown-soft));
+  color: var(--color-paper-ink);
+  border: 1px solid var(--color-paper-border);
   font-family: var(--font-display);
   font-size: 30px;
 }
@@ -71,12 +70,12 @@ const avatarSrc = computed(() => {
 .archive-card__name {
   font-size: 19px;
   font-weight: 600;
-  color: var(--color-museum-ink);
+  color: var(--color-paper-ink);
 }
 
 .archive-card__motto {
   margin-top: 6px;
-  color: var(--color-muted);
+  color: var(--color-paper-muted);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -91,15 +90,15 @@ const avatarSrc = computed(() => {
 .archive-card__tags span {
   padding: 2px 8px;
   border-radius: var(--rounded-sm);
-  background: rgba(200, 169, 106, 0.18);
-  color: var(--color-museum-ink-soft);
+  background: color-mix(in srgb, var(--color-paper-brown) 12%, var(--color-paper-card));
+  color: var(--color-paper-ink-soft);
   font-size: 12px;
 }
 
 .archive-card__status {
   margin-top: 12px;
   font-size: 12px;
-  color: var(--color-museum-stamp-red);
+  color: var(--color-paper-stamp-red);
   min-height: 22px;
 }
 </style>

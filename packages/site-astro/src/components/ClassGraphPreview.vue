@@ -1,5 +1,5 @@
 <template>
-  <section class="graph-preview museum-paper museum-motion-soft">
+  <section class="graph-preview paper-panel museum-motion-soft">
     <p class="museum-kicker">CLASS GRAPH</p>
     <h2>班级图谱</h2>
     <p v-if="graph">已整理 {{ graph.nodes.length }} 位同学与 {{ graph.edges.length }} 条关系线索。</p>
@@ -44,6 +44,22 @@ onMounted(async () => {
 .graph-preview {
   padding: var(--spacing-lg);
   border-radius: var(--rounded-md);
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  color: var(--color-paper-ink);
+  box-shadow: var(--shadow-paper-card);
+}
+
+.museum-kicker {
+  color: var(--color-paper-brown);
+}
+
+.graph-preview h2 {
+  color: var(--color-paper-ink);
+}
+
+.graph-preview p {
+  color: var(--color-paper-muted);
 }
 
 .graph-preview__nodes {
@@ -56,6 +72,8 @@ onMounted(async () => {
 .graph-preview__nodes span {
   padding: 6px 10px;
   border-radius: var(--rounded-pill);
-  background: rgba(138, 162, 182, 0.18);
+  background: var(--color-paper-bg-soft);
+  border: 1px solid var(--color-paper-border);
+  color: var(--color-paper-ink-soft);
 }
 </style>

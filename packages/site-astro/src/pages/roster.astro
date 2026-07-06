@@ -65,21 +65,20 @@ if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
 ---
 
 <MainLayout>
-  <div class="roster-page section">
+  <div class="roster-page page-shell">
     <div class="container">
-      <div class="roster-header fade-in">
-        <p class="roster-label">· ARCHIVE CORRIDOR ·</p>
-        <h1 class="roster-title display-lg">人物长廊</h1>
-        <p class="roster-subtitle">用档案检索重新遇见每一位同学</p>
-      </div>
+      <header class="page-header fade-in">
+        <p class="page-header__label">ARCHIVE CORRIDOR</p>
+        <h1 class="display-lg">人物长廊</h1>
+        <p class="page-header__subtitle">用档案检索重新遇见每一位同学</p>
+      </header>
 
-      <!-- 排行榜面板 -->
       <RankingsPanel client:visible apiBase={CLIENT_API_BASE} />
 
       <RosterWall client:load initialClassmates={classmates} apiBase={CLIENT_API_BASE} siteBase={base} />
 
       {museum.enabled && (museum.enableClassGraph || museum.enableSeatMap) && (
-        <div class="lazy-highlights">
+        <div class="lazy-highlights paper-highlight-grid">
           {museum.enableClassGraph && <ClassGraphPreview client:visible apiBase={CLIENT_API_BASE} sampleNames={classmates.slice(0, 5).map((c) => c.name)} />}
           {museum.enableSeatMap && <SeatMapPreview client:visible apiBase={CLIENT_API_BASE} seats={classmates.map((c: any) => c.seatNo).filter(Boolean).slice(0, 8)} />}
         </div>
@@ -100,54 +99,9 @@ if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
       grid-template-columns: 1fr;
     }
   }
-  .roster-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
-  .roster-header { text-align: center; margin-bottom: var(--spacing-xl); }
-  .roster-label {
-    font-size: var(--type-caption-uppercase-size);
-    font-weight: var(--type-caption-uppercase-weight);
-    letter-spacing: var(--type-caption-uppercase-letter-spacing);
-    color: var(--color-muted);
-    margin-bottom: var(--spacing-md);
-  }
-  .roster-subtitle { font-size: var(--type-body-sm-size); color: var(--color-muted); margin-top: var(--spacing-sm); }
-  .classmate-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--spacing-lg);
-  }
-  .classmate-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: var(--spacing-lg) var(--spacing-md);
-    background-color: var(--color-surface-card);
-    border-radius: var(--rounded-lg);
-    text-decoration: none;
-    color: inherit;
-    transition: transform var(--duration-normal) var(--ease-out-quart),
-                box-shadow var(--duration-normal) var(--ease-out-quart),
-                opacity var(--duration-normal) var(--ease-out-quart);
-  }
-  .classmate-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
-  .classmate-card.card-hidden { opacity: 0; transform: scale(0.95); pointer-events: none; }
-  .classmate-card.no-page { opacity: 0.55; pointer-events: none; }
-  .card-avatar {
-    width: 72px; height: 72px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: linear-gradient(135deg, var(--color-surface-cream-strong), var(--color-hairline));
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: var(--spacing-sm);
-    border: 2px solid var(--color-hairline);
-  }
-  .card-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .avatar-char { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--color-muted); }
-  .card-name { margin-bottom: var(--spacing-xxs); text-align: center; }
-  .card-motto { font-size: var(--type-body-sm-size); color: var(--color-muted); text-align: center; font-style: italic; }
   @media (max-width: 768px) {
-    .classmate-grid { grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md); }
     .card-avatar { width: 58px; height: 58px; }
   }
 </style>
-<!-- Trigger site deployment verification on push - try 2 -->
 

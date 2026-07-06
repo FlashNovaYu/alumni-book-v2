@@ -122,20 +122,15 @@ function handleKeydown(e: KeyboardEvent) {
 onMounted(() => {
   disposed = false
   isMounted.value = true
-  import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-    if (disposed) return
-    import('gsap').then(({ default: gsap }) => {
-      if (disposed || !photoWallRoot.value) return
-      gsap.registerPlugin(ScrollTrigger)
-      gsapCtx = gsap.context(() => {
-        gsap.fromTo('.photo-item', { autoAlpha: 0, y: 24 },
-          {
-            autoAlpha: 1, y: 0, stagger: 0.08, duration: 0.45, ease: 'back.out(1.4)',
-            scrollTrigger: { trigger: '.photo-wall', start: 'top 85%', once: true },
-          }
-        )
-      }, photoWallRoot.value)
-    })
+  import('gsap').then(({ default: gsap }) => {
+    if (disposed || !photoWallRoot.value) return
+    gsapCtx = gsap.context(() => {
+      gsap.fromTo('.photo-item', { autoAlpha: 0, y: 24 },
+        {
+          autoAlpha: 1, y: 0, stagger: 0.08, duration: 0.45, ease: 'back.out(1.4)',
+        }
+      )
+    }, photoWallRoot.value)
   })
 })
 
