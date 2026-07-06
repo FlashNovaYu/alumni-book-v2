@@ -17,7 +17,7 @@ test.describe('public site major redesign responsive smoke', () => {
     await page.goto('/')
 
     await expect(page.locator('.top-nav.top-nav--home')).toBeVisible()
-    await expect(page.locator('.top-nav:not(.has-session) .nav-link')).toHaveCount(0)
+    await expect(page.locator('.top-nav:not(.has-session) .nav-links')).toBeHidden()
 
     await page.getByTestId('home-login-cta').click()
     await expect(page.locator('#login')).toBeInViewport()

@@ -79,10 +79,6 @@ const isHome = currentPath === base || currentPath === href('/')
             } else {
               if (nav) nav.classList.remove('has-session');
               if (el) el.style.display = 'none';
-              const homeNavLinks = document.querySelector('.top-nav--home:not(.has-session) .nav-links');
-              if (homeNavLinks) {
-                homeNavLinks.remove();
-              }
             }
           } catch (e) {}
         }

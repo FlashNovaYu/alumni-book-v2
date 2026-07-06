@@ -61,5 +61,5 @@ test('homepage logged-out navigation is minimal', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.locator('.top-nav.top-nav--home')).toBeVisible()
-  await expect(page.locator('.top-nav:not(.has-session) .nav-link')).toHaveCount(0)
+  await expect(page.locator('.top-nav:not(.has-session) .nav-links')).toBeHidden()
 })
