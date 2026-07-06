@@ -145,7 +145,7 @@
 
           <!-- 延迟加载亮点入口，视口可见后加载 -->
           <div v-if="anyHighlightEnabled">
-            <div id="highlights-anchor" class="lazy-anchor" ref="highlightsAnchor"></div>
+            <div id="highlights-anchor" :class="{ 'lazy-anchor': !highlightsVisible }" ref="highlightsAnchor"></div>
             <div v-if="highlightsVisible" class="profile-highlights paper-highlight-grid">
               <ClassGraphPreview v-if="classGraphEnabled" :apiBase="apiBase" :sampleNames="['张三', '李四', '王五']" />
               <SeatMapPreview v-if="seatMapEnabled" :apiBase="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
