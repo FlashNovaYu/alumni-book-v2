@@ -533,5 +533,111 @@ describe('Admin Classmate Account Management API', () => {
   })
 })
 
+async function loginAsClassmateForTest(slug = 'test_init'): Promise<string> {
+  const hash = await testHashPassword('123456')
+  await env.DB.prepare(
+    "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = ?"
+  ).bind(hash, slug).run()
+
+  const req = new Request('http://localhost/api/classmate-auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, password: '123456' }),
+  })
+  const ctx = createExecutionContext()
+  const res = await worker.fetch(req, env, ctx)
+  await waitOnExecutionContext(ctx)
+  const body = await res.json() as any
+  return body.data.token
+}
+
+describe('Post Office Community API', () => {
+  it('POST /api/public-messages requires classmate token', async () => {
+    const req = new Request('http://localhost/api/public-messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '未登录留言' }),
+    })
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, env, ctx)
+    await waitOnExecutionContext(ctx)
+    expect(res.status).toBe(401)
+  })
+
+  it('classmate can submit public message and admin approval creates notification', async () => {
+    const classmateToken = await loginAsClassmateForTest()
+    const submitReq = new Request('http://localhost/api/public-messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Classmate-Token': classmateToken,
+      },
+      body: JSON.stringify({ content: '愿我们顶峰相见', cardStyle: 'letter' }),
+    })
+    const submitCtx = createExecutionContext()
+    const submitRes = await worker.fetch(submitReq, env, submitCtx)
+    await waitOnExecutionContext(submitCtx)
+    expect(submitRes.status).toBe(200)
+    const submitBody = await submitRes.json() as any
+    expect(submitBody.data.status).toBe('pending')
+
+    const adminToken = await loginAsAdminForTest()
+    const approveReq = new Request(`http://localhost/api/admin/public-messages/${submitBody.data.id}/approve`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    })
+    const approveCtx = createExecutionContext()
+    const approveRes = await worker.fetch(approveReq, env, approveCtx)
+    await waitOnExecutionContext(approveCtx)
+    expect(approveRes.status).toBe(200)
+
+    const summaryReq = new Request('http://localhost/api/notifications/summary', {
+      headers: { 'X-Classmate-Token': classmateToken },
+    })
+    const summaryCtx = createExecutionContext()
+    const summaryRes = await worker.fetch(summaryReq, env, summaryCtx)
+    await waitOnExecutionContext(summaryCtx)
+    const summaryBody = await summaryRes.json() as any
+    expect(summaryBody.data.unreadCount).toBeGreaterThanOrEqual(1)
+  })
+
+  it('non-recipient cannot read mailbox thread', async () => {
+    await env.DB.prepare("INSERT OR IGNORE INTO students (id, name, slug, account_status) VALUES ('stu_other', '其他同学', 'other', 'active')").run()
+    const ownerToken = await loginAsClassmateForTest('test_init')
+    const otherToken = await loginAsClassmateForTest('other')
+
+    const createReq = new Request('http://localhost/api/mailbox/threads', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Classmate-Token': ownerToken,
+      },
+      body: JSON.stringify({ recipientSlug: 'other', subject: '一封测试信', body: '你好，未来见。' }),
+    })
+    const createCtx = createExecutionContext()
+    const createRes = await worker.fetch(createReq, env, createCtx)
+    await waitOnExecutionContext(createCtx)
+    const createBody = await createRes.json() as any
+
+    const recipientReq = new Request(`http://localhost/api/mailbox/threads/${createBody.data.id}`, {
+      headers: { 'X-Classmate-Token': otherToken },
+    })
+    const recipientCtx = createExecutionContext()
+    const recipientRes = await worker.fetch(recipientReq, env, recipientCtx)
+    await waitOnExecutionContext(recipientCtx)
+    expect(recipientRes.status).toBe(200)
+
+    await env.DB.prepare("INSERT OR IGNORE INTO students (id, name, slug, account_status) VALUES ('stu_third', '第三同学', 'third', 'active')").run()
+    const thirdToken = await loginAsClassmateForTest('third')
+    const forbiddenReq = new Request(`http://localhost/api/mailbox/threads/${createBody.data.id}`, {
+      headers: { 'X-Classmate-Token': thirdToken },
+    })
+    const forbiddenCtx = createExecutionContext()
+    const forbiddenRes = await worker.fetch(forbiddenReq, env, forbiddenCtx)
+    await waitOnExecutionContext(forbiddenCtx)
+    expect(forbiddenRes.status).toBe(403)
+  })
+})
+
 
 
