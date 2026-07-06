@@ -144,6 +144,9 @@ select:focus-visible {
 
 /* 尊重 prefers-reduced-motion 系统动画设置 */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -417,4 +420,77 @@ select:focus-visible {
     font-size: var(--type-display-md-size);
   }
 }
+
+/* ── Public site major redesign utilities ── */
+html {
+  scroll-behavior: smooth;
+}
+
+.content-grid {
+  display: grid;
+  gap: var(--spacing-xl);
+}
+
+.content-grid--two {
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  align-items: start;
+}
+
+.paper-page {
+  width: min(860px, 100%);
+  margin-inline: auto;
+  padding: var(--spacing-xl);
+  background:
+    linear-gradient(90deg, rgba(143, 101, 60, 0.035) 1px, transparent 1px),
+    var(--color-paper-card);
+  background-size: 28px 100%, 100% 100%;
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-paper-panel);
+}
+
+.paper-note {
+  padding: var(--spacing-lg);
+  background: var(--color-paper-bg-soft);
+  border: 1px solid var(--color-paper-border-soft);
+  border-radius: var(--rounded-md);
+  color: var(--color-paper-ink-soft);
+}
+
+.archive-card {
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-paper-card);
+  color: var(--color-paper-ink);
+}
+
+.paper-highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.paper-photo-frame {
+  background: var(--color-paper-card);
+  border: 6px solid var(--color-paper-card);
+  box-shadow: var(--shadow-paper-card);
+}
+
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .content-grid,
+  .content-grid--two,
+  .paper-highlight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .paper-page {
+    padding: var(--spacing-lg);
+  }
+}
+
 
