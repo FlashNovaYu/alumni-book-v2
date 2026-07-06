@@ -90,5 +90,11 @@ describe('public site major redesign constraints', () => {
     expect(source).toContain('ClassGraphPreview')
     expect(source).toContain('SeatMapPreview')
   })
+
+  it('removes stale deployment verification comments from public pages', () => {
+    const roster = read('pages/roster.astro')
+
+    expect(roster).not.toContain('Trigger site deployment verification')
+  })
 })
 
