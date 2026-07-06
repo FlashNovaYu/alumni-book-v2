@@ -1,0 +1,23 @@
+---
+import MainLayout from '../layouts/MainLayout.astro'
+import PublicMessageBoard from '../components/PublicMessageBoard.vue'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+---
+
+<MainLayout>
+  <section class="messages-page page-shell">
+    <header class="page-header">
+      <span class="page-kicker">CLASS NOTICE WALL</span>
+      <h1>公共留言</h1>
+      <p>把想对全班说的话写成一张便签，等管理员审核后贴到这里。</p>
+    </header>
+
+    <!-- paper-panel -->
+    <div class="content-grid">
+      <div class="paper-panel" style="padding: var(--spacing-lg);">
+        <PublicMessageBoard client:load apiBase={API_BASE} />
+      </div>
+    </div>
+  </section>
+</MainLayout>
