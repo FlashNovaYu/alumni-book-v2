@@ -1,0 +1,24 @@
+---
+import MainLayout from '../layouts/MainLayout.astro'
+import MailboxApp from '../components/MailboxApp.vue'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const defaultRecipient = Astro.url.searchParams.get('to') || ''
+---
+
+<MainLayout>
+  <section class="mailbox-page page-shell">
+    <header class="page-header">
+      <span class="page-kicker">CLASS POST OFFICE</span>
+      <h1>班级邮局</h1>
+      <p>收下同学、管理员和系统寄来的信，也把想说的话认真寄出去。</p>
+    </header>
+
+    <!-- paper-panel -->
+    <div class="content-grid">
+      <div class="paper-panel" style="padding: var(--spacing-lg);">
+        <MailboxApp client:load apiBase={API_BASE} defaultRecipient={defaultRecipient} />
+      </div>
+    </div>
+  </section>
+</MainLayout>

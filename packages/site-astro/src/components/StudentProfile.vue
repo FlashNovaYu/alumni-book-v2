@@ -44,6 +44,10 @@
             <div v-if="museumSummary.tags.length" class="hero-tags">
               <span v-for="tag in museumSummary.tags" :key="tag">{{ tag }}</span>
             </div>
+            <div class="profile-mail-actions">
+              <a class="btn-secondary" :href="`/mailbox/?to=${studentSlug}`">给 TA 写信</a>
+              <a v-if="isCurrentOwner" class="btn-secondary" href="/mailbox/">查看我的邮箱</a>
+            </div>
             <span v-if="student.isOwner" class="owner-badge">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               专属页面
@@ -196,7 +200,7 @@ import StudentMusicPlayer from './StudentMusicPlayer.vue'
 import ProfileCompleteness from './ProfileCompleteness.vue'
 import { toStudentMuseumSummary } from '../utils/museumViewModels'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
-import { getClassmateToken } from '@alumni/shared'
+import { getClassmateToken, getClassmateStudent } from '@alumni/shared'
 
 // 异步载入较重组件以剔除首屏打包体积与减少 hydration 开销
 const PhotoWall = defineAsyncComponent(() => import('./PhotoWall.vue'))
@@ -273,6 +277,11 @@ const slugVal = computed(() => {
 const museumSummary = computed(() => {
   if (!student.value) return { completion: 0, missingFields: [], tags: [] }
   return toStudentMuseumSummary(student.value)
+})
+
+const isCurrentOwner = computed(() => {
+  const current = getClassmateStudent<{ slug: string }>()
+  return current?.slug === props.studentSlug
 })
 
 const avatarSrc = computed(() => {
@@ -699,5 +708,12 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.profile-mail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
 }
 </style>

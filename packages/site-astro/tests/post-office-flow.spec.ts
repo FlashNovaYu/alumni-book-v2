@@ -107,7 +107,7 @@ test('mailbox page is usable on mobile without horizontal overflow', async ({ pa
   await seedClassmateSession(page)
   await page.goto('/mailbox/', { waitUntil: 'networkidle' })
 
-  await expect(page.getByRole('heading', { name: /班级邮局/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '班级邮局', exact: true })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
   expect(overflow).toBe(false)
 })
