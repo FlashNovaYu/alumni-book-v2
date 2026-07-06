@@ -1,16 +1,22 @@
 <template>
   <div class="messages-page">
     <div class="page-header">
-      <h1 class="page-title">留言管理</h1>
-      <div class="filter-tabs">
-        <button :class="['tab-btn', { active: filter === 'all' }]" @click="filter = 'all'">全部</button>
-        <button :class="['tab-btn', { active: filter === 'pending' }]" @click="filter = 'pending'">待审核</button>
-        <button :class="['tab-btn', { active: filter === 'approved' }]" @click="filter = 'approved'">已通过</button>
+      <div class="header-main-tabs">
+        <h1 class="page-title">留言管理</h1>
+        <div class="filter-tabs tab-group-main">
+          <button :class="['tab-btn', { active: messageType === 'profile' }]" @click="changeMessageType('profile')">个人留言</button>
+          <button :class="['tab-btn', { active: messageType === 'public' }]" @click="changeMessageType('public')">公共留言</button>
+        </div>
+      </div>
+      <div v-if="messageType === 'profile'" class="filter-tabs tab-group-sub">
+        <button :class="['tab-btn tab-btn-sm', { active: filter === 'all' }]" @click="filter = 'all'">全部</button>
+        <button :class="['tab-btn tab-btn-sm', { active: filter === 'pending' }]" @click="filter = 'pending'">待审核</button>
+        <button :class="['tab-btn tab-btn-sm', { active: filter === 'approved' }]" @click="filter = 'approved'">已通过</button>
       </div>
     </div>
 
     <!-- 批量操作区 -->
-    <div v-if="selectedIds.length > 0" class="batch-actions-panel card">
+    <div v-if="messageType === 'profile' && selectedIds.length > 0" class="batch-actions-panel card">
       <span class="batch-count">已选中 <strong>{{ selectedIds.length }}</strong> 条：</span>
       <div class="batch-buttons">
         <button class="btn-primary btn-sm" @click="batchAction('approve')" :disabled="processing">批量通过</button>
@@ -23,7 +29,8 @@
 
     <div v-if="loading" class="loading">加载中...</div>
 
-    <div v-else class="msg-list">
+    <!-- 个人留言列表 -->
+    <div v-else-if="messageType === 'profile'" class="msg-list">
       <div v-for="msg in filteredMessages" :key="msg.id" class="msg-card card" :class="{ 'msg-pinned': msg.pinned }">
         <div class="msg-card-inner">
           <!-- 选择框 -->
@@ -64,6 +71,38 @@
       </div>
     </div>
 
+    <!-- 公共留言列表 -->
+    <div v-else-if="messageType === 'public'" class="msg-list">
+      <div v-for="msg in publicMessages" :key="msg.id" class="msg-card card">
+        <div class="msg-card-inner">
+          <div class="msg-content-col">
+            <div class="msg-meta">
+              <span class="msg-student">作者 slug: {{ msg.authorSlug }}</span>
+              <span class="msg-author">留言者: {{ msg.authorName }}</span>
+              <span class="msg-time">{{ msg.createdAt }}</span>
+              <span class="msg-style">款式: {{ getStyleLabel(msg.cardStyle) }}</span>
+              <span v-if="msg.status === 'pending'" class="badge badge-pending">待审核</span>
+              <span v-else-if="msg.status === 'approved'" class="badge badge-approved" style="background: var(--color-success); color: white;">已通过</span>
+              <span v-else-if="msg.status === 'rejected'" class="badge badge-rejected" style="background: var(--color-error); color: white;">已退回</span>
+              <span v-else-if="msg.status === 'hidden'" class="badge badge-hidden">已隐藏</span>
+            </div>
+            <p class="msg-content">{{ msg.content }}</p>
+            <div v-if="msg.status === 'rejected' && msg.reviewReason" class="msg-reply-inline" style="border-left-color: var(--color-error); background: color-mix(in srgb, var(--color-error) 8%, transparent);">
+              退回原因：{{ msg.reviewReason }}
+            </div>
+            <div class="msg-actions">
+              <button v-if="msg.status === 'pending'" class="btn-primary btn-sm" @click="approvePublic(msg.id)" :disabled="processing">审核通过</button>
+              <button v-if="msg.status === 'pending'" class="btn-danger btn-sm" @click="rejectPublic(msg.id)" :disabled="processing">退回</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="publicMessages.length === 0" class="empty-notice">
+        没有找到对应的公共留言
+      </div>
+    </div>
+
+
     <Transition name="toast">
       <div v-if="toast" :class="'toast toast-' + toast.type">{{ toast.message }}</div>
     </Transition>
@@ -88,9 +127,14 @@ const processing = ref(false)
 const selectedIds = ref<string[]>([])
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
+const messageType = ref<'profile' | 'public'>('profile')
+const publicMessages = ref<any[]>([])
+
+let toastTimeout: any = null
 function showToast(type: 'success' | 'error', message: string) {
   toast.value = { type, message }
-  setTimeout(() => { toast.value = null }, 3000)
+  if (toastTimeout) clearTimeout(toastTimeout)
+  toastTimeout = setTimeout(() => { toast.value = null }, 3000)
 }
 
 const filteredMessages = computed(() => {
@@ -109,13 +153,79 @@ function getStyleLabel(style?: string) {
   return map[style || ''] || '默认纸张'
 }
 
+function changeMessageType(type: 'profile' | 'public') {
+  messageType.value = type
+  selectedIds.value = []
+  load()
+}
+
+let currentLoadType = ''
 async function load() {
+  const type = messageType.value
+  currentLoadType = type
+  loading.value = true
   try {
-    const res = await adminFetch<{ success: boolean; data: Message[] }>('/api/admin/messages')
-    if (res.data) messages.value = res.data
+    if (type === 'public') {
+      const res = await adminFetch<{ success: boolean; data: any[] }>('/api/admin/public-messages')
+      if (currentLoadType === type) {
+        if (res.data) publicMessages.value = res.data
+      }
+    } else {
+      const res = await adminFetch<{ success: boolean; data: Message[] }>('/api/admin/messages')
+      if (currentLoadType === type) {
+        if (res.data) messages.value = res.data
+      }
+    }
+  } catch (e: any) {
+    if (currentLoadType === type) {
+      showToast('error', e.message)
+    }
+  } finally {
+    if (currentLoadType === type) {
+      loading.value = false
+    }
+  }
+}
+
+async function approvePublic(id: string) {
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/approve`, { method: 'PUT' })
+    const msg = publicMessages.value.find(m => m.id === id)
+    if (msg) msg.status = 'approved'
+    showToast('success', '已审核通过')
   } catch (e: any) {
     showToast('error', e.message)
-  } finally { loading.value = false }
+  } finally {
+    processing.value = false
+  }
+}
+
+async function rejectPublic(id: string) {
+  const reason = prompt('请输入退回原因：')
+  if (reason === null) return
+  const trimmed = reason.trim()
+  if (!trimmed) {
+    showToast('error', '退回原因不能为空')
+    return
+  }
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason: trimmed }),
+    })
+    const msg = publicMessages.value.find(m => m.id === id)
+    if (msg) {
+      msg.status = 'rejected'
+      msg.reviewReason = trimmed
+    }
+    showToast('success', '已退回留言')
+  } catch (e: any) {
+    showToast('error', e.message)
+  } finally {
+    processing.value = false
+  }
 }
 
 async function approve(id: string) {
@@ -214,22 +324,16 @@ onMounted(load)
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-md); }
 .filter-tabs { display: flex; gap: var(--spacing-xs); }
-.tab-btn {
-  padding: 6px 16px;
-  font-size: var(--type-body-sm-size);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--rounded-pill);
-  background: transparent;
-  cursor: pointer;
-  color: var(--color-muted);
-}
+.header-main-tabs { display: flex; align-items: center; gap: var(--spacing-lg); }
+.tab-group-main { background-color: var(--color-surface-cream-strong); padding: 4px; border-radius: var(--rounded-pill); border: 1px solid var(--color-hairline); }
+.tab-group-main .tab-btn { border: none; border-radius: var(--rounded-pill); padding: 6px 20px; font-weight: 500; transition: all 0.2s ease; }
+.tab-group-main .tab-btn:hover:not(.active) { background-color: var(--color-surface-cream); color: var(--color-ink); }
+.tab-btn-sm { padding: 4px 12px; font-size: var(--type-caption-size); }
+.tab-btn { padding: 6px 16px; font-size: var(--type-body-sm-size); border: 1px solid var(--color-hairline); border-radius: var(--rounded-pill); background: transparent; cursor: pointer; color: var(--color-muted); }
 .tab-btn.active { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
 .msg-list { display: flex; flex-direction: column; gap: var(--spacing-md); margin-top: var(--spacing-lg); }
 .msg-card { padding: var(--spacing-lg); border-left: 4px solid transparent; transition: all 0.3s; }
-.msg-pinned {
-  border-left-color: var(--color-gold);
-  background-color: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-cream));
-}
+.msg-pinned { border-left-color: var(--color-gold); background-color: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-cream)); }
 .msg-card-inner {
   display: flex;
   gap: var(--spacing-md);
@@ -286,6 +390,20 @@ onMounted(load)
 }
 
 @media (max-width: 600px) {
+  .header-main-tabs {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    width: 100%;
+  }
+  .tab-group-main {
+    width: 100%;
+    display: flex;
+  }
+  .tab-group-main .tab-btn {
+    flex: 1;
+    text-align: center;
+  }
   .msg-card-inner {
     flex-direction: column;
     gap: var(--spacing-sm);
