@@ -56,3 +56,10 @@ test('homepage cover and login section fit mobile viewport without horizontal ov
   await expect(page.locator('#login')).toBeInViewport()
   await page.screenshot({ path: 'test-results/homepage-cover-mobile.png', fullPage: true })
 })
+
+test('homepage logged-out navigation is minimal', async ({ page }) => {
+  await page.goto('/')
+
+  await expect(page.locator('.top-nav.top-nav--home')).toBeVisible()
+  await expect(page.locator('.top-nav:not(.has-session) .nav-link')).toHaveCount(0)
+})

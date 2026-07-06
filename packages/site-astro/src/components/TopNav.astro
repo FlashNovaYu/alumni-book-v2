@@ -4,8 +4,9 @@ const currentPath = Astro.url.pathname
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
+const isHome = currentPath === base || currentPath === href('/')
 ---
-<nav class="top-nav">
+<nav class={`top-nav ${isHome ? 'top-nav--home' : ''}`}>
   <div class="nav-inner container">
     <a href={href('/')} class="nav-brand">
       <span class="brand-mark"><IconBrand size={20} /></span>
@@ -52,8 +53,10 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
             const el = document.getElementById('classmate-nav-session');
             const nameEl = document.getElementById('classmate-nav-name');
             const logoutBtn = document.getElementById('classmate-nav-logout');
+            const nav = document.querySelector('.top-nav');
             
             if (studentStr && token) {
+              if (nav) nav.classList.add('has-session');
               const student = JSON.parse(studentStr);
               if (student && student.name && el && nameEl && logoutBtn) {
                 nameEl.textContent = student.name + '同学';
@@ -74,7 +77,12 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
                 };
               }
             } else {
+              if (nav) nav.classList.remove('has-session');
               if (el) el.style.display = 'none';
+              const homeNavLinks = document.querySelector('.top-nav--home:not(.has-session) .nav-links');
+              if (homeNavLinks) {
+                homeNavLinks.remove();
+              }
             }
           } catch (e) {}
         }
@@ -90,6 +98,22 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
 </nav>
 
 <style>
+  .top-nav--home:not(.has-session) {
+    width: 220px;
+  }
+
+  .top-nav--home:not(.has-session) .nav-links {
+    display: none;
+  }
+
+  .top-nav--home:not(.has-session) .nav-inner {
+    justify-content: center;
+  }
+
+  .top-nav--home:not(.has-session) .nav-brand {
+    margin-inline: auto;
+  }
+
   /* 悬浮胶囊毛玻璃顶栏 */
   .top-nav {
     position: fixed;
@@ -288,6 +312,14 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
       width: 100%;
       height: auto;
       justify-content: center;
+    }
+
+    .top-nav--home:not(.has-session) {
+      width: min(220px, calc(100% - 1.5rem));
+    }
+
+    .top-nav--home:not(.has-session) .mobile-toggle {
+      display: none;
     }
   }
 
