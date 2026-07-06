@@ -189,12 +189,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import SelfEditPanel from './SelfEditPanel.vue'
 import StudentMusicPlayer from './StudentMusicPlayer.vue'
 import ProfileCompleteness from './ProfileCompleteness.vue'
 import { toStudentMuseumSummary } from '../utils/museumViewModels'
-import { prefersReducedMotion } from '../utils/motion'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 import { getClassmateToken } from '@alumni/shared'
 
@@ -239,9 +238,7 @@ const shareOpen = ref(false)
 const avatarError = ref(false)
 
 const rootRef = ref<HTMLElement | null>(null)
-let gsapCtx: any = null
 let disposed = false
-const hasAnimated = ref(false)
 
 // 视口观察器延迟加载的 anchor 和状态
 const photoWallAnchor = ref<HTMLElement | null>(null)
@@ -359,9 +356,7 @@ const futureFields = computed(() => getFields(student.value?.info, [
 function openShareModal() { shareOpen.value = true }
 function closeShareModal() { shareOpen.value = false }
 
-function triggerGSAPAnimations() {
-  // 移除 ScrollTrigger 相关动画以符合测试规范
-}
+
 
 onMounted(() => {
   disposed = false
@@ -386,10 +381,7 @@ onMounted(() => {
     }, 1200)
   }
 
-  // 若初始即有静态直出数据，先跑一次动画
-  if (student.value) {
-    triggerGSAPAnimations()
-  }
+
 
   // 避免首屏主线程抢占，将 SWR 状态水合改为 idle 空闲时进行
   runWhenIdle(async () => {
@@ -411,11 +403,6 @@ onMounted(() => {
       if (data && data.success && data.data) {
         if (changed && !isDeepEqual(data.data, student.value)) {
           student.value = data.data
-          if (hasAnimated.value && !prefersReducedMotion()) {
-            // 移除 ScrollTrigger.refresh()
-          } else {
-            triggerGSAPAnimations()
-          }
         }
       }
     } catch (e) {
@@ -473,10 +460,6 @@ onUnmounted(() => {
   mObserver = null
   hObserver = null
 
-  if (gsapCtx) {
-    gsapCtx.revert()
-    gsapCtx = null
-  }
 })
 </script>
 

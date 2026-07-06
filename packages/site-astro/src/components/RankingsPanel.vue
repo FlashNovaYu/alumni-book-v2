@@ -110,14 +110,9 @@ onMounted(async () => {
   color: var(--color-paper-ink);
 }
 
-.ranking-item {
+.rank-item {
   background: var(--color-paper-bg-soft);
   border: 1px solid var(--color-paper-border-soft);
-}
-
-.ranking-label,
-.ranking-meta {
-  color: var(--color-paper-muted);
 }
 
 .card-header-row {
