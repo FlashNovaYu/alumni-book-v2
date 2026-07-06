@@ -13,6 +13,10 @@ import { classmateRoutes } from './routes/classmate'
 import { highlightsRoutes } from './routes/highlights'
 import { classmateAuthRoutes } from './routes/classmateAuth'
 import { verifyClassmateSession } from './lib/classmateSession'
+import { publicMessagesRoutes } from './routes/publicMessages'
+import { notificationsRoutes } from './routes/notifications'
+import { mailboxRoutes } from './routes/mailbox'
+import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 
 
@@ -71,6 +75,7 @@ const PUBLIC_REVALIDATED_GET_PREFIXES = [
   '/api/messages',
   '/api/timeline',
   '/api/highlights',
+  '/api/public-messages',
 ]
 
 function isPublicRevalidatedGet(path: string) {
@@ -524,6 +529,10 @@ app.route('/api', uploadRoutes)
 app.route('/api', messagesRoutes)
 app.route('/api', timelineRoutes)
 app.route('/api/highlights', highlightsRoutes)
+app.route('/api', publicMessagesRoutes)
+app.route('/api', notificationsRoutes)
+app.route('/api', mailboxRoutes)
+app.route('/api', adminMailRoutes)
 
 // 管理后台统计
 app.get('/api/admin/stats', async (c) => {
