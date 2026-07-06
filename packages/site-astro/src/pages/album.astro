@@ -1,6 +1,5 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
-import IconCamera from '../components/icons/IconCamera.astro'
 import AlbumGrid from '../components/AlbumGrid.vue'
 
 interface Album {
@@ -46,38 +45,14 @@ try {
 ---
 
 <MainLayout>
-  <div class="album-page section">
+  <div class="album-page page-shell">
     <div class="container">
-      <div class="album-header fade-in">
-        <p class="museum-kicker">IMAGE GALLERY</p>
-        <h1 class="album-title display-lg">影像馆</h1>
-        <p class="album-subtitle">每一幅影像，都是一段珍贵的回忆</p>
-      </div>
-
-      {albums.length === 0 ? (
-        <div class="empty-state">
-          <div class="empty-icon"><IconCamera size={48} /></div>
-          <p>暂无影像</p>
-          <p>请前往管理后台上传</p>
-        </div>
-      ) : (
-        <AlbumGrid client:load albums={albums} apiBase={CLIENT_API_BASE} />
-      )}
+      <header class="page-header fade-in">
+        <p class="page-header__label">IMAGE GALLERY</p>
+        <h1 class="display-lg">影像馆</h1>
+        <p class="page-header__subtitle">每一幅影像，都是一段珍贵的回忆</p>
+      </header>
+      <AlbumGrid client:load albums={albums} apiBase={CLIENT_API_BASE} />
     </div>
   </div>
 </MainLayout>
-
-<style>
-  .album-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
-  .album-header { text-align: center; margin-bottom: var(--spacing-xl); }
-  .museum-kicker {
-    font-size: var(--type-caption-uppercase-size);
-    font-weight: var(--type-caption-uppercase-weight);
-    letter-spacing: var(--type-caption-uppercase-letter-spacing);
-    color: var(--color-muted);
-    margin-bottom: var(--spacing-md);
-  }
-  .album-subtitle { font-size: var(--type-body-sm-size); color: var(--color-muted); margin-top: var(--spacing-sm); }
-  .empty-state { text-align: center; padding: 80px 20px; color: var(--color-muted); }
-  .empty-icon { font-size: 48px; margin-bottom: var(--spacing-md); opacity: 0.3; }
-</style>

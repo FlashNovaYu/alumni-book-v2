@@ -36,13 +36,13 @@ try {
 ---
 
 <MainLayout>
-  <div class="timeline-page section" data-base-url={base} data-api-base={CLIENT_API_BASE}>
+  <div class="timeline-page page-shell" data-base-url={base} data-api-base={CLIENT_API_BASE}>
     <div class="container">
-      <div class="timeline-header fade-in">
-        <p class="museum-kicker">CLASS HISTORY CORRIDOR</p>
-        <h1 class="timeline-title display-lg">校史走廊</h1>
-        <p class="timeline-subtitle">沿着时间的轨迹，翻阅我们的故事</p>
-      </div>
+      <header class="page-header fade-in">
+        <p class="page-header__label">CLASS TIMELINE</p>
+        <h1 class="display-lg">时光轴</h1>
+        <p class="page-header__subtitle">把重要瞬间按时间慢慢装订成册</p>
+      </header>
 
       <!-- Tab 筛选栏 -->
       <div class="timeline-tabs fade-in">
@@ -157,16 +157,6 @@ try {
 </script>
 
 <style>
-  .timeline-page { padding-top: calc(var(--nav-height) + var(--spacing-section)); }
-  .timeline-header { text-align: center; margin-bottom: var(--spacing-xxl); }
-  .museum-kicker {
-    font-size: var(--type-caption-uppercase-size);
-    font-weight: var(--type-caption-uppercase-weight);
-    letter-spacing: var(--type-caption-uppercase-letter-spacing);
-    color: var(--color-muted);
-    margin-bottom: var(--spacing-md);
-  }
-  .timeline-subtitle { font-size: var(--type-body-sm-size); color: var(--color-muted); margin-top: var(--spacing-sm); }
   .timeline-line { position: relative; max-width: 720px; margin: 0 auto; }
   .timeline-line::before {
     content: '';
@@ -174,7 +164,7 @@ try {
     left: 50%;
     top: 0; bottom: 0;
     width: 1px;
-    background: var(--color-hairline);
+    background: var(--color-paper-border);
     transform: translateX(-50%);
   }
   .timeline-node { position: relative; display: flex; margin-bottom: var(--spacing-xl); }
@@ -206,37 +196,80 @@ try {
     }
   }
 
+  .timeline-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-xxl);
+  }
+
+  .tab-btn {
+    min-height: 36px;
+    padding: 0 var(--spacing-md);
+    border: 1px solid var(--color-paper-border);
+    border-radius: var(--rounded-sm);
+    background: var(--color-paper-card);
+    color: var(--color-paper-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out-quart);
+  }
+
+  .tab-btn.active {
+    background: var(--color-paper-brown);
+    border-color: var(--color-paper-brown);
+    color: #fffaf2;
+  }
+
   .tl-dot {
     position: absolute;
     left: 50%;
     top: 20px;
     width: 12px; height: 12px;
     border-radius: 50%;
-    background: var(--color-primary);
+    background: var(--color-paper-brown);
     transform: translateX(-50%);
     z-index: 1;
   }
   .milestone .tl-dot { width: 20px; height: 20px; background: var(--color-accent-amber); box-shadow: 0 0 0 4px rgba(232, 165, 90, 0.2); }
   .tl-card {
-    background: var(--color-surface-card);
-    border: 1px solid var(--color-hairline);
+    background: var(--color-paper-card);
+    border: 1px solid var(--color-paper-border);
     border-radius: var(--rounded-md);
     padding: var(--spacing-lg);
     max-width: 340px;
     transition: transform 0.3s var(--ease-out-quart);
+    box-shadow: var(--shadow-paper-card);
   }
   .tl-card:hover {
     transform: translateY(-2px);
   }
-  .tl-date { font-size: var(--type-caption-size); color: var(--color-muted); margin-bottom: var(--spacing-xs); }
+  .tl-date { font-size: var(--type-caption-size); color: var(--color-paper-muted); margin-bottom: var(--spacing-xs); }
   .tl-title { font-size: var(--type-title-sm-size); margin-bottom: var(--spacing-xs); }
-  .tl-desc { font-size: var(--type-body-sm-size); color: var(--color-body); line-height: 1.6; }
+  .tl-desc { font-size: var(--type-body-sm-size); color: var(--color-paper-muted); line-height: 1.6; }
   .tl-photo { width: 100%; border-radius: var(--rounded-sm); margin-top: var(--spacing-sm); }
-  .tl-link { display: inline-block; margin-top: var(--spacing-sm); font-size: var(--type-body-sm-size); color: var(--color-primary); text-decoration: none; }
+  .tl-link { display: inline-block; margin-top: var(--spacing-sm); font-size: var(--type-body-sm-size); color: var(--color-paper-brown); text-decoration: none; }
   .tl-link:hover { text-decoration: underline; }
-  .empty-state { text-align: center; padding: var(--spacing-xxl); color: var(--color-muted); }
+  .empty-state { text-align: center; padding: var(--spacing-xxl); color: var(--color-paper-muted); }
 
   @media (max-width: 768px) {
+    .timeline-tabs {
+      justify-content: flex-start;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+      flex: 0 0 auto;
+    }
+
+    .timeline-item {
+      grid-template-columns: 24px minmax(0, 1fr);
+    }
+    
     .timeline-line::before { left: 20px; }
     .timeline-node:nth-child(odd), .timeline-node:nth-child(even) { padding: 0 0 0 48px; }
     .tl-dot { left: 20px; }

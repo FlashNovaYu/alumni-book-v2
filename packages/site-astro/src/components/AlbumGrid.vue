@@ -222,17 +222,18 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 <style scoped>
 .tags-filter-bar {
   display: flex;
-  gap: var(--spacing-xs);
   flex-wrap: wrap;
   justify-content: center;
+  gap: var(--spacing-xs);
   margin-bottom: var(--spacing-xl);
 }
 
 .tag-filter-btn {
+  min-height: 36px;
   padding: var(--spacing-xxs) var(--spacing-md);
-  background: var(--color-surface-card, #fff);
-  color: var(--color-muted);
-  border: 1px solid var(--color-hairline);
+  border: 1px solid var(--color-paper-border);
+  background: var(--color-paper-card);
+  color: var(--color-paper-muted);
   border-radius: var(--rounded-pill);
   font-size: 13px;
   font-weight: 500;
@@ -241,18 +242,24 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 }
 
 .tag-filter-btn:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--color-paper-brown);
+  color: var(--color-paper-brown);
 }
 
 .tag-filter-btn.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(204, 120, 92, 0.2);
+  border-color: var(--color-paper-brown);
+  background: var(--color-paper-brown);
+  color: #fffaf2;
 }
 
-.album-section { margin-bottom: var(--spacing-section); }
+.album-section {
+  margin-bottom: var(--spacing-xxl);
+  padding: var(--spacing-xl);
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-paper-card);
+}
 .album-header-container {
   display: flex;
   justify-content: space-between;
@@ -278,8 +285,21 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 }
 
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm); }
-.photo-item { position: relative; aspect-ratio: 1; border-radius: var(--rounded-sm); overflow: hidden; cursor: pointer; transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart); }
-.photo-item:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+.photo-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--rounded-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart);
+  border: 6px solid var(--color-paper-card);
+  background: var(--color-paper-card-muted);
+  box-shadow: var(--shadow-paper-card);
+}
+.photo-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-paper-card);
+}
 .photo-item img { width: 100%; height: 100%; object-fit: cover; }
 .photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: var(--spacing-xxs) var(--spacing-xs); background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); color: var(--color-on-dark); font-size: var(--type-caption-size); opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quart); }
 .photo-item:hover .photo-caption { opacity: 1; }
@@ -370,7 +390,24 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .lightbox-leave-active { transition: opacity var(--duration-normal) var(--ease-out-quart); }
 .lightbox-enter-from, .lightbox-leave-to { opacity: 0; }
 
-@media (max-width: 768px) { .photo-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) {
+  .photo-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .tags-filter-bar {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tag-filter-btn {
+    flex: 0 0 auto;
+  }
+
+  .album-section {
+    padding: var(--spacing-lg);
+  }
+}
 
 .photo-error-placeholder {
   width: 100%;

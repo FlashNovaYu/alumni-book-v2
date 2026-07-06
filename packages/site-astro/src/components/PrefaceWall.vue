@@ -1,13 +1,7 @@
 <template>
-  <div>
-    <div class="preface-header fade-in">
-      <p class="preface-label">· PREFACE ·</p>
-      <h1 class="preface-title display-lg">{{ config.preface?.title || '致青春岁月' }}</h1>
-      <p class="preface-subtitle">{{ config.preface?.subtitle || '写在翻开同学录之前' }}</p>
-    </div>
-
+  <section class="preface-wall paper-page fade-in">
     <div class="preface-body fade-in">
-      <p class="preface-text" v-html="formattedContent"></p>
+      <p class="preface-content" v-html="formattedContent"></p>
     </div>
 
     <hr v-if="hasAcknowledgments" class="hairline" style="margin: var(--spacing-xxl) 0;" />
@@ -15,7 +9,7 @@
     <div v-if="hasAcknowledgments" class="acknowledgment fade-in">
       <h2 class="ack-title display-sm">特别致谢</h2>
       <div class="ack-grid">
-        <div v-for="ack in activeAcknowledgments" :key="ack.name" class="ack-person">
+        <div v-for="ack in activeAcknowledgments" :key="ack.name" class="ack-person paper-note">
           <div class="ack-avatar">
             <img v-if="ack.avatarUrl" :src="getAvatarUrl(ack.avatarUrl)" :alt="ack.name" loading="lazy" decoding="async" />
             <span v-else class="avatar-placeholder">{{ ack.name.charAt(0) }}</span>
@@ -25,7 +19,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -80,3 +74,22 @@ onMounted(() => {
   })
 })
 </script>
+
+<style scoped>
+.preface-wall {
+  color: var(--color-paper-ink);
+}
+
+.preface-content {
+  color: var(--color-paper-ink-soft);
+  line-height: 2.15;
+}
+
+.ack-person {
+  color: var(--color-paper-ink);
+}
+
+.ack-role {
+  color: var(--color-paper-muted);
+}
+</style>

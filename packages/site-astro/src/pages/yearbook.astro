@@ -89,7 +89,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 ---
 
 <MainLayout>
-  <div class="yearbook-page">
+  <div class="yearbook-page page-shell">
     <div class="container no-print text-center py-4">
       <button class="print-btn btn-primary" onclick="window.print()">🖨️ 打印此纪念册 / 导出 PDF</button>
     </div>
@@ -416,6 +416,27 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
   .msg-card-text {
     font-size: 13px;
     line-height: 1.5;
+  }
+
+  @media screen {
+    .yearbook-page {
+      color: var(--color-paper-ink);
+    }
+
+    .print-section {
+      width: min(980px, calc(100% - 2 * var(--spacing-lg)));
+      margin: var(--spacing-xl) auto;
+      padding: var(--spacing-xl);
+      background: var(--color-paper-card);
+      border: 1px solid var(--color-paper-border);
+      border-radius: var(--rounded-lg);
+      box-shadow: var(--shadow-paper-card);
+    }
+
+    .section-title {
+      color: var(--color-paper-ink);
+      border-bottom: 1px solid var(--color-paper-border);
+    }
   }
 
   /* 🖨️ 打印机优化 */
