@@ -55,6 +55,20 @@ describe('responsive vintage paper redesign static constraints', () => {
     expect(hero).not.toContain('ScrollTrigger')
   })
 
+  it('homepage cover has CSS-first geometric entrance and ambient floating motion', () => {
+    const hero = read('components/MuseumHero.astro')
+
+    expect(hero).toContain('home-cover__shape')
+    expect(hero).toContain('home-cover__copy-reveal')
+    expect(hero).toContain('@keyframes homeShapeEnter')
+    expect(hero).toContain('@keyframes homeShapeFloat')
+    expect(hero).toContain('@keyframes homeCopyReveal')
+    expect(hero).toContain('animation-delay')
+    expect(hero).toContain('--shape-rotate')
+    expect(hero).toContain('--reveal-delay')
+    expect(hero).toContain('home-cover__scroll')
+  })
+
   it('login component remains testable and no longer depends on the double-page spine layout', () => {
     const login = read('components/ClassmateLoginBook.vue')
 
