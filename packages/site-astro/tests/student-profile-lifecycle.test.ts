@@ -32,4 +32,14 @@ describe('StudentProfile lazy observer lifecycle', () => {
     expect(source).toContain('id="highlights-anchor"')
     expect(source).toContain('class="lazy-anchor"')
   })
+
+  it('student profile and photo wall avoid ScrollTrigger ownership after redesign', () => {
+    const profile = fs.readFileSync(path.resolve(__dirname, '../src/components/StudentProfile.vue'), 'utf-8')
+    const photoWall = fs.readFileSync(path.resolve(__dirname, '../src/components/PhotoWall.vue'), 'utf-8')
+
+    expect(profile).not.toContain("import('gsap/ScrollTrigger')")
+    expect(profile).not.toContain('scrollTrigger:')
+    expect(photoWall).not.toContain("import('gsap/ScrollTrigger')")
+    expect(photoWall).not.toContain('scrollTrigger:')
+  })
 })

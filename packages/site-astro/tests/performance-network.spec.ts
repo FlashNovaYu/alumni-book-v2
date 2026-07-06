@@ -224,4 +224,7 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
   const hasSeatMap = requests.some(url => url.toLowerCase().includes('seatmappreview') && (url.endsWith('.js') || url.includes('.js?')))
   expect(hasClassGraph, 'Student page should load ClassGraphPreview after scrolling to it').toBe(true)
   expect(hasSeatMap, 'Student page should load SeatMapPreview after scrolling to it').toBe(true)
+
+  const hasScrollTrigger = requests.some(url => url.toLowerCase().includes('scrolltrigger') && (url.endsWith('.js') || url.includes('.js?')))
+  expect(hasScrollTrigger, 'Student page should not load ScrollTrigger after CSS-first profile redesign').toBe(false)
 })

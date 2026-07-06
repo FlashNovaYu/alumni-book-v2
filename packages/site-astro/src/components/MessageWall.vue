@@ -348,6 +348,9 @@ onMounted(async () => {
 
 /* Card skin styles */
 .msg-item {
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-paper-border);
+  box-shadow: var(--shadow-paper-card);
   margin-bottom: var(--spacing-lg);
   padding: var(--spacing-lg) !important;
   border-radius: var(--rounded-md);
