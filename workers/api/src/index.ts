@@ -23,7 +23,12 @@ type Bindings = {
   CORS_ORIGIN: string
 }
 
-const app = new Hono<{ Bindings: Bindings }>()
+type Variables = {
+  requestId: string
+  jwtPayload?: any
+}
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // Request ID
 app.use('*', async (c, next) => {

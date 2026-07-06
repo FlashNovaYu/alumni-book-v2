@@ -237,3 +237,62 @@ export interface SeatMapPayload {
   missingSeatCount: number
 }
 
+
+export type PublicMessageStatus = 'pending' | 'approved' | 'rejected' | 'hidden'
+
+export interface PublicMessage {
+  id: string
+  authorSlug: string
+  authorName: string
+  content: string
+  cardStyle: 'paper' | 'chalkboard' | 'photoback' | 'letter'
+  status: PublicMessageStatus
+  reviewReason?: string | null
+  featured: boolean
+  pinned: boolean
+  reactions: Record<string, number>
+  createdAt: string
+  reviewedAt?: string | null
+}
+
+export interface NotificationItem {
+  id: string
+  type: string
+  title: string
+  body: string
+  relatedType?: string | null
+  relatedId?: string | null
+  readAt?: string | null
+  createdAt: string
+}
+
+export interface NotificationSummary {
+  unreadCount: number
+}
+
+export type MailThreadType = 'private' | 'admin' | 'system'
+
+export interface MailboxThread {
+  id: string
+  subject: string
+  threadType: MailThreadType
+  senderName: string
+  preview: string
+  unread: boolean
+  allowReply: boolean
+  updatedAt: string
+}
+
+export interface MailboxMessage {
+  id: string
+  threadId: string
+  senderType: 'student' | 'admin' | 'system'
+  senderSlug?: string | null
+  senderName: string
+  body: string
+  createdAt: string
+}
+
+export interface MailboxSummary {
+  unreadCount: number
+}
