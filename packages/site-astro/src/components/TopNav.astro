@@ -6,7 +6,7 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 const isHome = currentPath === base || currentPath === href('/')
 ---
-<nav class={`top-nav ${isHome ? 'top-nav--home' : ''}`}>
+<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`}>
   <div class="nav-inner container">
     <a href={href('/')} class="nav-brand">
       <span class="brand-mark"><IconBrand size={20} /></span>
@@ -19,23 +19,32 @@ const isHome = currentPath === base || currentPath === href('/')
     <div class="nav-links">
       <a href={href('/preface')} class={`nav-link ${currentPath.startsWith(href('/preface')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/preface')) ? 'page' : undefined}>
         <span class="link-text">前言</span>
-        {currentPath.startsWith(href('/preface')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
+        {currentPath.startsWith(href('/preface')) && <span class="ink-line" transition:name="active-ink-line"></span>}
       </a>
       <a href={href('/roster')} class={`nav-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/roster')) ? 'page' : undefined}>
         <span class="link-text">同学录</span>
-        {currentPath.startsWith(href('/roster')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
+        {currentPath.startsWith(href('/roster')) && <span class="ink-line" transition:name="active-ink-line"></span>}
+      </a>
+      <a href={href('/messages')} class={`nav-link nav-link--community ${currentPath.startsWith(href('/messages')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/messages')) ? 'page' : undefined}>
+        <span class="link-text">公共留言</span>
+        {currentPath.startsWith(href('/messages')) && <span class="ink-line" transition:name="active-ink-line"></span>}
+      </a>
+      <a href={href('/mailbox')} class={`nav-link nav-link--mail ${currentPath.startsWith(href('/mailbox')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/mailbox')) ? 'page' : undefined}>
+        <span class="link-text">班级邮局</span>
+        <span id="mail-unread-stamp" class="mail-unread-stamp" hidden></span>
+        {currentPath.startsWith(href('/mailbox')) && <span class="ink-line" transition:name="active-ink-line"></span>}
       </a>
       <a href={href('/album')} class={`nav-link ${currentPath.startsWith(href('/album')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/album')) ? 'page' : undefined}>
         <span class="link-text">相册</span>
-        {currentPath.startsWith(href('/album')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
+        {currentPath.startsWith(href('/album')) && <span class="ink-line" transition:name="active-ink-line"></span>}
       </a>
       <a href={href('/timeline')} class={`nav-link ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/timeline')) ? 'page' : undefined}>
         <span class="link-text">时光轴</span>
-        {currentPath.startsWith(href('/timeline')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
+        {currentPath.startsWith(href('/timeline')) && <span class="ink-line" transition:name="active-ink-line"></span>}
       </a>
       <a href={href('/yearbook')} class={`nav-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/yearbook')) ? 'page' : undefined}>
         <span class="link-text">年度册 (PDF)</span>
-        {currentPath.startsWith(href('/yearbook')) && <span class="lamp-glow" transition:name="active-lamp"></span>}
+        {currentPath.startsWith(href('/yearbook')) && <span class="ink-line" transition:name="active-ink-line"></span>}
       </a>
       
       <!-- 静态与客户端完全一致的已登录身份栏：0 水合开销，0 nextTick 黑洞，彻底消灭消失又出现的闪烁 -->
@@ -83,11 +92,32 @@ const isHome = currentPath === base || currentPath === href('/')
           } catch (e) {}
         }
         
+        async function syncMailUnread() {
+          try {
+            const token = sessionStorage.getItem('classmate_account_token');
+            const stamp = document.getElementById('mail-unread-stamp');
+            if (!stamp || !token) {
+              if (stamp) stamp.hidden = true;
+              return;
+            }
+            const res = await fetch(CLIENT_API_BASE + '/api/notifications/summary', {
+              headers: { 'X-Classmate-Token': token }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const count = data && data.data ? Number(data.data.unreadCount || 0) : 0;
+            stamp.hidden = count <= 0;
+            stamp.textContent = count > 99 ? '99+' : String(count);
+          } catch (e) {}
+        }
+        
         // 1. 首帧同步执行（First Paint 之前同步点亮）
         syncNavSession();
+        syncMailUnread();
         
         // 2. 视图过渡跳转后重新校验并绑定事件
         document.addEventListener('astro:page-load', syncNavSession);
+        document.addEventListener('astro:page-load', syncMailUnread);
       </script>
     </div>
   </div>
@@ -197,20 +227,69 @@ const isHome = currentPath === base || currentPath === href('/')
     font-weight: 600;
   }
 
-  /* 复古床头灯泡渐变光晕 (Tubelight / Lamp Effect) */
-  .lamp-glow {
+  .paper-bookmark-nav {
+    border-radius: 18px 18px 16px 16px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-paper-card) 92%, transparent), color-mix(in srgb, var(--color-paper-card) 82%, transparent)),
+      repeating-linear-gradient(90deg, rgba(112, 86, 55, 0.05) 0 1px, transparent 1px 8px);
+    border-color: color-mix(in srgb, var(--color-paper-border) 82%, var(--color-paper-brown));
+    box-shadow: 0 14px 34px rgba(74, 50, 29, 0.12), inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+
+  .paper-bookmark-nav::before {
+    content: '';
     position: absolute;
-    top: -4px; /* 贴近胶囊上边缘 */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
+    left: 22px;
+    right: 22px;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(117, 77, 40, 0.28), transparent);
+    pointer-events: none;
+  }
+
+  .ink-line {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 4px;
     height: 2px;
-    background-color: var(--color-paper-brown);
-    border-radius: 9999px;
-    box-shadow: 
-      0 0 10px rgba(204, 120, 92, 0.95),
-      0 0 20px rgba(204, 120, 92, 0.5),
-      0 0 35px rgba(204, 120, 92, 0.25);
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--color-paper-brown), var(--color-paper-stamp-red), transparent);
+    transform-origin: center;
+    animation: inkLineFlow 2.8s ease-in-out infinite;
+  }
+
+  .mail-unread-stamp {
+    position: absolute;
+    top: -8px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    line-height: 1;
+    color: #fffaf2;
+    background: var(--color-paper-stamp-red);
+    box-shadow: 0 2px 8px rgba(130, 42, 33, 0.24);
+  }
+
+  .mail-unread-stamp[hidden] {
+    display: none;
+  }
+
+  @keyframes inkLineFlow {
+    0%, 100% { opacity: 0.72; transform: scaleX(0.88); }
+    50% { opacity: 1; transform: scaleX(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ink-line {
+      animation: none;
+    }
   }
 
   /* 静态与客户端完全一致的已登录排版样式 */
@@ -283,6 +362,8 @@ const isHome = currentPath === base || currentPath === href('/')
       pointer-events: none;
       transform: translateY(-10px);
       transition: all 0.25s var(--ease-out-quart);
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
     }
     .menu-toggle-input:checked ~ .nav-links {
       opacity: 1; visibility: visible; pointer-events: auto;
@@ -294,10 +375,12 @@ const isHome = currentPath === base || currentPath === href('/')
       width: 100%;
       text-align: center;
     }
-    .nav-link.active .lamp-glow {
+    .nav-link.active .ink-line {
       top: auto;
       bottom: 2px;
       width: 24px;
+      left: calc(50% - 12px); /* 50% 居中减去自身宽度的一半 */
+      right: auto;            /* 覆盖可能继承 of right 定位 */
     }
     .nav-session {
       border-left: none;
@@ -316,6 +399,16 @@ const isHome = currentPath === base || currentPath === href('/')
 
     .top-nav--home:not(.has-session) .mobile-toggle {
       display: none;
+    }
+
+    .nav-link--mail {
+      display: flex !important;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-link--mail .mail-unread-stamp {
+      position: static !important;
     }
   }
 
