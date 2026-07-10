@@ -135,6 +135,8 @@ export const testMigrations = [
     )`,
     `CREATE INDEX IF NOT EXISTS idx_public_messages_status ON public_messages(status, pinned, featured, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_public_messages_author ON public_messages(author_slug, created_at DESC)`,
+    `INSERT INTO public_messages (id, author_slug, author_name, content, status)
+      VALUES ('pm_chat_rework_migration_fixture', 'test_init', '测试同学', '迁移前审核通过的消息', 'approved')`,
     `CREATE TABLE IF NOT EXISTS content_reviews (
       id TEXT PRIMARY KEY,
       content_type TEXT NOT NULL,

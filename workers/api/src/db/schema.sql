@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS public_messages (
   recalled_by_type TEXT,
   recalled_at TEXT,
   moderation_reason TEXT,
-  created_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (author_slug) REFERENCES students(slug) ON DELETE CASCADE
 );
