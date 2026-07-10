@@ -296,3 +296,43 @@ export interface MailboxMessage {
 export interface MailboxSummary {
   unreadCount: number
 }
+
+export interface ClassSpaceAlbumPreview {
+  id: string
+  title: string
+  coverR2Key: string | null
+  photoCount: number
+  tags: string[]
+}
+
+export interface ClassSpaceTimelinePreview {
+  id: string
+  type: 'event' | 'message' | 'photo' | 'join'
+  title: string
+  description?: string
+  date: string
+  photoUrl?: string | null
+  eventType?: string
+}
+
+export interface ClassSpaceOverview {
+  messages: PublicMessage[]
+  albums: ClassSpaceAlbumPreview[]
+  timeline: ClassSpaceTimelinePreview[]
+  counts: {
+    approvedMessages: number
+    albums: number
+    timelineItems: number
+  }
+}
+
+export interface InboxSummary {
+  notificationUnread: number
+  mailUnread: number
+  totalUnread: number
+}
+
+export interface MailboxThreadDetail {
+  thread: Pick<MailboxThread, 'id' | 'subject' | 'threadType' | 'allowReply' | 'updatedAt'>
+  messages: MailboxMessage[]
+}
