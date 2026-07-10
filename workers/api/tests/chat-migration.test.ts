@@ -185,6 +185,18 @@ describe('Legacy Chat Migration Core', () => {
     const pub = await env.DB.prepare("SELECT status FROM public_messages WHERE id = 'pub-1'").first() as any
     expect(pub.status).toBe('pending')
 
+    // 验证迁移通知拥有 notification_sync_events 记录
+    const syncEvents = await env.DB.prepare(
+      'SELECT notification_id, recipient_slug FROM notification_sync_events WHERE notification_id = ?'
+    ).bind(notif.id).all()
+
+    expect(syncEvents.results).toEqual([
+      expect.objectContaining({
+        notification_id: notif.id,
+        recipient_slug: STUDENT_A,
+      }),
+    ])
+
     // --- 第二次迁移 (幂等性校验) ---
     for (const sql of legacyChatMigrationStatements) {
       await env.DB.prepare(sql).run()
@@ -195,6 +207,13 @@ describe('Legacy Chat Migration Core', () => {
     expect(r2.directMessages).toBe(5)
     expect(r2.migratedNotifications).toBe(1)
     expect(r2.anomalies).toBe(0)
+
+    // 验证第二次迁移不重复创建 notification_sync_events
+    const eventCount = await env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM notification_sync_events WHERE notification_id = ?'
+    ).bind(notif.id).first() as any
+
+    expect(Number(eventCount.count)).toBe(1)
   })
 
   it('detects anomalies for invalid student references', async () => {
