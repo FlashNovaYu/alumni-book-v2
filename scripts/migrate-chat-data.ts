@@ -1,7 +1,16 @@
 import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync } from 'fs';
-import { resolve } from 'path';
-import { legacyChatMigrationStatements, assertChatMigrationReport } from './lib/chatMigration';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import {
+  legacyChatMigrationStatements,
+  generateChatMigrationReport,
+  assertChatMigrationReport
+} from './lib/chatMigration.js';
+
+// 支持在 ESM 模式下获取 __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class MockD1Database {
   private isLocal: boolean;
@@ -37,7 +46,8 @@ class MockD1Database {
       },
       first: async () => {
         const res = await this.executeCommand(sql);
-        return res.results?.[0] || null;
+        const results = res.results || [];
+        return results[0] || null;
       }
     };
   }
@@ -63,7 +73,6 @@ class MockD1Database {
 }
 
 async function runMigration() {
-  // 解析命令行参数
   const args = process.argv.slice(2);
   const isRemote = args.includes('--remote');
   const isLocal = !isRemote;
@@ -72,31 +81,40 @@ async function runMigration() {
   const db = new MockD1Database(isLocal);
 
   try {
-    // 1. 生成迁移 SQL 和 Report
-    const { statements, report } = await legacyChatMigrationStatements(db);
+    // 1. 迁移执行前：收集源数据库状态和数据总数
+    const beforeReport = await generateChatMigrationReport(db);
 
-    // 2. 打印 JSON 报告
-    console.log(JSON.stringify(report, null, 2));
-
-    // 3. 校验 report 合法性
-    assertChatMigrationReport(report);
-
-    // 如果没有要迁移的数据，直接成功返回
-    if (statements.length === 0) {
-      process.exit(0);
-    }
-
-    // 4. 将生成的 SQL 语句批量写入临时文件，并通过 wrangler 执行
+    // 2. 将生成的静态 SQL 语句批量写入临时文件，并通过 wrangler 在真实数据库上执行
     const tempSqlFile = resolve(__dirname, 'temp-migration-chat.sql');
-    writeFileSync(tempSqlFile, statements.join('\n;\n') + '\n;', 'utf-8');
+    writeFileSync(tempSqlFile, legacyChatMigrationStatements.join('\n;\n') + '\n;', 'utf-8');
 
     const executeCmd = `pnpm --filter worker exec wrangler d1 execute alumni-book-db --file="${tempSqlFile}" ${localFlag}`;
     execSync(executeCmd, { stdio: 'inherit' });
 
-    // 删除临时文件
-    unlinkSync(tempSqlFile);
+    // 执行完毕后立即清空删除临时文件，防止残留
+    try {
+      unlinkSync(tempSqlFile);
+    } catch {
+      // 忽略文件不存在等无关异常
+    }
 
+    // 3. 迁移执行后：重新采集并拉取目标表的真实计数值及 Anomalies 数量
+    const afterReport = await generateChatMigrationReport(db);
+
+    // 4. 对执行后的报表做严格强一致性断言校验
+    assertChatMigrationReport(afterReport); // 如果有 Anomalies，直接抛错退出
+
+    // 校验私信消息的总条数是否在迁移后达到了和源表完全吻合的期望数量 (防 INSERT OR IGNORE 因非预期原因丢漏消息)
+    if (afterReport.directMessages !== afterReport.sourcePrivateMessages) {
+      throw new Error(
+        `Migration verification failed: Source private messages (${afterReport.sourcePrivateMessages}) and migrated direct messages (${afterReport.directMessages}) count mismatch!`
+      );
+    }
+
+    // 5. 校验通过，控制台只在末尾输出标准的 JSON 迁移报告以供外部集成读取
+    console.log(JSON.stringify(afterReport, null, 2));
     process.exit(0);
+
   } catch (err: any) {
     console.error('Migration failed:', err.message || err);
     process.exit(1);
