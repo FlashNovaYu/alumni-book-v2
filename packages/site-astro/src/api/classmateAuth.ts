@@ -1,4 +1,4 @@
-// packages/site-astro/src/api/classmateAuth.ts
+﻿// packages/site-astro/src/api/classmateAuth.ts
 // CCSwitch: 前台同学登录与修改密码的 API 客户端封装。
 
 import { getClassmateToken, type ApiResponse, type ClassmateLoginResponse } from '@alumni/shared'
@@ -38,3 +38,12 @@ export async function logoutClassmate(apiBase: string) {
   return data
 }
 
+export async function fetchClassmateMe(apiBase: string) {
+  const token = getClassmateToken()
+  const res = await fetch(joinApiUrl(apiBase, '/api/classmate-auth/me'), {
+    headers: token ? { 'X-Classmate-Token': token } : {},
+  })
+  const data = await res.json() as ApiResponse<{ student: ClassmateLoginResponse['student']; mustChangePassword: boolean }>
+  if (!res.ok || !data.success || !data.data) throw new Error(data.message || '账号信息加载失败')
+  return data.data
+}
