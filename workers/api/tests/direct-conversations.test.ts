@@ -297,4 +297,120 @@ describe('Direct Conversations API', () => {
     expect(dataPage2.items[0].body).toBe('init')
     expect(dataPage2.items[dataPage2.items.length - 1].body).toBe('body-5')
   })
+
+  it('blocks content writing but allows reading when classmate must change password', async () => {
+    await env.DB.prepare("UPDATE students SET account_initial_password_changed = 0 WHERE slug = ?").bind(STUDENT_A).run()
+
+    const postConv = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 'write gate test', clientNonce: 'gate-nonce-1' })
+    })
+    expect(postConv.status).toBe(403)
+
+    const setupRes = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_B),
+      body: JSON.stringify({ recipientSlug: STUDENT_A, body: 'B message', clientNonce: 'gate-nonce-2' })
+    })
+    expect(setupRes.status).toBe(201)
+    const convId = (await setupRes.json() as any).data.conversation.id
+
+    const postMsg = await request(`/api/direct-conversations/${convId}/messages`, {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ body: 'reply text', clientNonce: 'gate-nonce-3' })
+    })
+    expect(postMsg.status).toBe(403)
+
+    const getList = await request('/api/direct-conversations', { headers: headers(TOKEN_A) })
+    expect(getList.status).toBe(200)
+
+    const getHistory = await request(`/api/direct-conversations/${convId}/messages`, { headers: headers(TOKEN_A) })
+    expect(getHistory.status).toBe(200)
+
+    const setupMsgRes = await request(`/api/direct-conversations/${convId}/messages`, {
+      method: 'POST',
+      headers: headers(TOKEN_B),
+      body: JSON.stringify({ body: 'msg for A to read', clientNonce: 'gate-nonce-4' })
+    })
+    const mId = (await setupMsgRes.json() as any).data.id
+
+    const putRead = await request(`/api/direct-conversations/${convId}/read`, {
+      method: 'PUT',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ throughMessageId: mId })
+    })
+    expect(putRead.status).toBe(200)
+
+    await env.DB.prepare("UPDATE students SET account_initial_password_changed = 1 WHERE slug = ?").bind(STUDENT_A).run()
+  })
+
+  it('performs concurrent first conversation creation safely without 500', async () => {
+    await env.DB.prepare('DELETE FROM direct_messages').run()
+    await env.DB.prepare('DELETE FROM direct_conversations').run()
+
+    const req1 = request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 'msg-1', clientNonce: 'concurrent-1' })
+    })
+    const req2 = request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 'msg-2', clientNonce: 'concurrent-2' })
+    })
+
+    const [res1, res2] = await Promise.all([req1, req2])
+    expect(res1.status).toBe(201)
+    expect(res2.status).toBe(201)
+
+    const convs = await env.DB.prepare('SELECT * FROM direct_conversations').all()
+    expect(convs.results).toHaveLength(1)
+
+    const msgs = await env.DB.prepare('SELECT * FROM direct_messages').all()
+    expect(msgs.results).toHaveLength(2)
+  })
+
+  it('supports mixed legacy and ISO timestamp pagination at the boundary', async () => {
+    const convId = 'conv_direct-student-a_direct-student-b'
+    await env.DB.prepare("INSERT INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES (?, ?, ?, '2026-01-01 00:00:00', '2026-01-01 00:00:00')").bind(convId, STUDENT_A, STUDENT_B).run()
+
+    await env.DB.prepare("INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES ('msg-leg-1', ?, ?, ?, 'legacy boundary msg', 'nonce-leg-1', '2026-01-01 12:00:00')")
+      .bind(convId, STUDENT_A, STUDENT_B).run()
+    await env.DB.prepare("INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES ('msg-iso-2', ?, ?, ?, 'iso boundary msg', 'nonce-iso-2', '2026-01-01T12:00:00.000Z')")
+      .bind(convId, STUDENT_A, STUDENT_B).run()
+
+    const resPage1 = await request(`/api/direct-conversations/${convId}/messages?limit=1`, { headers: headers(TOKEN_A) })
+    expect(resPage1.status).toBe(200)
+    const data1 = (await resPage1.json() as any).data
+    expect(data1.items).toHaveLength(1)
+
+    const resPage2 = await request(`/api/direct-conversations/${convId}/messages?limit=1&before=${encodeURIComponent(data1.nextCursor)}`, { headers: headers(TOKEN_A) })
+    expect(resPage2.status).toBe(200)
+    const data2 = (await resPage2.json() as any).data
+    expect(data2.items).toHaveLength(1)
+    expect(data1.items[0].id).not.toBe(data2.items[0].id)
+  })
+
+  it('rejects malformed requests and invalid JSON body', async () => {
+    const res1 = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: '{ malformed json'
+    })
+    expect(res1.status).toBe(400)
+
+    const res2 = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 123, clientNonce: 'nonce-bad-1' })
+    })
+    expect(res2.status).toBe(400)
+
+    const convId = 'conv_direct-student-a_direct-student-b'
+    await env.DB.prepare("INSERT INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES (?, ?, ?, '2026-01-01 00:00:00', '2026-01-01 00:00:00')").bind(convId, STUDENT_A, STUDENT_B).run()
+    const res3 = await request(`/api/direct-conversations/${convId}/messages?limit=-5`, { headers: headers(TOKEN_A) })
+    expect(res3.status).toBe(400)
+  })
 })

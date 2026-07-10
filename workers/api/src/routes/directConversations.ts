@@ -26,7 +26,7 @@ async function formatConversation(db: D1Database, row: any, viewerSlug: string) 
   ).bind(peerSlug).first() as any
 
   const lastMsgRow = await db.prepare(
-    'SELECT id, sender_slug, body, created_at FROM direct_messages WHERE conversation_id = ? ORDER BY created_at DESC, id DESC LIMIT 1'
+    'SELECT id, sender_slug, body, created_at FROM direct_messages WHERE conversation_id = ? ORDER BY julianday(created_at) DESC, id DESC LIMIT 1'
   ).bind(row.id).first() as any
 
   const unreadRow = await db.prepare(
@@ -51,6 +51,23 @@ async function formatConversation(db: D1Database, row: any, viewerSlug: string) 
   }
 }
 
+function handleIdempotentResponse(c: any, existingMessage: any, viewerSlug: string, conversation: any) {
+  return c.json({
+    success: true,
+    data: {
+      conversation,
+      message: {
+        id: existingMessage.id,
+        conversationId: existingMessage.conversation_id,
+        senderSlug: existingMessage.sender_slug,
+        recipientSlug: existingMessage.recipient_slug,
+        body: existingMessage.body,
+        createdAt: existingMessage.created_at
+      }
+    }
+  }, 200)
+}
+
 // 1. 获取会话列表
 directConversationsRoutes.get('/direct-conversations', async (c) => {
   const identity = await requireClassmate(c)
@@ -73,12 +90,51 @@ directConversationsRoutes.get('/direct-conversations', async (c) => {
 directConversationsRoutes.post('/direct-conversations', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
+  if (identity.mustChangePassword) {
+    return c.json({ success: false, message: '首次登录请先修改密码后再发私信' }, 403)
+  }
   const viewerSlug = identity.slug
 
-  const { recipientSlug, body, clientNonce } = await c.req.json()
+  let bodyObj: any
+  try {
+    bodyObj = await c.req.json()
+  } catch {
+    return c.json({ success: false, message: '无效的 JSON 请求体' }, 400)
+  }
 
-  if (!recipientSlug || recipientSlug === viewerSlug) {
+  if (!bodyObj || typeof bodyObj !== 'object') {
+    return c.json({ success: false, message: '请求体 must be object' }, 400)
+  }
+
+  if (typeof bodyObj.recipientSlug !== 'string') {
+    return c.json({ success: false, message: 'recipientSlug must be string' }, 400)
+  }
+  const recipientSlug = bodyObj.recipientSlug.trim()
+  if (!recipientSlug) {
+    return c.json({ success: false, message: 'recipientSlug cannot be empty' }, 400)
+  }
+
+  if (recipientSlug === viewerSlug) {
     return c.json({ success: false, message: '无效的收件人' }, 400)
+  }
+
+  if (typeof bodyObj.body !== 'string') {
+    return c.json({ success: false, message: 'body must be string' }, 400)
+  }
+  const cleanBody = bodyObj.body
+  if (cleanBody.length < 1 || cleanBody.length > 2000) {
+    return c.json({ success: false, message: '消息内容长度限制在 1-2000 字之间' }, 400)
+  }
+
+  if (typeof bodyObj.clientNonce !== 'string') {
+    return c.json({ success: false, message: 'clientNonce must be string' }, 400)
+  }
+  const clientNonce = bodyObj.clientNonce.trim()
+  if (!clientNonce) {
+    return c.json({ success: false, message: 'clientNonce cannot be empty' }, 400)
+  }
+  if (clientNonce.length > 128) {
+    return c.json({ success: false, message: 'clientNonce 长度不能超过 128 字符' }, 400)
   }
 
   const recipient = await c.env.DB.prepare(
@@ -88,69 +144,112 @@ directConversationsRoutes.post('/direct-conversations', async (c) => {
     return c.json({ success: false, message: '收件人已被锁定或不存在' }, 400)
   }
 
-  const cleanBody = (body || '').trim()
-  if (cleanBody.length < 1 || cleanBody.length > 2000) {
-    return c.json({ success: false, message: '消息内容长度限制在 1-2000 字之间' }, 400)
-  }
-
-  if (!clientNonce) {
-    return c.json({ success: false, message: '缺失 clientNonce' }, 400)
-  }
-
   // 幂等处理：如果已有消息存在
   const existingMessage = await c.env.DB.prepare(
     'SELECT * FROM direct_messages WHERE sender_slug = ? AND client_nonce = ?'
   ).bind(viewerSlug, clientNonce).first() as any
+
+  const [partA, partB] = orderedPair(viewerSlug, recipientSlug)
+  const convId = `conv_${partA}_${partB}`
 
   if (existingMessage) {
     const convRow = await c.env.DB.prepare(
       'SELECT * FROM direct_conversations WHERE id = ?'
     ).bind(existingMessage.conversation_id).first()
     const conversation = await formatConversation(c.env.DB, convRow, viewerSlug)
-    return c.json({
-      success: true,
-      data: {
-        conversation,
-        message: {
-          id: existingMessage.id,
-          conversationId: existingMessage.conversation_id,
-          senderSlug: existingMessage.sender_slug,
-          recipientSlug: existingMessage.recipient_slug,
-          body: existingMessage.body,
-          createdAt: existingMessage.created_at
-        }
-      }
-    }, 200)
+    return handleIdempotentResponse(c, existingMessage, viewerSlug, conversation)
   }
 
-  // 开始插入会话与首条消息
-  const [partA, partB] = orderedPair(viewerSlug, recipientSlug)
+  // 确定性会话 ID
   let convRow = await c.env.DB.prepare(
-    'SELECT * FROM direct_conversations WHERE participant_a_slug = ? AND participant_b_slug = ?'
-  ).bind(partA, partB).first() as any
+    'SELECT * FROM direct_conversations WHERE id = ?'
+  ).bind(convId).first() as any
 
   const msgId = crypto.randomUUID()
   const now = new Date().toISOString()
 
   if (!convRow) {
-    const convId = crypto.randomUUID()
     const stmt1 = c.env.DB.prepare(
-      'INSERT INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT OR IGNORE INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(convId, partA, partB, now, now)
     const stmt2 = c.env.DB.prepare(
       'INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, read_at, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)'
     ).bind(msgId, convId, viewerSlug, recipientSlug, cleanBody, clientNonce, now)
-    await c.env.DB.batch([stmt1, stmt2])
+    try {
+      await c.env.DB.batch([stmt1, stmt2])
+    } catch (err: any) {
+      // 极端并发事务重试机制：重新查询会话是否已生成
+      const convExists = await c.env.DB.prepare(
+        'SELECT * FROM direct_conversations WHERE id = ?'
+      ).bind(convId).first() as any
 
+      if (convExists) {
+        // 发现会话已经被另一个并发请求抢先成功创建，在此平滑降级为只重试消息写入即可，保证零崩溃
+        const checkMsg = await c.env.DB.prepare(
+          'SELECT * FROM direct_messages WHERE sender_slug = ? AND client_nonce = ?'
+        ).bind(viewerSlug, clientNonce).first() as any
+        if (checkMsg) {
+          const conversation = await formatConversation(c.env.DB, convExists, viewerSlug)
+          return handleIdempotentResponse(c, checkMsg, viewerSlug, conversation)
+        }
+
+        try {
+          await c.env.DB.prepare(
+            'INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, read_at, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)'
+          ).bind(msgId, convId, viewerSlug, recipientSlug, cleanBody, clientNonce, now).run()
+        } catch (insertErr: any) {
+          const checkMsgDouble = await c.env.DB.prepare(
+            'SELECT * FROM direct_messages WHERE sender_slug = ? AND client_nonce = ?'
+          ).bind(viewerSlug, clientNonce).first() as any
+          if (checkMsgDouble) {
+            const conversation = await formatConversation(c.env.DB, convExists, viewerSlug)
+            return handleIdempotentResponse(c, checkMsgDouble, viewerSlug, conversation)
+          }
+          throw insertErr
+        }
+
+        await c.env.DB.prepare(
+          'UPDATE direct_conversations SET updated_at = ? WHERE id = ?'
+        ).bind(now, convId).run()
+
+        const conversation = await formatConversation(c.env.DB, convExists, viewerSlug)
+        return c.json({
+          success: true,
+          data: {
+            conversation,
+            message: {
+              id: msgId,
+              conversationId: convId,
+              senderSlug: viewerSlug,
+              recipientSlug,
+              body: cleanBody,
+              createdAt: now
+            }
+          }
+        }, 201)
+      }
+      throw err
+    }
     convRow = { id: convId, participant_a_slug: partA, participant_b_slug: partB, created_at: now, updated_at: now }
   } else {
     const stmt1 = c.env.DB.prepare(
       'INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, read_at, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)'
-    ).bind(msgId, convRow.id, viewerSlug, recipientSlug, cleanBody, clientNonce, now)
+    ).bind(msgId, convId, viewerSlug, recipientSlug, cleanBody, clientNonce, now)
     const stmt2 = c.env.DB.prepare(
       'UPDATE direct_conversations SET updated_at = ? WHERE id = ?'
-    ).bind(now, convRow.id)
-    await c.env.DB.batch([stmt1, stmt2])
+    ).bind(now, convId)
+    try {
+      await c.env.DB.batch([stmt1, stmt2])
+    } catch (err: any) {
+      const checkMsg = await c.env.DB.prepare(
+        'SELECT * FROM direct_messages WHERE sender_slug = ? AND client_nonce = ?'
+      ).bind(viewerSlug, clientNonce).first() as any
+      if (checkMsg) {
+        const conversation = await formatConversation(c.env.DB, convRow, viewerSlug)
+        return handleIdempotentResponse(c, checkMsg, viewerSlug, conversation)
+      }
+      throw err
+    }
   }
 
   const conversation = await formatConversation(c.env.DB, convRow, viewerSlug)
@@ -160,7 +259,7 @@ directConversationsRoutes.post('/direct-conversations', async (c) => {
       conversation,
       message: {
         id: msgId,
-        conversationId: convRow.id,
+        conversationId: convId,
         senderSlug: viewerSlug,
         recipientSlug,
         body: cleanBody,
@@ -182,9 +281,17 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
     return c.json({ success: false, message: '会话不存在或无权访问' }, 404)
   }
 
-  const beforeRaw = c.req.query('before')
-  const limitVal = Math.min(parseInt(c.req.query('limit') || '30', 10), 30)
+  const limitRaw = c.req.query('limit')
+  let limitVal = 30
+  if (limitRaw !== undefined) {
+    const parsed = parseInt(limitRaw, 10)
+    if (isNaN(parsed) || parsed <= 0) {
+      return c.json({ success: false, message: '无效的 limit 参数' }, 400)
+    }
+    limitVal = Math.min(parsed, 30)
+  }
 
+  const beforeRaw = c.req.query('before')
   let beforeCursor = null
   if (beforeRaw) {
     beforeCursor = decodeCursor(beforeRaw)
@@ -197,11 +304,11 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
   const params: any[] = [id]
 
   if (beforeCursor) {
-    queryStr += ' AND (created_at < ? OR (created_at = ? AND id < ?))'
+    queryStr += ' AND (julianday(created_at) < julianday(?) OR (julianday(created_at) = julianday(?) AND id < ?))'
     params.push(beforeCursor.timestamp, beforeCursor.timestamp, beforeCursor.id)
   }
 
-  queryStr += ' ORDER BY created_at DESC, id DESC LIMIT ?'
+  queryStr += ' ORDER BY julianday(created_at) DESC, id DESC LIMIT ?'
   params.push(limitVal)
 
   const msgRows = await c.env.DB.prepare(queryStr).bind(...params).all()
@@ -234,6 +341,9 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
 directConversationsRoutes.post('/direct-conversations/:id/messages', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
+  if (identity.mustChangePassword) {
+    return c.json({ success: false, message: '首次登录请先修改密码后再发私信' }, 403)
+  }
   const viewerSlug = identity.slug
 
   const { id } = c.req.param()
@@ -242,15 +352,34 @@ directConversationsRoutes.post('/direct-conversations/:id/messages', async (c) =
     return c.json({ success: false, message: '会话不存在或无权访问' }, 404)
   }
 
-  const { body, clientNonce } = await c.req.json()
+  let bodyObj: any
+  try {
+    bodyObj = await c.req.json()
+  } catch {
+    return c.json({ success: false, message: '无效的 JSON 请求体' }, 400)
+  }
 
-  const cleanBody = (body || '').trim()
+  if (!bodyObj || typeof bodyObj !== 'object') {
+    return c.json({ success: false, message: '请求体 must be object' }, 400)
+  }
+
+  if (typeof bodyObj.body !== 'string') {
+    return c.json({ success: false, message: 'body must be string' }, 400)
+  }
+  const cleanBody = bodyObj.body
   if (cleanBody.length < 1 || cleanBody.length > 2000) {
     return c.json({ success: false, message: '消息内容长度限制在 1-2000 字之间' }, 400)
   }
 
+  if (typeof bodyObj.clientNonce !== 'string') {
+    return c.json({ success: false, message: 'clientNonce must be string' }, 400)
+  }
+  const clientNonce = bodyObj.clientNonce.trim()
   if (!clientNonce) {
-    return c.json({ success: false, message: '缺失 clientNonce' }, 400)
+    return c.json({ success: false, message: 'clientNonce cannot be empty' }, 400)
+  }
+  if (clientNonce.length > 128) {
+    return c.json({ success: false, message: 'clientNonce 长度不能超过 128 字符' }, 400)
   }
 
   // 幂等处理
@@ -310,7 +439,13 @@ directConversationsRoutes.put('/direct-conversations/:id/read', async (c) => {
     return c.json({ success: false, message: '会话不存在或无权访问' }, 404)
   }
 
-  const bodyObj = await c.req.json()
+  let bodyObj: any
+  try {
+    bodyObj = await c.req.json()
+  } catch {
+    return c.json({ success: false, message: '请求体格式错误' }, 400)
+  }
+
   const keys = Object.keys(bodyObj)
   if (keys.length !== 1 || keys[0] !== 'throughMessageId' || typeof bodyObj.throughMessageId !== 'string') {
     return c.json({ success: false, message: '请求体格式错误' }, 400)
@@ -327,9 +462,17 @@ directConversationsRoutes.put('/direct-conversations/:id/read', async (c) => {
   }
 
   const now = new Date().toISOString()
-  await c.env.DB.prepare(
-    'UPDATE direct_messages SET read_at = ? WHERE conversation_id = ? AND recipient_slug = ? AND read_at IS NULL AND (created_at < ? OR (created_at = ? AND id <= ?))'
-  ).bind(now, id, viewerSlug, targetMsg.created_at, targetMsg.created_at, throughMessageId).run()
+  await c.env.DB.prepare(`
+    UPDATE direct_messages
+    SET read_at = ?
+    WHERE conversation_id = ?
+      AND recipient_slug = ?
+      AND read_at IS NULL
+      AND (
+        julianday(created_at) < julianday(?)
+        OR (julianday(created_at) = julianday(?) AND id <= ?)
+      )
+  `).bind(now, id, viewerSlug, targetMsg.created_at, targetMsg.created_at, throughMessageId).run()
 
   return c.json({ success: true })
 })
