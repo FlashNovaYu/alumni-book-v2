@@ -299,6 +299,8 @@ describe('Legacy mailbox compatibility', () => {
     ).bind('legacy-compat-rcp-1', 'legacy-compat-thread-1', B.slug).run()
 
     // Anonymous GET should be 401 for all three endpoints
+    const anonSummary = await request('/api/mailbox/summary')
+    expect(anonSummary.status).toBe(401)
     const anonList = await request('/api/mailbox/threads')
     expect(anonList.status).toBe(401)
     const anonDetail = await request('/api/mailbox/threads/legacy-compat-thread-1')
