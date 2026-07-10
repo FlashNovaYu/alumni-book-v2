@@ -218,4 +218,120 @@ describe('Group chat API', () => {
 
     await expect(getActiveMute(env.DB, PRIMARY_SLUG)).resolves.toEqual({ reason: '有效禁言', mutedUntil: activeUntil })
   })
+
+  it('adds, removes, and replaces the current reaction', async () => {
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, reactions, status, created_at, updated_at) VALUES ('group-chat-reaction', ?, '群聊甲', '正文', '{\"👍\":2}', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, now, now).run()
+
+    const react = (reaction: string) => request('/api/group-chat/messages/group-chat-reaction/reaction', {
+      method: 'PUT', headers: classmateHeaders(OTHER_TOKEN), body: JSON.stringify({ reaction }),
+    })
+    const added = await react('❤️')
+    const addedPayload = await added.json() as any
+    const removed = await react('❤️')
+    const removedPayload = await removed.json() as any
+    const replaced = await react('😂')
+    const replacedPayload = await replaced.json() as any
+
+    expect(added.status).toBe(200)
+    expect(addedPayload.data).toMatchObject({ reactionCounts: { '👍': 2, '❤️': 1 }, myReaction: '❤️' })
+    expect(removedPayload.data).toMatchObject({ reactionCounts: { '👍': 2 }, myReaction: null })
+    expect(replacedPayload.data).toMatchObject({ reactionCounts: { '👍': 2, '😂': 1 }, myReaction: '😂' })
+  })
+
+  it('updates a reacted message so sync returns the old message change', async () => {
+    const oldTime = '2026-01-01T00:00:00.000Z'
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-sync-reaction', ?, '群聊甲', '正文', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, oldTime, oldTime).run()
+    const cursor = btoa(JSON.stringify({ timestamp: oldTime, id: 'group-chat-sync-reaction' }))
+
+    const reaction = await request('/api/group-chat/messages/group-chat-sync-reaction/reaction', {
+      method: 'PUT', headers: classmateHeaders(OTHER_TOKEN), body: JSON.stringify({ reaction: '🎉' }),
+    })
+    const sync = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(cursor)}`, { headers: classmateHeaders(OTHER_TOKEN) })
+    const payload = await sync.json() as any
+
+    expect(reaction.status).toBe(200)
+    expect(payload.data.items).toEqual([expect.objectContaining({ id: 'group-chat-sync-reaction', myReaction: '🎉' })])
+  })
+
+  it('lets the author recall a visible message inside two minutes', async () => {
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-recall-own', ?, '群聊甲', '待撤回', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, now, now).run()
+
+    const res = await request('/api/group-chat/messages/group-chat-recall-own', { method: 'DELETE', headers: classmateHeaders(PRIMARY_TOKEN) })
+    const payload = await res.json() as any
+
+    expect(res.status).toBe(200)
+    expect(payload.data).toMatchObject({ id: 'group-chat-recall-own', status: 'recalled_by_author', content: null })
+    await expect(env.DB.prepare("SELECT status, recalled_by_type, recalled_at FROM public_messages WHERE id = 'group-chat-recall-own'").first()).resolves.toMatchObject({ status: 'recalled_by_author', recalled_by_type: 'student' })
+  })
+
+  it('rejects author recall after two minutes and hides non-author existence', async () => {
+    const oldTime = new Date(Date.now() - 121_000).toISOString()
+    const now = new Date().toISOString()
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-recall-late', ?, '群聊甲', '太晚', 'visible', ?, ?)").bind(PRIMARY_SLUG, oldTime, oldTime),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-recall-other', ?, '群聊甲', '他人', 'visible', ?, ?)").bind(PRIMARY_SLUG, now, now),
+    ])
+
+    const late = await request('/api/group-chat/messages/group-chat-recall-late', { method: 'DELETE', headers: classmateHeaders(PRIMARY_TOKEN) })
+    const other = await request('/api/group-chat/messages/group-chat-recall-other', { method: 'DELETE', headers: classmateHeaders(OTHER_TOKEN) })
+
+    expect(late.status).toBe(403)
+    expect(other.status).toBe(404)
+  })
+
+  it('blocks a muted sender with the mute reason and deletes expired mute before sending', async () => {
+    const now = new Date().toISOString()
+    const activeUntil = new Date(Date.now() + 60_000).toISOString()
+    await env.DB.prepare('INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').bind(PRIMARY_SLUG, activeUntil, '请冷静', now, now).run()
+    const muted = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '不能发', clientNonce: 'muted-message' }),
+    })
+    expect(muted.status).toBe(403)
+    await expect(muted.json()).resolves.toMatchObject({ message: '请冷静' })
+
+    const expiredAt = new Date(Date.now() - 60_000).toISOString()
+    await env.DB.prepare('UPDATE group_chat_mutes SET muted_until = ? WHERE student_slug = ?').bind(expiredAt, PRIMARY_SLUG).run()
+    const allowed = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '现在可发', clientNonce: 'expired-mute-message' }),
+    })
+    expect(allowed.status).toBe(201)
+    await expect(env.DB.prepare('SELECT * FROM group_chat_mutes WHERE student_slug = ?').bind(PRIMARY_SLUG).first()).resolves.toBeNull()
+  })
+
+  it('rejects the seventh visible or recalled message in thirty seconds with Retry-After', async () => {
+    const now = new Date().toISOString()
+    await env.DB.batch(Array.from({ length: 6 }, (_, index) => env.DB.prepare(
+      'INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(`group-chat-rate-${index}`, PRIMARY_SLUG, '群聊甲', `近期 ${index}`, index === 0 ? 'recalled_by_author' : 'visible', now, now)))
+
+    const res = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '第七条', clientNonce: 'seventh-message' }),
+    })
+    expect(res.status).toBe(429)
+    expect(res.headers.get('Retry-After')).toBe('30')
+  })
+
+  it('sync returns a hidden tombstone and rejects an invalid non-empty cursor', async () => {
+    const oldTime = '2026-01-01T00:00:00.000Z'
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-hidden-sync', ?, '群聊甲', '已隐藏', 'hidden', ?, ?)"
+    ).bind(PRIMARY_SLUG, oldTime, now).run()
+    const cursor = btoa(JSON.stringify({ timestamp: oldTime, id: 'group-chat-hidden-before' }))
+    const sync = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(cursor)}`, { headers: classmateHeaders(OTHER_TOKEN) })
+    const invalid = await request('/api/group-chat/sync?cursor=invalid', { headers: classmateHeaders(OTHER_TOKEN) })
+    const payload = await sync.json() as any
+
+    expect(sync.status).toBe(200)
+    expect(payload.data.items).toEqual([expect.objectContaining({ id: 'group-chat-hidden-sync', status: 'hidden', content: null })])
+    expect(invalid.status).toBe(400)
+  })
 })

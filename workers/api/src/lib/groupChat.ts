@@ -7,6 +7,8 @@ type MessageRow = Record<string, any>
 type ListOptions = {
   before?: { timestamp: string; id: string }
   updatedAfter?: { timestamp: string; id: string }
+  updatedBefore?: { timestamp: string; id: string }
+  includeStatusChanges?: boolean
   limit: number
   mine?: boolean
 }
@@ -24,7 +26,7 @@ function isRecalled(status: string) {
   return status === 'recalled_by_author' || status === 'recalled_by_admin'
 }
 
-export async function formatGroupMessage(db: D1Database, row: MessageRow, viewerSlug: string): Promise<GroupChatMessage> {
+export async function formatGroupMessage(db: D1Database, row: MessageRow, viewerSlug: string, hideHiddenContent = false): Promise<GroupChatMessage> {
   const [reactionRows, myReactionRow, replyRow] = await Promise.all([
     db.prepare('SELECT reaction, COUNT(*) AS count FROM group_chat_reactions WHERE message_id = ? GROUP BY reaction').bind(row.id).all(),
     db.prepare('SELECT reaction FROM group_chat_reactions WHERE message_id = ? AND reactor_slug = ?').bind(row.id, viewerSlug).first(),
@@ -45,7 +47,7 @@ export async function formatGroupMessage(db: D1Database, row: MessageRow, viewer
       : '原消息不可用',
   } : null
   const ownPrivateMessage = row.author_slug === viewerSlug && (row.status === 'hidden' || row.status === 'pending' || row.status === 'rejected')
-  const content = isRecalled(row.status) ? null : row.content
+  const content = isRecalled(row.status) || (hideHiddenContent && row.status === 'hidden') ? null : row.content
   const createdAt = row.created_at
 
   return {
@@ -68,7 +70,11 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
     throw new Error('before 和 updatedAfter 不能同时使用')
   }
 
-  const clauses = [options.mine ? 'pm.author_slug = ?' : "pm.status = 'visible'"]
+  const clauses = [options.mine
+    ? 'pm.author_slug = ?'
+    : options.includeStatusChanges
+      ? "pm.status IN ('visible', 'hidden', 'recalled_by_author', 'recalled_by_admin')"
+      : "pm.status = 'visible'"]
   const values: unknown[] = options.mine ? [viewerSlug] : []
   if (options.before) {
     clauses.push('(julianday(pm.created_at) < julianday(?) OR (julianday(pm.created_at) = julianday(?) AND pm.id < ?))')
@@ -78,6 +84,10 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
     clauses.push('(julianday(pm.updated_at) > julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id > ?))')
     values.push(options.updatedAfter.timestamp, options.updatedAfter.timestamp, options.updatedAfter.id)
   }
+  if (options.updatedBefore) {
+    clauses.push('(julianday(pm.updated_at) < julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id <= ?))')
+    values.push(options.updatedBefore.timestamp, options.updatedBefore.timestamp, options.updatedBefore.id)
+  }
   values.push(options.limit)
   const orderBy = options.updatedAfter
     ? 'julianday(pm.updated_at) ASC, pm.id ASC'
@@ -85,13 +95,16 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
   const result = await db.prepare(
     `SELECT pm.*, s.avatar_url FROM public_messages pm LEFT JOIN students s ON s.slug = pm.author_slug WHERE ${clauses.join(' AND ')} ORDER BY ${orderBy} LIMIT ?`
   ).bind(...values).all()
-  const messages = await Promise.all((result.results || []).map((row) => formatGroupMessage(db, row, viewerSlug)))
+  const messages = await Promise.all((result.results || []).map((row) => formatGroupMessage(db, row, viewerSlug, options.includeStatusChanges)))
   return options.updatedAfter ? messages : messages.reverse()
 }
 
 export async function getActiveMute(db: D1Database, slug: string): Promise<{ reason: string; mutedUntil: string | null } | null> {
+  await db.prepare(
+    "DELETE FROM group_chat_mutes WHERE student_slug = ? AND muted_until IS NOT NULL AND julianday(muted_until) <= julianday('now')"
+  ).bind(slug).run()
   const row = await db.prepare(
-    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR datetime(muted_until) > datetime('now'))"
+    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR julianday(muted_until) > julianday('now'))"
   ).bind(slug).first() as any
   return row ? { reason: row.reason, mutedUntil: row.muted_until } : null
 }
