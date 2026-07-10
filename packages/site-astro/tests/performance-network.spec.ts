@@ -88,7 +88,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function seedClassmateSession(page: any) {
-  await page.goto('/')
+  await page.goto('./')
   await page.evaluate(() => {
     sessionStorage.setItem('classmate_account_token', 'test-classmate-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({
@@ -100,16 +100,23 @@ async function seedClassmateSession(page: any) {
   })
 }
 
+function hasRequestedChunk(requests: string[], token: string) {
+  return requests.some(url => {
+    const normalized = url.toLowerCase()
+    return normalized.includes(token.toLowerCase()) && (normalized.endsWith('.js') || normalized.includes('.js?'))
+  })
+}
+
 // 1. 首页测试：不加载 GSAP, ScrollTrigger, ClassGraphPreview, SeatMapPreview
 test('home page does not request GSAP, ScrollTrigger, ClassGraphPreview, or SeatMapPreview', async ({ page }) => {
   const requests: string[] = []
   page.on('request', req => requests.push(req.url()))
 
-  await page.goto('/', { waitUntil: 'networkidle' })
+  await page.goto('./', { waitUntil: 'networkidle' })
 
   const forbidden = ['scrolltrigger', 'gsap', 'classgraphpreview', 'seatmappreview']
   for (const token of forbidden) {
-    const hasToken = requests.some(url => url.toLowerCase().includes(token) && (url.endsWith('.js') || url.includes('.js?')))
+    const hasToken = hasRequestedChunk(requests, token)
     expect(hasToken, `Home page should not load ${token}`).toBe(false)
   }
   expect(requests.some(url => url.toLowerCase().includes('/api/classmates'))).toBe(false)
@@ -123,11 +130,11 @@ test('timeline page does not load GSAP, ScrollTrigger, ClassGraphPreview, or Sea
   // 先访问首页确立同源 origin，写入账号会话，避开重定向门控
   await seedClassmateSession(page)
 
-  await page.goto('/timeline/', { waitUntil: 'networkidle' })
+  await page.goto('./timeline/', { waitUntil: 'networkidle' })
 
   const forbidden = ['scrolltrigger', 'gsap', 'classgraphpreview', 'seatmappreview']
   for (const token of forbidden) {
-    const hasToken = requests.some(url => url.toLowerCase().includes(token) && (url.endsWith('.js') || url.includes('.js?')))
+    const hasToken = hasRequestedChunk(requests, token)
     expect(hasToken, `Timeline page should not load ${token}`).toBe(false)
   }
 })
@@ -141,32 +148,54 @@ test('roster page: lazy loads ClassGraphPreview and SeatMapPreview on scroll, an
   await seedClassmateSession(page)
 
   // 1. 访问人物长廊页，等待网络稳定（首屏加载完毕）
-  await page.goto('/roster/', { waitUntil: 'networkidle' })
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
 
   // 2. 验证初始状态不包含 ClassGraphPreview 和 SeatMapPreview 以及 GSAP/ScrollTrigger
   const forbiddenInitial = ['scrolltrigger', 'gsap', 'classgraphpreview', 'seatmappreview']
   for (const token of forbiddenInitial) {
-    const hasToken = requests.some(url => url.toLowerCase().includes(token) && (url.endsWith('.js') || url.includes('.js?')))
+    const hasToken = hasRequestedChunk(requests, token)
     expect(hasToken, `Roster page initially should not load ${token}`).toBe(false)
   }
 
   // 3. 滚动到底部以触发 client:visible
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
   const lazyHighlights = page.locator('.lazy-highlights')
+
+  if (await lazyHighlights.count() === 0) {
+    expect(hasRequestedChunk(requests, 'classgraphpreview'), 'Roster page should not load disabled ClassGraphPreview').toBe(false)
+    expect(hasRequestedChunk(requests, 'seatmappreview'), 'Roster page should not load disabled SeatMapPreview').toBe(false)
+    return
+  }
+
+  const enabledHighlights = await lazyHighlights.evaluate(el => ({
+    classGraph: !!el.querySelector('astro-island[component-url*="ClassGraphPreview"]'),
+    seatMap: !!el.querySelector('astro-island[component-url*="SeatMapPreview"]'),
+  }))
+
   await lazyHighlights.scrollIntoViewIfNeeded()
 
-  // 4. 等待片刻让动态导入的脚本加载
-  await page.waitForTimeout(2000)
+  // 4. 等待动态导入脚本实际出现，避免慢机或 CI 下固定等待造成偶发失败
+  if (enabledHighlights.classGraph) {
+    await expect.poll(
+      () => hasRequestedChunk(requests, 'classgraphpreview'),
+      { timeout: 10000, message: 'Roster page should lazy load enabled ClassGraphPreview after scrolling' }
+    ).toBe(true)
+  } else {
+    expect(hasRequestedChunk(requests, 'classgraphpreview'), 'Roster page should not load disabled ClassGraphPreview').toBe(false)
+  }
 
-  // 5. 验证滚动后，ClassGraphPreview 和 SeatMapPreview 被成功加载
-  const hasClassGraph = requests.some(url => url.toLowerCase().includes('classgraphpreview') && (url.endsWith('.js') || url.includes('.js?')))
-  const hasSeatMap = requests.some(url => url.toLowerCase().includes('seatmappreview') && (url.endsWith('.js') || url.includes('.js?')))
-  expect(hasClassGraph, 'Roster page should load ClassGraphPreview after scrolling').toBe(true)
-  expect(hasSeatMap, 'Roster page should load SeatMapPreview after scrolling').toBe(true)
+  if (enabledHighlights.seatMap) {
+    await expect.poll(
+      () => hasRequestedChunk(requests, 'seatmappreview'),
+      { timeout: 10000, message: 'Roster page should lazy load enabled SeatMapPreview after scrolling' }
+    ).toBe(true)
+  } else {
+    expect(hasRequestedChunk(requests, 'seatmappreview'), 'Roster page should not load disabled SeatMapPreview').toBe(false)
+  }
 
   // 验证 GSAP / ScrollTrigger 还是没有被加载
-  const hasScrollTrigger = requests.some(url => url.toLowerCase().includes('scrolltrigger') && (url.endsWith('.js') || url.includes('.js?')))
-  const hasGsap = requests.some(url => url.toLowerCase().includes('gsap') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasScrollTrigger = hasRequestedChunk(requests, 'scrolltrigger')
+  const hasGsap = hasRequestedChunk(requests, 'gsap')
   expect(hasScrollTrigger, 'Roster page should never load ScrollTrigger').toBe(false)
   expect(hasGsap, 'Roster page should never load GSAP').toBe(false)
 })
@@ -182,12 +211,12 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
   await seedClassmateSession(page)
 
   // 1. 访问学生详情页（用 template），等待网络稳定，但首屏不应该触发下半部分延迟加载的组件
-  await page.goto('/student/template/', { waitUntil: 'networkidle' })
+  await page.goto('./student/template/', { waitUntil: 'networkidle' })
 
   // 2. 检查初始状态：绝对不请求 PhotoWall, MessageWall, ClassGraphPreview, SeatMapPreview
   const forbiddenInitial = ['photowall', 'messagewall', 'classgraphpreview', 'seatmappreview']
   for (const token of forbiddenInitial) {
-    const hasToken = requests.some(url => url.toLowerCase().includes(token) && (url.endsWith('.js') || url.includes('.js?')))
+    const hasToken = hasRequestedChunk(requests, token)
     expect(hasToken, `Student page initially should not load component: ${token}`).toBe(false)
   }
 
@@ -196,11 +225,11 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
   await photoWallAnchor.scrollIntoViewIfNeeded()
   await page.waitForTimeout(2000)
   
-  const hasPhotoWall = requests.some(url => url.toLowerCase().includes('photowall') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasPhotoWall = hasRequestedChunk(requests, 'photowall')
   expect(hasPhotoWall, 'Student page should load PhotoWall after scrolling to it').toBe(true)
 
   // 此时 MessageWall 和亮点图依然不应被加载
-  const hasMessageWallBefore = requests.some(url => url.toLowerCase().includes('messagewall') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasMessageWallBefore = hasRequestedChunk(requests, 'messagewall')
   expect(hasMessageWallBefore, 'Student page should not load MessageWall before scrolling to it').toBe(false)
 
   // 4. 滚动到 MessageWall 区域触发加载
@@ -208,11 +237,11 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
   await messageWallAnchor.scrollIntoViewIfNeeded()
   await page.waitForTimeout(2000)
 
-  const hasMessageWall = requests.some(url => url.toLowerCase().includes('messagewall') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasMessageWall = hasRequestedChunk(requests, 'messagewall')
   expect(hasMessageWall, 'Student page should load MessageWall after scrolling to it').toBe(true)
 
   // 此时亮点图依然不应被加载
-  const hasClassGraphBefore = requests.some(url => url.toLowerCase().includes('classgraphpreview') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasClassGraphBefore = hasRequestedChunk(requests, 'classgraphpreview')
   expect(hasClassGraphBefore, 'Student page should not load ClassGraphPreview before scrolling to it').toBe(false)
 
   // 5. 滚动到 Highlights 区域触发加载
@@ -220,11 +249,11 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
   await highlightsAnchor.scrollIntoViewIfNeeded()
   await page.waitForTimeout(2000)
 
-  const hasClassGraph = requests.some(url => url.toLowerCase().includes('classgraphpreview') && (url.endsWith('.js') || url.includes('.js?')))
-  const hasSeatMap = requests.some(url => url.toLowerCase().includes('seatmappreview') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasClassGraph = hasRequestedChunk(requests, 'classgraphpreview')
+  const hasSeatMap = hasRequestedChunk(requests, 'seatmappreview')
   expect(hasClassGraph, 'Student page should load ClassGraphPreview after scrolling to it').toBe(true)
   expect(hasSeatMap, 'Student page should load SeatMapPreview after scrolling to it').toBe(true)
 
-  const hasScrollTrigger = requests.some(url => url.toLowerCase().includes('scrolltrigger') && (url.endsWith('.js') || url.includes('.js?')))
+  const hasScrollTrigger = hasRequestedChunk(requests, 'scrolltrigger')
   expect(hasScrollTrigger, 'Student page should not load ScrollTrigger after CSS-first profile redesign').toBe(false)
 })

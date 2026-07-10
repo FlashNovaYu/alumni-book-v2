@@ -27,7 +27,7 @@ test('first login requires changing the initial password before entering preface
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true }) })
   })
 
-  await page.goto('/')
+  await page.goto('./')
   await page.getByTestId('home-login-cta').click()
   
   // 输入同学姓名

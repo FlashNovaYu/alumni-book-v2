@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 async function seedClassmateSession(page: any) {
-  await page.goto('/')
+  await page.goto('./')
   await page.evaluate(() => {
     sessionStorage.setItem('classmate_account_token', 'test-classmate-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({
@@ -85,7 +85,7 @@ test.beforeEach(async ({ page }) => {
 
 test('logged-in navigation exposes public messages and mailbox with unread stamp', async ({ page }) => {
   await seedClassmateSession(page)
-  await page.goto('/roster/', { waitUntil: 'networkidle' })
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('link', { name: /公共留言/ })).toBeVisible()
   await expect(page.getByRole('link', { name: /班级邮局/ })).toBeVisible()
@@ -94,7 +94,7 @@ test('logged-in navigation exposes public messages and mailbox with unread stamp
 
 test('public message page can submit a pending message', async ({ page }) => {
   await seedClassmateSession(page)
-  await page.goto('/messages/', { waitUntil: 'networkidle' })
+  await page.goto('./messages/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('heading', { name: /公共留言/ })).toBeVisible()
   await page.getByPlaceholder(/写一张便签/).fill('测试公共留言')
@@ -105,7 +105,7 @@ test('public message page can submit a pending message', async ({ page }) => {
 test('mailbox page is usable on mobile without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await seedClassmateSession(page)
-  await page.goto('/mailbox/', { waitUntil: 'networkidle' })
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('heading', { name: '班级邮局', exact: true })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)

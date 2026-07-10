@@ -240,15 +240,18 @@ try {
     border-radius: var(--rounded-md);
     padding: var(--spacing-lg);
     max-width: 340px;
+    min-width: 0;
     transition: transform 0.3s var(--ease-out-quart);
     box-shadow: var(--shadow-paper-card);
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .tl-card:hover {
     transform: translateY(-2px);
   }
   .tl-date { font-size: var(--type-caption-size); color: var(--color-paper-muted); margin-bottom: var(--spacing-xs); }
-  .tl-title { font-size: var(--type-title-sm-size); margin-bottom: var(--spacing-xs); }
-  .tl-desc { font-size: var(--type-body-sm-size); color: var(--color-paper-muted); line-height: 1.6; }
+  .tl-title { font-size: var(--type-title-sm-size); margin-bottom: var(--spacing-xs); overflow-wrap: anywhere; word-break: break-word; }
+  .tl-desc { font-size: var(--type-body-sm-size); color: var(--color-paper-muted); line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; }
   .tl-photo { width: 100%; border-radius: var(--rounded-sm); margin-top: var(--spacing-sm); }
   .tl-link { display: inline-block; margin-top: var(--spacing-sm); font-size: var(--type-body-sm-size); color: var(--color-paper-brown); text-decoration: none; }
   .tl-link:hover { text-decoration: underline; }
@@ -273,6 +276,6 @@ try {
     .timeline-line::before { left: 20px; }
     .timeline-node:nth-child(odd), .timeline-node:nth-child(even) { padding: 0 0 0 48px; }
     .tl-dot { left: 20px; }
-    .tl-card { max-width: 100%; }
+    .tl-card { width: 100%; max-width: 100%; }
   }
 </style>
