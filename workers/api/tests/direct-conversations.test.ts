@@ -413,4 +413,27 @@ describe('Direct Conversations API', () => {
     const res3 = await request(`/api/direct-conversations/${convId}/messages?limit=-5`, { headers: headers(TOKEN_A) })
     expect(res3.status).toBe(400)
   })
+
+  it('rejects null read bodies and non-decimal history limits', async () => {
+    const createRes = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 'limit setup', clientNonce: 'limit-setup' }),
+    })
+    const convId = (await createRes.json() as any).data.conversation.id
+
+    const nullRead = await request(`/api/direct-conversations/${convId}/read`, {
+      method: 'PUT',
+      headers: headers(TOKEN_A),
+      body: 'null',
+    })
+    expect(nullRead.status).toBe(400)
+
+    for (const limit of ['1abc', '1.5', '0', '-1', '31', '']) {
+      const history = await request(`/api/direct-conversations/${convId}/messages?limit=${encodeURIComponent(limit)}`, {
+        headers: headers(TOKEN_A),
+      })
+      expect(history.status).toBe(400)
+    }
+  })
 })
