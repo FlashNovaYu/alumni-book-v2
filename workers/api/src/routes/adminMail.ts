@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { jwt } from 'hono/jwt'
+import { adminGuard } from '../lib/adminGuard'
 
 type Bindings = {
   DB: D1Database
@@ -8,47 +8,7 @@ type Bindings = {
 
 export const adminMailRoutes = new Hono<{ Bindings: Bindings }>()
 
-// 内部安全防线：adminGuard 局部中间件，结合 JWT 校验与数据库 admin_sessions 校验
-async function adminGuard(c: any, next: any) {
-  const secret = c.env.JWT_SECRET
-  const mw = jwt({ secret, alg: 'HS256' })
-  try {
-    let isVerified = false
-    let response: any = null
-
-    await mw(c, async () => {
-      const authHeader = c.req.header('Authorization')
-      const token = authHeader?.replace('Bearer ', '')
-      if (!token) {
-        response = c.json({ success: false, message: '未授权' }, 401)
-        return
-      }
-
-      const session = await c.env.DB.prepare(
-        "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')"
-      ).bind(token).first()
-
-      if (!session) {
-        response = c.json({ success: false, message: '登录已失效' }, 401)
-        return
-      }
-
-      isVerified = true
-    })
-
-    if (isVerified) {
-      return next()
-    }
-    if (response) {
-      return response
-    }
-    return c.json({ success: false, message: '未授权' }, 401)
-  } catch (e) {
-    return c.json({ success: false, message: '未授权' }, 401)
-  }
-}
-
-// 针对所有管理员发信接口启用身份校验
+// 路由独立挂载时也保持管理员会话认证；全局守卫会用请求标记避免重复校验。
 adminMailRoutes.use('*', adminGuard)
 
 const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`

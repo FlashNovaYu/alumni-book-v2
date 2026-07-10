@@ -1,4 +1,5 @@
 export type CreateNotificationInput = {
+  id?: string
   recipientSlug: string
   type: string
   title: string
@@ -8,9 +9,9 @@ export type CreateNotificationInput = {
 }
 
 export async function createNotification(db: D1Database, input: CreateNotificationInput) {
-  const id = `ntf_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
+  const id = input.id || `ntf_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
   await db.prepare(
-    `INSERT INTO notifications
+    `INSERT ${input.id ? 'OR IGNORE ' : ''}INTO notifications
       (id, recipient_slug, type, title, body, related_type, related_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   ).bind(
