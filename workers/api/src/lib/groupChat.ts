@@ -64,6 +64,10 @@ export async function formatGroupMessage(db: D1Database, row: MessageRow, viewer
 }
 
 export async function listGroupMessages(db: D1Database, viewerSlug: string, options: ListOptions): Promise<GroupChatMessage[]> {
+  if (options.before && options.updatedAfter) {
+    throw new Error('before 和 updatedAfter 不能同时使用')
+  }
+
   const clauses = [options.mine ? 'pm.author_slug = ?' : "pm.status = 'visible'"]
   const values: unknown[] = options.mine ? [viewerSlug] : []
   if (options.before) {
@@ -75,11 +79,14 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
     values.push(options.updatedAfter.timestamp, options.updatedAfter.timestamp, options.updatedAfter.id)
   }
   values.push(options.limit)
+  const orderBy = options.updatedAfter
+    ? 'julianday(pm.updated_at) ASC, pm.id ASC'
+    : 'julianday(pm.created_at) DESC, pm.id DESC'
   const result = await db.prepare(
-    `SELECT pm.*, s.avatar_url FROM public_messages pm LEFT JOIN students s ON s.slug = pm.author_slug WHERE ${clauses.join(' AND ')} ORDER BY julianday(pm.created_at) DESC, pm.id DESC LIMIT ?`
+    `SELECT pm.*, s.avatar_url FROM public_messages pm LEFT JOIN students s ON s.slug = pm.author_slug WHERE ${clauses.join(' AND ')} ORDER BY ${orderBy} LIMIT ?`
   ).bind(...values).all()
   const messages = await Promise.all((result.results || []).map((row) => formatGroupMessage(db, row, viewerSlug)))
-  return messages.reverse()
+  return options.updatedAfter ? messages : messages.reverse()
 }
 
 export async function getActiveMute(db: D1Database, slug: string): Promise<{ reason: string; mutedUntil: string | null } | null> {

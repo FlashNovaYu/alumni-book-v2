@@ -1,7 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
-import { getActiveMute } from '../src/lib/groupChat'
+import { getActiveMute, listGroupMessages } from '../src/lib/groupChat'
 import { initTestDb } from './db-helper'
 
 const PRIMARY_SLUG = 'group-chat-primary'
@@ -143,6 +143,28 @@ describe('Group chat API', () => {
     expect([...latestPayload.data.items, ...olderPayload.data.items].map((item: any) => item.id).sort()).toEqual([
       'group-chat-mixed-1', 'group-chat-mixed-2', 'group-chat-mixed-3', 'group-chat-mixed-4',
     ])
+  })
+
+  it('returns mixed-format updates after the composite cursor in update order', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-updated-a', ?, '群聊甲', '游标之前', 'visible', '2026-06-01T04:00:00.000Z', '2026-06-01 08:00:00')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-updated-b', ?, '群聊甲', '游标边界', 'visible', '2026-06-01T05:00:00.000Z', '2026-06-01 09:00:00')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-updated-c', ?, '群聊甲', '同刻后续', 'visible', '2026-06-01T12:00:00.000Z', '2026-06-01T09:00:00.000Z')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-updated-d', ?, '群聊甲', '旧格式后续', 'visible', '2026-06-01T10:00:00.000Z', '2026-06-01 10:00:00')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-updated-e', ?, '群聊甲', 'ISO 最新更新', 'visible', '2026-06-01T11:00:00.000Z', '2026-06-01T11:00:00.000Z')").bind(PRIMARY_SLUG),
+    ])
+    const updatedAfter = { timestamp: '2026-06-01 09:00:00', id: 'group-chat-updated-b' }
+
+    const items = await listGroupMessages(env.DB, PRIMARY_SLUG, { updatedAfter, limit: 10 })
+
+    expect(items.map((item) => item.id)).toEqual([
+      'group-chat-updated-c', 'group-chat-updated-d', 'group-chat-updated-e',
+    ])
+    await expect(listGroupMessages(env.DB, PRIMARY_SLUG, {
+      before: updatedAfter,
+      updatedAfter,
+      limit: 10,
+    })).rejects.toThrow('before 和 updatedAfter 不能同时使用')
   })
 
   it('mine includes only the current account non-public messages', async () => {
