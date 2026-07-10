@@ -98,7 +98,7 @@ app.use('/api/*', async (c, next) => {
   if (path.startsWith('/api/files/')) return
 
   if (path === '/api/class-space/overview') {
-    c.res.headers.set('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=300')
+    c.res.headers.set('Cache-Control', 'private, no-store')
     return
   }
 

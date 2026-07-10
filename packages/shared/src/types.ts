@@ -349,11 +349,15 @@ export interface ClassSpaceTimelinePreview {
 }
 
 export interface ClassSpaceOverview {
-  messages: PublicMessage[]
+  chat: {
+    items: GroupChatMessage[]
+    cursor: string
+    mute: { reason: string; mutedUntil: string | null } | null
+  }
   albums: ClassSpaceAlbumPreview[]
   timeline: ClassSpaceTimelinePreview[]
   counts: {
-    approvedMessages: number
+    groupMessages: number
     albums: number
     timelineItems: number
   }
