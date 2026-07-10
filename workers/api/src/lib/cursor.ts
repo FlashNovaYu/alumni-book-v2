@@ -59,10 +59,15 @@ export function encodeSyncCursor(value: SyncCursorValue): string {
   return bytesToBase64(encoder.encode(JSON.stringify(value)))
 }
 
+function isAfter(left: CursorValue, right: CursorValue): boolean {
+  return left.timestamp > right.timestamp || (left.timestamp === right.timestamp && left.id > right.id)
+}
+
 export function decodeSyncCursor(raw: string | undefined): { position: CursorValue; boundary?: CursorValue } | null {
   const value = decodeValue(raw)
   if (isCursorValue(value)) return { position: { timestamp: value.timestamp, id: value.id } }
   if (!isCursorValue(value?.position) || !isCursorValue(value?.boundary)) return null
+  if (isAfter(value.position, value.boundary)) return null
   return {
     position: { timestamp: value.position.timestamp, id: value.position.id },
     boundary: { timestamp: value.boundary.timestamp, id: value.boundary.id },

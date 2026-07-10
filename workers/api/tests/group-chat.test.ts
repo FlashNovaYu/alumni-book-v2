@@ -252,6 +252,55 @@ describe('Group chat API', () => {
     expect(replacedPayload.data).toMatchObject({ reactionCounts: { '👍': 2, '😂': 1 }, myReaction: '😂' })
   })
 
+  it('linearizes concurrent toggles of the same reaction', async () => {
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-reaction-concurrent', ?, '群聊甲', '正文', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, now, now).run()
+
+    const responses = await Promise.all(Array.from({ length: 2 }, () => request('/api/group-chat/messages/group-chat-reaction-concurrent/reaction', {
+      method: 'PUT', headers: classmateHeaders(OTHER_TOKEN), body: JSON.stringify({ reaction: '🎉' }),
+    })))
+    const stored = await env.DB.prepare(
+      "SELECT reaction FROM group_chat_reactions WHERE message_id = 'group-chat-reaction-concurrent' AND reactor_slug = ?"
+    ).bind(OTHER_SLUG).first() as any
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200])
+    expect(stored).toBeNull()
+  })
+
+  it('does not leave a reaction when a concurrent recall wins', async () => {
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-reaction-recall-race', ?, '群聊甲', '正文', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, now, now).run()
+
+    await Promise.all([
+      request('/api/group-chat/messages/group-chat-reaction-recall-race/reaction', {
+        method: 'PUT', headers: classmateHeaders(OTHER_TOKEN), body: JSON.stringify({ reaction: '🎉' }),
+      }),
+      request('/api/group-chat/messages/group-chat-reaction-recall-race', { method: 'DELETE', headers: classmateHeaders(PRIMARY_TOKEN) }),
+    ])
+    const reaction = await env.DB.prepare("SELECT * FROM group_chat_reactions WHERE message_id = 'group-chat-reaction-recall-race'").first()
+
+    expect(reaction).toBeNull()
+  })
+
+  it('uses one list query and combines legacy and live reaction counts', async () => {
+    const now = new Date().toISOString()
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, reactions, status, created_at, updated_at) VALUES ('group-chat-preloaded', ?, '群聊甲', '正文', '{\"👍\":2}', 'visible', ?, ?)").bind(PRIMARY_SLUG, now, now),
+      env.DB.prepare("INSERT INTO group_chat_reactions (message_id, reactor_slug, reaction, created_at) VALUES ('group-chat-preloaded', ?, '👍', ?)").bind(OTHER_SLUG, now),
+    ])
+    let prepares = 0
+    const countingDb = { prepare(sql: string) { prepares++; return env.DB.prepare(sql) } } as unknown as D1Database
+
+    const [message] = await listGroupMessages(countingDb, PRIMARY_SLUG, { limit: 10 })
+
+    expect(prepares).toBe(1)
+    expect(message).toMatchObject({ reactionCounts: { '👍': 3 }, myReaction: null })
+  })
+
   it('updates a reacted message so sync returns the old message change', async () => {
     const oldTime = '2026-01-01T00:00:00.000Z'
     await env.DB.prepare(
@@ -331,6 +380,21 @@ describe('Group chat API', () => {
     expect(Number(res.headers.get('Retry-After'))).toBeLessThanOrEqual(30)
   })
 
+  it('atomically allows only six concurrent sends in thirty seconds', async () => {
+    const responses = await Promise.all(Array.from({ length: 7 }, (_, index) => request('/api/group-chat/messages', {
+      method: 'POST',
+      headers: classmateHeaders(PRIMARY_TOKEN),
+      body: JSON.stringify({ content: `并发消息 ${index}`, clientNonce: `group-chat-concurrent-rate-${index}` }),
+    })))
+    const stored = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND status = 'visible' AND client_nonce LIKE 'group-chat-concurrent-rate-%'"
+    ).bind(PRIMARY_SLUG).first() as any
+
+    expect(responses.filter((response) => response.status === 201)).toHaveLength(6)
+    expect(responses.filter((response) => response.status === 429)).toHaveLength(1)
+    expect(stored.count).toBe(6)
+  })
+
   it('returns an hourly Retry-After when sixty messages are outside the short window', async () => {
     const createdAt = new Date(Date.now() - 10 * 60_000).toISOString()
     await env.DB.batch(Array.from({ length: 60 }, (_, index) => env.DB.prepare(
@@ -361,6 +425,23 @@ describe('Group chat API', () => {
     expect(sync.status).toBe(200)
     expect(payload.data.items).toEqual([expect.objectContaining({ id: 'group-chat-hidden-sync', status: 'hidden', content: null })])
     expect(invalid.status).toBe(400)
+  })
+
+  it('rejects reverse and future sync cursors while accepting legacy cursors', async () => {
+    const now = new Date().toISOString()
+    const later = new Date(Date.now() + 60_000).toISOString()
+    const reverse = btoa(JSON.stringify({ position: { timestamp: later, id: 'a' }, boundary: { timestamp: now, id: 'z' } }))
+    const future = btoa(JSON.stringify({ position: { timestamp: now, id: '' }, boundary: { timestamp: later, id: 'z' } }))
+    const legacy = btoa(JSON.stringify({ timestamp: '2026-01-01T00:00:00.000Z', id: 'legacy' }))
+    const [reverseResponse, futureResponse, legacyResponse] = await Promise.all([
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(reverse)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(future)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(legacy)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+    ])
+
+    expect(reverseResponse.status).toBe(400)
+    expect(futureResponse.status).toBe(400)
+    expect(legacyResponse.status).toBe(200)
   })
 
   it('paginates a sync backlog larger than thirty messages without gaps or duplicates', async () => {

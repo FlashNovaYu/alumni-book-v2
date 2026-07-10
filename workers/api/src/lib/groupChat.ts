@@ -27,18 +27,30 @@ function isRecalled(status: string) {
 }
 
 export async function formatGroupMessage(db: D1Database, row: MessageRow, viewerSlug: string, hideHiddenContent = false): Promise<GroupChatMessage> {
-  const [reactionRows, myReactionRow, replyRow] = await Promise.all([
+  const preloaded = Object.prototype.hasOwnProperty.call(row, 'reaction_counts_json')
+  const [reactionRows, myReactionRow, replyRow] = preloaded ? [null, null, null] : await Promise.all([
     db.prepare('SELECT reaction, COUNT(*) AS count FROM group_chat_reactions WHERE message_id = ? GROUP BY reaction').bind(row.id).all(),
     db.prepare('SELECT reaction FROM group_chat_reactions WHERE message_id = ? AND reactor_slug = ?').bind(row.id, viewerSlug).first(),
     row.reply_to_id ? db.prepare('SELECT id, author_name, content, status FROM public_messages WHERE id = ?').bind(row.reply_to_id).first() : Promise.resolve(null),
   ])
   const reactionCounts = parseReactions(row.reactions)
-  for (const reaction of reactionRows.results || []) {
-    const item = reaction as any
-    reactionCounts[item.reaction] = (reactionCounts[item.reaction] || 0) + Number(item.count)
+  if (preloaded) {
+    for (const [reaction, count] of Object.entries(parseReactions(row.reaction_counts_json))) {
+      reactionCounts[reaction] = (reactionCounts[reaction] || 0) + count
+    }
+  } else {
+    for (const reaction of reactionRows?.results || []) {
+      const item = reaction as any
+      reactionCounts[item.reaction] = (reactionCounts[item.reaction] || 0) + Number(item.count)
+    }
   }
 
-  const reply = replyRow as any
+  const reply = preloaded ? {
+    id: row.reply_id,
+    author_name: row.reply_author_name,
+    content: row.reply_content,
+    status: row.reply_status,
+  } : replyRow as any
   const replyTo = row.reply_to_id ? {
     id: row.reply_to_id,
     authorName: reply?.author_name || '',
@@ -57,7 +69,7 @@ export async function formatGroupMessage(db: D1Database, row: MessageRow, viewer
     status: row.status as GroupChatStatus,
     replyTo,
     reactionCounts,
-    myReaction: (myReactionRow as any)?.reaction || null,
+    myReaction: preloaded ? row.my_reaction || null : (myReactionRow as any)?.reaction || null,
     canRecall: row.author_slug === viewerSlug && row.status === 'visible' && Date.now() - new Date(createdAt).getTime() <= 2 * 60 * 1000,
     ...(ownPrivateMessage ? { moderationReason: row.moderation_reason || null } : {}),
     createdAt,
@@ -93,8 +105,20 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
     ? 'julianday(pm.updated_at) ASC, pm.id ASC'
     : 'julianday(pm.created_at) DESC, pm.id DESC'
   const result = await db.prepare(
-    `SELECT pm.*, s.avatar_url FROM public_messages pm LEFT JOIN students s ON s.slug = pm.author_slug WHERE ${clauses.join(' AND ')} ORDER BY ${orderBy} LIMIT ?`
-  ).bind(...values).all()
+    `WITH reaction_counts AS (
+       SELECT message_id, reaction, COUNT(*) AS count FROM group_chat_reactions GROUP BY message_id, reaction
+     ), reaction_aggregates AS (
+       SELECT message_id, json_group_object(reaction, count) AS reaction_counts_json FROM reaction_counts GROUP BY message_id
+     )
+     SELECT pm.*, s.avatar_url, ra.reaction_counts_json, mine_reaction.reaction AS my_reaction,
+       reply.id AS reply_id, reply.author_name AS reply_author_name, reply.content AS reply_content, reply.status AS reply_status
+     FROM public_messages pm
+     LEFT JOIN students s ON s.slug = pm.author_slug
+     LEFT JOIN reaction_aggregates ra ON ra.message_id = pm.id
+     LEFT JOIN group_chat_reactions mine_reaction ON mine_reaction.message_id = pm.id AND mine_reaction.reactor_slug = ?
+     LEFT JOIN public_messages reply ON reply.id = pm.reply_to_id
+     WHERE ${clauses.join(' AND ')} ORDER BY ${orderBy} LIMIT ?`
+  ).bind(viewerSlug, ...values).all()
   const messages = await Promise.all((result.results || []).map((row) => formatGroupMessage(db, row, viewerSlug, options.includeStatusChanges)))
   return options.updatedAfter ? messages : messages.reverse()
 }

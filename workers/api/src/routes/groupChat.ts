@@ -23,6 +23,10 @@ function retryAfterSeconds(earliestJulianDay: unknown, windowSeconds: number) {
   return Math.max(1, Math.ceil(windowSeconds - (now - earliest) * 86_400))
 }
 
+function cursorIsAfter(value: CursorValue, boundary: CursorValue) {
+  return value.timestamp > boundary.timestamp || (value.timestamp === boundary.timestamp && value.id > boundary.id)
+}
+
 async function list(c: any, mine: boolean) {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
@@ -42,8 +46,12 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
   const rawCursor = c.req.query('cursor')
   const cursor = decodeSyncCursor(rawCursor)
   if (rawCursor && !cursor) return c.json({ success: false, message: '游标无效' }, 400)
+  const nowCursor = { timestamp: new Date().toISOString(), id: '\uffff' }
+  if (cursor && (cursorIsAfter(cursor.position, nowCursor) || (cursor.boundary && cursorIsAfter(cursor.boundary, nowCursor)))) {
+    return c.json({ success: false, message: '游标无效' }, 400)
+  }
 
-  const boundary = cursor?.boundary || { timestamp: new Date().toISOString(), id: '\uffff' }
+  const boundary = cursor?.boundary || nowCursor
   const limit = parseLimit(c.req.query('limit'))
   const results = await listGroupMessages(c.env.DB, identity.slug, {
     updatedAfter: cursor?.position || { timestamp: '1970-01-01T00:00:00.000Z', id: '' },
@@ -102,13 +110,34 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
   const id = crypto.randomUUID()
   const insertion = await c.env.DB.prepare(
     `INSERT INTO public_messages (id, author_slug, author_name, content, status, reply_to_id, client_nonce, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+     WHERE NOT EXISTS (
+       SELECT 1 FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR julianday(muted_until) > julianday('now'))
+     )
+     AND (SELECT COUNT(*) FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-30 seconds')) < 6
+     AND (SELECT COUNT(*) FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-1 hour')) < 60
      ON CONFLICT(author_slug, client_nonce) WHERE client_nonce IS NOT NULL DO NOTHING`
-  ).bind(id, identity.slug, identity.name, content, 'visible', replyToId, clientNonce, now, now).run()
+  ).bind(id, identity.slug, identity.name, content, 'visible', replyToId, clientNonce, now, now, identity.slug, identity.slug, identity.slug).run()
   const row = await c.env.DB.prepare(
     'SELECT * FROM public_messages WHERE author_slug = ? AND client_nonce = ?'
   ).bind(identity.slug, clientNonce).first() as any
-  if (!row) throw new Error('群聊消息创建后未找到记录')
+  if (!row) {
+    const activeMute = await getActiveMute(c.env.DB, identity.slug)
+    if (activeMute) return c.json({ success: false, message: activeMute.reason }, 403)
+    const [latestRecent, latestHourly] = await Promise.all([
+      c.env.DB.prepare("SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-30 seconds')").bind(identity.slug).first(),
+      c.env.DB.prepare("SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-1 hour')").bind(identity.slug).first(),
+    ])
+    const latestRecentCount = Number((latestRecent as any)?.count || 0)
+    const latestHourlyCount = Number((latestHourly as any)?.count || 0)
+    if (latestRecentCount >= 6 || latestHourlyCount >= 60) {
+      const retryAfter = latestRecentCount >= 6
+        ? retryAfterSeconds((latestRecent as any)?.earliest, 30)
+        : retryAfterSeconds((latestHourly as any)?.earliest, 3600)
+      return c.json({ success: false, message: '发送过于频繁' }, 429, { 'Retry-After': String(retryAfter) })
+    }
+    throw new Error('群聊消息创建条件未满足')
+  }
   const status = insertion.meta.changes === 1 ? 201 : 200
   return c.json({ success: true, data: await formatGroupMessage(c.env.DB, row, identity.slug) }, status)
 })
@@ -120,20 +149,23 @@ groupChatRoutes.put('/group-chat/messages/:id/reaction', async (c) => {
   const reaction = body?.reaction
   if (!GROUP_REACTIONS.includes(reaction)) return c.json({ success: false, message: '回应无效' }, 400)
 
-  const message = await c.env.DB.prepare("SELECT * FROM public_messages WHERE id = ? AND status = 'visible'").bind(c.req.param('id')).first() as any
-  if (!message) return c.json({ success: false, message: '消息不存在' }, 404)
-  const existing = await c.env.DB.prepare('SELECT reaction FROM group_chat_reactions WHERE message_id = ? AND reactor_slug = ?').bind(message.id, identity.slug).first() as any
   const now = new Date().toISOString()
-  const mutation = existing?.reaction === reaction
-    ? c.env.DB.prepare('DELETE FROM group_chat_reactions WHERE message_id = ? AND reactor_slug = ?').bind(message.id, identity.slug)
-    : c.env.DB.prepare(
-      'INSERT INTO group_chat_reactions (message_id, reactor_slug, reaction, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(message_id, reactor_slug) DO UPDATE SET reaction = excluded.reaction, created_at = excluded.created_at'
-    ).bind(message.id, identity.slug, reaction, now)
-  await c.env.DB.batch([
-    mutation,
-    c.env.DB.prepare('UPDATE public_messages SET updated_at = ? WHERE id = ?').bind(now, message.id),
+  const id = c.req.param('id')
+  const sentinel = '__group_chat_toggle_delete__'
+  const results = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO group_chat_reactions (message_id, reactor_slug, reaction, created_at)
+       SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM public_messages WHERE id = ? AND status = 'visible')
+       ON CONFLICT(message_id, reactor_slug) DO UPDATE SET
+         reaction = CASE WHEN group_chat_reactions.reaction = excluded.reaction THEN ? ELSE excluded.reaction END,
+         created_at = excluded.created_at
+       WHERE EXISTS (SELECT 1 FROM public_messages WHERE id = ? AND status = 'visible')`
+    ).bind(id, identity.slug, reaction, now, id, sentinel, id),
+    c.env.DB.prepare('DELETE FROM group_chat_reactions WHERE message_id = ? AND reactor_slug = ? AND reaction = ?').bind(id, identity.slug, sentinel),
+    c.env.DB.prepare("UPDATE public_messages SET updated_at = ? WHERE id = ? AND status = 'visible'").bind(now, id),
   ])
-  const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(message.id).first() as any
+  if (results[0].meta.changes !== 1) return c.json({ success: false, message: '消息不存在' }, 404)
+  const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(id).first() as any
   const formatted = await formatGroupMessage(c.env.DB, updated, identity.slug)
   return c.json({ success: true, data: { reactionCounts: formatted.reactionCounts, myReaction: formatted.myReaction } })
 })
@@ -145,9 +177,12 @@ groupChatRoutes.delete('/group-chat/messages/:id', async (c) => {
   const message = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ? AND author_slug = ?').bind(id, identity.slug).first() as any
   if (!message) return c.json({ success: false, message: '消息不存在' }, 404)
   const now = new Date().toISOString()
-  const result = await c.env.DB.prepare(
-    "UPDATE public_messages SET status = 'recalled_by_author', recalled_by_type = 'student', recalled_at = ?, updated_at = ? WHERE id = ? AND author_slug = ? AND status = 'visible' AND julianday(created_at) >= julianday('now', '-2 minutes')"
-  ).bind(now, now, id, identity.slug).run()
+  const [result] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE public_messages SET status = 'recalled_by_author', recalled_by_type = 'student', recalled_at = ?, updated_at = ? WHERE id = ? AND author_slug = ? AND status = 'visible' AND julianday(created_at) >= julianday('now', '-2 minutes')"
+    ).bind(now, now, id, identity.slug),
+    c.env.DB.prepare("DELETE FROM group_chat_reactions WHERE message_id = ? AND EXISTS (SELECT 1 FROM public_messages WHERE id = ? AND status = 'recalled_by_author')").bind(id, id),
+  ])
   if (result.meta.changes !== 1) {
     if (message.status === 'visible' && Number(await c.env.DB.prepare("SELECT julianday(created_at) < julianday('now', '-2 minutes') AS expired FROM public_messages WHERE id = ?").bind(id).first<any>().then((row) => row?.expired || 0))) {
       return c.json({ success: false, message: '撤回时间已过' }, 403)
