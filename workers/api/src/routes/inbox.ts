@@ -4,6 +4,7 @@ import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 
 type Bindings = {
   DB: D1Database
+  JWT_SECRET: string
 }
 
 type InboxStream = 'conversations' | 'messages' | 'notifications'
@@ -17,6 +18,8 @@ interface InboxSyncCursor {
 const DIRECT_SYNC_LIMIT = 100
 const NOTIFICATION_SYNC_LIMIT = 50
 const STREAMS: InboxStream[] = ['conversations', 'messages', 'notifications']
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
 export const inboxRoutes = new Hono<{ Bindings: Bindings }>()
 
@@ -28,19 +31,48 @@ function isCursorValue(value: unknown): value is CursorValue {
     && Boolean(cursor.id)
 }
 
-function encodeInboxCursor(value: InboxSyncCursor): string {
-  const payload = new TextEncoder().encode(JSON.stringify(value))
+function bytesToBase64Url(bytes: Uint8Array) {
   let binary = ''
-  for (const byte of payload) binary += String.fromCharCode(byte)
+  for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
 }
 
-function decodeInboxCursor(raw: string | undefined): InboxSyncCursor | null {
-  if (!raw || raw.length > 2048) return null
+function base64UrlToBytes(raw: string) {
   try {
     const normalized = raw.replace(/-/g, '+').replace(/_/g, '/')
     const binary = atob(normalized + '='.repeat((4 - normalized.length % 4) % 4))
-    const value = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0)))) as InboxSyncCursor
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  } catch {
+    return null
+  }
+}
+
+async function inboxCursorKey(secret: string) {
+  return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
+}
+
+async function encodeInboxCursor(value: InboxSyncCursor, secret: string, slug: string) {
+  const payload = bytesToBase64Url(encoder.encode(JSON.stringify(value)))
+  const signature = await crypto.subtle.sign('HMAC', await inboxCursorKey(secret), encoder.encode(`inbox-sync:${slug}:${payload}`))
+  return `${payload}.${bytesToBase64Url(new Uint8Array(signature))}`
+}
+
+async function decodeInboxCursor(raw: string | undefined, secret: string, slug: string): Promise<InboxSyncCursor | null> {
+  if (!raw || raw.length > 2048) return null
+  try {
+    const parts = raw.split('.')
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return null
+    const payloadBytes = base64UrlToBytes(parts[0])
+    const signatureBytes = base64UrlToBytes(parts[1])
+    if (!payloadBytes || !signatureBytes) return null
+    const verified = await crypto.subtle.verify(
+      'HMAC',
+      await inboxCursorKey(secret),
+      signatureBytes,
+      encoder.encode(`inbox-sync:${slug}:${parts[0]}`),
+    )
+    if (!verified) return null
+    const value = JSON.parse(decoder.decode(payloadBytes)) as InboxSyncCursor
     if (!value || typeof value !== 'object' || !value.position || !value.boundary) return null
     for (const stream of STREAMS) {
       if (!isCursorValue(value.position[stream]) || !isCursorValue(value.boundary[stream])) return null
@@ -181,7 +213,9 @@ inboxRoutes.get('/inbox/sync', async (c) => {
   if (isClassmateResponse(identity)) return identity
 
   const rawCursor = c.req.query('cursor')
-  const decodedCursor = rawCursor ? decodeInboxCursor(rawCursor) : initialCursor()
+  const decodedCursor = rawCursor
+    ? await decodeInboxCursor(rawCursor, c.env.JWT_SECRET, identity.slug)
+    : initialCursor()
   if (!decodedCursor) return c.json({ success: false, message: '同步游标无效' }, 400)
   const cursor = openSyncWindow(decodedCursor)
 
@@ -279,7 +313,7 @@ inboxRoutes.get('/inbox/sync', async (c) => {
   return c.json({
     success: true,
     data: {
-      cursor: encodeInboxCursor(next),
+      cursor: await encodeInboxCursor(next, c.env.JWT_SECRET, viewerSlug),
       conversations: conversations.map(formatConversation),
       messages: messages.map(formatDirectMessage),
       notifications: notifications.map(formatNotification),

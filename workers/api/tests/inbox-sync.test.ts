@@ -43,10 +43,22 @@ function adminHeaders(token: string) {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 }
 
-async function timestampAfterSyncCursor(rawCursor: string) {
-  const normalized = rawCursor.replace(/-/g, '+').replace(/_/g, '/')
+function decodeSyncCursorPayload(rawCursor: string) {
+  const payload = rawCursor.split('.')[0]
+  const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
   const binary = atob(normalized + '='.repeat((4 - normalized.length % 4) % 4))
-  const cursor = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0)))) as any
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0)))) as any
+}
+
+function encodeUnsignedSyncCursor(cursor: any) {
+  const bytes = new TextEncoder().encode(JSON.stringify(cursor))
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+async function timestampAfterSyncCursor(rawCursor: string) {
+  const cursor = decodeSyncCursorPayload(rawCursor)
   const boundaryTime = Date.parse(cursor.position.messages.timestamp)
   while (Date.now() <= boundaryTime) {
     await new Promise((resolve) => setTimeout(resolve, 1))
@@ -109,6 +121,13 @@ describe('Inbox summary and sync API', () => {
     }))
     expect(JSON.stringify(firstBody.data.messages)).not.toContain('read_at')
     expect(JSON.stringify(firstBody.data.messages)).not.toContain('不可见')
+
+    const tamperedCursor = decodeSyncCursorPayload(firstBody.data.cursor)
+    tamperedCursor.position.messages.timestamp = '1970-01-01T00:00:00.000Z'
+    const tampered = await request(`/api/inbox/sync?cursor=${encodeURIComponent(encodeUnsignedSyncCursor(tamperedCursor))}`, {
+      headers: classmateHeaders(token),
+    })
+    expect(tampered.status).toBe(400)
 
     const later = await timestampAfterSyncCursor(firstBody.data.cursor)
     await env.DB.batch([
