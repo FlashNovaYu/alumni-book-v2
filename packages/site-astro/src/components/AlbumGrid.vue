@@ -15,7 +15,7 @@
 
     <!-- 相册网格列表 -->
     <div v-if="filteredAlbums.length" class="album-sections">
-      <div v-for="album in filteredAlbums" :key="album.id" class="album-section">
+      <div v-for="album in filteredAlbums" :key="album.id" :id="'album-' + album.id" class="album-section">
         <div class="album-header-container">
           <div>
             <h2 class="album-name title-lg">{{ album.title }}</h2>
