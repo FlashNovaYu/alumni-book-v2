@@ -1,0 +1,121 @@
+import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
+import { beforeAll, describe, expect, it } from 'vitest'
+import worker from '../src/index'
+import { initTestDb } from './db-helper'
+
+const PRIMARY_SLUG = 'group-chat-primary'
+const OTHER_SLUG = 'group-chat-other'
+const PRIMARY_TOKEN = 'group-chat-primary-token'
+const OTHER_TOKEN = 'group-chat-other-token'
+
+async function request(path: string, options: RequestInit = {}) {
+  const ctx = createExecutionContext()
+  const res = await worker.fetch(new Request(`http://localhost${path}`, options), env, ctx)
+  await waitOnExecutionContext(ctx)
+  return res
+}
+
+function classmateHeaders(token: string) {
+  return { 'Content-Type': 'application/json', 'X-Classmate-Token': token }
+}
+
+beforeAll(async () => {
+  await initTestDb(env.DB)
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR REPLACE INTO students (id, name, slug, account_status, account_initial_password_changed) VALUES ('group-chat-primary-id', '群聊甲', ?, 'active', 1)").bind(PRIMARY_SLUG),
+    env.DB.prepare("INSERT OR REPLACE INTO students (id, name, slug, account_status, account_initial_password_changed) VALUES ('group-chat-other-id', '群聊乙', ?, 'active', 1)").bind(OTHER_SLUG),
+    env.DB.prepare("INSERT OR REPLACE INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+1 day'))").bind(PRIMARY_TOKEN, PRIMARY_SLUG),
+    env.DB.prepare("INSERT OR REPLACE INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+1 day'))").bind(OTHER_TOKEN, OTHER_SLUG),
+  ])
+})
+
+describe('Group chat API', () => {
+  it('has an isolated active session fixture', async () => {
+    const session = await env.DB.prepare("SELECT student_slug FROM classmate_sessions WHERE token = ? AND expires_at > datetime('now')").bind(PRIMARY_TOKEN).first() as any
+    expect(session?.student_slug).toBe(PRIMARY_SLUG)
+  })
+
+  it('without X-Classmate-Token returns 401', async () => {
+    const res = await request('/api/group-chat/messages')
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects a non-empty invalid before cursor', async () => {
+    const res = await request('/api/group-chat/messages?before=not-a-cursor', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    expect(res.status).toBe(400)
+  })
+
+  it('creates a visible message and retries the same client nonce idempotently', async () => {
+    const body = { content: '  第一条群聊消息  ', clientNonce: 'group-chat-create-1' }
+    const first = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify(body),
+    })
+    const firstPayload = await first.json() as any
+
+    expect(first.status).toBe(201)
+    expect(firstPayload.data.content).toBe('第一条群聊消息')
+    expect(firstPayload.data.status).toBe('visible')
+
+    const repeated = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify(body),
+    })
+    const repeatedPayload = await repeated.json() as any
+
+    expect(repeated.status).toBe(200)
+    expect(repeatedPayload.data.id).toBe(firstPayload.data.id)
+  })
+
+  it('returns at most 30 latest messages in ascending response order', async () => {
+    const statements = Array.from({ length: 31 }, (_, index) => env.DB.prepare(
+      'INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      `group-chat-history-${String(index).padStart(2, '0')}`,
+      PRIMARY_SLUG,
+      '群聊甲',
+      `历史消息 ${index}`,
+      'visible',
+      `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
+      `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
+    ))
+    await env.DB.batch(statements)
+
+    const res = await request('/api/group-chat/messages?limit=100', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const payload = await res.json() as any
+    const items = payload.data.items
+
+    expect(res.status).toBe(200)
+    expect(items).toHaveLength(30)
+    expect(items.map((item: any) => item.id)).toEqual([...items].sort((a: any, b: any) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).map((item: any) => item.id))
+    expect(items.some((item: any) => item.id === 'group-chat-history-00')).toBe(false)
+  })
+
+  it('uses the before cursor to load older messages without duplicates', async () => {
+    const latest = await request('/api/group-chat/messages?limit=10', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const latestPayload = await latest.json() as any
+    const older = await request(`/api/group-chat/messages?limit=10&before=${encodeURIComponent(latestPayload.data.nextCursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const olderPayload = await older.json() as any
+
+    expect(older.status).toBe(200)
+    expect(olderPayload.data.items).toHaveLength(10)
+    expect(olderPayload.data.items.some((item: any) => latestPayload.data.items.some((latestItem: any) => latestItem.id === item.id))).toBe(false)
+  })
+
+  it('mine includes only the current account non-public messages', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, moderation_reason, recalled_at, created_at, updated_at) VALUES ('group-chat-mine-pending', ?, '群聊甲', '待审核正文', 'pending', '待审核原因', NULL, '2026-02-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, moderation_reason, recalled_at, created_at, updated_at) VALUES ('group-chat-mine-hidden', ?, '群聊甲', '隐藏正文', 'hidden', '隐藏原因', NULL, '2026-02-01T00:00:01.000Z', '2026-02-01T00:00:01.000Z')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, moderation_reason, recalled_at, created_at, updated_at) VALUES ('group-chat-mine-recalled', ?, '群聊甲', '撤回正文', 'recalled_by_author', NULL, '2026-02-01T00:00:02.000Z', '2026-02-01T00:00:02.000Z', '2026-02-01T00:00:02.000Z')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, moderation_reason, created_at, updated_at) VALUES ('group-chat-other-private', ?, '群聊乙', '他人待审核正文', 'rejected', '他人原因', '2026-02-01T00:00:03.000Z', '2026-02-01T00:00:03.000Z')").bind(OTHER_SLUG),
+    ])
+
+    const res = await request('/api/group-chat/mine?limit=30', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const payload = await res.json() as any
+    const byId = new Map(payload.data.items.map((item: any) => [item.id, item]))
+
+    expect(res.status).toBe(200)
+    expect(byId.get('group-chat-mine-pending')).toMatchObject({ content: '待审核正文', moderationReason: '待审核原因' })
+    expect(byId.get('group-chat-mine-hidden')).toMatchObject({ content: '隐藏正文', moderationReason: '隐藏原因' })
+    expect(byId.get('group-chat-mine-recalled').content).toBeNull()
+    expect(byId.has('group-chat-other-private')).toBe(false)
+  })
+})

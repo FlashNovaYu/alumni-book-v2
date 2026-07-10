@@ -20,6 +20,7 @@ import { mailboxRoutes } from './routes/mailbox'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
+import { groupChatRoutes } from './routes/groupChat'
 
 
 type Bindings = {
@@ -131,6 +132,7 @@ app.get('/api/health', (c) => {
 // 认证路由 (不需要 JWT)
 app.route('/api/auth', authRoutes)
 app.route('/api/classmate-auth', classmateAuthRoutes)
+app.route('/api', groupChatRoutes)
 
 // 公开路由 (不需要 JWT)
 app.get('/api/classmates', async (c) => {
