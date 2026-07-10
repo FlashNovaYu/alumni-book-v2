@@ -84,7 +84,23 @@ function releasePreviewPort() {
   }
 }
 
+function ensurePlaywrightBrowser() {
+  if (!process.env.CI) return
+
+  const installArgs = process.platform === 'linux'
+    ? ['install', '--with-deps', 'chromium']
+    : ['install', 'chromium']
+
+  console.log(`[Playwright] Ensuring Chromium is installed for CI...`)
+  execFileSync(process.execPath, [playwrightCli, ...installArgs], {
+    cwd: siteDir,
+    stdio: 'inherit',
+    timeout: 300000,
+  })
+}
+
 async function run() {
+  ensurePlaywrightBrowser()
   releasePreviewPort()
   const preview = spawnLogged(process.execPath, [astroCli, 'preview', '--host', host])
 
