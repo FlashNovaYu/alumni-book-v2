@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { decodeCursor, encodeCursor, type CursorValue } from '../lib/cursor'
-import { formatGroupMessage, listGroupMessages } from '../lib/groupChat'
+import { formatGroupMessage, getActiveMute, listGroupMessages } from '../lib/groupChat'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 
 type Bindings = { DB: D1Database }
@@ -46,6 +46,9 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
   const duplicate = await c.env.DB.prepare('SELECT * FROM public_messages WHERE author_slug = ? AND client_nonce = ?').bind(identity.slug, clientNonce).first() as any
   if (duplicate) return c.json({ success: true, data: await formatGroupMessage(c.env.DB, duplicate, identity.slug) })
 
+  const mute = await getActiveMute(c.env.DB, identity.slug)
+  if (mute) return c.json({ success: false, message: mute.reason }, 403)
+
   if (replyToId) {
     const reply = await c.env.DB.prepare('SELECT id FROM public_messages WHERE id = ?').bind(replyToId).first()
     if (!reply) return c.json({ success: false, message: '引用消息不存在' }, 400)
@@ -53,8 +56,8 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
 
   const now = new Date().toISOString()
   const [recent, hourly] = await Promise.all([
-    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND created_at >= datetime('now', '-30 seconds')").bind(identity.slug).first(),
-    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND created_at >= datetime('now', '-1 hour')").bind(identity.slug).first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND datetime(created_at) >= datetime('now', '-30 seconds')").bind(identity.slug).first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND datetime(created_at) >= datetime('now', '-1 hour')").bind(identity.slug).first(),
   ])
   if (Number((recent as any)?.count || 0) >= 6 || Number((hourly as any)?.count || 0) >= 60) {
     return c.json({ success: false, message: '发送过于频繁' }, 429, { 'Retry-After': '30' })

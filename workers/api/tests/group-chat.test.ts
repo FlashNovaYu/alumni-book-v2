@@ -1,5 +1,5 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
 
@@ -21,7 +21,14 @@ function classmateHeaders(token: string) {
 
 beforeAll(async () => {
   await initTestDb(env.DB)
+})
+
+beforeEach(async () => {
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM group_chat_reactions WHERE reactor_slug IN (?, ?)').bind(PRIMARY_SLUG, OTHER_SLUG),
+    env.DB.prepare('DELETE FROM public_messages WHERE author_slug IN (?, ?)').bind(PRIMARY_SLUG, OTHER_SLUG),
+    env.DB.prepare('DELETE FROM group_chat_mutes WHERE student_slug IN (?, ?)').bind(PRIMARY_SLUG, OTHER_SLUG),
+    env.DB.prepare('DELETE FROM classmate_sessions WHERE student_slug IN (?, ?)').bind(PRIMARY_SLUG, OTHER_SLUG),
     env.DB.prepare("INSERT OR REPLACE INTO students (id, name, slug, account_status, account_initial_password_changed) VALUES ('group-chat-primary-id', '群聊甲', ?, 'active', 1)").bind(PRIMARY_SLUG),
     env.DB.prepare("INSERT OR REPLACE INTO students (id, name, slug, account_status, account_initial_password_changed) VALUES ('group-chat-other-id', '群聊乙', ?, 'active', 1)").bind(OTHER_SLUG),
     env.DB.prepare("INSERT OR REPLACE INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+1 day'))").bind(PRIMARY_TOKEN, PRIMARY_SLUG),
@@ -29,12 +36,21 @@ beforeAll(async () => {
   ])
 })
 
-describe('Group chat API', () => {
-  it('has an isolated active session fixture', async () => {
-    const session = await env.DB.prepare("SELECT student_slug FROM classmate_sessions WHERE token = ? AND expires_at > datetime('now')").bind(PRIMARY_TOKEN).first() as any
-    expect(session?.student_slug).toBe(PRIMARY_SLUG)
-  })
+async function seedHistory(count: number) {
+  await env.DB.batch(Array.from({ length: count }, (_, index) => env.DB.prepare(
+    'INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).bind(
+    `group-chat-history-${String(index).padStart(2, '0')}`,
+    PRIMARY_SLUG,
+    '群聊甲',
+    `历史消息 ${index}`,
+    'visible',
+    `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
+    `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
+  )))
+}
 
+describe('Group chat API', () => {
   it('without X-Classmate-Token returns 401', async () => {
     const res = await request('/api/group-chat/messages')
     expect(res.status).toBe(401)
@@ -66,18 +82,7 @@ describe('Group chat API', () => {
   })
 
   it('returns at most 30 latest messages in ascending response order', async () => {
-    const statements = Array.from({ length: 31 }, (_, index) => env.DB.prepare(
-      'INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(
-      `group-chat-history-${String(index).padStart(2, '0')}`,
-      PRIMARY_SLUG,
-      '群聊甲',
-      `历史消息 ${index}`,
-      'visible',
-      `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
-      `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
-    ))
-    await env.DB.batch(statements)
+    await seedHistory(31)
 
     const res = await request('/api/group-chat/messages?limit=100', { headers: classmateHeaders(PRIMARY_TOKEN) })
     const payload = await res.json() as any
@@ -90,6 +95,7 @@ describe('Group chat API', () => {
   })
 
   it('uses the before cursor to load older messages without duplicates', async () => {
+    await seedHistory(20)
     const latest = await request('/api/group-chat/messages?limit=10', { headers: classmateHeaders(PRIMARY_TOKEN) })
     const latestPayload = await latest.json() as any
     const older = await request(`/api/group-chat/messages?limit=10&before=${encodeURIComponent(latestPayload.data.nextCursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
@@ -117,5 +123,45 @@ describe('Group chat API', () => {
     expect(byId.get('group-chat-mine-hidden')).toMatchObject({ content: '隐藏正文', moderationReason: '隐藏原因' })
     expect(byId.get('group-chat-mine-recalled').content).toBeNull()
     expect(byId.has('group-chat-other-private')).toBe(false)
+  })
+
+  it('does not count messages outside the 30-second rate limit window', async () => {
+    const outsideWindow = new Date(Date.now() - 31_000).toISOString()
+    await env.DB.batch(Array.from({ length: 6 }, (_, index) => env.DB.prepare(
+      'INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(`group-chat-outside-${index}`, PRIMARY_SLUG, '群聊甲', `窗口外 ${index}`, 'visible', outsideWindow, outsideWindow)))
+
+    const res = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '窗口外后可发送', clientNonce: 'outside-window-send' }),
+    })
+
+    expect(res.status).toBe(201)
+  })
+
+  it('allows sending after a mute has expired', async () => {
+    const expiredAt = new Date(Date.now() - 60_000).toISOString()
+    await env.DB.prepare(
+      'INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind(PRIMARY_SLUG, expiredAt, '已过期禁言', expiredAt, expiredAt).run()
+
+    const res = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '过期禁言后发送', clientNonce: 'expired-mute-send' }),
+    })
+
+    expect(res.status).toBe(201)
+  })
+
+  it('blocks sending while a mute is active', async () => {
+    const activeUntil = new Date(Date.now() + 60_000).toISOString()
+    const now = new Date().toISOString()
+    await env.DB.prepare(
+      'INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind(PRIMARY_SLUG, activeUntil, '有效禁言', now, now).run()
+
+    const res = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '应被禁言拦截', clientNonce: 'active-mute-send' }),
+    })
+
+    expect(res.status).toBe(403)
   })
 })

@@ -84,7 +84,7 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
 
 export async function getActiveMute(db: D1Database, slug: string): Promise<{ reason: string; mutedUntil: string | null } | null> {
   const row = await db.prepare(
-    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR muted_until > datetime('now'))"
+    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR datetime(muted_until) > datetime('now'))"
   ).bind(slug).first() as any
   return row ? { reason: row.reason, mutedUntil: row.muted_until } : null
 }
