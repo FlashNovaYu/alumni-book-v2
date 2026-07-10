@@ -33,7 +33,7 @@ export function decodeCursor(raw: string | undefined): CursorValue | null {
 
   try {
     const value = JSON.parse(decoder.decode(bytes))
-    if (typeof value?.timestamp !== 'string' || typeof value?.id !== 'string' || !value.id) return null
+    if (typeof value?.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp)) || typeof value?.id !== 'string' || !value.id) return null
     return { timestamp: value.timestamp, id: value.id }
   } catch {
     return null

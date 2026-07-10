@@ -46,8 +46,8 @@ async function seedHistory(count: number) {
     '群聊甲',
     `历史消息 ${index}`,
     'visible',
-    `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
-    `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`,
+    new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+    new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
   )))
 }
 
@@ -60,6 +60,17 @@ describe('Group chat API', () => {
   it('rejects a non-empty invalid before cursor', async () => {
     const res = await request('/api/group-chat/messages?before=not-a-cursor', { headers: classmateHeaders(PRIMARY_TOKEN) })
     expect(res.status).toBe(400)
+  })
+
+  it('rejects encoded cursors with an invalid timestamp for history and sync', async () => {
+    const invalidTimestampCursor = btoa(JSON.stringify({ timestamp: 'invalid', id: 'message-id' }))
+    const [history, sync] = await Promise.all([
+      request(`/api/group-chat/messages?before=${encodeURIComponent(invalidTimestampCursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(invalidTimestampCursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+    ])
+
+    expect(history.status).toBe(400)
+    expect(sync.status).toBe(400)
   })
 
   it('creates a visible message and retries the same client nonce idempotently', async () => {
@@ -316,7 +327,24 @@ describe('Group chat API', () => {
       method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '第七条', clientNonce: 'seventh-message' }),
     })
     expect(res.status).toBe(429)
-    expect(res.headers.get('Retry-After')).toBe('30')
+    expect(Number(res.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
+    expect(Number(res.headers.get('Retry-After'))).toBeLessThanOrEqual(30)
+  })
+
+  it('returns an hourly Retry-After when sixty messages are outside the short window', async () => {
+    const createdAt = new Date(Date.now() - 10 * 60_000).toISOString()
+    await env.DB.batch(Array.from({ length: 60 }, (_, index) => env.DB.prepare(
+      'INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(`group-chat-hourly-${index}`, PRIMARY_SLUG, '群聊甲', `每小时 ${index}`, 'visible', createdAt, createdAt)))
+
+    const res = await request('/api/group-chat/messages', {
+      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '小时第六十一条', clientNonce: 'hourly-limit-message' }),
+    })
+    const retryAfter = Number(res.headers.get('Retry-After'))
+
+    expect(res.status).toBe(429)
+    expect(retryAfter).toBeGreaterThan(30)
+    expect(retryAfter).toBeLessThanOrEqual(3600)
   })
 
   it('sync returns a hidden tombstone and rejects an invalid non-empty cursor', async () => {
@@ -333,5 +361,59 @@ describe('Group chat API', () => {
     expect(sync.status).toBe(200)
     expect(payload.data.items).toEqual([expect.objectContaining({ id: 'group-chat-hidden-sync', status: 'hidden', content: null })])
     expect(invalid.status).toBe(400)
+  })
+
+  it('paginates a sync backlog larger than thirty messages without gaps or duplicates', async () => {
+    await seedHistory(61)
+    const ids: string[] = []
+    let cursor: string | null = null
+
+    do {
+      const res = await request(`/api/group-chat/sync${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+      const payload = await res.json() as any
+      expect(res.status).toBe(200)
+      ids.push(...payload.data.items.map((item: any) => item.id))
+      cursor = payload.data.cursor
+      if (payload.data.items.length === 0) break
+    } while (true)
+
+    expect(ids).toHaveLength(61)
+    expect(new Set(ids).size).toBe(61)
+    expect(ids.sort()).toEqual(Array.from({ length: 61 }, (_, index) => `group-chat-history-${String(index).padStart(2, '0')}`))
+  })
+
+  it('keeps updates written after a sync boundary for the next round', async () => {
+    const beforeBoundary = '2026-01-01T00:00:00.000Z'
+    const boundary = '2026-01-01T00:01:00.000Z'
+    const afterBoundary = '2026-01-01T00:02:00.000Z'
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-snapshot-old', ?, '群聊甲', '首轮消息', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, beforeBoundary, beforeBoundary).run()
+
+    const firstRound = await listGroupMessages(env.DB, PRIMARY_SLUG, {
+      updatedAfter: { timestamp: '1970-01-01T00:00:00.000Z', id: '' },
+      updatedBefore: { timestamp: boundary, id: '\uffff' },
+      includeStatusChanges: true,
+      limit: 31,
+    })
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-snapshot-new', ?, '群聊甲', '次轮消息', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, afterBoundary, afterBoundary).run()
+    const sameBoundary = await listGroupMessages(env.DB, PRIMARY_SLUG, {
+      updatedAfter: { timestamp: '1970-01-01T00:00:00.000Z', id: '' },
+      updatedBefore: { timestamp: boundary, id: '\uffff' },
+      includeStatusChanges: true,
+      limit: 31,
+    })
+    const nextRound = await listGroupMessages(env.DB, PRIMARY_SLUG, {
+      updatedAfter: { timestamp: boundary, id: '\uffff' },
+      updatedBefore: { timestamp: afterBoundary, id: '\uffff' },
+      includeStatusChanges: true,
+      limit: 31,
+    })
+
+    expect(firstRound.map((item) => item.id)).toEqual(['group-chat-snapshot-old'])
+    expect(sameBoundary.map((item) => item.id)).toEqual(['group-chat-snapshot-old'])
+    expect(nextRound.map((item) => item.id)).toEqual(['group-chat-snapshot-new'])
   })
 })

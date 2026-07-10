@@ -17,6 +17,12 @@ function parseBefore(c: any): CursorValue | undefined {
   return cursor || undefined
 }
 
+function retryAfterSeconds(earliestJulianDay: unknown, windowSeconds: number) {
+  const earliest = Number(earliestJulianDay)
+  const now = Date.now() / 86_400_000 + 2_440_587.5
+  return Math.max(1, Math.ceil(windowSeconds - (now - earliest) * 86_400))
+}
+
 async function list(c: any, mine: boolean) {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
@@ -39,14 +45,18 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
 
   const startedAt = new Date().toISOString()
   const boundary = { timestamp: startedAt, id: '\uffff' }
-  const items = await listGroupMessages(c.env.DB, identity.slug, {
+  const limit = parseLimit(c.req.query('limit'))
+  const results = await listGroupMessages(c.env.DB, identity.slug, {
     updatedAfter: cursor || { timestamp: '1970-01-01T00:00:00.000Z', id: '' },
     updatedBefore: boundary,
     includeStatusChanges: true,
-    limit: parseLimit(c.req.query('limit')),
+    limit: limit + 1,
   })
+  const hasMore = results.length > limit
+  const items = results.slice(0, limit)
+  const last = items.at(-1)
   const mute = await getActiveMute(c.env.DB, identity.slug)
-  return c.json({ success: true, data: { cursor: encodeCursor(boundary), items, mute } })
+  return c.json({ success: true, data: { cursor: encodeCursor(hasMore && last ? { timestamp: last.updatedAt, id: last.id } : boundary), items, mute } })
 })
 
 groupChatRoutes.post('/group-chat/messages', async (c) => {
@@ -75,11 +85,16 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
 
   const now = new Date().toISOString()
   const [recent, hourly] = await Promise.all([
-    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-30 seconds')").bind(identity.slug).first(),
-    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-1 hour')").bind(identity.slug).first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-30 seconds')").bind(identity.slug).first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-1 hour')").bind(identity.slug).first(),
   ])
-  if (Number((recent as any)?.count || 0) >= 6 || Number((hourly as any)?.count || 0) >= 60) {
-    return c.json({ success: false, message: '发送过于频繁' }, 429, { 'Retry-After': '30' })
+  const recentCount = Number((recent as any)?.count || 0)
+  const hourlyCount = Number((hourly as any)?.count || 0)
+  if (recentCount >= 6 || hourlyCount >= 60) {
+    const retryAfter = recentCount >= 6
+      ? retryAfterSeconds((recent as any)?.earliest, 30)
+      : retryAfterSeconds((hourly as any)?.earliest, 3600)
+    return c.json({ success: false, message: '发送过于频繁' }, 429, { 'Retry-After': String(retryAfter) })
   }
 
   const id = crypto.randomUUID()
