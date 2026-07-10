@@ -13,6 +13,15 @@ export function assertChatMigrationReport(report: ChatMigrationReport): void {
   }
 }
 
+export interface ChatMigrationTargetVerification {
+  expectedDirectConversations: number;
+  missingDirectConversations: number;
+  expectedDirectMessages: number;
+  missingDirectMessages: number;
+  expectedNotifications: number;
+  missingNotifications: number;
+}
+
 // 静态 SQL 语句数组，使用纯 SQL 表达式进行在数据库内部的原子迁移，杜绝任何 JS 变量插值拼接及引号转义风险
 export const legacyChatMigrationStatements: string[] = [
   // 1. 迁移私聊会话 (对 slugs 排序拼接作为稳定会话 ID，支持幂等合并)
@@ -29,6 +38,7 @@ export const legacyChatMigrationStatements: string[] = [
      AND t.created_by_slug IS NOT NULL AND r.recipient_slug IS NOT NULL
      AND t.created_by_slug IN (SELECT slug FROM students)
      AND r.recipient_slug IN (SELECT slug FROM students)
+     AND t.created_by_slug <> r.recipient_slug
    GROUP BY participant_a_slug, participant_b_slug`,
 
   // 2. 迁移私聊消息 (保留原 legacy message ID 作为新 ID，使用 client_nonce = 'legacy:<oldId>')
@@ -40,7 +50,7 @@ export const legacyChatMigrationStatements: string[] = [
      CASE WHEN m.sender_slug = t.created_by_slug THEN r.recipient_slug ELSE t.created_by_slug END AS recipient_slug,
      m.body AS body,
      'legacy:' || m.id AS client_nonce,
-     r.read_at AS read_at,
+     CASE WHEN m.sender_slug = t.created_by_slug THEN r.read_at ELSE NULL END AS read_at,
      m.created_at AS created_at
    FROM mail_messages m
    JOIN mail_threads t ON t.id = m.thread_id
@@ -50,14 +60,18 @@ export const legacyChatMigrationStatements: string[] = [
      AND m.sender_slug IS NOT NULL
      AND t.created_by_slug IN (SELECT slug FROM students)
      AND r.recipient_slug IN (SELECT slug FROM students)
-     AND m.sender_slug IN (SELECT slug FROM students)`,
+     AND m.sender_slug IN (SELECT slug FROM students)
+     AND m.sender_slug IN (t.created_by_slug, r.recipient_slug)
+     AND t.created_by_slug <> r.recipient_slug`,
 
   // 3. 将会话 updated_at 同步为其中最新消息的 created_at (防并发打散)
   `UPDATE direct_conversations
    SET updated_at = (
-     SELECT MAX(created_at)
+     SELECT created_at
      FROM direct_messages
      WHERE conversation_id = direct_conversations.id
+     ORDER BY julianday(created_at) DESC, id DESC
+     LIMIT 1
    )
    WHERE EXISTS (
      SELECT 1 FROM direct_messages WHERE conversation_id = direct_conversations.id
@@ -132,7 +146,9 @@ export async function generateChatMigrationReport(db: any): Promise<ChatMigratio
     FROM mail_recipients r
     JOIN mail_threads t ON t.id = r.thread_id
     WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
-      AND r.recipient_slug NOT IN (SELECT slug FROM students)
+      AND (r.recipient_slug IS NULL OR NOT EXISTS (
+        SELECT 1 FROM students WHERE students.slug = r.recipient_slug
+      ))
   `).first();
   const badPrivateRecipients = Number(badPrivateRecipientsRow?.count || 0);
 
@@ -141,9 +157,14 @@ export async function generateChatMigrationReport(db: any): Promise<ChatMigratio
     SELECT COUNT(DISTINCT m.id) as count
     FROM mail_messages m
     JOIN mail_threads t ON t.id = m.thread_id
+    JOIN mail_recipients r ON r.thread_id = t.id
     WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
       AND m.sender_type = 'student'
-      AND m.sender_slug NOT IN (SELECT slug FROM students)
+      AND (
+        m.sender_slug IS NULL
+        OR NOT EXISTS (SELECT 1 FROM students WHERE students.slug = m.sender_slug)
+        OR (m.sender_slug <> t.created_by_slug AND m.sender_slug <> r.recipient_slug)
+      )
   `).first();
   const badPrivateSenders = Number(badPrivateSendersRow?.count || 0);
 
@@ -152,9 +173,21 @@ export async function generateChatMigrationReport(db: any): Promise<ChatMigratio
     SELECT COUNT(DISTINCT t.id) as count
     FROM mail_threads t
     WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
-      AND t.created_by_slug NOT IN (SELECT slug FROM students)
+      AND (t.created_by_slug IS NULL OR NOT EXISTS (
+        SELECT 1 FROM students WHERE students.slug = t.created_by_slug
+      ))
   `).first();
   const badPrivateCreators = Number(badPrivateCreatorsRow?.count || 0);
+
+  const badPrivatePairsRow = await db.prepare(`
+    SELECT COUNT(DISTINCT r.id) as count
+    FROM mail_recipients r
+    JOIN mail_threads t ON t.id = r.thread_id
+    WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+      AND t.created_by_slug IS NOT NULL AND r.recipient_slug IS NOT NULL
+      AND t.created_by_slug = r.recipient_slug
+  `).first();
+  const badPrivatePairs = Number(badPrivatePairsRow?.count || 0);
 
   // d) 系统/管理员通知收件人不存在于学生表
   const badAdminRecipientsRow = await db.prepare(`
@@ -162,11 +195,13 @@ export async function generateChatMigrationReport(db: any): Promise<ChatMigratio
     FROM mail_recipients r
     JOIN mail_threads t ON t.id = r.thread_id
     WHERE (t.created_by_type = 'admin' OR t.created_by_type = 'system')
-      AND r.recipient_slug NOT IN (SELECT slug FROM students)
+      AND (r.recipient_slug IS NULL OR NOT EXISTS (
+        SELECT 1 FROM students WHERE students.slug = r.recipient_slug
+      ))
   `).first();
   const badAdminRecipients = Number(badAdminRecipientsRow?.count || 0);
 
-  const anomalies = badPrivateRecipients + badPrivateSenders + badPrivateCreators + badAdminRecipients;
+  const anomalies = badPrivateRecipients + badPrivateSenders + badPrivateCreators + badPrivatePairs + badAdminRecipients;
 
   return {
     sourcePrivateThreads,
@@ -175,5 +210,85 @@ export async function generateChatMigrationReport(db: any): Promise<ChatMigratio
     directMessages,
     migratedNotifications,
     anomalies
+  };
+}
+
+async function countRows(db: any, sql: string): Promise<number> {
+  const row = await db.prepare(sql).first();
+  return Number(row?.count || 0);
+}
+
+export async function verifyChatMigrationTargets(db: any): Promise<ChatMigrationTargetVerification> {
+  const validPrivatePairSource = `
+    FROM mail_threads t
+    JOIN mail_recipients r ON r.thread_id = t.id
+    WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+      AND t.created_by_slug IS NOT NULL AND r.recipient_slug IS NOT NULL
+      AND t.created_by_slug <> r.recipient_slug
+      AND t.created_by_slug IN (SELECT slug FROM students)
+      AND r.recipient_slug IN (SELECT slug FROM students)
+  `;
+  const validPrivateMessageSource = `
+    FROM mail_messages m
+    JOIN mail_threads t ON t.id = m.thread_id
+    JOIN mail_recipients r ON r.thread_id = t.id
+    WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+      AND t.created_by_slug IS NOT NULL AND r.recipient_slug IS NOT NULL
+      AND m.sender_slug IS NOT NULL
+      AND t.created_by_slug <> r.recipient_slug
+      AND t.created_by_slug IN (SELECT slug FROM students)
+      AND r.recipient_slug IN (SELECT slug FROM students)
+      AND m.sender_slug IN (SELECT slug FROM students)
+      AND m.sender_slug IN (t.created_by_slug, r.recipient_slug)
+  `;
+  const notificationSource = `
+    FROM mail_threads t
+    JOIN mail_messages m ON m.thread_id = t.id
+    JOIN mail_recipients r ON r.thread_id = t.id
+    WHERE (t.created_by_type = 'admin' OR t.created_by_type = 'system')
+      AND r.recipient_slug IS NOT NULL
+      AND r.recipient_slug IN (SELECT slug FROM students)
+  `;
+
+  const conversationSource = `
+    SELECT DISTINCT
+      'conv_' || CASE WHEN t.created_by_slug < r.recipient_slug THEN t.created_by_slug ELSE r.recipient_slug END || '_' || CASE WHEN t.created_by_slug < r.recipient_slug THEN r.recipient_slug ELSE t.created_by_slug END AS id
+    ${validPrivatePairSource}
+  `;
+  const messageSource = `SELECT m.id ${validPrivateMessageSource}`;
+  const noticeSource = `SELECT DISTINCT t.id AS thread_id, r.recipient_slug ${notificationSource}`;
+
+  const expectedDirectConversations = await countRows(db, `SELECT COUNT(*) AS count FROM (${conversationSource})`);
+  const missingDirectConversations = await countRows(db, `
+    SELECT COUNT(*) AS count
+    FROM (${conversationSource}) source
+    LEFT JOIN direct_conversations target ON target.id = source.id
+    WHERE target.id IS NULL
+  `);
+  const expectedDirectMessages = await countRows(db, `SELECT COUNT(*) AS count FROM (${messageSource})`);
+  const missingDirectMessages = await countRows(db, `
+    SELECT COUNT(*) AS count
+    FROM (${messageSource}) source
+    LEFT JOIN direct_messages target
+      ON target.id = source.id AND target.client_nonce = 'legacy:' || source.id
+    WHERE target.id IS NULL
+  `);
+  const expectedNotifications = await countRows(db, `SELECT COUNT(*) AS count FROM (${noticeSource})`);
+  const missingNotifications = await countRows(db, `
+    SELECT COUNT(*) AS count
+    FROM (${noticeSource}) source
+    LEFT JOIN notifications target
+      ON target.id = 'migrated_notice_' || source.thread_id || '_' || source.recipient_slug
+      AND target.type = 'admin_notice'
+    WHERE target.id IS NULL
+  `);
+
+  return {
+    expectedDirectConversations,
+    missingDirectConversations,
+    expectedDirectMessages,
+    missingDirectMessages,
+    expectedNotifications,
+    missingNotifications,
   };
 }

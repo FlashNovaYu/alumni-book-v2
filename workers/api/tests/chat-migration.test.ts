@@ -4,8 +4,10 @@ import { initTestDb } from './db-helper'
 import {
   legacyChatMigrationStatements,
   generateChatMigrationReport,
-  assertChatMigrationReport
+  assertChatMigrationReport,
+  verifyChatMigrationTargets
 } from '../../../scripts/lib/chatMigration'
+import { resolveMigrationTarget } from '../../../scripts/lib/migrationTarget'
 
 const STUDENT_A = "direct-student-a"
 const STUDENT_B = "direct-student-b"
@@ -120,6 +122,15 @@ describe('Legacy Chat Migration Core', () => {
     
     assertChatMigrationReport(r1) // 应不报错
 
+    expect(await verifyChatMigrationTargets(env.DB)).toEqual({
+      expectedDirectConversations: 2,
+      missingDirectConversations: 0,
+      expectedDirectMessages: 5,
+      missingDirectMessages: 0,
+      expectedNotifications: 1,
+      missingNotifications: 0,
+    })
+
     // 验证私聊会话已生成并合并，ID是原 legacy ID，nonce 格式正确
     const convs = await env.DB.prepare("SELECT * FROM direct_conversations WHERE id = 'conv_direct-student-a_direct-student-b'").all()
     expect(convs.results).toHaveLength(1)
@@ -137,6 +148,11 @@ describe('Legacy Chat Migration Core', () => {
     expect(m1.id).toBe('m1-1') // 保留原 legacy message ID
     expect(m1.client_nonce).toBe('legacy:m1-1')
     expect(m1.body).toBe('hello B 1')
+    expect(m1.read_at).toBe('2026-01-01 10:01:00')
+
+    const reply = msgs.results[1] as any
+    expect(reply.id).toBe('m1-2')
+    expect(reply.read_at).toBeNull()
 
     // 相同时间消息的 ID 升序排列：m2-1-id-first 应该排在 m2-2-id-second 前面
     const mSecond = msgs.results[2] as any
@@ -197,5 +213,64 @@ describe('Legacy Chat Migration Core', () => {
     const report = await generateChatMigrationReport(env.DB)
     expect(report.anomalies).toBeGreaterThan(0)
     expect(() => assertChatMigrationReport(report)).toThrow()
+  })
+
+  it('counts missing private creators and senders as anomalies', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO mail_threads (id, subject, thread_type, created_by_type, created_by_slug) VALUES ('thread-null-creator', 'Bad creator', 'private', 'student', NULL)"
+      ),
+      env.DB.prepare(
+        "INSERT INTO mail_messages (id, thread_id, sender_type, sender_slug, body) VALUES ('msg-null-creator', 'thread-null-creator', 'student', ?, 'creator missing')"
+      ).bind(STUDENT_A),
+      env.DB.prepare(
+        "INSERT INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('recipient-null-creator', 'thread-null-creator', ?)"
+      ).bind(STUDENT_B),
+      env.DB.prepare(
+        "INSERT INTO mail_threads (id, subject, thread_type, created_by_type, created_by_slug) VALUES ('thread-null-sender', 'Bad sender', 'private', 'student', ?)"
+      ).bind(STUDENT_A),
+      env.DB.prepare(
+        "INSERT INTO mail_messages (id, thread_id, sender_type, sender_slug, body) VALUES ('msg-null-sender', 'thread-null-sender', 'student', NULL, 'sender missing')"
+      ),
+      env.DB.prepare(
+        "INSERT INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('recipient-null-sender', 'thread-null-sender', ?)"
+      ).bind(STUDENT_B),
+    ])
+
+    const report = await generateChatMigrationReport(env.DB)
+    expect(report.anomalies).toBe(2)
+  })
+
+  it('rejects legacy messages that cannot belong to a two-student conversation', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO mail_threads (id, subject, thread_type, created_by_type, created_by_slug) VALUES ('thread-self', 'Self', 'private', 'student', ?)"
+      ).bind(STUDENT_A),
+      env.DB.prepare(
+        "INSERT INTO mail_messages (id, thread_id, sender_type, sender_slug, body) VALUES ('msg-self', 'thread-self', 'student', ?, 'self message')"
+      ).bind(STUDENT_A),
+      env.DB.prepare(
+        "INSERT INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('recipient-self', 'thread-self', ?)"
+      ).bind(STUDENT_A),
+      env.DB.prepare(
+        "INSERT INTO mail_threads (id, subject, thread_type, created_by_type, created_by_slug) VALUES ('thread-third-party', 'Third party', 'private', 'student', ?)"
+      ).bind(STUDENT_A),
+      env.DB.prepare(
+        "INSERT INTO mail_messages (id, thread_id, sender_type, sender_slug, body) VALUES ('msg-third-party', 'thread-third-party', 'student', ?, 'third-party message')"
+      ).bind(STUDENT_C),
+      env.DB.prepare(
+        "INSERT INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('recipient-third-party', 'thread-third-party', ?)"
+      ).bind(STUDENT_B),
+    ])
+
+    const report = await generateChatMigrationReport(env.DB)
+    expect(report.anomalies).toBe(2)
+  })
+
+  it('selects exactly one explicit D1 target', () => {
+    expect(resolveMigrationTarget([])).toBe('--local')
+    expect(resolveMigrationTarget(['--remote'])).toBe('--remote')
+    expect(resolveMigrationTarget(['--local'])).toBe('--local')
+    expect(() => resolveMigrationTarget(['--local', '--remote'])).toThrow('不能同时使用')
   })
 })
