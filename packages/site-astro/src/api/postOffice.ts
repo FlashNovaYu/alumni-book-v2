@@ -1,4 +1,4 @@
-﻿import { getClassmateToken, type ApiResponse, type ClassmateEntry, type InboxSummary, type MailboxThreadDetail, type NotificationItem } from '@alumni/shared'
+import { getClassmateToken, type ApiResponse, type ClassmateEntry, type InboxSummary, type MailboxThreadDetail, type NotificationItem } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
 function classmateHeaders(): Record<string, string> {
