@@ -61,9 +61,15 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
   }
 
   const id = crypto.randomUUID()
-  await c.env.DB.prepare(
-    'INSERT INTO public_messages (id, author_slug, author_name, content, status, reply_to_id, client_nonce, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  const insertion = await c.env.DB.prepare(
+    `INSERT INTO public_messages (id, author_slug, author_name, content, status, reply_to_id, client_nonce, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(author_slug, client_nonce) WHERE client_nonce IS NOT NULL DO NOTHING`
   ).bind(id, identity.slug, identity.name, content, 'visible', replyToId, clientNonce, now, now).run()
-  const row = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(id).first() as any
-  return c.json({ success: true, data: await formatGroupMessage(c.env.DB, row, identity.slug) }, 201)
+  const row = await c.env.DB.prepare(
+    'SELECT * FROM public_messages WHERE author_slug = ? AND client_nonce = ?'
+  ).bind(identity.slug, clientNonce).first() as any
+  if (!row) throw new Error('群聊消息创建后未找到记录')
+  const status = insertion.meta.changes === 1 ? 201 : 200
+  return c.json({ success: true, data: await formatGroupMessage(c.env.DB, row, identity.slug) }, status)
 })

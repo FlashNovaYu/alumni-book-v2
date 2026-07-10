@@ -82,6 +82,22 @@ describe('Group chat API', () => {
     expect(repeatedPayload.data.id).toBe(firstPayload.data.id)
   })
 
+  it('handles concurrent requests with the same client nonce idempotently', async () => {
+    const body = JSON.stringify({ content: '并发幂等消息', clientNonce: 'group-chat-concurrent-nonce' })
+    const [first, second] = await Promise.all([
+      request('/api/group-chat/messages', { method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body }),
+      request('/api/group-chat/messages', { method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body }),
+    ])
+    const [firstPayload, secondPayload] = await Promise.all([first.json(), second.json()]) as any[]
+    const stored = await env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND client_nonce = ?'
+    ).bind(PRIMARY_SLUG, 'group-chat-concurrent-nonce').first() as any
+
+    expect([first.status, second.status].sort()).toEqual([200, 201])
+    expect(firstPayload.data.id).toBe(secondPayload.data.id)
+    expect(stored.count).toBe(1)
+  })
+
   it('returns at most 30 latest messages in ascending response order', async () => {
     await seedHistory(31)
 
@@ -105,6 +121,28 @@ describe('Group chat API', () => {
     expect(older.status).toBe(200)
     expect(olderPayload.data.items).toHaveLength(10)
     expect(olderPayload.data.items.some((item: any) => latestPayload.data.items.some((latestItem: any) => latestItem.id === item.id))).toBe(false)
+  })
+
+  it('orders and paginates mixed legacy and ISO timestamps chronologically', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-mixed-1', ?, '群聊甲', '旧格式最早', 'visible', '2026-05-10 09:00:00', '2026-05-10 09:00:00')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-mixed-2', ?, '群聊甲', 'ISO 第二条', 'visible', '2026-05-10T10:00:00.000Z', '2026-05-10T10:00:00.000Z')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-mixed-3', ?, '群聊甲', '旧格式第三条', 'visible', '2026-05-10 11:00:00', '2026-05-10 11:00:00')").bind(PRIMARY_SLUG),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-mixed-4', ?, '群聊甲', 'ISO 最新', 'visible', '2026-05-10T12:00:00.000Z', '2026-05-10T12:00:00.000Z')").bind(PRIMARY_SLUG),
+    ])
+
+    const latest = await request('/api/group-chat/messages?limit=2', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const latestPayload = await latest.json() as any
+    const older = await request(`/api/group-chat/messages?limit=2&before=${encodeURIComponent(latestPayload.data.nextCursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const olderPayload = await older.json() as any
+
+    expect(latest.status).toBe(200)
+    expect(older.status).toBe(200)
+    expect(latestPayload.data.items.map((item: any) => item.id)).toEqual(['group-chat-mixed-3', 'group-chat-mixed-4'])
+    expect(olderPayload.data.items.map((item: any) => item.id)).toEqual(['group-chat-mixed-1', 'group-chat-mixed-2'])
+    expect([...latestPayload.data.items, ...olderPayload.data.items].map((item: any) => item.id).sort()).toEqual([
+      'group-chat-mixed-1', 'group-chat-mixed-2', 'group-chat-mixed-3', 'group-chat-mixed-4',
+    ])
   })
 
   it('mine includes only the current account non-public messages', async () => {
@@ -139,7 +177,7 @@ describe('Group chat API', () => {
     expect(res.status).toBe(201)
   })
 
-  it('returns null and cleans up an expired mute', async () => {
+  it('returns null for an expired mute', async () => {
     const expiredAt = new Date(Date.now() - 60_000).toISOString()
     await env.DB.prepare(
       'INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'

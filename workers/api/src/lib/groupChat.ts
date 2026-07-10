@@ -67,16 +67,16 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
   const clauses = [options.mine ? 'pm.author_slug = ?' : "pm.status = 'visible'"]
   const values: unknown[] = options.mine ? [viewerSlug] : []
   if (options.before) {
-    clauses.push('(pm.created_at < ? OR (pm.created_at = ? AND pm.id < ?))')
+    clauses.push('(julianday(pm.created_at) < julianday(?) OR (julianday(pm.created_at) = julianday(?) AND pm.id < ?))')
     values.push(options.before.timestamp, options.before.timestamp, options.before.id)
   }
   if (options.updatedAfter) {
-    clauses.push('(pm.updated_at > ? OR (pm.updated_at = ? AND pm.id > ?))')
+    clauses.push('(julianday(pm.updated_at) > julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id > ?))')
     values.push(options.updatedAfter.timestamp, options.updatedAfter.timestamp, options.updatedAfter.id)
   }
   values.push(options.limit)
   const result = await db.prepare(
-    `SELECT pm.*, s.avatar_url FROM public_messages pm LEFT JOIN students s ON s.slug = pm.author_slug WHERE ${clauses.join(' AND ')} ORDER BY pm.created_at DESC, pm.id DESC LIMIT ?`
+    `SELECT pm.*, s.avatar_url FROM public_messages pm LEFT JOIN students s ON s.slug = pm.author_slug WHERE ${clauses.join(' AND ')} ORDER BY julianday(pm.created_at) DESC, pm.id DESC LIMIT ?`
   ).bind(...values).all()
   const messages = await Promise.all((result.results || []).map((row) => formatGroupMessage(db, row, viewerSlug)))
   return messages.reverse()
