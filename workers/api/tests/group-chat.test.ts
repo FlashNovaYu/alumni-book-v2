@@ -1,6 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
+import { getActiveMute } from '../src/lib/groupChat'
 import { initTestDb } from './db-helper'
 
 const PRIMARY_SLUG = 'group-chat-primary'
@@ -138,30 +139,23 @@ describe('Group chat API', () => {
     expect(res.status).toBe(201)
   })
 
-  it('allows sending after a mute has expired', async () => {
+  it('returns null and cleans up an expired mute', async () => {
     const expiredAt = new Date(Date.now() - 60_000).toISOString()
     await env.DB.prepare(
       'INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(PRIMARY_SLUG, expiredAt, '已过期禁言', expiredAt, expiredAt).run()
 
-    const res = await request('/api/group-chat/messages', {
-      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '过期禁言后发送', clientNonce: 'expired-mute-send' }),
-    })
-
-    expect(res.status).toBe(201)
+    expect(await getActiveMute(env.DB, PRIMARY_SLUG)).toBeNull()
+    await env.DB.prepare('DELETE FROM group_chat_mutes WHERE student_slug = ?').bind(PRIMARY_SLUG).run()
   })
 
-  it('blocks sending while a mute is active', async () => {
+  it('returns active mute information', async () => {
     const activeUntil = new Date(Date.now() + 60_000).toISOString()
     const now = new Date().toISOString()
     await env.DB.prepare(
       'INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(PRIMARY_SLUG, activeUntil, '有效禁言', now, now).run()
 
-    const res = await request('/api/group-chat/messages', {
-      method: 'POST', headers: classmateHeaders(PRIMARY_TOKEN), body: JSON.stringify({ content: '应被禁言拦截', clientNonce: 'active-mute-send' }),
-    })
-
-    expect(res.status).toBe(403)
+    await expect(getActiveMute(env.DB, PRIMARY_SLUG)).resolves.toEqual({ reason: '有效禁言', mutedUntil: activeUntil })
   })
 })

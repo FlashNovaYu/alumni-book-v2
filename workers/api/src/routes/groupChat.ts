@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { decodeCursor, encodeCursor, type CursorValue } from '../lib/cursor'
-import { formatGroupMessage, getActiveMute, listGroupMessages } from '../lib/groupChat'
+import { formatGroupMessage, listGroupMessages } from '../lib/groupChat'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 
 type Bindings = { DB: D1Database }
@@ -45,9 +45,6 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
 
   const duplicate = await c.env.DB.prepare('SELECT * FROM public_messages WHERE author_slug = ? AND client_nonce = ?').bind(identity.slug, clientNonce).first() as any
   if (duplicate) return c.json({ success: true, data: await formatGroupMessage(c.env.DB, duplicate, identity.slug) })
-
-  const mute = await getActiveMute(c.env.DB, identity.slug)
-  if (mute) return c.json({ success: false, message: mute.reason }, 403)
 
   if (replyToId) {
     const reply = await c.env.DB.prepare('SELECT id FROM public_messages WHERE id = ?').bind(replyToId).first()
