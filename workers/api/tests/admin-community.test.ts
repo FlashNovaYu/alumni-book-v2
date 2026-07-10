@@ -100,6 +100,48 @@ describe('Admin group chat moderation API', () => {
     await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_id = 'admin-community-hide'").first()).resolves.toMatchObject({ count: 2 })
   })
 
+  it('rejects hide and restore requests for recalled messages', async () => {
+    const token = await login()
+    await seedMessage('admin-community-recalled-admin')
+    await seedMessage('admin-community-recalled-author')
+    await env.DB.batch([
+      env.DB.prepare("UPDATE public_messages SET status = 'recalled_by_admin' WHERE id = 'admin-community-recalled-admin'"),
+      env.DB.prepare("UPDATE public_messages SET status = 'recalled_by_author' WHERE id = 'admin-community-recalled-author'"),
+    ])
+    const adminRecall = await request('/api/admin/group-chat/messages/admin-community-recalled-admin/hide', {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: true, reason: '不得恢复' }),
+    })
+    const authorRecall = await request('/api/admin/group-chat/messages/admin-community-recalled-author/hide', {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: false, reason: '不得恢复' }),
+    })
+    expect(adminRecall.status).toBe(409)
+    expect(authorRecall.status).toBe(409)
+  })
+
+  it('rejects non-string reasons without audit or notifications', async () => {
+    const token = await login()
+    await seedMessage('admin-community-invalid-hide')
+    await seedMessage('admin-community-invalid-recall')
+    const hide = await request('/api/admin/group-chat/messages/admin-community-invalid-hide/hide', {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: true, reason: { text: '对象' } }),
+    })
+    const recall = await request('/api/admin/group-chat/messages/admin-community-invalid-recall/recall', {
+      method: 'POST', headers: adminHeaders(token), body: JSON.stringify({ reason: { text: '对象' } }),
+    })
+    const mute = await request(`/api/admin/group-chat/mutes/${AUTHOR_SLUG}`, {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ reason: { text: '对象' }, mutedUntil: null }),
+    })
+    expect([hide.status, recall.status, mute.status]).toEqual([400, 400, 400])
+    const invalidTypes = await Promise.all([
+      request('/api/admin/group-chat/messages/admin-community-invalid-hide/hide', { method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: true, reason: ['数组'] }) }),
+      request('/api/admin/group-chat/messages/admin-community-invalid-recall/recall', { method: 'POST', headers: adminHeaders(token), body: JSON.stringify({ reason: 1 }) }),
+      request(`/api/admin/group-chat/mutes/${AUTHOR_SLUG}`, { method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ reason: false, mutedUntil: null }) }),
+    ])
+    expect(invalidTypes.map((response) => response.status)).toEqual([400, 400, 400])
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_id IN ('admin-community-invalid-hide', 'admin-community-invalid-recall', ?)").bind(AUTHOR_SLUG).first()).resolves.toMatchObject({ count: 0 })
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM notifications WHERE related_id IN ('admin-community-invalid-hide', 'admin-community-invalid-recall', ?)").bind(AUTHOR_SLUG).first()).resolves.toMatchObject({ count: 0 })
+  })
+
   it('makes concurrent hide and recall conditional so recalled messages are never restored to hidden', async () => {
     const token = await login()
     await seedMessage('admin-community-race')
@@ -141,6 +183,9 @@ describe('Admin group chat moderation API', () => {
     })
     expect((await mute('not-a-date')).status).toBe(400)
     expect((await mute('2030-01-01 12:00:00')).status).toBe(400)
+    expect((await mute('2030-02-31T12:00:00Z')).status).toBe(400)
+    expect((await mute('2030-02-29T12:00:00Z')).status).toBe(400)
+    expect((await mute('2030-01-01T24:00:00Z')).status).toBe(400)
     const future = new Date(Date.now() + 60_000).toISOString()
     expect((await mute(future)).status).toBe(200)
     expect((await mute(future)).status).toBe(200)
@@ -151,6 +196,15 @@ describe('Admin group chat moderation API', () => {
     expect((await unmute()).status).toBe(200)
     expect((await unmute()).status).toBe(200)
     expect(await notificationCount('group_chat_unmuted', AUTHOR_SLUG)).toBe(1)
+  })
+
+  it('accepts a future offset ISO time only when its calendar fields are valid', async () => {
+    const token = await login()
+    const response = await request(`/api/admin/group-chat/mutes/${OTHER_SLUG}`, {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ reason: '时区禁言', mutedUntil: '2030-01-01T12:00:00+08:00' }),
+    })
+    expect(response.status).toBe(200)
+    await expect(env.DB.prepare('SELECT muted_until FROM group_chat_mutes WHERE student_slug = ?').bind(OTHER_SLUG).first()).resolves.toMatchObject({ muted_until: '2030-01-01T12:00:00+08:00' })
   })
 
   it('makes concurrent mute and unmute write one audit and notification with mute content type', async () => {

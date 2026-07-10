@@ -5,8 +5,8 @@ type Bindings = { DB: D1Database; JWT_SECRET: string }
 export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
 
 const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
-const reasonOf = (value: unknown) => String(value || '').trim()
-const ISO_WITH_TIMEZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/
+const reasonOf = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+const ISO_WITH_TIMEZONE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-]\d{2}:\d{2})$/
 
 function adminId(c: any) {
   const payload = c.get('jwtPayload') as any
@@ -56,12 +56,19 @@ adminCommunityRoutes.put('/admin/group-chat/messages/:id/hide', async (c) => {
   if (!existing) return c.json({ success: false, message: '消息不存在' }, 404)
   const previous = body.hidden ? 'visible' : 'hidden'
   const next = body.hidden ? 'hidden' : 'visible'
-  await c.env.DB.batch([
+  const results = await c.env.DB.batch([
     messageReview(c.env.DB, messageId, previous, body.hidden ? 'hide' : 'restore', reason, adminId(c)),
     messageNotification(c.env.DB, messageId, previous, body.hidden ? 'group_chat_hidden' : 'group_chat_restored', body.hidden ? '群聊消息已隐藏' : '群聊消息已恢复', reason),
     c.env.DB.prepare("UPDATE public_messages SET status = ?, moderation_reason = ?, updated_at = datetime('now') WHERE id = ? AND status = ?").bind(next, reason, messageId, previous),
   ])
   const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
+  if (!Number((results[2] as any)?.meta?.changes || 0)) {
+    if (!updated) return c.json({ success: false, message: '消息不存在' }, 404)
+    if (updated.status === 'recalled_by_admin' || updated.status === 'recalled_by_author') {
+      return c.json({ success: false, message: '已撤回消息不可恢复' }, 409)
+    }
+    if (updated.status !== next) return c.json({ success: false, message: '消息状态冲突' }, 409)
+  }
   return c.json({ success: true, data: messageData(updated) })
 })
 
@@ -88,7 +95,16 @@ adminCommunityRoutes.post('/admin/group-chat/messages/:id/recall', async (c) => 
 })
 
 function isValidFutureIso(value: unknown): value is string {
-  return typeof value === 'string' && ISO_WITH_TIMEZONE.test(value) && Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now()
+  if (typeof value !== 'string') return false
+  const match = ISO_WITH_TIMEZONE.exec(value)
+  if (!match) return false
+  const [, year, month, day, hour, minute, second, fraction, offset] = match
+  const milliseconds = Number((fraction || '').padEnd(3, '0') || 0)
+  const calendar = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second), milliseconds))
+  const offsetValid = offset === 'Z' || (Number(offset.slice(1, 3)) <= 23 && Number(offset.slice(4, 6)) <= 59)
+  if (!offsetValid || calendar.getUTCFullYear() !== Number(year) || calendar.getUTCMonth() !== Number(month) - 1 || calendar.getUTCDate() !== Number(day) || calendar.getUTCHours() !== Number(hour) || calendar.getUTCMinutes() !== Number(minute) || calendar.getUTCSeconds() !== Number(second) || calendar.getUTCMilliseconds() !== milliseconds) return false
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) && timestamp > Date.now()
 }
 
 function muteChangeCondition() {
