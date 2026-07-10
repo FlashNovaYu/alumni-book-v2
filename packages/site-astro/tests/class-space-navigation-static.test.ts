@@ -58,3 +58,25 @@ describe('class space public message wall refactoring static constraints', () =>
     expect(source).toContain('none')
   })
 })
+
+describe('class space responsive dashboard contracts', () => {
+  it('verifies class-space.astro page exists and contains ClassSpaceHub and no AlbumGrid or ScrollTrigger', () => {
+    expect(existsSync(resolve(src, 'pages/class-space.astro'))).toBe(true)
+    const source = read('pages/class-space.astro')
+    expect(source).toContain('ClassSpaceHub')
+    expect(source).not.toContain('AlbumGrid')
+    expect(source).not.toContain('ScrollTrigger')
+  })
+
+  it('verifies ClassSpaceHub.vue exists, handles API overview fetching, state orchestration, and sub-components', () => {
+    expect(existsSync(resolve(src, 'components/ClassSpaceHub.vue'))).toBe(true)
+    const source = read('components/ClassSpaceHub.vue')
+    expect(source).toContain('ClassSpaceMessageStage')
+    expect(source).toContain('ClassSpaceAlbumRail')
+    expect(source).toContain('ClassSpaceTimelinePreview')
+    expect(source).toContain('fetchClassSpaceOverview')
+    expect(source).not.toContain('AlbumGrid')
+    expect(source).not.toContain('ScrollTrigger')
+  })
+})
+
