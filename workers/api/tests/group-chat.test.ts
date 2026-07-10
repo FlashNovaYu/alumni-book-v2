@@ -416,4 +416,29 @@ describe('Group chat API', () => {
     expect(sameBoundary.map((item) => item.id)).toEqual(['group-chat-snapshot-old'])
     expect(nextRound.map((item) => item.id)).toEqual(['group-chat-snapshot-new'])
   })
+
+  it('keeps writes after the first sync snapshot out of every continuation page', async () => {
+    await seedHistory(61)
+    const first = await request('/api/group-chat/sync', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const firstPayload = await first.json() as any
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const writtenAfterSnapshot = new Date().toISOString()
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-after-snapshot', ?, '群聊甲', '新写入', 'visible', ?, ?)"
+    ).bind(PRIMARY_SLUG, writtenAfterSnapshot, writtenAfterSnapshot).run()
+
+    const second = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(firstPayload.data.cursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const secondPayload = await second.json() as any
+    const third = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(secondPayload.data.cursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const thirdPayload = await third.json() as any
+    const oldIds = [firstPayload, secondPayload, thirdPayload].flatMap((payload) => payload.data.items.map((item: any) => item.id))
+    const nextPoll = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(thirdPayload.data.cursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const nextPollPayload = await nextPoll.json() as any
+
+    expect([first.status, second.status, third.status, nextPoll.status]).toEqual([200, 200, 200, 200])
+    expect(oldIds).toHaveLength(61)
+    expect(new Set(oldIds).size).toBe(61)
+    expect(oldIds).not.toContain('group-chat-after-snapshot')
+    expect(nextPollPayload.data.items).toEqual([expect.objectContaining({ id: 'group-chat-after-snapshot' })])
+  })
 })

@@ -3,6 +3,11 @@ export interface CursorValue {
   id: string
 }
 
+export interface SyncCursorValue {
+  position: CursorValue
+  boundary: CursorValue
+}
+
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
@@ -26,16 +31,40 @@ export function encodeCursor(value: CursorValue): string {
   return bytesToBase64(encoder.encode(JSON.stringify(value)))
 }
 
-export function decodeCursor(raw: string | undefined): CursorValue | null {
+function isCursorValue(value: any): value is CursorValue {
+  return typeof value?.timestamp === 'string'
+    && Number.isFinite(Date.parse(value.timestamp))
+    && typeof value?.id === 'string'
+    && Boolean(value.id)
+}
+
+function decodeValue(raw: string | undefined): any | null {
   if (!raw || raw.length > 512) return null
   const bytes = base64ToBytes(raw)
   if (!bytes) return null
 
   try {
-    const value = JSON.parse(decoder.decode(bytes))
-    if (typeof value?.timestamp !== 'string' || !Number.isFinite(Date.parse(value.timestamp)) || typeof value?.id !== 'string' || !value.id) return null
-    return { timestamp: value.timestamp, id: value.id }
+    return JSON.parse(decoder.decode(bytes))
   } catch {
     return null
+  }
+}
+
+export function decodeCursor(raw: string | undefined): CursorValue | null {
+  const value = decodeValue(raw)
+  return isCursorValue(value) ? { timestamp: value.timestamp, id: value.id } : null
+}
+
+export function encodeSyncCursor(value: SyncCursorValue): string {
+  return bytesToBase64(encoder.encode(JSON.stringify(value)))
+}
+
+export function decodeSyncCursor(raw: string | undefined): { position: CursorValue; boundary?: CursorValue } | null {
+  const value = decodeValue(raw)
+  if (isCursorValue(value)) return { position: { timestamp: value.timestamp, id: value.id } }
+  if (!isCursorValue(value?.position) || !isCursorValue(value?.boundary)) return null
+  return {
+    position: { timestamp: value.position.timestamp, id: value.position.id },
+    boundary: { timestamp: value.boundary.timestamp, id: value.boundary.id },
   }
 }

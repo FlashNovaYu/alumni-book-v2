@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { decodeCursor, encodeCursor, type CursorValue } from '../lib/cursor'
+import { decodeCursor, decodeSyncCursor, encodeCursor, encodeSyncCursor, type CursorValue } from '../lib/cursor'
 import { GROUP_REACTIONS, formatGroupMessage, getActiveMute, listGroupMessages } from '../lib/groupChat'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 
@@ -40,14 +40,13 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
   const rawCursor = c.req.query('cursor')
-  const cursor = decodeCursor(rawCursor)
+  const cursor = decodeSyncCursor(rawCursor)
   if (rawCursor && !cursor) return c.json({ success: false, message: '游标无效' }, 400)
 
-  const startedAt = new Date().toISOString()
-  const boundary = { timestamp: startedAt, id: '\uffff' }
+  const boundary = cursor?.boundary || { timestamp: new Date().toISOString(), id: '\uffff' }
   const limit = parseLimit(c.req.query('limit'))
   const results = await listGroupMessages(c.env.DB, identity.slug, {
-    updatedAfter: cursor || { timestamp: '1970-01-01T00:00:00.000Z', id: '' },
+    updatedAfter: cursor?.position || { timestamp: '1970-01-01T00:00:00.000Z', id: '' },
     updatedBefore: boundary,
     includeStatusChanges: true,
     limit: limit + 1,
@@ -56,7 +55,10 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
   const items = results.slice(0, limit)
   const last = items.at(-1)
   const mute = await getActiveMute(c.env.DB, identity.slug)
-  return c.json({ success: true, data: { cursor: encodeCursor(hasMore && last ? { timestamp: last.updatedAt, id: last.id } : boundary), items, mute } })
+  const nextCursor = hasMore && last
+    ? encodeSyncCursor({ position: { timestamp: last.updatedAt, id: last.id }, boundary })
+    : encodeCursor(boundary)
+  return c.json({ success: true, data: { cursor: nextCursor, items, mute } })
 })
 
 groupChatRoutes.post('/group-chat/messages', async (c) => {
