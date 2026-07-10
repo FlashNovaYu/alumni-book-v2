@@ -56,6 +56,13 @@ describe('Admin group chat moderation API', () => {
     expect((await request('/api/admin/group-chat/messages', { headers: adminHeaders(token) })).status).toBe(401)
   })
 
+  it('rejects a same-day expired ISO admin session for moderation and auth verification', async () => {
+    const token = await login()
+    await env.DB.prepare('UPDATE admin_sessions SET expires_at = ? WHERE token = ?').bind(new Date(Date.now() - 60_000).toISOString(), token).run()
+    expect((await request('/api/admin/group-chat/messages', { headers: adminHeaders(token) })).status).toBe(401)
+    expect((await request('/api/auth/verify', { headers: adminHeaders(token) })).status).toBe(401)
+  })
+
   it('validates governance reasons and lists messages by status', async () => {
     const token = await login()
     await seedMessage('admin-community-visible')
@@ -65,6 +72,10 @@ describe('Admin group chat moderation API', () => {
       method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: true, reason: '  ' }),
     })
     expect(invalid.status).toBe(400)
+    const invalidHidden = await request('/api/admin/group-chat/messages/admin-community-visible/hide', {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: 'false', reason: '类型错误' }),
+    })
+    expect(invalidHidden.status).toBe(400)
     const listed = await request('/api/admin/group-chat/messages?status=hidden', { headers: adminHeaders(token) })
     const payload = await listed.json() as any
     expect(payload.data).toEqual([expect.objectContaining({ id: 'admin-community-hidden', status: 'hidden', author: expect.objectContaining({ slug: AUTHOR_SLUG }) })])
@@ -89,6 +100,27 @@ describe('Admin group chat moderation API', () => {
     await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_id = 'admin-community-hide'").first()).resolves.toMatchObject({ count: 2 })
   })
 
+  it('makes concurrent hide and recall conditional so recalled messages are never restored to hidden', async () => {
+    const token = await login()
+    await seedMessage('admin-community-race')
+    const hide = () => request('/api/admin/group-chat/messages/admin-community-race/hide', {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ hidden: true, reason: '并发隐藏' }),
+    })
+    await Promise.all([hide(), hide()])
+    expect(await notificationCount('group_chat_hidden', 'admin-community-race')).toBe(1)
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_id = 'admin-community-race' AND action = 'hide'").first()).resolves.toMatchObject({ count: 1 })
+
+    await env.DB.prepare("UPDATE public_messages SET status = 'visible', moderation_reason = NULL WHERE id = 'admin-community-race'").run()
+    const recall = () => request('/api/admin/group-chat/messages/admin-community-race/recall', {
+      method: 'POST', headers: adminHeaders(token), body: JSON.stringify({ reason: '并发撤回' }),
+    })
+    await Promise.all([hide(), recall()])
+    await expect(env.DB.prepare("SELECT status FROM public_messages WHERE id = 'admin-community-race'").first()).resolves.toMatchObject({ status: 'recalled_by_admin' })
+    const repeatRecall = await recall()
+    expect(repeatRecall.status).toBe(200)
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_id = 'admin-community-race' AND action = 'recall'").first()).resolves.toMatchObject({ count: 1 })
+  })
+
   it('recalls a message once and uses the stable notification id', async () => {
     const token = await login()
     await seedMessage('admin-community-recall')
@@ -108,6 +140,7 @@ describe('Admin group chat moderation API', () => {
       method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ reason, mutedUntil }),
     })
     expect((await mute('not-a-date')).status).toBe(400)
+    expect((await mute('2030-01-01 12:00:00')).status).toBe(400)
     const future = new Date(Date.now() + 60_000).toISOString()
     expect((await mute(future)).status).toBe(200)
     expect((await mute(future)).status).toBe(200)
@@ -118,5 +151,20 @@ describe('Admin group chat moderation API', () => {
     expect((await unmute()).status).toBe(200)
     expect((await unmute()).status).toBe(200)
     expect(await notificationCount('group_chat_unmuted', AUTHOR_SLUG)).toBe(1)
+  })
+
+  it('makes concurrent mute and unmute write one audit and notification with mute content type', async () => {
+    const token = await login()
+    const future = new Date(Date.now() + 60_000).toISOString()
+    const mute = () => request(`/api/admin/group-chat/mutes/${OTHER_SLUG}`, {
+      method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ reason: '并发禁言', mutedUntil: future }),
+    })
+    await Promise.all([mute(), mute()])
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_type = 'group_chat_mute' AND content_id = ? AND action = 'mute'").bind(OTHER_SLUG).first()).resolves.toMatchObject({ count: 1 })
+    expect(await notificationCount('group_chat_muted', OTHER_SLUG)).toBe(1)
+    const unmute = () => request(`/api/admin/group-chat/mutes/${OTHER_SLUG}`, { method: 'DELETE', headers: adminHeaders(token) })
+    await Promise.all([unmute(), unmute()])
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_type = 'group_chat_mute' AND content_id = ? AND action = 'unmute'").bind(OTHER_SLUG).first()).resolves.toMatchObject({ count: 1 })
+    expect(await notificationCount('group_chat_unmuted', OTHER_SLUG)).toBe(1)
   })
 })

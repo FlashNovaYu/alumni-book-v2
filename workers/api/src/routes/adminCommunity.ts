@@ -1,17 +1,16 @@
 import { Hono } from 'hono'
 import { adminGuard } from '../lib/adminGuard'
-import { createNotification } from '../lib/notificationService'
 
 type Bindings = { DB: D1Database; JWT_SECRET: string }
 export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
 
 const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
 const reasonOf = (value: unknown) => String(value || '').trim()
+const ISO_WITH_TIMEZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/
 
-async function writeReview(db: D1Database, contentId: string, action: string, reason: string) {
-  await db.prepare(
-    "INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) VALUES (?, 'group_chat_message', ?, ?, ?, 'admin')"
-  ).bind(id('cr'), contentId, action, reason).run()
+function adminId(c: any) {
+  const payload = c.get('jwtPayload') as any
+  return String(payload?.sub || payload?.role || 'admin')
 }
 
 function messageData(row: any) {
@@ -20,6 +19,18 @@ function messageData(row: any) {
     status: row.status, moderationReason: row.moderation_reason, recalledAt: row.recalled_at,
     recalledByType: row.recalled_by_type, createdAt: row.created_at, updatedAt: row.updated_at,
   }
+}
+
+function messageReview(db: D1Database, messageId: string, status: string, action: string, reason: string, reviewer: string) {
+  return db.prepare(
+    "INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) SELECT ?, 'group_chat_message', id, ?, ?, ? FROM public_messages WHERE id = ? AND status = ?"
+  ).bind(id('cr'), action, reason, reviewer, messageId, status)
+}
+
+function messageNotification(db: D1Database, messageId: string, status: string, type: string, title: string, reason: string, notificationId = id('ntf')) {
+  return db.prepare(
+    "INSERT OR IGNORE INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, author_slug, ?, ?, ?, 'group_chat_message', id FROM public_messages WHERE id = ? AND status = ?"
+  ).bind(notificationId, type, title, `治理原因：${reason}`, messageId, status)
 }
 
 adminCommunityRoutes.use('*', adminGuard)
@@ -39,71 +50,86 @@ adminCommunityRoutes.put('/admin/group-chat/messages/:id/hide', async (c) => {
   const body = await c.req.json().catch(() => ({})) as any
   const reason = reasonOf(body.reason)
   if (!reason) return c.json({ success: false, message: '请填写治理原因' }, 400)
-  const row = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(c.req.param('id')).first() as any
-  if (!row) return c.json({ success: false, message: '消息不存在' }, 404)
-  if (row.status === 'recalled_by_admin' || row.status === 'recalled_by_author') return c.json({ success: false, message: '已撤回消息不可恢复' }, 409)
-  const hidden = Boolean(body.hidden)
-  const nextStatus = hidden ? 'hidden' : 'visible'
-  if (row.status === nextStatus) return c.json({ success: true, data: messageData(row) })
-  await c.env.DB.prepare("UPDATE public_messages SET status = ?, moderation_reason = ?, updated_at = datetime('now') WHERE id = ?").bind(nextStatus, reason, row.id).run()
-  await writeReview(c.env.DB, row.id, hidden ? 'hide' : 'restore', reason)
-  await createNotification(c.env.DB, {
-    recipientSlug: row.author_slug, type: hidden ? 'group_chat_hidden' : 'group_chat_restored',
-    title: hidden ? '群聊消息已隐藏' : '群聊消息已恢复', body: `治理原因：${reason}`,
-    relatedType: 'group_chat_message', relatedId: row.id,
-  })
-  const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(row.id).first() as any
+  if (typeof body.hidden !== 'boolean') return c.json({ success: false, message: 'hidden 必须为布尔值' }, 400)
+  const messageId = c.req.param('id')
+  const existing = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
+  if (!existing) return c.json({ success: false, message: '消息不存在' }, 404)
+  const previous = body.hidden ? 'visible' : 'hidden'
+  const next = body.hidden ? 'hidden' : 'visible'
+  await c.env.DB.batch([
+    messageReview(c.env.DB, messageId, previous, body.hidden ? 'hide' : 'restore', reason, adminId(c)),
+    messageNotification(c.env.DB, messageId, previous, body.hidden ? 'group_chat_hidden' : 'group_chat_restored', body.hidden ? '群聊消息已隐藏' : '群聊消息已恢复', reason),
+    c.env.DB.prepare("UPDATE public_messages SET status = ?, moderation_reason = ?, updated_at = datetime('now') WHERE id = ? AND status = ?").bind(next, reason, messageId, previous),
+  ])
+  const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
   return c.json({ success: true, data: messageData(updated) })
 })
 
 adminCommunityRoutes.post('/admin/group-chat/messages/:id/recall', async (c) => {
   const reason = reasonOf((await c.req.json().catch(() => ({})) as any).reason)
   if (!reason) return c.json({ success: false, message: '请填写治理原因' }, 400)
-  const row = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(c.req.param('id')).first() as any
-  if (!row) return c.json({ success: false, message: '消息不存在' }, 404)
-  if (row.status === 'recalled_by_admin') return c.json({ success: true, data: messageData(row) })
-  await c.env.DB.prepare("UPDATE public_messages SET status = 'recalled_by_admin', recalled_by_type = 'admin', recalled_at = datetime('now'), moderation_reason = ?, updated_at = datetime('now') WHERE id = ?").bind(reason, row.id).run()
-  await writeReview(c.env.DB, row.id, 'recall', reason)
-  await createNotification(c.env.DB, {
-    id: `ntf_group_recall_${row.id}`, recipientSlug: row.author_slug, type: 'group_chat_recalled',
-    title: '群聊消息已被管理员撤回', body: `治理原因：${reason}`, relatedType: 'group_chat_message', relatedId: row.id,
-  })
-  const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(row.id).first() as any
+  const messageId = c.req.param('id')
+  const existing = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
+  if (!existing) return c.json({ success: false, message: '消息不存在' }, 404)
+  const allowed = "status IN ('visible', 'hidden')"
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) SELECT ?, 'group_chat_message', id, 'recall', ?, ? FROM public_messages WHERE id = ? AND ${allowed}`
+    ).bind(id('cr'), reason, adminId(c), messageId),
+    c.env.DB.prepare(
+      `INSERT OR IGNORE INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, author_slug, 'group_chat_recalled', '群聊消息已被管理员撤回', ?, 'group_chat_message', id FROM public_messages WHERE id = ? AND ${allowed}`
+    ).bind(`ntf_group_recall_${messageId}`, `治理原因：${reason}`, messageId),
+    c.env.DB.prepare(
+      `UPDATE public_messages SET status = 'recalled_by_admin', recalled_by_type = 'admin', recalled_at = datetime('now'), moderation_reason = ?, updated_at = datetime('now') WHERE id = ? AND ${allowed}`
+    ).bind(reason, messageId),
+  ])
+  const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
   return c.json({ success: true, data: messageData(updated) })
 })
+
+function isValidFutureIso(value: unknown): value is string {
+  return typeof value === 'string' && ISO_WITH_TIMEZONE.test(value) && Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now()
+}
+
+function muteChangeCondition() {
+  return 'NOT EXISTS (SELECT 1 FROM group_chat_mutes WHERE student_slug = ? AND reason = ? AND (muted_until IS ? OR muted_until = ?))'
+}
 
 adminCommunityRoutes.put('/admin/group-chat/mutes/:slug', async (c) => {
   const body = await c.req.json().catch(() => ({})) as any
   const reason = reasonOf(body.reason)
   if (!reason) return c.json({ success: false, message: '请填写治理原因' }, 400)
-  const mutedUntil = body.mutedUntil === null ? null : String(body.mutedUntil || '')
-  if (mutedUntil && (!Number.isFinite(Date.parse(mutedUntil)) || Date.parse(mutedUntil) <= Date.now())) return c.json({ success: false, message: '解除时间必须是未来时间' }, 400)
-  if (body.mutedUntil !== null && !mutedUntil) return c.json({ success: false, message: '解除时间无效' }, 400)
+  if (body.mutedUntil !== null && !isValidFutureIso(body.mutedUntil)) return c.json({ success: false, message: '解除时间必须是带时区的未来 ISO 时间' }, 400)
+  const mutedUntil = body.mutedUntil as string | null
   const slug = c.req.param('slug')
   const student = await c.env.DB.prepare('SELECT slug FROM students WHERE slug = ?').bind(slug).first()
   if (!student) return c.json({ success: false, message: '同学不存在' }, 404)
-  const existing = await c.env.DB.prepare('SELECT * FROM group_chat_mutes WHERE student_slug = ?').bind(slug).first() as any
-  if (existing && existing.reason === reason && existing.muted_until === mutedUntil) return c.json({ success: true, data: existing })
-  await c.env.DB.prepare(
-    "INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_by, created_at, updated_at) VALUES (?, ?, ?, 'admin', datetime('now'), datetime('now')) ON CONFLICT(student_slug) DO UPDATE SET muted_until = excluded.muted_until, reason = excluded.reason, created_by = excluded.created_by, updated_at = datetime('now')"
-  ).bind(slug, mutedUntil, reason).run()
-  await writeReview(c.env.DB, slug, 'mute', reason)
-  await createNotification(c.env.DB, {
-    recipientSlug: slug, type: 'group_chat_muted', title: '你已被禁言',
-    body: `治理原因：${reason}；解除时间：${mutedUntil || '永久禁言'}`, relatedType: 'group_chat_mute', relatedId: slug,
-  })
+  const condition = muteChangeCondition()
+  const conditionBinds = [slug, reason, mutedUntil, mutedUntil]
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) SELECT ?, 'group_chat_mute', ?, 'mute', ?, ? WHERE ${condition}`
+    ).bind(id('cr'), slug, reason, adminId(c), ...conditionBinds),
+    c.env.DB.prepare(
+      `INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, ?, 'group_chat_muted', '你已被禁言', ?, 'group_chat_mute', ? WHERE ${condition}`
+    ).bind(id('ntf'), slug, `治理原因：${reason}；解除时间：${mutedUntil || '永久禁言'}`, slug, ...conditionBinds),
+    c.env.DB.prepare(
+      `INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_by, created_at, updated_at) SELECT ?, ?, ?, ?, datetime('now'), datetime('now') WHERE ${condition} ON CONFLICT(student_slug) DO UPDATE SET muted_until = excluded.muted_until, reason = excluded.reason, created_by = excluded.created_by, updated_at = datetime('now')`
+    ).bind(slug, mutedUntil, reason, adminId(c), ...conditionBinds),
+  ])
   return c.json({ success: true, data: await c.env.DB.prepare('SELECT * FROM group_chat_mutes WHERE student_slug = ?').bind(slug).first() })
 })
 
 adminCommunityRoutes.delete('/admin/group-chat/mutes/:slug', async (c) => {
   const slug = c.req.param('slug')
-  const existing = await c.env.DB.prepare('SELECT * FROM group_chat_mutes WHERE student_slug = ?').bind(slug).first()
-  if (!existing) return c.json({ success: true, data: null })
-  await c.env.DB.prepare('DELETE FROM group_chat_mutes WHERE student_slug = ?').bind(slug).run()
-  await writeReview(c.env.DB, slug, 'unmute', (existing as any).reason)
-  await createNotification(c.env.DB, {
-    recipientSlug: slug, type: 'group_chat_unmuted', title: '群聊禁言已解除',
-    body: `原治理原因：${(existing as any).reason}`, relatedType: 'group_chat_mute', relatedId: slug,
-  })
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) SELECT ?, 'group_chat_mute', student_slug, 'unmute', reason, ? FROM group_chat_mutes WHERE student_slug = ?"
+    ).bind(id('cr'), adminId(c), slug),
+    c.env.DB.prepare(
+      "INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, student_slug, 'group_chat_unmuted', '群聊禁言已解除', '原治理原因：' || reason, 'group_chat_mute', student_slug FROM group_chat_mutes WHERE student_slug = ?"
+    ).bind(id('ntf'), slug),
+    c.env.DB.prepare('DELETE FROM group_chat_mutes WHERE student_slug = ?').bind(slug),
+  ])
   return c.json({ success: true, data: null })
 })
