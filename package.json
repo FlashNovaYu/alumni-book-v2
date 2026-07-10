@@ -14,6 +14,7 @@
     "deploy:worker": "pnpm --filter worker deploy",
     "db:migrate": "pnpm --filter worker db:migrate",
     "migrate:data": "tsx scripts/migrate.ts",
+    "migrate:chat-data": "tsx scripts/migrate-chat-data.ts",
     "audit:content": "tsx scripts/audit-content.ts",
     "verify:worker": "pnpm --filter worker exec vitest run",
     "verify:admin": "pnpm --filter admin typecheck && pnpm --filter admin build",
