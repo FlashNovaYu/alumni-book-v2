@@ -1,9 +1,21 @@
-import { env } from 'cloudflare:test'
+import { applyD1Migrations, env } from 'cloudflare:test'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { initTestDb } from './db-helper'
+import { testMigrations } from './db-helper'
 
 beforeAll(async () => {
-  await initTestDb(env.DB)
+  const chatMigration = testMigrations.find((migration) => migration.name === '0012_chat_rework')
+  if (!chatMigration) throw new Error('缺少 0012_chat_rework 测试迁移')
+
+  await applyD1Migrations(env.DB, testMigrations.filter((migration) => migration.name !== '0012_chat_rework'))
+  await env.DB.prepare(`
+    INSERT INTO students (id, name, slug)
+    VALUES ('stu_test_init', '测试同学', 'test_init')
+  `).run()
+  await env.DB.prepare(`
+    INSERT INTO public_messages (id, author_slug, author_name, content, status)
+    VALUES ('pm_chat_rework_migration_fixture', 'test_init', '测试同学', '迁移前审核通过的消息', 'approved')
+  `).run()
+  await applyD1Migrations(env.DB, [chatMigration])
   await env.DB.prepare(`
     INSERT INTO public_messages (id, author_slug, author_name, content, status)
     VALUES ('pm_reaction_parent', 'test_init', '测试同学', '回应测试消息', 'visible')
@@ -145,5 +157,40 @@ describe('聊天改版数据库结构', () => {
     `).first() as { status: string } | null
 
     expect(message).toEqual({ status: 'visible' })
+  })
+
+  it('删除父消息和私聊会话时级联删除子记录', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO students (id, name, slug) VALUES ('stu_chat_cascade_a', '级联甲', 'chat_cascade_a')"),
+      env.DB.prepare("INSERT INTO students (id, name, slug) VALUES ('stu_chat_cascade_b', '级联乙', 'chat_cascade_b')"),
+      env.DB.prepare(`
+        INSERT INTO public_messages (id, author_slug, author_name, content, status)
+        VALUES ('pm_cascade_parent', 'test_init', '测试同学', '级联回应消息', 'visible')
+      `),
+      env.DB.prepare(`
+        INSERT INTO group_chat_reactions (message_id, reactor_slug, reaction, created_at)
+        VALUES ('pm_cascade_parent', 'test_init', '🎉', datetime('now'))
+      `),
+      env.DB.prepare(`
+        INSERT INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at)
+        VALUES ('conv_cascade', 'chat_cascade_a', 'chat_cascade_b', datetime('now'), datetime('now'))
+      `),
+      env.DB.prepare(`
+        INSERT INTO direct_messages (
+          id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at
+        ) VALUES ('dm_cascade', 'conv_cascade', 'chat_cascade_a', 'chat_cascade_b', '级联私聊', 'cascade-nonce', datetime('now'))
+      `),
+    ])
+
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM public_messages WHERE id = 'pm_cascade_parent'"),
+      env.DB.prepare("DELETE FROM direct_conversations WHERE id = 'conv_cascade'"),
+    ])
+
+    const reaction = await env.DB.prepare("SELECT message_id FROM group_chat_reactions WHERE message_id = 'pm_cascade_parent'").first()
+    const directMessage = await env.DB.prepare("SELECT id FROM direct_messages WHERE id = 'dm_cascade'").first()
+
+    expect(reaction).toBeNull()
+    expect(directMessage).toBeNull()
   })
 })

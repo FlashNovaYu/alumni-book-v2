@@ -24,13 +24,15 @@ inboxRoutes.get('/inbox/summary', async (c) => {
     'SELECT COUNT(*) as count FROM mail_recipients WHERE recipient_slug = ? AND read_at IS NULL AND deleted_at IS NULL'
   ).bind(classmateSlug).first() as any
   const mailUnread = mailResult ? mailResult.count : 0
+  const directUnread = mailUnread
 
-  const totalUnread = notificationUnread + mailUnread
+  const totalUnread = notificationUnread + directUnread
 
   return c.json({
     success: true,
     data: {
       notificationUnread,
+      directUnread,
       mailUnread,
       totalUnread
     }

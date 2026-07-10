@@ -187,10 +187,6 @@ export const testMigrations = [
     `CREATE INDEX IF NOT EXISTS idx_mail_recipients_slug ON mail_recipients(recipient_slug, read_at)`,
     `CREATE INDEX IF NOT EXISTS idx_mail_messages_thread ON mail_messages(thread_id, created_at)`,
   ]},
-  { name: '0011_test_chat_fixture', queries: [
-    `INSERT INTO public_messages (id, author_slug, author_name, content, status)
-      VALUES ('pm_chat_rework_migration_fixture', 'test_init', '测试同学', '迁移前审核通过的消息', 'approved')`,
-  ]},
   { name: '0012_chat_rework', queries: [
     `ALTER TABLE public_messages ADD COLUMN reply_to_id TEXT`,
     `ALTER TABLE public_messages ADD COLUMN client_nonce TEXT`,

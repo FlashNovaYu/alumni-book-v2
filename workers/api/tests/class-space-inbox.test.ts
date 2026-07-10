@@ -117,6 +117,7 @@ describe('Combined Inbox Summary APIs', () => {
     // 未读通知：notif-1, notif-2 (共2个)
     // 未读邮件：rcpt-1, rcpt-2, rcpt-3 (共3个)
     expect(body.data.notificationUnread).toBe(2)
+    expect(body.data.directUnread).toBe(3)
     expect(body.data.mailUnread).toBe(3)
     expect(body.data.totalUnread).toBe(5)
   })
