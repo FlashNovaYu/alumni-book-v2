@@ -24,18 +24,18 @@
     </div>
 
     <!-- 成功展示状态 -->
-    <div v-else-if="overviewData" class="hub-layout">
+    <div v-else-if="overviewData" class="hub-layout class-space-directory">
       <!-- 侧边挂历式导航 / 顶部导航 (响应式) -->
       <aside class="hub-sidebar">
         <div class="sidebar-nav-card">
           <h3 class="nav-title">班级空间</h3>
           <ul class="nav-list">
             <li>
-              <a href="#messages" class="nav-item">
+              <a href="#group-chat" class="nav-item">
                 <span class="nav-icon">💬</span>
-                <span class="nav-text">留言板</span>
-                <span class="nav-count" v-if="overviewData.counts?.approvedMessages !== undefined">
-                  {{ overviewData.counts.approvedMessages }}
+                <span class="nav-text">同学群聊</span>
+                <span class="nav-count" v-if="overviewData.counts?.groupMessages !== undefined">
+                  {{ overviewData.counts.groupMessages }}
                 </span>
               </a>
             </li>
@@ -62,17 +62,16 @@
       </aside>
 
       <!-- 主内容区 -->
-      <main class="hub-main">
-        <!-- 留言板 Section -->
-        <section id="messages" class="hub-section">
-          <div class="section-header">
-            <div class="header-left">
-              <span class="section-emoji">💬</span>
-              <h2 class="section-title">留言墙</h2>
-            </div>
-            <a href="/messages" class="more-link">全部留言 &rarr;</a>
-          </div>
-          <ClassSpaceMessageStage :messages="overviewData.messages" />
+      <main class="hub-main class-space-main">
+        <!-- 群聊舞台 Section -->
+        <section id="group-chat" class="hub-section">
+          <GroupChatStage
+            :apiBase="apiBase"
+            :initialItems="overviewData.chat.items"
+            :initialCursor="overviewData.chat.cursor"
+            :initialMute="overviewData.chat.mute"
+            :mySlug="mySlug"
+          />
         </section>
 
         <!-- 影像馆 Section -->
@@ -110,6 +109,7 @@ import type { ClassSpaceOverview } from '@alumni/shared'
 import ClassSpaceMessageStage from './ClassSpaceMessageStage.vue'
 import ClassSpaceAlbumRail from './ClassSpaceAlbumRail.vue'
 import ClassSpaceTimelinePreview from './ClassSpaceTimelinePreview.vue'
+import GroupChatStage from './GroupChatStage.vue'
 
 const props = defineProps<{
   apiBase: string
@@ -118,6 +118,14 @@ const props = defineProps<{
 const overviewData = ref<ClassSpaceOverview | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const mySlug = ref('')
+
+try {
+  const str = sessionStorage.getItem('classmate_account_student')
+  if (str) {
+    mySlug.value = JSON.parse(str).slug || ''
+  }
+} catch {}
 
 async function loadData() {
   loading.value = true
