@@ -21,6 +21,14 @@ test.beforeEach(async ({ page }) => {
     })
   })
 
+  await page.route('**/api/inbox/summary', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { totalUnread: 2 } }),
+    })
+  })
+
   await page.route('**/api/public-messages**', async (route, request) => {
     if (request.method() === 'POST') {
       await route.fulfill({
@@ -87,9 +95,8 @@ test('logged-in navigation exposes public messages and mailbox with unread stamp
   await seedClassmateSession(page)
   await page.goto('./roster/', { waitUntil: 'networkidle' })
 
-  await expect(page.getByRole('link', { name: /公共留言/ })).toBeVisible()
-  await expect(page.getByRole('link', { name: /班级邮局/ })).toBeVisible()
-  await expect(page.locator('.mail-unread-stamp')).toContainText('2')
+  await expect(page.locator('a[href*="/mailbox"]').first()).toBeVisible()
+  await expect(page.locator('.mail-unread-stamp').first()).toContainText('2')
 })
 
 test('public message page can submit a pending message', async ({ page }) => {

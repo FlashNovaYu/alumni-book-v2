@@ -85,13 +85,14 @@ test.describe('Class Space Flow', () => {
     await page.goto('./class-space/', { waitUntil: 'networkidle' })
 
     // 验证页面基本元素
-    await expect(page.getByRole('heading', { name: '班级空间', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '班级空间', exact: true, level: 1 })).toBeVisible()
     
     // 验证侧边导航
-    await expect(page.locator('.sidebar-nav-card')).toBeVisible()
-    await expect(page.getByRole('link', { name: /留言/ })).toBeVisible()
-    await expect(page.getByRole('link', { name: /影像/ })).toBeVisible()
-    await expect(page.getByRole('link', { name: /时间/ })).toBeVisible()
+    const sidebar = page.locator('.sidebar-nav-card')
+    await expect(sidebar).toBeVisible()
+    await expect(sidebar.getByRole('link', { name: /留言/ })).toBeVisible()
+    await expect(sidebar.getByRole('link', { name: /影像/ })).toBeVisible()
+    await expect(sidebar.getByRole('link', { name: /时间/ })).toBeVisible()
 
     // 验证留言卡片内容
     await expect(page.getByText('张三的精美留言')).toBeVisible()

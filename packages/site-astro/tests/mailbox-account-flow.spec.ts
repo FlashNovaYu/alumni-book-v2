@@ -6,170 +6,171 @@ async function seedClassmateSession(page: any) {
     sessionStorage.setItem('classmate_account_token', 'test-classmate-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({
       name: '测试同学',
-      slug: 'test_init',
+      slug: 'chenyuhao',
       avatarUrl: null,
     }))
     sessionStorage.setItem('classmate_name', '测试同学')
   })
 }
 
-test.describe('Classmate Mailbox Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Mock 未读摘要 API
-    await page.route('**/api/inbox/summary', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            notificationUnread: 1,
-            mailUnread: 1,
-            totalUnread: 2
-          }
-        })
-      })
-    })
-
-    // Mock 同学名册 API (写信时搜索)
-    await page.route('**/api/classmates', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: [
-            { name: '班长', slug: 'bz', avatarUrl: null, hasPage: true, motto: '大家好' },
-            { name: '李四', slug: 'lisi', avatarUrl: null, hasPage: true, motto: '你好' },
-            { name: '测试同学', slug: 'test_init', avatarUrl: null, hasPage: true, motto: '我自己' }
-          ]
-        })
-      })
-    })
-
-    // Mock 获取通知列表 API
-    await page.route('**/api/notifications', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            items: [{
-              id: 'notif_1',
-              type: 'system',
-              title: '系统升级公告',
-              body: '班级系统已升级到 V2 版本。',
-              readAt: null,
-              createdAt: '2026-07-06T10:00:00.000Z'
-            }]
-          }
-        })
-      })
-    })
-
-    // Mock 标记通知已读 API
-    await page.route('**/api/notifications/notif_1/read', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true })
-      })
-    })
-
-    // Mock 获取邮件列表及发送邮件 API
-    await page.route('**/api/mailbox/threads', async (route, request) => {
-      if (request.method() === 'POST') {
-        const payload = request.postDataJSON()
-        expect(payload.recipientSlug).toBe('lisi')
-        expect(payload.subject).toBe('写信测试标题')
-        expect(payload.body).toBe('写信测试正文内容')
-        
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            data: {
-              id: 'thread_new',
-              subject: '写信测试标题',
-              threadType: 'private',
-              senderName: '测试同学',
-              preview: '写信测试正文内容',
-              unread: false,
-              updatedAt: new Date().toISOString()
-            }
-          })
-        })
-        return
-      }
-
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            items: [{
-              id: 'thread_1',
-              subject: '这周末同学聚会邀请',
-              threadType: 'private',
-              senderName: '班长',
-              preview: '大家有空聚一聚吗？',
-              unread: true,
-              allowReply: true,
-              updatedAt: '2026-07-06T12:00:00.000Z'
-            }]
-          }
-        })
-      })
-    })
-
-    // Mock 获取特定邮件会话详情 API
-    await page.route('**/api/mailbox/threads/thread_1', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            thread: {
-              id: 'thread_1',
-              subject: '这周末同学聚会邀请',
-              threadType: 'private',
-              allowReply: true,
-              updatedAt: '2026-07-06T12:00:00.000Z'
-            },
-            messages: [
-              {
-                id: 'msg_1',
-                threadId: 'thread_1',
-                senderType: 'student',
-                senderSlug: 'bz',
-                senderName: '班长',
-                body: '大家有空聚一聚吗？',
-                createdAt: '2026-07-06T12:00:00.000Z'
-              }
-            ]
-          }
-        })
-      })
-    })
-
-    // Mock 邮件会话回复 API
-    await page.route('**/api/mailbox/threads/thread_1/messages', async (route, request) => {
-      expect(request.method()).toBe('POST')
-      const payload = request.postDataJSON()
-      expect(payload.body).toBe('我有空，周末见')
-      
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true })
+// 全局 Mock 所有基础路由，避免任何测试用例在加载页面时请求挂起
+test.beforeEach(async ({ page }) => {
+  // Mock 未读摘要 API
+  await page.route('**/api/inbox/summary', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          notificationUnread: 1,
+          mailUnread: 1,
+          totalUnread: 2
+        }
       })
     })
   })
 
+  // Mock 同学名册 API (写信时搜索)
+  await page.route('**/api/classmates', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: [
+          { name: '班长', slug: 'bz', avatarUrl: null, hasPage: true, motto: '大家好' },
+          { name: '李四', slug: 'lisi', avatarUrl: null, hasPage: true, motto: '你好' },
+          { name: '测试同学', slug: 'chenyuhao', avatarUrl: null, hasPage: true, motto: '我自己' }
+        ]
+      })
+    })
+  })
+
+  // Mock 获取通知列表 API
+  await page.route('**/api/notifications', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          items: [{
+            id: 'notif_1',
+            type: 'system',
+            title: '系统升级公告',
+            body: '班级系统已升级到 V2 版本。',
+            readAt: null,
+            createdAt: '2026-07-06T10:00:00.000Z'
+          }]
+        }
+      })
+    })
+  })
+
+  // Mock 标记通知已读 API
+  await page.route('**/api/notifications/notif_1/read', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true })
+    })
+  })
+
+  // Mock 获取邮件列表及发送邮件 API
+  await page.route('**/api/mailbox/threads', async (route, request) => {
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON()
+      expect(payload.recipientSlug).toBe('lisi')
+      expect(payload.subject).toBe('写信测试标题')
+      expect(payload.body).toBe('写信测试正文内容')
+      
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            id: 'thread_new',
+            subject: '写信测试标题',
+            threadType: 'private',
+            senderName: '测试同学',
+            preview: '写信测试正文内容',
+            unread: false,
+            updatedAt: new Date().toISOString()
+          }
+        })
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          items: [{
+            id: 'thread_1',
+            subject: '这周末同学聚会邀请',
+            threadType: 'private',
+            senderName: '班长',
+            preview: '大家有空聚一聚吗？',
+            unread: true,
+            allowReply: true,
+            updatedAt: '2026-07-06T12:00:00.000Z'
+          }]
+        }
+      })
+    })
+  })
+
+  // Mock 获取特定邮件会话详情 API
+  await page.route('**/api/mailbox/threads/thread_1', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          thread: {
+            id: 'thread_1',
+            subject: '这周末同学聚会邀请',
+            threadType: 'private',
+            allowReply: true,
+            updatedAt: '2026-07-06T12:00:00.000Z'
+          },
+          messages: [
+            {
+              id: 'msg_1',
+              threadId: 'thread_1',
+              senderType: 'student',
+              senderSlug: 'bz',
+              senderName: '班长',
+              body: '大家有空聚一聚吗？',
+              createdAt: '2026-07-06T12:00:00.000Z'
+            }
+          ]
+        }
+      })
+    })
+  })
+
+  // Mock 邮件会话回复 API
+  await page.route('**/api/mailbox/threads/thread_1/messages', async (route, request) => {
+    expect(request.method()).toBe('POST')
+    const payload = request.postDataJSON()
+    expect(payload.body).toBe('我有空，周末见')
+    
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true })
+    })
+  })
+})
+
+test.describe('Classmate Mailbox Flow', () => {
   test('aggregated list displays notifications and mails', async ({ page }) => {
     await seedClassmateSession(page)
     await page.goto('./mailbox/', { waitUntil: 'networkidle' })
@@ -376,14 +377,14 @@ test.describe('Classmate Account Center Flow', () => {
 
   test('navigates to student page and triggers edit dialog via query params', async ({ page }) => {
     // Mock student profile fetch
-    await page.route('**/api/students/test_init', async route => {
+    await page.route('**/api/students/chenyuhao', async route => {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
           success: true,
           data: {
             name: '测试同学',
-            slug: 'test_init',
+            slug: 'chenyuhao',
             avatarUrl: null,
             backgroundUrl: null,
             info: { visibility: {} },
@@ -399,7 +400,7 @@ test.describe('Classmate Account Center Flow', () => {
     await page.click('a[href*="edit=1"]')
 
     // 验证是否跳转到学生主页且包含 edit=1
-    await expect(page).toHaveURL(/\/student\/test_init\/\?edit=1/)
+    await expect(page).toHaveURL(/\/student\/chenyuhao\/\?edit=1/)
 
     // 验证编辑弹窗已自动唤起
     const editor = page.locator('.editor-overlay')
@@ -407,6 +408,6 @@ test.describe('Classmate Account Center Flow', () => {
 
     // 验证关闭编辑弹窗后 URL 清除了 edit=1 参数
     await page.click('.editor-close')
-    await expect(page).toHaveURL(/\/student\/test_init\/$/)
+    await expect(page).toHaveURL(/\/student\/chenyuhao\/$/)
   })
 })
