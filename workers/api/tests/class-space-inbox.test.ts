@@ -27,6 +27,9 @@ beforeAll(async () => {
       "INSERT OR REPLACE INTO students (id, name, slug) VALUES ('uuid-test-classmate-inbox', '信箱测试同学', 'test-classmate-inbox')"
     ),
     env.DB.prepare(
+      "INSERT OR REPLACE INTO students (id, name, slug) VALUES ('uuid-test-classmate-inbox-peer', '信箱对话同学', 'test-classmate-inbox-peer')"
+    ),
+    env.DB.prepare(
       "INSERT OR REPLACE INTO notifications (id, recipient_slug, type, title, body) VALUES ('notif-1', 'test-classmate-inbox', 'system', '通知1', '通知内容1')"
     ),
     env.DB.prepare(
@@ -36,22 +39,13 @@ beforeAll(async () => {
       "INSERT OR REPLACE INTO notifications (id, recipient_slug, type, title, body, read_at) VALUES ('notif-3', 'test-classmate-inbox', 'system', '通知3', '通知内容3', datetime('now'))"
     ),
     env.DB.prepare(
-      "INSERT OR REPLACE INTO mail_threads (id, subject, created_by_type) VALUES ('thread-1', '测试邮件主题', 'admin')"
+      "INSERT OR REPLACE INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES ('class-space-inbox-conversation', 'test-classmate-inbox', 'test-classmate-inbox-peer', datetime('now'), datetime('now'))"
     ),
+    ...Array.from({ length: 3 }, (_, index) => env.DB.prepare(
+      "INSERT OR REPLACE INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES (?, 'class-space-inbox-conversation', 'test-classmate-inbox-peer', 'test-classmate-inbox', '未读私聊', ?, datetime('now'))"
+    ).bind(`class-space-inbox-unread-${index + 1}`, `class-space-inbox-unread-nonce-${index + 1}`)),
     env.DB.prepare(
-      "INSERT OR REPLACE INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('rcpt-1', 'thread-1', 'test-classmate-inbox')"
-    ),
-    env.DB.prepare(
-      "INSERT OR REPLACE INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('rcpt-2', 'thread-1', 'test-classmate-inbox')"
-    ),
-    env.DB.prepare(
-      "INSERT OR REPLACE INTO mail_recipients (id, thread_id, recipient_slug) VALUES ('rcpt-3', 'thread-1', 'test-classmate-inbox')"
-    ),
-    env.DB.prepare(
-      "INSERT OR REPLACE INTO mail_recipients (id, thread_id, recipient_slug, read_at) VALUES ('rcpt-4', 'thread-1', 'test-classmate-inbox', datetime('now'))"
-    ),
-    env.DB.prepare(
-      "INSERT OR REPLACE INTO mail_recipients (id, thread_id, recipient_slug, deleted_at) VALUES ('rcpt-5', 'thread-1', 'test-classmate-inbox', datetime('now'))"
+      "INSERT OR REPLACE INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, read_at, created_at) VALUES ('class-space-inbox-read', 'class-space-inbox-conversation', 'test-classmate-inbox-peer', 'test-classmate-inbox', '已读私聊', 'class-space-inbox-read-nonce', datetime('now'), datetime('now'))"
     ),
   ])
 
@@ -179,11 +173,10 @@ describe('Combined Inbox Summary APIs', () => {
     expect(body.success).toBe(true)
     
     // 验证返回的数据结构与计数值
-    // 未读通知：notif-1, notif-2 (共2个)
-    // 未读邮件：rcpt-1, rcpt-2, rcpt-3 (共3个)
-    expect(body.data.notificationUnread).toBe(2)
-    expect(body.data.directUnread).toBe(3)
-    expect(body.data.mailUnread).toBe(3)
-    expect(body.data.totalUnread).toBe(5)
+    expect(body.data).toEqual({
+      notificationUnread: 2,
+      directUnread: 3,
+      totalUnread: 5,
+    })
   })
 })

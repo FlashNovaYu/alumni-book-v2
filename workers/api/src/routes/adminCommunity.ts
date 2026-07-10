@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { adminGuard } from '../lib/adminGuard'
+import { createAdminNotice } from '../lib/notificationService'
 
 type Bindings = { DB: D1Database; JWT_SECRET: string }
 export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
@@ -7,6 +8,15 @@ export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
 const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
 const reasonOf = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 const ISO_WITH_TIMEZONE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-]\d{2}:\d{2})$/
+
+async function readNoticePayload(c: any) {
+  const value = await c.req.json().catch(() => null) as any
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const title = typeof value.title === 'string' ? value.title.trim() : ''
+  const body = typeof value.body === 'string' ? value.body.trim() : ''
+  if (!title || title.length > 80 || !body || body.length > 2000) return null
+  return { title, body, recipientSlug: typeof value.recipientSlug === 'string' ? value.recipientSlug.trim() : '' }
+}
 
 function adminId(c: any) {
   const payload = c.get('jwtPayload') as any
@@ -34,6 +44,68 @@ function messageNotification(db: D1Database, messageId: string, status: string, 
 }
 
 adminCommunityRoutes.use('*', adminGuard)
+
+adminCommunityRoutes.post('/admin/notifications/send', async (c) => {
+  const payload = await readNoticePayload(c)
+  if (!payload || !payload.recipientSlug) {
+    return c.json({ success: false, message: '收件人、标题和正文必填，标题最多 80 字，正文最多 2000 字' }, 400)
+  }
+  const recipient = await c.env.DB.prepare(
+    "SELECT slug FROM students WHERE slug = ? AND COALESCE(account_status, 'active') != 'locked'"
+  ).bind(payload.recipientSlug).first()
+  if (!recipient) return c.json({ success: false, message: '收件人不存在或已锁定' }, 404)
+
+  const result = await createAdminNotice(c.env.DB, {
+    recipientSlugs: [payload.recipientSlug],
+    title: payload.title,
+    body: payload.body,
+  })
+  return c.json({ success: true, data: result }, 201)
+})
+
+adminCommunityRoutes.post('/admin/notifications/broadcast', async (c) => {
+  const payload = await readNoticePayload(c)
+  if (!payload) {
+    return c.json({ success: false, message: '标题和正文必填，标题最多 80 字，正文最多 2000 字' }, 400)
+  }
+  const recipients = await c.env.DB.prepare(
+    "SELECT slug FROM students WHERE COALESCE(account_status, 'active') != 'locked' ORDER BY slug"
+  ).all()
+  const result = await createAdminNotice(c.env.DB, {
+    recipientSlugs: (recipients.results || []).map((row: any) => row.slug),
+    title: payload.title,
+    body: payload.body,
+  })
+  return c.json({ success: true, data: result }, 201)
+})
+
+adminCommunityRoutes.get('/admin/notifications/history', async (c) => {
+  const rows = await c.env.DB.prepare(`
+    SELECT
+      related_id,
+      MAX(title) AS title,
+      MAX(created_at) AS created_at,
+      COUNT(*) AS recipient_count,
+      SUM(CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END) AS read_count
+    FROM notifications
+    WHERE related_type = 'admin_notice' AND related_id IS NOT NULL
+    GROUP BY related_id
+    ORDER BY MAX(julianday(created_at)) DESC, related_id DESC
+    LIMIT 100
+  `).all()
+  return c.json({
+    success: true,
+    data: {
+      items: (rows.results || []).map((row: any) => ({
+        relatedId: row.related_id,
+        title: row.title,
+        createdAt: row.created_at,
+        recipientCount: Number(row.recipient_count || 0),
+        readCount: Number(row.read_count || 0),
+      })),
+    },
+  })
+})
 
 adminCommunityRoutes.get('/admin/group-chat/messages', async (c) => {
   const status = c.req.query('status')
