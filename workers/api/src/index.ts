@@ -18,6 +18,7 @@ import { notificationsRoutes } from './routes/notifications'
 import { mailboxRoutes } from './routes/mailbox'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
+import { classSpaceRoutes } from './routes/classSpace'
 
 
 type Bindings = {
@@ -92,6 +93,11 @@ app.use('/api/*', async (c, next) => {
   const path = c.req.path
   if (path.startsWith('/api/files/')) return
 
+  if (path === '/api/class-space/overview') {
+    c.res.headers.set('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=300')
+    return
+  }
+
   if (c.req.method === 'GET' && isPublicRevalidatedGet(path)) {
     c.res.headers.set('Cache-Control', 'no-cache, max-age=0, must-revalidate')
     return
@@ -109,6 +115,7 @@ app.use('/api/students/*', etag())
 app.use('/api/config', etag())
 app.use('/api/albums', etag())
 app.use('/api/rankings', etag())
+app.use('/api/class-space/overview', etag())
 
 // 创建 JWT 中间件
 function createJwtMiddleware(secret: string) {
@@ -528,6 +535,7 @@ app.route('/api', albumsRoutes)
 app.route('/api', uploadRoutes)
 app.route('/api', messagesRoutes)
 app.route('/api', timelineRoutes)
+app.route('/api', classSpaceRoutes)
 app.route('/api/highlights', highlightsRoutes)
 app.route('/api', publicMessagesRoutes)
 app.route('/api', notificationsRoutes)
