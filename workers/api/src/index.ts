@@ -23,6 +23,7 @@ import { classSpaceRoutes } from './routes/classSpace'
 import { groupChatRoutes } from './routes/groupChat'
 import { adminGuard } from './lib/adminGuard'
 import { adminCommunityRoutes } from './routes/adminCommunity'
+import { directConversationsRoutes } from './routes/directConversations'
 
 
 type Bindings = {
@@ -501,6 +502,7 @@ app.route('/api/highlights', highlightsRoutes)
 app.route('/api', publicMessagesRoutes)
 app.route('/api', notificationsRoutes)
 app.route('/api', inboxRoutes)
+app.route('/api', directConversationsRoutes)
 app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
 app.route('/api', adminCommunityRoutes)
