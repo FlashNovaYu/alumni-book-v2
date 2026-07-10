@@ -1,6 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import worker from '../src/index'
+import { encodeSyncCursor } from '../src/lib/cursor'
 import { getActiveMute, listGroupMessages } from '../src/lib/groupChat'
 import { initTestDb } from './db-helper'
 
@@ -18,6 +19,16 @@ async function request(path: string, options: RequestInit = {}) {
 
 function classmateHeaders(token: string) {
   return { 'Content-Type': 'application/json', 'X-Classmate-Token': token }
+}
+
+function base64UrlJson(value: unknown) {
+  return btoa(JSON.stringify(value)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+function readSyncCursor(token: string) {
+  const [payload, signature] = token.split('.')
+  const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+  return { payload: JSON.parse(atob(normalized + '='.repeat((4 - normalized.length % 4) % 4))), signature }
 }
 
 beforeAll(async () => {
@@ -303,15 +314,16 @@ describe('Group chat API', () => {
 
   it('updates a reacted message so sync returns the old message change', async () => {
     const oldTime = '2026-01-01T00:00:00.000Z'
+    const initial = await request('/api/group-chat/sync', { headers: classmateHeaders(OTHER_TOKEN) })
+    const initialCursor = (await initial.json() as any).data.cursor
     await env.DB.prepare(
       "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-sync-reaction', ?, '群聊甲', '正文', 'visible', ?, ?)"
     ).bind(PRIMARY_SLUG, oldTime, oldTime).run()
-    const cursor = btoa(JSON.stringify({ timestamp: oldTime, id: 'group-chat-sync-reaction' }))
 
     const reaction = await request('/api/group-chat/messages/group-chat-sync-reaction/reaction', {
       method: 'PUT', headers: classmateHeaders(OTHER_TOKEN), body: JSON.stringify({ reaction: '🎉' }),
     })
-    const sync = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(cursor)}`, { headers: classmateHeaders(OTHER_TOKEN) })
+    const sync = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(initialCursor)}`, { headers: classmateHeaders(OTHER_TOKEN) })
     const payload = await sync.json() as any
 
     expect(reaction.status).toBe(200)
@@ -413,12 +425,13 @@ describe('Group chat API', () => {
 
   it('sync returns a hidden tombstone and rejects an invalid non-empty cursor', async () => {
     const oldTime = '2026-01-01T00:00:00.000Z'
+    const initial = await request('/api/group-chat/sync', { headers: classmateHeaders(OTHER_TOKEN) })
+    const initialCursor = (await initial.json() as any).data.cursor
     const now = new Date().toISOString()
     await env.DB.prepare(
       "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('group-chat-hidden-sync', ?, '群聊甲', '已隐藏', 'hidden', ?, ?)"
     ).bind(PRIMARY_SLUG, oldTime, now).run()
-    const cursor = btoa(JSON.stringify({ timestamp: oldTime, id: 'group-chat-hidden-before' }))
-    const sync = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(cursor)}`, { headers: classmateHeaders(OTHER_TOKEN) })
+    const sync = await request(`/api/group-chat/sync?cursor=${encodeURIComponent(initialCursor)}`, { headers: classmateHeaders(OTHER_TOKEN) })
     const invalid = await request('/api/group-chat/sync?cursor=invalid', { headers: classmateHeaders(OTHER_TOKEN) })
     const payload = await sync.json() as any
 
@@ -427,21 +440,41 @@ describe('Group chat API', () => {
     expect(invalid.status).toBe(400)
   })
 
-  it('rejects reverse and future sync cursors while accepting legacy cursors', async () => {
-    const now = new Date().toISOString()
-    const later = new Date(Date.now() + 60_000).toISOString()
-    const reverse = btoa(JSON.stringify({ position: { timestamp: later, id: 'a' }, boundary: { timestamp: now, id: 'z' } }))
-    const future = btoa(JSON.stringify({ position: { timestamp: now, id: '' }, boundary: { timestamp: later, id: 'z' } }))
-    const legacy = btoa(JSON.stringify({ timestamp: '2026-01-01T00:00:00.000Z', id: 'legacy' }))
-    const [reverseResponse, futureResponse, legacyResponse] = await Promise.all([
-      request(`/api/group-chat/sync?cursor=${encodeURIComponent(reverse)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
-      request(`/api/group-chat/sync?cursor=${encodeURIComponent(future)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
-      request(`/api/group-chat/sync?cursor=${encodeURIComponent(legacy)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+  it('rejects signed sync cursors with reverse or future offset timestamps', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-10T13:00:00Z'))
+    try {
+      const reverse = await encodeSyncCursor({
+        position: { timestamp: '2026-07-10T12:30:00-01:00', id: 'a' },
+        boundary: { timestamp: '2026-07-10T13:00:00Z', id: 'z' },
+      }, env.JWT_SECRET, PRIMARY_SLUG)
+      const future = await encodeSyncCursor({ timestamp: '2026-07-10T12:30:00-01:00', id: 'z' }, env.JWT_SECRET, PRIMARY_SLUG)
+      const [reverseResponse, futureResponse] = await Promise.all([
+        request(`/api/group-chat/sync?cursor=${encodeURIComponent(reverse)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+        request(`/api/group-chat/sync?cursor=${encodeURIComponent(future)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+      ])
+
+      expect(reverseResponse.status).toBe(400)
+      expect(futureResponse.status).toBe(400)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects tampered, cross-account, and modified signed continuation cursors', async () => {
+    await seedHistory(31)
+    const first = await request('/api/group-chat/sync', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const cursor = (await first.json() as any).data.cursor as string
+    const { payload, signature } = readSyncCursor(cursor)
+    const tamperedSignature = `${cursor.slice(0, -1)}${cursor.endsWith('a') ? 'b' : 'a'}`
+    const replacedPosition = `${base64UrlJson({ ...payload, cursor: { ...payload.cursor, position: payload.cursor.boundary } })}.${signature}`
+    const [tampered, crossAccount, replaced] = await Promise.all([
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(tamperedSignature)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(cursor)}`, { headers: classmateHeaders(OTHER_TOKEN) }),
+      request(`/api/group-chat/sync?cursor=${encodeURIComponent(replacedPosition)}`, { headers: classmateHeaders(PRIMARY_TOKEN) }),
     ])
 
-    expect(reverseResponse.status).toBe(400)
-    expect(futureResponse.status).toBe(400)
-    expect(legacyResponse.status).toBe(200)
+    expect([tampered.status, crossAccount.status, replaced.status]).toEqual([400, 400, 400])
   })
 
   it('paginates a sync backlog larger than thirty messages without gaps or duplicates', async () => {

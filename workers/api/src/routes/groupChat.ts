@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import { decodeCursor, decodeSyncCursor, encodeCursor, encodeSyncCursor, type CursorValue } from '../lib/cursor'
+import { compareCursorValues, decodeCursor, decodeSyncCursor, encodeCursor, encodeSyncCursor, type CursorValue } from '../lib/cursor'
 import { GROUP_REACTIONS, formatGroupMessage, getActiveMute, listGroupMessages } from '../lib/groupChat'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 
-type Bindings = { DB: D1Database }
+type Bindings = { DB: D1Database; JWT_SECRET: string }
 export const groupChatRoutes = new Hono<{ Bindings: Bindings }>()
 
 function parseLimit(raw: string | undefined) {
@@ -23,10 +23,6 @@ function retryAfterSeconds(earliestJulianDay: unknown, windowSeconds: number) {
   return Math.max(1, Math.ceil(windowSeconds - (now - earliest) * 86_400))
 }
 
-function cursorIsAfter(value: CursorValue, boundary: CursorValue) {
-  return value.timestamp > boundary.timestamp || (value.timestamp === boundary.timestamp && value.id > boundary.id)
-}
-
 async function list(c: any, mine: boolean) {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
@@ -44,10 +40,10 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
   const rawCursor = c.req.query('cursor')
-  const cursor = decodeSyncCursor(rawCursor)
+  const cursor = rawCursor ? await decodeSyncCursor(rawCursor, c.env.JWT_SECRET, identity.slug) : null
   if (rawCursor && !cursor) return c.json({ success: false, message: '游标无效' }, 400)
   const nowCursor = { timestamp: new Date().toISOString(), id: '\uffff' }
-  if (cursor && (cursorIsAfter(cursor.position, nowCursor) || (cursor.boundary && cursorIsAfter(cursor.boundary, nowCursor)))) {
+  if (cursor && (compareCursorValues(cursor.position, nowCursor) > 0 || (cursor.boundary && compareCursorValues(cursor.boundary, nowCursor) > 0))) {
     return c.json({ success: false, message: '游标无效' }, 400)
   }
 
@@ -63,9 +59,11 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
   const items = results.slice(0, limit)
   const last = items.at(-1)
   const mute = await getActiveMute(c.env.DB, identity.slug)
-  const nextCursor = hasMore && last
-    ? encodeSyncCursor({ position: { timestamp: last.updatedAt, id: last.id }, boundary })
-    : encodeCursor(boundary)
+  const nextCursor = await encodeSyncCursor(
+    hasMore && last ? { position: { timestamp: last.updatedAt, id: last.id }, boundary } : boundary,
+    c.env.JWT_SECRET,
+    identity.slug,
+  )
   return c.json({ success: true, data: { cursor: nextCursor, items, mute } })
 })
 
