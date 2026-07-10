@@ -15,6 +15,7 @@ import { classmateAuthRoutes } from './routes/classmateAuth'
 import { verifyClassmateSession } from './lib/classmateSession'
 import { publicMessagesRoutes } from './routes/publicMessages'
 import { notificationsRoutes } from './routes/notifications'
+import { inboxRoutes } from './routes/inbox'
 import { mailboxRoutes } from './routes/mailbox'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
@@ -539,6 +540,7 @@ app.route('/api', classSpaceRoutes)
 app.route('/api/highlights', highlightsRoutes)
 app.route('/api', publicMessagesRoutes)
 app.route('/api', notificationsRoutes)
+app.route('/api', inboxRoutes)
 app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
 
