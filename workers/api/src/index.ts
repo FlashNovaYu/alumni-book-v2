@@ -81,7 +81,6 @@ const PUBLIC_REVALIDATED_GET_PREFIXES = [
   '/api/messages',
   '/api/timeline',
   '/api/highlights',
-  '/api/public-messages',
 ]
 
 function isPublicRevalidatedGet(path: string) {
