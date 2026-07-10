@@ -1,0 +1,22 @@
+-3-
+import MainLayout from '../layouts/MainLayout.astro'
+import AccountCenter from '../components/AccountCenter.vue'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+---
+
+<MainLayout>
+  <section class="account-page page-shell">
+    <header class="page-header">
+      <span class="page-kicker">PERSONAL ACCOUNT</span>
+      <h1>账号中心</h1>
+      <p>管理您的个人账号信息与安全认置 </p>
+    </header>
+
+    <div class="content-grid">
+      <div class="paper-panel" style="padding: var(--spacing-lg);">
+        <AccountCenter client:load apiBase={API_BASE} />
+      </div>
+    </div>
+  </section>
+</MainLayout>

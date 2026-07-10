@@ -58,3 +58,25 @@ describe('class space public message wall refactoring static constraints', () =>
     expect(source).toContain('none')
   })
 })
+
+describe('classmate account center static constraints', () => {
+  it('verifies that the account page and component exist', () => {
+    expect(existsSync(resolve(src, 'pages/account.astro'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/AccountCenter.vue'))).toBe(true)
+  })
+
+  it('verifies AccountCenter.vue details and password change contracts', () => {
+    const source = read('components/AccountCenter.vue')
+    expect(source).toContain('changeClassmatePassword')
+    expect(source).toContain('logoutClassmate')
+    expect(source).toContain('confirmPassword')
+    expect(source).toContain('8')
+  })
+
+  it('verifies SelfEditPanel.vue dynamic edit parameter detection and cleanup', () => {
+    const source = read('components/SelfEditPanel.vue')
+    expect(source).toContain('edit')
+    expect(source).toContain('replaceState')
+    expect(source).toContain('openEditor')
+  })
+})

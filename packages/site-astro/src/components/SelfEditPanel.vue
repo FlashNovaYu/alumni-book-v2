@@ -214,6 +214,12 @@ const props = defineProps<{
 const isMounted = ref(false)
 onMounted(() => {
   isMounted.value = true
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('edit') === '1') {
+      openEditor()
+    }
+  }
 })
 
 const show = ref(false)
@@ -310,6 +316,14 @@ function closeEditor() {
   show.value = false
   saveMsg.value = null
   form.editSecret = undefined
+  if (typeof window !== 'undefined') {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('edit')) {
+      url.searchParams.delete('edit')
+      const newUrl = url.pathname + url.search + url.hash
+      window.history.replaceState({}, '', newUrl)
+    }
+  }
 }
 
 async function uploadFile(e: Event, type: 'avatar' | 'background') {
