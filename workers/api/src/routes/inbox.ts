@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { compareCursorValues, parseCursorTimestamp, type CursorValue } from '../lib/cursor'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 
 type Bindings = {
@@ -8,7 +7,7 @@ type Bindings = {
 }
 
 type InboxStream = 'conversations' | 'messages' | 'notifications'
-type InboxCursorSet = Record<InboxStream, CursorValue>
+type InboxCursorSet = Record<InboxStream, number>
 
 interface InboxSyncCursor {
   position: InboxCursorSet
@@ -23,12 +22,8 @@ const decoder = new TextDecoder()
 
 export const inboxRoutes = new Hono<{ Bindings: Bindings }>()
 
-function isCursorValue(value: unknown): value is CursorValue {
-  const cursor = value as CursorValue | undefined
-  return typeof cursor?.timestamp === 'string'
-    && Number.isFinite(parseCursorTimestamp(cursor.timestamp))
-    && typeof cursor.id === 'string'
-    && Boolean(cursor.id)
+function isCursorPosition(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -75,8 +70,8 @@ async function decodeInboxCursor(raw: string | undefined, secret: string, slug: 
     const value = JSON.parse(decoder.decode(payloadBytes)) as InboxSyncCursor
     if (!value || typeof value !== 'object' || !value.position || !value.boundary) return null
     for (const stream of STREAMS) {
-      if (!isCursorValue(value.position[stream]) || !isCursorValue(value.boundary[stream])) return null
-      if (compareCursorValues(value.position[stream], value.boundary[stream]) > 0) return null
+      if (!isCursorPosition(value.position[stream]) || !isCursorPosition(value.boundary[stream])) return null
+      if (value.position[stream] > value.boundary[stream]) return null
     }
     return value
   } catch {
@@ -85,43 +80,36 @@ async function decodeInboxCursor(raw: string | undefined, secret: string, slug: 
 }
 
 function initialCursor(): InboxSyncCursor {
-  const position = { timestamp: '1970-01-01T00:00:00.000Z', id: '\u0000' }
   return {
-    position: { conversations: position, messages: position, notifications: position },
-    boundary: { conversations: position, messages: position, notifications: position },
+    position: { conversations: 0, messages: 0, notifications: 0 },
+    boundary: { conversations: 0, messages: 0, notifications: 0 },
   }
 }
 
-function openSyncWindow(cursor: InboxSyncCursor): InboxSyncCursor {
-  const boundary = { timestamp: new Date().toISOString(), id: '\uffff' }
-  return {
-    position: cursor.position,
-    boundary: {
-      conversations: compareCursorValues(cursor.position.conversations, cursor.boundary.conversations) === 0
-        ? boundary
-        : cursor.boundary.conversations,
-      messages: compareCursorValues(cursor.position.messages, cursor.boundary.messages) === 0
-        ? boundary
-        : cursor.boundary.messages,
-      notifications: compareCursorValues(cursor.position.notifications, cursor.boundary.notifications) === 0
-        ? boundary
-        : cursor.boundary.notifications,
-    },
+async function openSyncWindow(db: D1Database, cursor: InboxSyncCursor, slug: string): Promise<InboxSyncCursor> {
+  const [conversationMax, messageMax, notificationMax] = await Promise.all([
+    db.prepare(
+      'SELECT COALESCE(MAX(rowid), 0) AS value FROM direct_conversations WHERE participant_a_slug = ? OR participant_b_slug = ?'
+    ).bind(slug, slug).first<any>(),
+    db.prepare(
+      'SELECT COALESCE(MAX(rowid), 0) AS value FROM direct_messages WHERE sender_slug = ? OR recipient_slug = ?'
+    ).bind(slug, slug).first<any>(),
+    db.prepare(
+      'SELECT COALESCE(MAX(sequence), 0) AS value FROM notification_sync_events WHERE recipient_slug = ?'
+    ).bind(slug).first<any>(),
+  ])
+  const maxima: InboxCursorSet = {
+    conversations: Number(conversationMax?.value || 0),
+    messages: Number(messageMax?.value || 0),
+    notifications: Number(notificationMax?.value || 0),
   }
-}
-
-function rangeSql(timestampColumn: string, idColumn: string) {
-  return `(
-    julianday(${timestampColumn}) > julianday(?)
-    OR (julianday(${timestampColumn}) = julianday(?) AND ${idColumn} > ?)
-  ) AND (
-    julianday(${timestampColumn}) < julianday(?)
-    OR (julianday(${timestampColumn}) = julianday(?) AND ${idColumn} <= ?)
-  )`
-}
-
-function rangeBinds(position: CursorValue, boundary: CursorValue) {
-  return [position.timestamp, position.timestamp, position.id, boundary.timestamp, boundary.timestamp, boundary.id]
+  const boundary = {} as InboxCursorSet
+  for (const stream of STREAMS) {
+    boundary[stream] = cursor.position[stream] === cursor.boundary[stream]
+      ? maxima[stream]
+      : cursor.boundary[stream]
+  }
+  return { position: { ...cursor.position }, boundary }
 }
 
 function formatDirectMessage(row: any) {
@@ -179,27 +167,28 @@ async function getUnread(db: D1Database, slug: string) {
   return { directUnread, notificationUnread, totalUnread: directUnread + notificationUnread }
 }
 
-function nextCursorValue(rows: any[], timestampKey: string, boundary: CursorValue, limit: number): CursorValue {
+function nextCursorValue(rows: any[], rowIdKey: string, boundary: number, limit: number): number {
   if (rows.length < limit) return boundary
-  const last = rows[rows.length - 1]
-  return { timestamp: last[timestampKey], id: last.id }
+  return Number(rows[rows.length - 1][rowIdKey])
+}
+
+function nextNotificationCursor(rows: any[], boundary: number): number {
+  if (Number(rows[0]?.sync_event_count || 0) < NOTIFICATION_SYNC_LIMIT) return boundary
+  return Math.max(...rows.map((row) => Number(row.sync_rowid)))
 }
 
 function nextCursor(current: InboxSyncCursor, conversations: any[], messages: any[], notifications: any[]): InboxSyncCursor {
-  const specs: Array<[InboxStream, any[], string, number]> = [
-    ['conversations', conversations, 'updated_at', DIRECT_SYNC_LIMIT],
-    ['messages', messages, 'created_at', DIRECT_SYNC_LIMIT],
-    ['notifications', notifications, 'sync_cursor_timestamp', NOTIFICATION_SYNC_LIMIT],
-  ]
-  const position = {} as InboxCursorSet
-  const boundary = {} as InboxCursorSet
-
-  for (const [stream, rows, timestampKey, limit] of specs) {
-    position[stream] = nextCursorValue(rows, timestampKey, current.boundary[stream], limit)
-    boundary[stream] = current.boundary[stream]
+  const newConversations = conversations
+    .filter((row) => row.conversation_sync_rowid !== null && row.conversation_sync_rowid !== undefined)
+    .sort((a, b) => Number(a.conversation_sync_rowid) - Number(b.conversation_sync_rowid))
+  return {
+    position: {
+      conversations: nextCursorValue(newConversations, 'conversation_sync_rowid', current.boundary.conversations, DIRECT_SYNC_LIMIT),
+      messages: nextCursorValue(messages, 'sync_rowid', current.boundary.messages, DIRECT_SYNC_LIMIT),
+      notifications: nextNotificationCursor(notifications, current.boundary.notifications),
+    },
+    boundary: { ...current.boundary },
   }
-
-  return { position, boundary }
 }
 
 inboxRoutes.get('/inbox/summary', async (c) => {
@@ -217,90 +206,119 @@ inboxRoutes.get('/inbox/sync', async (c) => {
     ? await decodeInboxCursor(rawCursor, c.env.JWT_SECRET, identity.slug)
     : initialCursor()
   if (!decodedCursor) return c.json({ success: false, message: '同步游标无效' }, 400)
-  const cursor = openSyncWindow(decodedCursor)
-
   const viewerSlug = identity.slug
-  const conversationRange = rangeSql('c.updated_at', 'c.id')
-  const messageRange = rangeSql('m.created_at', 'm.id')
-  const notificationTimestamp = "CASE WHEN n.read_at IS NOT NULL AND julianday(n.read_at) > julianday(n.created_at) THEN n.read_at ELSE n.created_at END"
-  const notificationRange = rangeSql(notificationTimestamp, 'n.id')
+  const cursor = await openSyncWindow(c.env.DB, decodedCursor, viewerSlug)
 
   const [conversationRows, messageRows, notificationRows] = await Promise.all([
     c.env.DB.prepare(`
+      WITH new_conversations AS (
+        SELECT c.id, c.rowid AS sync_rowid
+        FROM direct_conversations c
+        WHERE (c.participant_a_slug = ? OR c.participant_b_slug = ?)
+          AND c.rowid > ? AND c.rowid <= ?
+        ORDER BY c.rowid ASC
+        LIMIT ?
+      ),
+      sync_messages AS (
+        SELECT m.conversation_id
+        FROM direct_messages m
+        WHERE (m.sender_slug = ? OR m.recipient_slug = ?)
+          AND m.rowid > ? AND m.rowid <= ?
+        ORDER BY m.rowid ASC
+        LIMIT ?
+      ),
+      changed_conversations AS (
+        SELECT id FROM new_conversations
+        UNION
+        SELECT conversation_id AS id FROM sync_messages
+      )
       SELECT
         c.id,
         c.updated_at,
+        new_conversations.sync_rowid AS conversation_sync_rowid,
         CASE WHEN c.participant_a_slug = ? THEN c.participant_b_slug ELSE c.participant_a_slug END AS peer_slug,
         peer.name AS peer_name,
         peer.avatar_url AS peer_avatar_url,
-        (
-          SELECT id FROM direct_messages last_message
-          WHERE last_message.conversation_id = c.id
-          ORDER BY julianday(last_message.created_at) DESC, last_message.id DESC
-          LIMIT 1
-        ) AS last_message_id,
-        (
-          SELECT sender_slug FROM direct_messages last_message
-          WHERE last_message.conversation_id = c.id
-          ORDER BY julianday(last_message.created_at) DESC, last_message.id DESC
-          LIMIT 1
-        ) AS last_sender_slug,
-        (
-          SELECT body FROM direct_messages last_message
-          WHERE last_message.conversation_id = c.id
-          ORDER BY julianday(last_message.created_at) DESC, last_message.id DESC
-          LIMIT 1
-        ) AS last_body,
-        (
-          SELECT created_at FROM direct_messages last_message
-          WHERE last_message.conversation_id = c.id
-          ORDER BY julianday(last_message.created_at) DESC, last_message.id DESC
-          LIMIT 1
-        ) AS last_created_at,
-        (
-          SELECT COUNT(*) FROM direct_messages unread_message
-          WHERE unread_message.conversation_id = c.id
-            AND unread_message.recipient_slug = ?
-            AND unread_message.read_at IS NULL
-        ) AS unread_count
-      FROM direct_conversations c
+        last_message.id AS last_message_id,
+        last_message.sender_slug AS last_sender_slug,
+        last_message.body AS last_body,
+        last_message.created_at AS last_created_at,
+        COALESCE(unread.unread_count, 0) AS unread_count
+      FROM changed_conversations changed
+      JOIN direct_conversations c ON c.id = changed.id
+      LEFT JOIN new_conversations ON new_conversations.id = c.id
       LEFT JOIN students peer ON peer.slug = CASE WHEN c.participant_a_slug = ? THEN c.participant_b_slug ELSE c.participant_a_slug END
-      WHERE (c.participant_a_slug = ? OR c.participant_b_slug = ?)
-        AND ${conversationRange}
-      ORDER BY julianday(c.updated_at) ASC, c.id ASC
-      LIMIT ?
+      LEFT JOIN direct_messages last_message ON last_message.id = (
+        SELECT latest.id
+        FROM direct_messages latest
+        WHERE latest.conversation_id = c.id
+        ORDER BY julianday(latest.created_at) DESC, latest.id DESC
+        LIMIT 1
+      )
+      LEFT JOIN (
+        SELECT conversation_id, COUNT(*) AS unread_count
+        FROM direct_messages
+        WHERE recipient_slug = ? AND read_at IS NULL
+        GROUP BY conversation_id
+      ) unread ON unread.conversation_id = c.id
+      WHERE c.participant_a_slug = ? OR c.participant_b_slug = ?
+      ORDER BY COALESCE(new_conversations.sync_rowid, 9223372036854775807), c.id ASC
     `).bind(
       viewerSlug,
       viewerSlug,
-      viewerSlug,
-      viewerSlug,
-      viewerSlug,
-      ...rangeBinds(cursor.position.conversations, cursor.boundary.conversations),
+      cursor.position.conversations,
+      cursor.boundary.conversations,
       DIRECT_SYNC_LIMIT,
+      viewerSlug,
+      viewerSlug,
+      cursor.position.messages,
+      cursor.boundary.messages,
+      DIRECT_SYNC_LIMIT,
+      viewerSlug,
+      viewerSlug,
+      viewerSlug,
+      viewerSlug,
+      viewerSlug,
     ).all(),
     c.env.DB.prepare(`
-      SELECT m.*
+      SELECT m.rowid AS sync_rowid, m.*
       FROM direct_messages m
       WHERE (m.sender_slug = ? OR m.recipient_slug = ?)
-        AND ${messageRange}
-      ORDER BY julianday(m.created_at) ASC, m.id ASC
+        AND m.rowid > ? AND m.rowid <= ?
+      ORDER BY m.rowid ASC
       LIMIT ?
     `).bind(
       viewerSlug,
       viewerSlug,
-      ...rangeBinds(cursor.position.messages, cursor.boundary.messages),
+      cursor.position.messages,
+      cursor.boundary.messages,
       DIRECT_SYNC_LIMIT,
     ).all(),
     c.env.DB.prepare(`
-      SELECT n.*, ${notificationTimestamp} AS sync_cursor_timestamp
-      FROM notifications n
-      WHERE n.recipient_slug = ?
-        AND ${notificationRange}
-      ORDER BY julianday(${notificationTimestamp}) ASC, n.id ASC
-      LIMIT ?
+      WITH notification_events AS (
+        SELECT sequence AS sync_rowid, notification_id
+        FROM notification_sync_events
+        WHERE recipient_slug = ?
+          AND sequence > ? AND sequence <= ?
+        ORDER BY sequence ASC
+        LIMIT ?
+      ),
+      latest_events AS (
+        SELECT notification_id, MAX(sync_rowid) AS sync_rowid
+        FROM notification_events
+        GROUP BY notification_id
+      )
+      SELECT
+        latest_events.sync_rowid,
+        (SELECT COUNT(*) FROM notification_events) AS sync_event_count,
+        n.*
+      FROM latest_events
+      JOIN notifications n ON n.id = latest_events.notification_id
+      ORDER BY latest_events.sync_rowid ASC
     `).bind(
       viewerSlug,
-      ...rangeBinds(cursor.position.notifications, cursor.boundary.notifications),
+      cursor.position.notifications,
+      cursor.boundary.notifications,
       NOTIFICATION_SYNC_LIMIT,
     ).all(),
   ])

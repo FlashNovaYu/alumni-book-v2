@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { adminGuard } from '../lib/adminGuard'
-import { createAdminNotice } from '../lib/notificationService'
+import { readLimitedJson } from '../lib/jsonBodyLimit'
+import { createAdminBroadcast, createAdminNotice } from '../lib/notificationService'
 
 type Bindings = { DB: D1Database; JWT_SECRET: string }
 export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
@@ -8,14 +9,20 @@ export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
 const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
 const reasonOf = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 const ISO_WITH_TIMEZONE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-]\d{2}:\d{2})$/
+const MAX_RECIPIENT_SLUG_LENGTH = 160
 
 async function readNoticePayload(c: any) {
-  const value = await c.req.json().catch(() => null) as any
+  const result = await readLimitedJson(c.req.raw)
+  if (result.status === 'too-large') return result
+  if (result.status !== 'ok') return null
+  const value = result.value as any
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const title = typeof value.title === 'string' ? value.title.trim() : ''
   const body = typeof value.body === 'string' ? value.body.trim() : ''
   if (!title || title.length > 80 || !body || body.length > 2000) return null
-  return { title, body, recipientSlug: typeof value.recipientSlug === 'string' ? value.recipientSlug.trim() : '' }
+  const recipientSlug = typeof value.recipientSlug === 'string' ? value.recipientSlug.trim() : ''
+  if (recipientSlug.length > MAX_RECIPIENT_SLUG_LENGTH) return null
+  return { title, body, recipientSlug }
 }
 
 function adminId(c: any) {
@@ -47,6 +54,7 @@ adminCommunityRoutes.use('*', adminGuard)
 
 adminCommunityRoutes.post('/admin/notifications/send', async (c) => {
   const payload = await readNoticePayload(c)
+  if (payload && 'status' in payload) return c.json({ success: false, message: '请求体过大' }, 413)
   if (!payload || !payload.recipientSlug) {
     return c.json({ success: false, message: '收件人、标题和正文必填，标题最多 80 字，正文最多 2000 字' }, 400)
   }
@@ -65,14 +73,11 @@ adminCommunityRoutes.post('/admin/notifications/send', async (c) => {
 
 adminCommunityRoutes.post('/admin/notifications/broadcast', async (c) => {
   const payload = await readNoticePayload(c)
+  if (payload && 'status' in payload) return c.json({ success: false, message: '请求体过大' }, 413)
   if (!payload) {
     return c.json({ success: false, message: '标题和正文必填，标题最多 80 字，正文最多 2000 字' }, 400)
   }
-  const recipients = await c.env.DB.prepare(
-    "SELECT slug FROM students WHERE COALESCE(account_status, 'active') != 'locked' ORDER BY slug"
-  ).all()
-  const result = await createAdminNotice(c.env.DB, {
-    recipientSlugs: (recipients.results || []).map((row: any) => row.slug),
+  const result = await createAdminBroadcast(c.env.DB, {
     title: payload.title,
     body: payload.body,
   })

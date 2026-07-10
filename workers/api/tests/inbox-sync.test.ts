@@ -1,6 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
+import { createAdminNotice } from '../src/lib/notificationService'
 import { initTestDb } from './db-helper'
 
 const STUDENT_A = { slug: 'inbox-sync-a', name: '同步同学甲' }
@@ -8,11 +9,42 @@ const STUDENT_B = { slug: 'inbox-sync-b', name: '同步同学乙' }
 const STUDENT_C = { slug: 'inbox-sync-c', name: '同步同学丙' }
 const CONVERSATION_ID = 'conv_inbox-sync-a_inbox-sync-b'
 
-async function request(path: string, options: RequestInit = {}) {
+async function request(path: string, options: RequestInit = {}, db: D1Database = env.DB) {
   const ctx = createExecutionContext()
-  const response = await worker.fetch(new Request(`http://localhost${path}`, options), env, ctx)
+  const bindings = db === env.DB
+    ? env
+    : new Proxy(env, { get: (target, property) => property === 'DB' ? db : Reflect.get(target, property) })
+  const response = await worker.fetch(new Request(`http://localhost${path}`, options), bindings, ctx)
   await waitOnExecutionContext(ctx)
   return response
+}
+
+function insertAfterSyncBoundary(db: D1Database, insert: () => Promise<void>) {
+  let inserted: Promise<void> | null = null
+  const isSyncDataQuery = (query: string) => query.includes('WITH new_conversations')
+    || query.includes('SELECT m.rowid AS sync_rowid')
+    || query.includes('SELECT n.rowid AS sync_rowid')
+
+  const wrapStatement = (query: string, statement: any): any => ({
+    bind: (...values: unknown[]) => wrapStatement(query, statement.bind(...values)),
+    first: (...args: unknown[]) => statement.first(...args),
+    run: (...args: unknown[]) => statement.run(...args),
+    raw: (...args: unknown[]) => statement.raw(...args),
+    all: async (...args: unknown[]) => {
+      if (isSyncDataQuery(query)) {
+        inserted ||= insert()
+        await inserted
+      }
+      return statement.all(...args)
+    },
+  })
+
+  return {
+    prepare: (query: string) => wrapStatement(query, db.prepare(query)),
+    batch: db.batch.bind(db),
+    exec: db.exec.bind(db),
+    dump: db.dump.bind(db),
+  } as unknown as D1Database
 }
 
 async function classmateToken(student: typeof STUDENT_A) {
@@ -55,15 +87,6 @@ function encodeUnsignedSyncCursor(cursor: any) {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-}
-
-async function timestampAfterSyncCursor(rawCursor: string) {
-  const cursor = decodeSyncCursorPayload(rawCursor)
-  const boundaryTime = Date.parse(cursor.position.messages.timestamp)
-  while (Date.now() <= boundaryTime) {
-    await new Promise((resolve) => setTimeout(resolve, 1))
-  }
-  return new Date().toISOString()
 }
 
 beforeAll(async () => initTestDb(env.DB))
@@ -123,18 +146,17 @@ describe('Inbox summary and sync API', () => {
     expect(JSON.stringify(firstBody.data.messages)).not.toContain('不可见')
 
     const tamperedCursor = decodeSyncCursorPayload(firstBody.data.cursor)
-    tamperedCursor.position.messages.timestamp = '1970-01-01T00:00:00.000Z'
+    tamperedCursor.position.messages = 0
     const tampered = await request(`/api/inbox/sync?cursor=${encodeURIComponent(encodeUnsignedSyncCursor(tamperedCursor))}`, {
       headers: classmateHeaders(token),
     })
     expect(tampered.status).toBe(400)
 
-    const later = await timestampAfterSyncCursor(firstBody.data.cursor)
+    const later = '2000-01-01T00:00:00.000Z'
     await env.DB.batch([
       env.DB.prepare(
         "INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES ('inbox-sync-later', ?, ?, ?, '后续消息', 'inbox-sync-later-nonce', ?)"
       ).bind(CONVERSATION_ID, STUDENT_B.slug, STUDENT_A.slug, later),
-      env.DB.prepare('UPDATE direct_conversations SET updated_at = ? WHERE id = ?').bind(later, CONVERSATION_ID),
       env.DB.prepare(
         "INSERT INTO notifications (id, recipient_slug, type, title, body, created_at) VALUES ('inbox-sync-later-notification', ?, 'system', '后续通知', '后续正文', ?)"
       ).bind(STUDENT_A.slug, later),
@@ -147,6 +169,63 @@ describe('Inbox summary and sync API', () => {
     expect(nextBody.data.notifications).toEqual([expect.objectContaining({ id: 'inbox-sync-later-notification' })])
     expect(nextBody.data.conversations).toEqual([expect.objectContaining({ id: CONVERSATION_ID })])
   })
+
+  it('defers rows committed after the sync boundary to the next window without losing them', async () => {
+    const token = await classmateToken(STUDENT_A)
+    const first = await request('/api/inbox/sync', { headers: classmateHeaders(token) })
+    const firstBody = await first.json() as any
+    const delayedDb = insertAfterSyncBoundary(env.DB, async () => {
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES ('inbox-sync-racing', ?, ?, ?, '边界后的消息', 'inbox-sync-racing-nonce', '1999-01-01T00:00:00.000Z')"
+        ).bind(CONVERSATION_ID, STUDENT_B.slug, STUDENT_A.slug),
+        env.DB.prepare(
+          "INSERT INTO notifications (id, recipient_slug, type, title, body, created_at) VALUES ('inbox-sync-racing-notification', ?, 'system', '边界后的通知', '下一窗口返回', '1999-01-01T00:00:00.000Z')"
+        ).bind(STUDENT_A.slug),
+      ])
+    })
+
+    const racing = await request(`/api/inbox/sync?cursor=${encodeURIComponent(firstBody.data.cursor)}`, {
+      headers: classmateHeaders(token),
+    }, delayedDb)
+    expect(racing.status).toBe(200)
+    const racingBody = await racing.json() as any
+    expect(racingBody.data.messages).toEqual([])
+    expect(racingBody.data.notifications).toEqual([])
+
+    const next = await request(`/api/inbox/sync?cursor=${encodeURIComponent(racingBody.data.cursor)}`, {
+      headers: classmateHeaders(token),
+    })
+    expect(next.status).toBe(200)
+    const nextBody = await next.json() as any
+    expect(nextBody.data.messages).toEqual([expect.objectContaining({ id: 'inbox-sync-racing' })])
+    expect(nextBody.data.notifications).toEqual([expect.objectContaining({ id: 'inbox-sync-racing-notification' })])
+    expect(nextBody.data.conversations).toEqual([expect.objectContaining({ id: CONVERSATION_ID })])
+  })
+
+  it('syncs notification read changes made by another device', async () => {
+    const token = await classmateToken(STUDENT_A)
+    const first = await request('/api/inbox/sync', { headers: classmateHeaders(token) })
+    const firstBody = await first.json() as any
+    expect(firstBody.data.notifications).toEqual([
+      expect.objectContaining({ id: 'inbox-sync-notification-a', readAt: null }),
+    ])
+
+    const read = await request('/api/notifications/inbox-sync-notification-a/read', {
+      method: 'PUT',
+      headers: classmateHeaders(token),
+    })
+    expect(read.status).toBe(200)
+
+    const next = await request(`/api/inbox/sync?cursor=${encodeURIComponent(firstBody.data.cursor)}`, {
+      headers: classmateHeaders(token),
+    })
+    expect(next.status).toBe(200)
+    const nextBody = await next.json() as any
+    expect(nextBody.data.notifications).toEqual([
+      expect.objectContaining({ id: 'inbox-sync-notification-a', readAt: expect.any(String) }),
+    ])
+  })
 })
 
 describe('Admin notification APIs', () => {
@@ -154,6 +233,38 @@ describe('Admin notification APIs', () => {
     const token = await adminToken()
     expect((await request('/api/admin/notifications/send')).status).toBe(401)
     const beforeThreads = await env.DB.prepare('SELECT COUNT(*) AS count FROM mail_threads').first() as any
+
+    const oversized = await request('/api/admin/notifications/send', {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify({ recipientSlug: STUDENT_A.slug, title: '超大请求', body: 'x'.repeat(17_000) }),
+    })
+    expect(oversized.status).toBe(413)
+
+    let pulls = 0
+    let cancelled = false
+    const oversizedStream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1
+        if (pulls > 20) {
+          controller.close()
+          return
+        }
+        controller.enqueue(new Uint8Array(8192).fill(120))
+      },
+      cancel() {
+        cancelled = true
+      },
+    })
+    const streamed = await request('/api/admin/notifications/send', {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: oversizedStream,
+      duplex: 'half',
+    } as RequestInit)
+    expect(streamed.status).toBe(413)
+    expect(pulls).toBeLessThanOrEqual(4)
+    expect(cancelled).toBe(true)
 
     const single = await request('/api/admin/notifications/send', {
       method: 'POST',
@@ -197,5 +308,37 @@ describe('Admin notification APIs', () => {
     expect(legacySend.status).toBe(201)
     await expect(env.DB.prepare('SELECT COUNT(*) AS count FROM mail_threads').first()).resolves.toMatchObject({ count: beforeThreads.count })
     expect((await request('/api/admin/mail/threads', { headers: adminHeaders(token) })).headers.get('Deprecation')).toBe('true')
+  })
+
+  it('keeps notification batches under the D1 statement limit', async () => {
+    const batchSizes: number[] = []
+    const fakeDb = {
+      prepare: () => ({ bind: () => ({}) }),
+      batch: async (statements: unknown[]) => {
+        batchSizes.push(statements.length)
+        if (statements.length > 50) throw new Error('D1 batch statement limit exceeded')
+        return []
+      },
+    } as unknown as D1Database
+
+    await createAdminNotice(fakeDb, {
+      recipientSlugs: Array.from({ length: 121 }, (_, index) => `student-${index}`),
+      title: '分块通知',
+      body: '测试批量边界',
+    })
+    expect(batchSizes).toEqual([50, 50, 21])
+  })
+
+  it('provides one-statement broadcast delivery for all active classmates', async () => {
+    const service = await import('../src/lib/notificationService') as any
+    expect(service.createAdminBroadcast).toBeTypeOf('function')
+    const active = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM students WHERE COALESCE(account_status, 'active') != 'locked'"
+    ).first() as any
+    const result = await service.createAdminBroadcast(env.DB, { title: '原子广播', body: '一次 SQL 完成' })
+    expect(result.sentCount).toBe(Number(active.count))
+    await expect(env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM notifications WHERE related_id = ?'
+    ).bind(result.relatedId).first()).resolves.toMatchObject({ count: active.count })
   })
 })
