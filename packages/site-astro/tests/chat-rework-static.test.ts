@@ -37,6 +37,7 @@ describe('Chat Rework Static & Contract Audits', () => {
     const inboxSrc = readFileSync(resolve(root, 'src/api/inbox.ts'), 'utf-8')
     const classSpaceSrc = readFileSync(resolve(root, 'src/api/classSpace.ts'), 'utf-8')
     const errorSrc = readFileSync(resolve(root, 'src/api/error.ts'), 'utf-8')
+    const navRuntimeSrc = readFileSync(resolve(root, 'src/scripts/navRuntime.ts'), 'utf-8')
 
     // 审计对 apiFetch 的调用
     expect(groupChatSrc).toContain('apiFetch')
@@ -47,6 +48,13 @@ describe('Chat Rework Static & Contract Audits', () => {
     expect(errorSrc).toContain('class ApiRequestError')
     expect(errorSrc).toContain('status: number')
     expect(errorSrc).toContain('retryAfter?: number')
+
+    // 验证 navRuntime 单例设计与生命周期审计
+    expect(navRuntimeSrc).toContain('initNavRuntime')
+    expect(navRuntimeSrc).toContain('__alumniNavRuntime')
+    expect(navRuntimeSrc).toContain('astro:page-load')
+    expect(navRuntimeSrc).toContain('astro:before-swap')
+    expect(navRuntimeSrc).not.toContain('setInterval')
   })
 
   it('implements useVisibilityPolling with correct setTimeout recursion and backoff', async () => {

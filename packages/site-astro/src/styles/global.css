@@ -493,4 +493,25 @@ html {
   }
 }
 
+/* 滚动锁定类，当抽屉开启时作用在 body 上 */
+body.body-scroll-locked {
+  overflow: hidden !important;
+}
+
+/* 墨线与抽屉在 prefers-reduced-motion 下禁用动画 */
+@media (prefers-reduced-motion: reduce) {
+  .nav-active-ink {
+    transition: none !important;
+  }
+  .mobile-drawer {
+    transition: none !important;
+  }
+  .mobile-drawer-overlay {
+    transition: none !important;
+  }
+  html {
+    scroll-behavior: auto !important;
+  }
+}
+
 
