@@ -1,7 +1,9 @@
 export interface ChatMigrationReport {
-  conversationsCreated: number;
-  messagesMigrated: number;
-  notificationsCreated: number;
+  sourcePrivateThreads: number;
+  sourcePrivateMessages: number;
+  directConversations: number;
+  directMessages: number;
+  migratedNotifications: number;
   anomalies: number;
 }
 
@@ -11,222 +13,167 @@ export function assertChatMigrationReport(report: ChatMigrationReport): void {
   }
 }
 
-// 辅助函数：转义 SQL 字符串中的单引号
-function escapeSqlString(val: string): string {
-  return val.replace(/'/g, "''");
-}
+// 静态 SQL 语句数组，使用纯 SQL 表达式进行在数据库内部的原子迁移，杜绝任何 JS 变量插值拼接及引号转义风险
+export const legacyChatMigrationStatements: string[] = [
+  // 1. 迁移私聊会话 (对 slugs 排序拼接作为稳定会话 ID，支持幂等合并)
+  `INSERT OR IGNORE INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at)
+   SELECT
+     'conv_' || CASE WHEN t.created_by_slug < r.recipient_slug THEN t.created_by_slug ELSE r.recipient_slug END || '_' || CASE WHEN t.created_by_slug < r.recipient_slug THEN r.recipient_slug ELSE t.created_by_slug END AS id,
+     CASE WHEN t.created_by_slug < r.recipient_slug THEN t.created_by_slug ELSE r.recipient_slug END AS participant_a_slug,
+     CASE WHEN t.created_by_slug < r.recipient_slug THEN r.recipient_slug ELSE t.created_by_slug END AS participant_b_slug,
+     MIN(t.created_at) AS created_at,
+     MAX(t.created_at) AS updated_at
+   FROM mail_threads t
+   JOIN mail_recipients r ON r.thread_id = t.id
+   WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+     AND t.created_by_slug IS NOT NULL AND r.recipient_slug IS NOT NULL
+     AND t.created_by_slug IN (SELECT slug FROM students)
+     AND r.recipient_slug IN (SELECT slug FROM students)
+   GROUP BY participant_a_slug, participant_b_slug`,
 
-export async function legacyChatMigrationStatements(db: any): Promise<{
-  statements: string[];
-  report: ChatMigrationReport;
-}> {
-  const statements: string[] = [];
-  
-  let conversationsCreated = 0;
-  let messagesMigrated = 0;
-  let notificationsCreated = 0;
-  let anomalies = 0;
+  // 2. 迁移私聊消息 (保留原 legacy message ID 作为新 ID，使用 client_nonce = 'legacy:<oldId>')
+  `INSERT OR IGNORE INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, read_at, created_at)
+   SELECT
+     m.id AS id,
+     'conv_' || CASE WHEN t.created_by_slug < r.recipient_slug THEN t.created_by_slug ELSE r.recipient_slug END || '_' || CASE WHEN t.created_by_slug < r.recipient_slug THEN r.recipient_slug ELSE t.created_by_slug END AS conversation_id,
+     m.sender_slug AS sender_slug,
+     CASE WHEN m.sender_slug = t.created_by_slug THEN r.recipient_slug ELSE t.created_by_slug END AS recipient_slug,
+     m.body AS body,
+     'legacy:' || m.id AS client_nonce,
+     r.read_at AS read_at,
+     m.created_at AS created_at
+   FROM mail_messages m
+   JOIN mail_threads t ON t.id = m.thread_id
+   JOIN mail_recipients r ON r.thread_id = t.id
+   WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+     AND t.created_by_slug IS NOT NULL AND r.recipient_slug IS NOT NULL
+     AND m.sender_slug IS NOT NULL
+     AND t.created_by_slug IN (SELECT slug FROM students)
+     AND r.recipient_slug IN (SELECT slug FROM students)
+     AND m.sender_slug IN (SELECT slug FROM students)`,
 
-  // 1. 获取所有合法学生的 slug
-  const studentsResult = await db.prepare('SELECT slug FROM students').all();
-  const existingSlugs = new Set<string>((studentsResult.results || []).map((s: any) => s.slug));
+  // 3. 将会话 updated_at 同步为其中最新消息的 created_at (防并发打散)
+  `UPDATE direct_conversations
+   SET updated_at = (
+     SELECT MAX(created_at)
+     FROM direct_messages
+     WHERE conversation_id = direct_conversations.id
+   )
+   WHERE EXISTS (
+     SELECT 1 FROM direct_messages WHERE conversation_id = direct_conversations.id
+   )`,
 
-  // 2. 获取现存的私聊会话，以便去重/复用
-  const convsResult = await db.prepare('SELECT id, participant_a_slug, participant_b_slug FROM direct_conversations').all();
-  const existingConvs = new Map<string, string>(); // 'slug_a:slug_b' -> convId
-  for (const c of convsResult.results || []) {
-    const key = `${c.participant_a_slug}:${c.participant_b_slug}`;
-    existingConvs.set(key, c.id);
-  }
+  // 4. 将系统和管理员邮件拼接为类型是 admin_notice 的通知 (使用子查询通过 julianday 及 ID 双重排序，保证拼接时序)
+  `INSERT OR IGNORE INTO notifications (id, recipient_slug, type, title, body, related_type, related_id, read_at, created_at)
+   SELECT
+     'migrated_notice_' || thread_id || '_' || recipient_slug AS id,
+     recipient_slug,
+     'admin_notice' AS type,
+     thread_subject AS title,
+     group_concat(label_body, char(10)) AS body,
+     'legacy_mail_thread' AS related_type,
+     thread_id AS related_id,
+     read_at,
+     MAX(created_at) AS created_at
+   FROM (
+     SELECT
+       m.thread_id,
+       t.subject AS thread_subject,
+       r.recipient_slug,
+       r.read_at,
+       (CASE WHEN m.sender_type = 'admin' THEN '[管理员]: ' ELSE '[系统邮局]: ' END || m.body) AS label_body,
+       m.created_at
+     FROM mail_messages m
+     JOIN mail_recipients r ON r.thread_id = m.thread_id
+     JOIN mail_threads t ON t.id = m.thread_id
+     WHERE (t.created_by_type = 'admin' OR t.created_by_type = 'system')
+       AND r.recipient_slug IN (SELECT slug FROM students)
+     ORDER BY julianday(m.created_at) ASC, m.id ASC
+   )
+   GROUP BY thread_id, recipient_slug`
+];
 
-  // 3. 获取已存在的私聊消息 ID
-  const msgsResult = await db.prepare('SELECT id FROM direct_messages').all();
-  const existingMsgIds = new Set<string>((msgsResult.results || []).map((m: any) => m.id));
+// 从数据库中实时提取、计算统计指标并发现 Anomalies 异常数据的只读扫描函数
+export async function generateChatMigrationReport(db: any): Promise<ChatMigrationReport> {
+  // 1. 源私聊线程数量
+  const sourcePrivateThreadsRow = await db.prepare(
+    "SELECT COUNT(*) as count FROM mail_threads WHERE thread_type = 'private' AND created_by_type = 'student'"
+  ).first();
+  const sourcePrivateThreads = Number(sourcePrivateThreadsRow?.count || 0);
 
-  // 4. 获取已存在的 notifications ID
-  const notifsResult = await db.prepare("SELECT id FROM notifications WHERE type = 'admin_notice'").all();
-  const existingNotifIds = new Set<string>((notifsResult.results || []).map((n: any) => n.id));
+  // 2. 源私有消息数量
+  const sourcePrivateMessagesRow = await db.prepare(
+    "SELECT COUNT(*) as count FROM mail_messages m JOIN mail_threads t ON t.id = m.thread_id WHERE t.thread_type = 'private' AND t.created_by_type = 'student'"
+  ).first();
+  const sourcePrivateMessages = Number(sourcePrivateMessagesRow?.count || 0);
 
-  // 用于在本次迁移中跟踪新建的会话，避免在同一个 batch 里重复生成同一个会话的 INSERT
-  const newlyCreatedConvs = new Map<string, string>(); // 'slug_a:slug_b' -> convId
-  // 记录每个会话迁移的消息中的最新时间，用于在最后更新 updated_at
-  const convLatestTimeMap = new Map<string, string>(); // convId -> latest time string
+  // 3. 目标私聊会话数量 (根据 stable 派生算法)
+  const directConversationsRow = await db.prepare(
+    "SELECT COUNT(*) as count FROM direct_conversations WHERE id LIKE 'conv_%'"
+  ).first();
+  const directConversations = Number(directConversationsRow?.count || 0);
 
-  // ==================== (一) 迁移双人私聊信件 ====================
-  // 查询所有的私人信件，同时拉取其消息和收件人信息
-  const privateMails = await db.prepare(`
-    SELECT 
-      t.id AS thread_id,
-      t.subject AS thread_subject,
-      t.created_by_slug AS creator_slug,
-      m.id AS msg_id,
-      m.sender_slug,
-      m.body,
-      m.created_at,
-      r.recipient_slug,
-      r.read_at
-    FROM mail_threads t
-    JOIN mail_messages m ON m.thread_id = t.id
-    JOIN mail_recipients r ON r.thread_id = t.id
+  // 4. 目标私聊消息数量 (含有 legacy 前缀 nonce 的代表是从邮件系统里迁移过来的)
+  const directMessagesRow = await db.prepare(
+    "SELECT COUNT(*) as count FROM direct_messages WHERE client_nonce LIKE 'legacy:%'"
+  ).first();
+  const directMessages = Number(directMessagesRow?.count || 0);
+
+  // 5. 目标迁移通知数量
+  const migratedNotificationsRow = await db.prepare(
+    "SELECT COUNT(*) as count FROM notifications WHERE id LIKE 'migrated_notice_%' AND type = 'admin_notice'"
+  ).first();
+  const migratedNotifications = Number(migratedNotificationsRow?.count || 0);
+
+  // 6. Anomalies 统计：孤立或无法解析关联实体的脏数据
+  // a) 私有收件人不存在于学生表
+  const badPrivateRecipientsRow = await db.prepare(`
+    SELECT COUNT(DISTINCT r.id) as count
+    FROM mail_recipients r
+    JOIN mail_threads t ON t.id = r.thread_id
     WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
-    ORDER BY m.created_at ASC, m.id ASC
-  `).all();
+      AND r.recipient_slug NOT IN (SELECT slug FROM students)
+  `).first();
+  const badPrivateRecipients = Number(badPrivateRecipientsRow?.count || 0);
 
-  for (const row of privateMails.results || []) {
-    const creatorSlug = row.creator_slug;
-    const recipientSlug = row.recipient_slug;
-    const senderSlug = row.sender_slug;
+  // b) 私有发件人不存在于学生表 (且不为系统/管理员类型)
+  const badPrivateSendersRow = await db.prepare(`
+    SELECT COUNT(DISTINCT m.id) as count
+    FROM mail_messages m
+    JOIN mail_threads t ON t.id = m.thread_id
+    WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+      AND m.sender_type = 'student'
+      AND m.sender_slug NOT IN (SELECT slug FROM students)
+  `).first();
+  const badPrivateSenders = Number(badPrivateSendersRow?.count || 0);
 
-    // 校验参与者是否存在
-    let hasAnomaly = false;
-    if (!creatorSlug || !existingSlugs.has(creatorSlug)) {
-      anomalies++;
-      hasAnomaly = true;
-    }
-    if (!recipientSlug || !existingSlugs.has(recipientSlug)) {
-      anomalies++;
-      hasAnomaly = true;
-    }
-    if (!senderSlug || !existingSlugs.has(senderSlug)) {
-      anomalies++;
-      hasAnomaly = true;
-    }
+  // c) 私有会话创建人不存在于学生表
+  const badPrivateCreatorsRow = await db.prepare(`
+    SELECT COUNT(DISTINCT t.id) as count
+    FROM mail_threads t
+    WHERE t.thread_type = 'private' AND t.created_by_type = 'student'
+      AND t.created_by_slug NOT IN (SELECT slug FROM students)
+  `).first();
+  const badPrivateCreators = Number(badPrivateCreatorsRow?.count || 0);
 
-    if (hasAnomaly) {
-      continue; // 发生异常，跳过此消息迁移
-    }
+  // d) 系统/管理员通知收件人不存在于学生表
+  const badAdminRecipientsRow = await db.prepare(`
+    SELECT COUNT(DISTINCT r.id) as count
+    FROM mail_recipients r
+    JOIN mail_threads t ON t.id = r.thread_id
+    WHERE (t.created_by_type = 'admin' OR t.created_by_type = 'system')
+      AND r.recipient_slug NOT IN (SELECT slug FROM students)
+  `).first();
+  const badAdminRecipients = Number(badAdminRecipientsRow?.count || 0);
 
-    // 确定当前消息的接收人
-    let msgRecipientSlug = '';
-    if (senderSlug === creatorSlug) {
-      msgRecipientSlug = recipientSlug;
-    } else if (senderSlug === recipientSlug) {
-      msgRecipientSlug = creatorSlug;
-    } else {
-      // 发送人既不是创建者也不是收信人，异常数据
-      anomalies++;
-      continue;
-    }
-
-    // 建立双人对
-    const pA = senderSlug < msgRecipientSlug ? senderSlug : msgRecipientSlug;
-    const pB = senderSlug > msgRecipientSlug ? senderSlug : msgRecipientSlug;
-    const pairKey = `${pA}:${pB}`;
-
-    let convId = existingConvs.get(pairKey) || newlyCreatedConvs.get(pairKey);
-
-    if (!convId) {
-      // 产生新的会话 ID
-      convId = `conv_migrated_${pA}_${pB}`;
-      newlyCreatedConvs.set(pairKey, convId);
-      
-      const escPA = escapeSqlString(pA);
-      const escPB = escapeSqlString(pB);
-      const timeStr = row.created_at;
-
-      statements.push(
-        `INSERT INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES ('${convId}', '${escPA}', '${escPB}', '${timeStr}', '${timeStr}')`
-      );
-      conversationsCreated++;
-    }
-
-    // 拼装迁移后的消息
-    const targetMsgId = `migrated_mailmsg_${row.msg_id}`;
-    const clientNonce = `legacy:${row.msg_id}`;
-
-    if (!existingMsgIds.has(targetMsgId)) {
-      const escBody = escapeSqlString(row.body);
-      const escSender = escapeSqlString(senderSlug);
-      const escRecipient = escapeSqlString(msgRecipientSlug);
-      const timeStr = row.created_at;
-      const readAtVal = row.read_at ? `'${escapeSqlString(row.read_at)}'` : 'NULL';
-
-      statements.push(
-        `INSERT OR IGNORE INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, read_at, created_at) VALUES ('${targetMsgId}', '${convId}', '${escSender}', '${escRecipient}', '${escBody}', '${clientNonce}', ${readAtVal}, '${timeStr}')`
-      );
-      messagesMigrated++;
-
-      // 更新最新消息时间
-      const currentLatest = convLatestTimeMap.get(convId) || '';
-      if (timeStr > currentLatest) {
-        convLatestTimeMap.set(convId, timeStr);
-      }
-    }
-  }
-
-  // 为新建或更新的会话，刷一下最新的 updated_at
-  for (const [convId, latestTime] of convLatestTimeMap.entries()) {
-    statements.push(
-      `UPDATE direct_conversations SET updated_at = '${latestTime}' WHERE id = '${convId}'`
-    );
-  }
-
-  // ==================== (二) 迁移系统/管理员信件为通知 ====================
-  // 查询所有的管理员/系统信件线
-  const adminThreads = await db.prepare(`
-    SELECT id, subject, created_at
-    FROM mail_threads
-    WHERE created_by_type = 'admin' OR created_by_type = 'system'
-  `).all();
-
-  for (const thread of adminThreads.results || []) {
-    const threadId = thread.id;
-    const subject = thread.subject || '系统通知';
-
-    // 每一个主题线可能发给了多个收件人，我们需要为每个收件人分别聚合消息并创建一条通知
-    const recipients = await db.prepare(
-      'SELECT recipient_slug, read_at FROM mail_recipients WHERE thread_id = ?'
-    ).bind(threadId).all();
-
-    for (const r of recipients.results || []) {
-      const recSlug = r.recipient_slug;
-      if (!recSlug || !existingSlugs.has(recSlug)) {
-        anomalies++;
-        continue;
-      }
-
-      const notifId = `migrated_notice_${threadId}_${recSlug}`;
-
-      if (existingNotifIds.has(notifId)) {
-        continue; // 通知已生成，跳过
-      }
-
-      // 获取当前 thread 下所有的消息，按时间、ID排序进行拼装
-      const msgs = await db.prepare(
-        'SELECT sender_type, body, created_at FROM mail_messages WHERE thread_id = ? ORDER BY created_at ASC, id ASC'
-      ).bind(threadId).all();
-
-      const bodyLines: string[] = [];
-      let latestMsgTime = thread.created_at;
-
-      for (const m of msgs.results || []) {
-        const label = m.sender_type === 'admin' ? '[管理员]' : '[系统邮局]';
-        bodyLines.push(`${label}: ${m.body}`);
-        if (m.created_at && m.created_at > latestMsgTime) {
-          latestMsgTime = m.created_at;
-        }
-      }
-
-      const fullBody = bodyLines.join('\n');
-      const escTitle = escapeSqlString(subject);
-      const escBody = escapeSqlString(fullBody);
-      const escRecipient = escapeSqlString(recSlug);
-      const readAtVal = r.read_at ? `'${escapeSqlString(r.read_at)}'` : 'NULL';
-
-      statements.push(
-        `INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id, read_at, created_at) VALUES ('${notifId}', '${escRecipient}', 'admin_notice', '${escTitle}', '${escBody}', 'legacy_mail_thread', '${threadId}', ${readAtVal}, '${latestMsgTime}')`
-      );
-      notificationsCreated++;
-    }
-  }
+  const anomalies = badPrivateRecipients + badPrivateSenders + badPrivateCreators + badAdminRecipients;
 
   return {
-    statements,
-    report: {
-      conversationsCreated,
-      messagesMigrated,
-      notificationsCreated,
-      anomalies
-    }
+    sourcePrivateThreads,
+    sourcePrivateMessages,
+    directConversations,
+    directMessages,
+    migratedNotifications,
+    anomalies
   };
 }
