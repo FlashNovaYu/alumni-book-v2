@@ -48,3 +48,16 @@ export async function sendMailboxThread(apiBase: string, payload: { recipientSlu
   })
   return res.json()
 }
+
+export async function reactToPublicMessage(apiBase: string, id: string, reaction: string) {
+  const res = await fetch(joinApiUrl(apiBase, `/api/public-messages/${id}/react`), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...classmateHeaders(),
+    },
+    body: JSON.stringify({ reaction }),
+  })
+  return res.json()
+}
+

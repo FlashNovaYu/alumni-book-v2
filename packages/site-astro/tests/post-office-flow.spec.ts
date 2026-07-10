@@ -111,3 +111,39 @@ test('mailbox page is usable on mobile without horizontal overflow', async ({ pa
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
   expect(overflow).toBe(false)
 })
+
+test('public message page supports adding emoji reactions', async ({ page }) => {
+  await page.route('**/api/public-messages/pm_approved/react', async (route, request) => {
+    expect(request.method()).toBe('PUT')
+    const payload = request.postDataJSON()
+    expect(payload.reaction).toBe('❤️')
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          reactions: {
+            '❤️': 1,
+          },
+        },
+      }),
+    })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./messages/', { waitUntil: 'networkidle' })
+
+  const card = page.locator('.public-message-card').filter({ hasText: '愿我们都前程似锦' })
+  await expect(card).toBeVisible()
+
+  const heartBtn = card.getByRole('button', { name: /反应 ❤️/ })
+  await expect(heartBtn).toBeVisible()
+  await expect(heartBtn.locator('.reaction-count')).toHaveText('0')
+
+  await heartBtn.click()
+
+  await expect(heartBtn.locator('.reaction-count')).toHaveText('1')
+})
+
