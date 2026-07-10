@@ -56,17 +56,24 @@ beforeAll(async () => {
   ])
 
   await env.DB.batch([
-    ...Array.from({ length: 31 }, (_, index) => env.DB.prepare(
-      'INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).bind(
-      `overview-visible-${String(index + 1).padStart(2, '0')}`,
-      CLASSMATE_SLUG,
-      CLASSMATE_NAME,
-      `可见消息 ${index + 1}`,
-      'visible',
-      `2026-06-20T00:${String(index).padStart(2, '0')}:00.000Z`,
-      `2026-06-20T00:${String(index).padStart(2, '0')}:00.000Z`,
-    )),
+    ...Array.from({ length: 31 }, (_, index) => {
+      const timestamp = index === 1
+        ? '2026-06-20 00:32:00'
+        : index === 2
+          ? '2026-06-20T00:31:00.000Z'
+          : `2026-06-20T00:${String(index).padStart(2, '0')}:00.000Z`
+      return env.DB.prepare(
+        'INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        `overview-visible-${String(index + 1).padStart(2, '0')}`,
+        CLASSMATE_SLUG,
+        CLASSMATE_NAME,
+        `可见消息 ${index + 1}`,
+        'visible',
+        timestamp,
+        timestamp,
+      )
+    }),
     env.DB.prepare(
       "INSERT OR REPLACE INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES ('overview-recalled', ?, ?, '已撤回的原文', 'recalled_by_author', '2026-06-20T01:00:00.000Z', '2026-06-20T01:00:00.000Z')"
     ).bind(CLASSMATE_SLUG, CLASSMATE_NAME),
@@ -97,7 +104,7 @@ describe('Class space overview API', () => {
     expect(res.status).toBe(401)
   })
 
-  it('returns a private bounded chat overview for an authenticated classmate', async () => {
+  it('returns the latest visible chat window in real-time order', async () => {
     const classmateToken = await getClassmateToken()
     const ctx = createExecutionContext()
     const res = await worker.fetch(new Request('http://localhost/api/class-space/overview', {
@@ -109,9 +116,16 @@ describe('Class space overview API', () => {
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.data.chat.items).toHaveLength(30)
-    expect(body.data.chat.items.map((item: any) => item.createdAt)).toEqual(
-      [...body.data.chat.items.map((item: any) => item.createdAt)].sort(),
-    )
+    expect(body.data.chat.items.map((item: any) => item.id)).toEqual([
+      ...Array.from({ length: 27 }, (_, index) => `overview-visible-${String(index + 5).padStart(2, '0')}`),
+      'overview-visible-03',
+      'overview-visible-02',
+      'overview-recalled',
+    ])
+    expect(body.data.chat.items).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'overview-visible-01' }),
+      expect.objectContaining({ id: 'overview-visible-04' }),
+    ]))
     expect(body.data.chat.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'overview-recalled', content: null, status: 'recalled_by_author' }),
     ]))
@@ -119,7 +133,10 @@ describe('Class space overview API', () => {
       expect.objectContaining({ id: 'overview-hidden' }),
     ]))
     expect(JSON.stringify(body.data.chat.items)).not.toContain('不得泄露的隐藏正文')
-    expect(decodeCursor(body.data.chat.cursor)).toEqual(expect.objectContaining({ timestamp: expect.any(String), id: expect.any(String) }))
+    expect(decodeCursor(body.data.chat.cursor)).toEqual({
+      timestamp: '2026-06-20T00:04:00.000Z',
+      id: 'overview-visible-05',
+    })
     expect(body.data.chat.cursor).not.toContain('.')
     expect(body.data.chat.mute).toEqual({ reason: '测试禁言', mutedUntil: null })
     expect(body.data.albums.length).toBeLessThanOrEqual(4)

@@ -19,14 +19,12 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
   let before: CursorValue | undefined
   while (chatItems.length < 30) {
     const page = await listGroupMessages(c.env.DB, identity.slug, { before, includeStatusChanges: true, limit: 30 })
-    chatItems.push(...page.filter((item) => item.status !== 'hidden'))
+    chatItems.unshift(...page.filter((item) => item.status !== 'hidden'))
     if (page.length < 30) break
     const oldest = page[0]
     before = { timestamp: oldest.createdAt, id: oldest.id }
   }
-  const chat = chatItems
-    .slice(0, 30)
-    .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id))
+  const chat = chatItems.slice(-30)
 
   const [albumRows, groupMessageCount, albumCount, timeline, mute] = await Promise.all([
     c.env.DB.prepare(
