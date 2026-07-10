@@ -18,6 +18,7 @@ powershell.cmd
 .astro
 .superpowers/
 .playwright-mcp/
+.worktrees/
 
 # 本机视觉伴随/brainstorming 辅助脚本，避免混入产品提交
 scripts/start-brainstorm-stable.ps1
