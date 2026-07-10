@@ -1,107 +1,176 @@
 <template>
   <section class="mailbox-app">
+    <!-- 工具栏/模式切换 -->
     <div class="mailbox-toolbar">
-      <button :class="{ active: mode === 'inbox' }" @click="switchMode('inbox')">收件箱</button>
-      <button :class="{ active: mode === 'compose' }" @click="switchMode('compose')">写信</button>
+      <button :class="{ active: mode === 'inbox' }" @click="switchMode('inbox')">
+        收件箱
+      </button>
+      <button :class="{ active: mode === 'compose' }" @click="switchMode('compose')">
+        写信
+      </button>
     </div>
 
-    <form v-if="mode === 'compose'" class="mail-compose" @submit.prevent="send">
-      <input v-model="draft.recipientSlug" class="paper-input" placeholder="收件同学 slug" />
-      <input v-model="draft.subject" class="paper-input" placeholder="信件标题" maxlength="80" />
-      <textarea v-model="draft.body" class="paper-textarea" placeholder="把想说的话写在这张信纸上..." maxlength="2000" />
-      <button class="btn-primary" :disabled="sending || !canSend">{{ sending ? '投递中...' : '寄出信件' }}</button>
-      <p v-if="notice" :class="['mail-notice', notice.type]">{{ notice.text }}</p>
-    </form>
+    <!-- 写信模式 -->
+    <div v-if="mode === 'compose'" class="compose-container">
+      <MailComposer
+        ref="composerRef"
+        :api-base="apiBase"
+        :sending="sending"
+        :notice="notice"
+        :default-recipient-slug="defaultRecipient"
+        @submit="handleSendMail"
+      />
+    </div>
 
-    <div v-else class="mailbox-list">
-      <div v-if="loading" class="mailbox-empty">正在整理信箱...</div>
-      <article v-for="thread in threads" :key="thread.id" :class="['mail-thread', { unread: thread.unread }]">
-        <div class="mail-thread__stamp">{{ thread.threadType === 'system' ? '系统' : '信件' }}</div>
-        <div>
-          <h2>{{ thread.subject }}</h2>
-          <p>{{ thread.preview }}</p>
-          <span>{{ thread.senderName }} · {{ formatDate(thread.updatedAt) }}</span>
+    <!-- 收件箱模式（左右布局或单栏响应式切换） -->
+    <div v-else class="mailbox-layout" :class="{ 'has-selection': selectedItem }">
+      <!-- 左侧列表栏 -->
+      <div class="mailbox-list-pane">
+        <MailboxList
+          :notifications="notifications"
+          :mails="mails"
+          :loading="loading"
+          :selected-item="selectedItem"
+          @select="handleSelectItem"
+        />
+      </div>
+
+      <!-- 右侧详情栏 -->
+      <div class="mailbox-detail-pane">
+        <!-- 移动端返回按钮 -->
+        <div v-if="selectedItem" class="mobile-detail-header">
+          <button type="button" class="btn-back-link" @click="selectedItem = null">
+            ← 返回信箱
+          </button>
         </div>
-      </article>
-      <div v-if="!loading && threads.length === 0" class="mailbox-empty">暂时没有信件。</div>
+        <MailboxDetail
+          :item="selectedItem"
+          :api-base="apiBase"
+          @read="handleItemRead"
+          @replied="handleReplied"
+        />
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { fetchMailboxThreads, sendMailboxThread } from '../api/postOffice'
+import { ref, onMounted, nextTick } from 'vue'
+import MailboxList, { type AggregatedInboxItem } from './MailboxList.vue'
+import MailboxDetail from './MailboxDetail.vue'
+import MailComposer from './MailComposer.vue'
+import { fetchMailboxThreads, fetchNotifications, sendMailboxThread } from '../api/postOffice'
+import type { NotificationItem, MailboxThread } from '@alumni/shared'
 
-type MailThread = {
-  id: string
-  subject: string
-  threadType: string
-  senderName: string
-  preview: string
-  unread: boolean
-  updatedAt: string
-}
-
-const props = defineProps<{ apiBase: string; defaultRecipient?: string }>()
+const props = defineProps<{
+  apiBase: string
+  defaultRecipient?: string
+}>()
 
 const mode = ref<'inbox' | 'compose'>(props.defaultRecipient ? 'compose' : 'inbox')
 const loading = ref(false)
 const sending = ref(false)
-const threads = ref<MailThread[]>([])
 const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
-const draft = reactive({
-  recipientSlug: props.defaultRecipient || '',
-  subject: '',
-  body: '',
-})
 
-const canSend = computed(() => draft.recipientSlug.trim() && draft.subject.trim() && draft.body.trim())
+const mails = ref<MailboxThread[]>([])
+const notifications = ref<NotificationItem[]>([])
+const selectedItem = ref<AggregatedInboxItem | null>(null)
+const composerRef = ref<InstanceType<typeof MailComposer> | null>(null)
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+// 广播自定义事件通知更新未读数
+function broadcastInboxChanged() {
+  const event = new CustomEvent('alumni:inbox-changed')
+  window.dispatchEvent(event)
 }
 
+// 切换收发件模式
 function switchMode(newMode: 'inbox' | 'compose') {
   mode.value = newMode
   notice.value = null
+  if (newMode === 'inbox') {
+    selectedItem.value = null
+    loadData()
+  }
 }
 
-async function loadThreads() {
+// 并行加载通知与邮件列表
+async function loadData() {
   loading.value = true
   try {
-    const data = await fetchMailboxThreads(props.apiBase)
-    if (data.success) threads.value = data.data?.items || []
+    const [threadsRes, notifRes] = await Promise.all([
+      fetchMailboxThreads(props.apiBase),
+      fetchNotifications(props.apiBase)
+    ])
+    if (threadsRes.success) {
+      mails.value = threadsRes.data?.items || []
+    }
+    notifications.value = notifRes.items || []
+  } catch (err) {
+    console.error('加载信箱数据失败', err)
   } finally {
     loading.value = false
   }
 }
 
-async function send() {
+function handleSelectItem(item: AggregatedInboxItem) {
+  selectedItem.value = item
+}
+
+// 处理已读更新状态
+function handleItemRead(item: AggregatedInboxItem) {
+  if (item.source === 'mail') {
+    const found = mails.value.find(m => m.id === item.id)
+    if (found && found.unread) {
+      found.unread = false
+      broadcastInboxChanged()
+    }
+  } else if (item.source === 'notification') {
+    const found = notifications.value.find(n => n.id === item.id)
+    if (found && !found.readAt) {
+      found.readAt = new Date().toISOString()
+      broadcastInboxChanged()
+    }
+  }
+}
+
+// 回复成功，触发广播
+function handleReplied() {
+  broadcastInboxChanged()
+}
+
+// 新建邮件发送
+async function handleSendMail(payload: { recipientSlug: string; subject: string; body: string }) {
   sending.value = true
   notice.value = null
   try {
-    const data = await sendMailboxThread(props.apiBase, {
-      recipientSlug: draft.recipientSlug.trim(),
-      subject: draft.subject.trim(),
-      body: draft.body.trim(),
-    })
+    const data = await sendMailboxThread(props.apiBase, payload)
     if (data.success) {
       notice.value = { type: 'success', text: '信件已寄出' }
-      draft.subject = ''
-      draft.body = ''
-      mode.value = 'inbox'
-      await loadThreads()
+      if (composerRef.value) {
+        composerRef.value.reset()
+      }
+      
+      // 发送成功后重新加载数据并广播通知
+      await loadData()
+      broadcastInboxChanged()
+      
+      // 成功寄出后延时切回列表
+      setTimeout(() => {
+        mode.value = 'inbox'
+        selectedItem.value = null
+        notice.value = null
+      }, 1000)
     } else {
       notice.value = { type: 'error', text: data.message || '发送失败' }
     }
-  } catch {
+  } catch (err) {
     notice.value = { type: 'error', text: '网络错误，请稍后重试' }
   } finally {
     sending.value = false
   }
 }
 
-onMounted(loadThreads)
+onMounted(loadData)
 </script>
 
 <style scoped>
@@ -109,12 +178,14 @@ onMounted(loadThreads)
   display: grid;
   gap: var(--spacing-lg);
 }
+
 .mailbox-toolbar {
   display: flex;
   gap: var(--spacing-xs);
   border-bottom: 1px solid var(--color-paper-border);
   padding-bottom: var(--spacing-sm);
 }
+
 .mailbox-toolbar button {
   min-height: 40px;
   padding: 0 var(--spacing-md);
@@ -122,73 +193,83 @@ onMounted(loadThreads)
   border-radius: var(--rounded-pill);
   background: var(--color-paper-card);
   color: var(--color-paper-muted);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
 }
+
 .mailbox-toolbar button.active {
   border-color: var(--color-paper-brown);
   color: var(--color-paper-brown);
+  background: rgba(139, 94, 60, 0.05);
 }
-.mail-compose {
-  display: grid;
-  gap: var(--spacing-sm);
-}
-.paper-input,
-.paper-textarea {
+
+.compose-container {
+  max-width: 800px;
   width: 100%;
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-md);
-  background: var(--color-paper-card);
-  color: var(--color-paper-ink);
-  padding: var(--spacing-sm) var(--spacing-md);
-  font: inherit;
+  margin: 0 auto;
 }
-.paper-textarea {
-  min-height: 180px;
-  resize: vertical;
-}
-.mailbox-list {
+
+/* 左右分栏布局 */
+.mailbox-layout {
   display: grid;
-  gap: var(--spacing-sm);
+  grid-template-columns: 380px 1fr;
+  gap: var(--spacing-lg);
+  align-items: start;
 }
-.mail-thread {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-md);
-  background: var(--color-paper-card);
+
+.mailbox-list-pane {
+  min-width: 0;
 }
-.mail-thread.unread {
-  border-color: var(--color-paper-stamp-red);
+
+.mailbox-detail-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
-.mail-thread__stamp {
-  display: inline-flex;
-  width: 42px;
-  height: 42px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-paper-stamp-red);
-  color: var(--color-paper-stamp-red);
-  border-radius: 50%;
-  font-size: 12px;
+
+.mobile-detail-header {
+  display: none;
 }
-.mail-thread h2 {
+
+.btn-back-link {
+  background: none;
+  border: none;
+  color: var(--color-paper-brown);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--spacing-xs) 0;
   font-size: var(--type-body-md-size);
-  margin: 0;
 }
-.mail-thread p {
-  color: var(--color-paper-muted);
-  margin: 4px 0;
+
+@media (max-width: 992px) {
+  .mailbox-layout {
+    grid-template-columns: 320px 1fr;
+  }
 }
-.mail-thread span,
-.mailbox-empty {
-  color: var(--color-paper-muted);
-  font-size: var(--type-caption-size);
-}
-.mail-notice.success { color: var(--color-success); }
-.mail-notice.error { color: var(--color-error); }
+
+/* 移动端响应式布局 */
 @media (max-width: 768px) {
-  .mailbox-toolbar { overflow-x: auto; }
-  .mail-thread { grid-template-columns: 1fr; }
+  .mailbox-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .mailbox-layout .mailbox-detail-pane {
+    display: none;
+  }
+  
+  .mailbox-layout.has-selection .mailbox-list-pane {
+    display: none;
+  }
+  
+  .mailbox-layout.has-selection .mailbox-detail-pane {
+    display: flex;
+  }
+  
+  .mobile-detail-header {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+  }
 }
 </style>

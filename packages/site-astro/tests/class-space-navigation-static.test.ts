@@ -80,3 +80,52 @@ describe('class space responsive dashboard contracts', () => {
   })
 })
 
+describe('class mailbox components static constraints', () => {
+  it('verifies that the subcomponent files exist', () => {
+    expect(existsSync(resolve(src, 'components/MailboxList.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/MailboxDetail.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/RecipientPicker.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/MailComposer.vue'))).toBe(true)
+  })
+
+  it('verifies MailboxList.vue aggregates notifications and mails', () => {
+    const source = read('components/MailboxList.vue')
+    expect(source).toContain('aggregatedItems')
+    expect(source).toContain('notifications')
+    expect(source).toContain('mails')
+    expect(source).toContain('unread')
+  })
+
+  it('verifies MailboxDetail.vue loads detail and shows reply box conditionally', () => {
+    const source = read('components/MailboxDetail.vue')
+    expect(source).toContain('fetchMailboxThread')
+    expect(source).toContain('replyMailboxThread')
+    expect(source).toContain('allowReply')
+    expect(source).toContain('replyText')
+  })
+
+  it('verifies RecipientPicker.vue supports search and excludes self', () => {
+    const source = read('components/RecipientPicker.vue')
+    expect(source).toContain('fetchRecipientDirectory')
+    expect(source).toContain('mySlug')
+    expect(source).toContain('avatarUrl')
+  })
+
+  it('verifies MailComposer.vue embeds RecipientPicker and emits submit', () => {
+    const source = read('components/MailComposer.vue')
+    expect(source).toContain('RecipientPicker')
+    expect(source).toContain('submit')
+    expect(source).toContain('recipientSlug')
+    expect(source).toContain('subject')
+    expect(source).toContain('body')
+  })
+
+  it('verifies MailboxApp.vue orchestrates the components and triggers events', () => {
+    const source = read('components/MailboxApp.vue')
+    expect(source).toContain('Promise.all')
+    expect(source).toContain('fetchMailboxThreads')
+    expect(source).toContain('fetchNotifications')
+    expect(source).toContain('alumni:inbox-changed')
+    expect(source).toContain('window.dispatchEvent')
+  })
+})
