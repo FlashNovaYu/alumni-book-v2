@@ -34,8 +34,8 @@
               <a href="#messages" class="nav-item">
                 <span class="nav-icon">💬</span>
                 <span class="nav-text">留言板</span>
-                <span class="nav-count" v-if="overviewData.counts?.approvedMessages !== undefined">
-                  {{ overviewData.counts.approvedMessages }}
+                <span class="nav-count" v-if="overviewData.counts?.groupMessages !== undefined">
+                  {{ overviewData.counts.groupMessages }}
                 </span>
               </a>
             </li>
@@ -72,7 +72,7 @@
             </div>
             <a href="/messages" class="more-link">全部留言 &rarr;</a>
           </div>
-          <ClassSpaceMessageStage :messages="overviewData.messages" />
+          <ClassSpaceMessageStage :messages="messagePreview" />
         </section>
 
         <!-- 影像馆 Section -->
@@ -104,9 +104,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { fetchClassSpaceOverview } from '../api/classSpace'
-import type { ClassSpaceOverview } from '@alumni/shared'
+import type { ClassSpaceOverview, PublicMessage } from '@alumni/shared'
 import ClassSpaceMessageStage from './ClassSpaceMessageStage.vue'
 import ClassSpaceAlbumRail from './ClassSpaceAlbumRail.vue'
 import ClassSpaceTimelinePreview from './ClassSpaceTimelinePreview.vue'
@@ -118,6 +118,21 @@ const props = defineProps<{
 const overviewData = ref<ClassSpaceOverview | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+
+const messagePreview = computed<PublicMessage[]>(() => overviewData.value?.chat.items
+  .filter((message) => message.status === 'visible' && Boolean(message.content))
+  .map((message) => ({
+    id: message.id,
+    authorSlug: message.author.slug,
+    authorName: message.author.name,
+    content: message.content || '',
+    cardStyle: 'paper',
+    status: 'approved',
+    featured: false,
+    pinned: false,
+    reactions: message.reactionCounts,
+    createdAt: message.createdAt,
+  })) || [])
 
 async function loadData() {
   loading.value = true
