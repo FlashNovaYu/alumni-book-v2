@@ -16,28 +16,36 @@ async function seedClassmateSession(page: any) {
 const mockOverviewData = {
   success: true,
   data: {
-    messages: [
-      {
-        id: 'msg-1',
-        authorSlug: 'zhangsan',
-        authorName: '张三',
-        content: '张三的精美留言',
-        cardStyle: 'paper',
-        status: 'approved',
-        reactions: { '❤️': 2 },
-        createdAt: '2026-07-10T12:00:00.000Z'
-      },
-      {
-        id: 'msg-2',
-        authorSlug: 'lisi',
-        authorName: '李四',
-        content: '李四的黑板便签',
-        cardStyle: 'chalkboard',
-        status: 'approved',
-        reactions: { '👍': 1 },
-        createdAt: '2026-07-10T12:01:00.000Z'
-      }
-    ],
+    chat: {
+      items: [
+        {
+          id: 'msg-1',
+          author: { name: '张三', slug: 'zhangsan', avatarUrl: null },
+          content: '张三的精美留言',
+          status: 'visible',
+          replyTo: null,
+          reactionCounts: { '❤️': 2 },
+          myReaction: null,
+          canRecall: false,
+          createdAt: '2026-07-10T12:00:00.000Z',
+          updatedAt: '2026-07-10T12:00:00.000Z',
+        },
+        {
+          id: 'msg-2',
+          author: { name: '李四', slug: 'lisi', avatarUrl: null },
+          content: '李四的黑板便签',
+          status: 'visible',
+          replyTo: null,
+          reactionCounts: { '👍': 1 },
+          myReaction: null,
+          canRecall: false,
+          createdAt: '2026-07-10T12:01:00.000Z',
+          updatedAt: '2026-07-10T12:01:00.000Z',
+        }
+      ],
+      cursor: 'mock-cursor',
+      mute: null,
+    },
     albums: [
       {
         id: 'album-1',
@@ -57,7 +65,7 @@ const mockOverviewData = {
       }
     ],
     counts: {
-      approvedMessages: 2,
+      groupMessages: 2,
       albums: 1,
       timelineItems: 1
     }
@@ -72,8 +80,10 @@ test.describe('Class Space Flow', () => {
   })
 
   test('authenticated user can load class space and view all preview segments', async ({ page }) => {
+    let overviewToken: string | undefined
     // 拦截班级空间 overview 请求
     await page.route('**/api/class-space/overview', async (route) => {
+      overviewToken = route.request().headers()['x-classmate-token']
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -83,6 +93,7 @@ test.describe('Class Space Flow', () => {
 
     await seedClassmateSession(page)
     await page.goto('./class-space/', { waitUntil: 'networkidle' })
+    await expect.poll(() => overviewToken).toBe('test-classmate-token')
 
     // 验证页面基本元素
     await expect(page.getByRole('heading', { name: '班级空间', exact: true, level: 1 })).toBeVisible()

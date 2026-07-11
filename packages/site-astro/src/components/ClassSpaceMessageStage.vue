@@ -1,20 +1,20 @@
 <template>
   <div class="message-stage-container">
-    <div v-if="approvedMessages.length > 0" class="message-grid">
+    <div v-if="visibleMessages.length > 0" class="message-grid">
       <article
-        v-for="msg in approvedMessages"
+        v-for="msg in visibleMessages"
         :key="msg.id"
-        :class="['message-card', `style-${msg.cardStyle || 'paper'}`]"
+        class="message-card style-paper"
       >
         <div class="message-meta">
-          <span class="author">{{ msg.authorName }}</span>
+          <span class="author">{{ msg.author.name }}</span>
           <span class="date">{{ formatDate(msg.createdAt) }}</span>
         </div>
         <p class="content">{{ msg.content }}</p>
         
-        <div class="reactions-preview" v-if="hasReactions(msg.reactions)">
+        <div class="reactions-preview" v-if="hasReactions(msg.reactionCounts)">
           <span
-            v-for="(count, emoji) in msg.reactions"
+            v-for="(count, emoji) in msg.reactionCounts"
             :key="emoji"
             v-show="count > 0"
             class="reaction-badge"
@@ -32,15 +32,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PublicMessage } from '@alumni/shared'
+import type { GroupChatMessage } from '@alumni/shared'
 
 const props = defineProps<{
-  messages: PublicMessage[]
+  messages: GroupChatMessage[]
 }>()
 
-const approvedMessages = computed(() => {
+const visibleMessages = computed(() => {
   return props.messages
-    .filter(m => m.status === 'approved' || (m as any).isApproved)
+    .filter(m => m.status === 'visible')
     .slice(0, 8)
 })
 

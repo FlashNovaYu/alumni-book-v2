@@ -4,11 +4,11 @@ const siteBase = process.env.SITE_BASE
   ? `/${process.env.SITE_BASE.replace(/^\/+|\/+$/g, '')}/`
   : '/';
 const previewHost = '127.0.0.1';
-const previewBaseURL = `http://${previewHost}:4321${siteBase}`;
+const previewPort = Number(process.env.PLAYWRIGHT_PORT ?? '4321');
+const previewBaseURL = `http://${previewHost}:${previewPort}${siteBase}`;
 const useManagedPreview = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
 
 export default defineConfig({
-  globalTeardown: require.resolve('./tests/teardown.ts'),
   expect: {
     timeout: 10000,
   },
@@ -34,7 +34,7 @@ export default defineConfig({
   ],
   webServer: useManagedPreview ? undefined : {
     command: `node ./node_modules/astro/astro.js preview --host ${previewHost}`,
-    port: 4321,
+    port: previewPort,
     reuseExistingServer: !process.env.CI,
     cwd: __dirname,
     timeout: 120000,

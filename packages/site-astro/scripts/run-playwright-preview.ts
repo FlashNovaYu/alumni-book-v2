@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from 'child_process'
 import { createRequire } from 'module'
+import { createServer } from 'net'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -7,12 +8,10 @@ const require = createRequire(import.meta.url)
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const siteDir = resolve(scriptDir, '..')
 const host = '127.0.0.1'
-const port = 4321
 const rawSiteBase = process.env.SITE_BASE ?? '/'
 const siteBase = rawSiteBase === '/'
   ? '/'
   : `/${rawSiteBase.replace(/^\/+|\/+$/g, '')}/`
-const previewURL = `http://${host}:${port}${siteBase}`
 const astroCli = resolve(siteDir, 'node_modules', 'astro', 'astro.js')
 const playwrightCli = require.resolve('@playwright/test/cli')
 const testArgs = process.argv.slice(2)
@@ -26,7 +25,24 @@ function spawnLogged(command: string, args: string[], extraEnv: NodeJS.ProcessEn
   })
 }
 
-async function waitForPreview(timeoutMs = 120000) {
+function findAvailablePort() {
+  return new Promise<number>((resolve, reject) => {
+    const server = createServer()
+
+    server.once('error', reject)
+    server.listen({ host, port: 0 }, () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        server.close(() => reject(new Error('Unable to allocate a preview port')))
+        return
+      }
+
+      server.close(error => error ? reject(error) : resolve(address.port))
+    })
+  })
+}
+
+async function waitForPreview(previewURL: string, timeoutMs = 120000) {
   const startedAt = Date.now()
   let lastError = ''
 
@@ -68,22 +84,6 @@ function killProcessTree(pid: number | undefined) {
   }
 }
 
-function releasePreviewPort() {
-  try {
-    if (process.platform === 'win32') {
-      execFileSync('powershell.exe', [
-        '-NoProfile',
-        '-Command',
-        `Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }`,
-      ], { stdio: 'ignore', timeout: 5000 })
-    } else {
-      execFileSync('sh', ['-c', `fuser -k ${port}/tcp 2>/dev/null || true`], { stdio: 'ignore', timeout: 5000 })
-    }
-  } catch {
-    // A busy port is handled by the preview startup failure below.
-  }
-}
-
 function ensurePlaywrightBrowser() {
   if (!process.env.CI) return
 
@@ -101,13 +101,15 @@ function ensurePlaywrightBrowser() {
 
 async function run() {
   ensurePlaywrightBrowser()
-  releasePreviewPort()
-  const preview = spawnLogged(process.execPath, [astroCli, 'preview', '--host', host])
+  const port = await findAvailablePort()
+  const previewURL = `http://${host}:${port}${siteBase}`
+  const preview = spawnLogged(process.execPath, [astroCli, 'preview', '--host', host, '--port', String(port)])
 
   try {
-    await waitForPreview()
+    await waitForPreview(previewURL)
     const playwright = spawnLogged(process.execPath, [playwrightCli, 'test', ...testArgs], {
       PLAYWRIGHT_SKIP_WEBSERVER: '1',
+      PLAYWRIGHT_PORT: String(port),
     })
 
     const code = await new Promise<number>(resolve => {
@@ -118,7 +120,6 @@ async function run() {
     return code
   } finally {
     killProcessTree(preview.pid)
-    releasePreviewPort()
   }
 
   return 1

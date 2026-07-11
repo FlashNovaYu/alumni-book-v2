@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 const src = resolve(__dirname, '../src')
 const read = (path: string) => readFileSync(resolve(src, path), 'utf-8')
+const readSiteFile = (path: string) => readFileSync(resolve(__dirname, '..', path), 'utf-8')
 
 describe('class space and inbox contracts', () => {
   it('defines focused API clients', () => {
@@ -12,6 +13,21 @@ describe('class space and inbox contracts', () => {
     expect(read('api/postOffice.ts')).toContain('/api/mailbox/threads/${threadId}')
     expect(read('api/postOffice.ts')).toContain('/api/notifications')
     expect(read('api/classmateAuth.ts')).toContain('/api/classmate-auth/me')
+  })
+})
+
+describe('Playwright preview isolation', () => {
+  it('uses a private free port instead of stopping an existing local server', () => {
+    const runner = readSiteFile('scripts/run-playwright-preview.ts')
+    const config = readSiteFile('playwright.config.ts')
+
+    expect(runner).toContain("import { createServer } from 'net'")
+    expect(runner).toContain('port: 0')
+    expect(runner).toContain('PLAYWRIGHT_PORT: String(port)')
+    expect(runner).not.toContain('releasePreviewPort')
+    expect(config).toContain("process.env.PLAYWRIGHT_PORT ?? '4321'")
+    expect(config).toContain('port: previewPort')
+    expect(config).not.toContain('globalTeardown')
   })
 })
 
@@ -77,6 +93,20 @@ describe('class space responsive dashboard contracts', () => {
     expect(source).toContain('fetchClassSpaceOverview')
     expect(source).not.toContain('AlbumGrid')
     expect(source).not.toContain('ScrollTrigger')
+  })
+
+  it('keeps the class space preview aligned with the group-chat overview contract', () => {
+    const hub = read('components/ClassSpaceHub.vue')
+    const stage = read('components/ClassSpaceMessageStage.vue')
+    const albumRail = read('components/ClassSpaceAlbumRail.vue')
+
+    expect(hub).toContain('overviewData.counts?.groupMessages')
+    expect(hub).toContain(':messages="overviewData.chat.items"')
+    expect(hub).toContain("siteUrl('messages/')")
+    expect(stage).toContain('GroupChatMessage')
+    expect(stage).toContain('msg.author.name')
+    expect(stage).toContain("m.status === 'visible'")
+    expect(albumRail).toContain('siteUrl(`album#album-${album.id}`)')
   })
 })
 

@@ -34,8 +34,8 @@
               <a href="#messages" class="nav-item">
                 <span class="nav-icon">💬</span>
                 <span class="nav-text">留言板</span>
-                <span class="nav-count" v-if="overviewData.counts?.approvedMessages !== undefined">
-                  {{ overviewData.counts.approvedMessages }}
+                <span class="nav-count" v-if="overviewData.counts?.groupMessages !== undefined">
+                  {{ overviewData.counts.groupMessages }}
                 </span>
               </a>
             </li>
@@ -70,9 +70,9 @@
               <span class="section-emoji">💬</span>
               <h2 class="section-title">留言墙</h2>
             </div>
-            <a href="/messages" class="more-link">全部留言 &rarr;</a>
+            <a :href="siteUrl('messages/')" class="more-link">全部留言 &rarr;</a>
           </div>
-          <ClassSpaceMessageStage :messages="overviewData.messages" />
+          <ClassSpaceMessageStage :messages="overviewData.chat.items" />
         </section>
 
         <!-- 影像馆 Section -->
@@ -82,7 +82,7 @@
               <span class="section-emoji">🖼️</span>
               <h2 class="section-title">精选相册</h2>
             </div>
-            <a href="/album" class="more-link">进入影像馆 &rarr;</a>
+            <a :href="siteUrl('album/')" class="more-link">进入影像馆 &rarr;</a>
           </div>
           <ClassSpaceAlbumRail :albums="overviewData.albums" :apiBase="apiBase" />
         </section>
@@ -94,7 +94,7 @@
               <span class="section-emoji">📅</span>
               <h2 class="section-title">班级大事件</h2>
             </div>
-            <a href="/timeline" class="more-link">完整时间轴 &rarr;</a>
+            <a :href="siteUrl('timeline/')" class="more-link">完整时间轴 &rarr;</a>
           </div>
           <ClassSpaceTimelinePreview :timeline="overviewData.timeline" :apiBase="apiBase" />
         </section>
@@ -115,6 +115,8 @@ const props = defineProps<{
   apiBase: string
 }>()
 
+const siteBase = import.meta.env.BASE_URL || '/'
+const siteUrl = (path: string) => `${siteBase}${path.replace(/^\/+/, '')}`
 const overviewData = ref<ClassSpaceOverview | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)

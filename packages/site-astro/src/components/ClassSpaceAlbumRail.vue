@@ -5,7 +5,7 @@
         <a
           v-for="album in albums"
           :key="album.id"
-          :href="'/album#album-' + album.id"
+          :href="siteUrl(`album#album-${album.id}`)"
           class="album-rail-card"
         >
           <div class="album-cover-wrapper">
@@ -49,6 +49,9 @@ const props = defineProps<{
   albums: ClassSpaceAlbumPreview[]
   apiBase: string
 }>()
+
+const siteBase = import.meta.env.BASE_URL || '/'
+const siteUrl = (path: string) => `${siteBase}${path.replace(/^\/+/, '')}`
 
 function getPhotoUrl(r2Key: string | null) {
   if (!r2Key) return ''

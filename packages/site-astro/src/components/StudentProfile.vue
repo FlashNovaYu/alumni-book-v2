@@ -45,8 +45,8 @@
               <span v-for="tag in museumSummary.tags" :key="tag">{{ tag }}</span>
             </div>
             <div class="profile-mail-actions">
-              <a class="btn-secondary" :href="`/mailbox/?to=${studentSlug}`">给 TA 写信</a>
-              <a v-if="isCurrentOwner" class="btn-secondary" href="/mailbox/">查看我的邮箱</a>
+              <a class="btn-secondary" :href="siteUrl(`mailbox/?to=${encodeURIComponent(studentSlug)}`)">给 TA 写信</a>
+              <a v-if="isCurrentOwner" class="btn-secondary" :href="siteUrl('mailbox/')">查看我的邮箱</a>
             </div>
             <span v-if="student.isOwner" class="owner-badge">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -194,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from 'vue'
 import SelfEditPanel from './SelfEditPanel.vue'
 import StudentMusicPlayer from './StudentMusicPlayer.vue'
 import ProfileCompleteness from './ProfileCompleteness.vue'
@@ -237,6 +237,8 @@ const props = defineProps<{
   }
 }>()
 
+const siteBase = import.meta.env.BASE_URL || '/'
+const siteUrl = (path: string) => `${siteBase}${path.replace(/^\/+/, '')}`
 const student = ref<Student | null>(props.initialStudent)
 const loading = ref(!props.initialStudent)
 const shareOpen = ref(false)
@@ -289,6 +291,8 @@ const avatarSrc = computed(() => {
   if (student.value.avatarUrl.startsWith('http')) return student.value.avatarUrl
   return `${props.apiBase}${student.value.avatarUrl}`
 })
+
+watch(() => student.value?.avatarUrl, () => { avatarError.value = false })
 
 const bgStyle = computed(() => {
   if (!student.value) return ''
@@ -405,15 +409,17 @@ onMounted(() => {
         ? `${props.apiBase}/api/students/${slugVal.value}`
         : `${props.apiBase}/api/students/${slugVal.value}?audience=public`
 
-      const { changed, data } = await fetchJsonIfChanged(
-        fetchUrl,
-        `student_${slugVal.value}`,
-        customHeaders
-      )
-      if (data && data.success && data.data) {
-        if (changed && !isDeepEqual(data.data, student.value)) {
-          student.value = data.data
-        }
+      let data: any
+      if (classmateToken) {
+        const response = await fetch(fetchUrl, { headers: customHeaders, cache: 'no-cache' })
+        data = await response.json()
+      } else {
+        const publicCacheKey = `student_${slugVal.value}_public`
+        const result = await fetchJsonIfChanged(fetchUrl, publicCacheKey)
+        data = result.data
+      }
+      if (data?.success && data.data && !isDeepEqual(data.data, student.value)) {
+        student.value = data.data
       }
     } catch (e) {
       console.error('Failed to sync student detail via SWR:', e)

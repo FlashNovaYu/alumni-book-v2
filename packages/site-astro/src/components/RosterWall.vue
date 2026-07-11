@@ -73,14 +73,12 @@ onMounted(() => {
   // 避免首屏高并发阻塞，改为 idle 空闲时静默刷新 SWR 数据
   runWhenIdle(async () => {
     try {
-      const { changed, data } = await fetchJsonIfChanged(
+      const { data } = await fetchJsonIfChanged(
         `${props.apiBase}/api/classmates`,
         'classmates'
       )
-      if (data && data.success && data.data) {
-        if (changed && !isDeepEqual(data.data, classmates.value)) {
-          classmates.value = data.data
-        }
+      if (data && data.success && data.data && !isDeepEqual(data.data, classmates.value)) {
+        classmates.value = data.data
       }
     } catch (e) {
       console.error('Failed to sync classmates list via SWR:', e)
