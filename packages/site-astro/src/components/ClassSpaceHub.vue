@@ -14,12 +14,7 @@
     </div>
 
     <div v-else-if="overviewData" class="class-space-workbench">
-      <aside class="class-space-directory" aria-label="班级空间目录">
-        <p>班级空间</p>
-        <a href="#group-chat">群聊 <span>{{ overviewData.counts.groupMessages }}</span></a>
-        <a href="#albums">影像 <span>{{ overviewData.counts.albums }}</span></a>
-        <a href="#timeline">时光 <span>{{ overviewData.counts.timelineItems }}</span></a>
-      </aside>
+      <ClassSpaceSectionNav :sections="sections" />
 
       <main class="class-space-main">
         <section id="group-chat" class="hub-section">
@@ -37,9 +32,9 @@
               <p class="paper-kicker">CLASS ALBUMS</p>
               <h2>精选影像</h2>
             </div>
-            <a href="/album">进入影像馆</a>
+            <a :href="href('album')">进入影像馆</a>
           </div>
-          <ClassSpaceAlbumRail :albums="overviewData.albums" :api-base="apiBase" />
+          <ClassSpaceAlbumRail :albums="overviewData.albums" :api-base="apiBase" :site-base="siteBase" />
         </section>
 
         <section id="timeline" class="hub-section">
@@ -48,9 +43,9 @@
               <p class="paper-kicker">CLASS TIMELINE</p>
               <h2>班级大事</h2>
             </div>
-            <a href="/timeline">完整时间轴</a>
+            <a :href="href('timeline')">完整时间轴</a>
           </div>
-          <ClassSpaceTimelinePreview :timeline="overviewData.timeline" :api-base="apiBase" />
+          <ClassSpaceTimelineRail :timeline="overviewData.timeline" :api-base="apiBase" />
         </section>
       </main>
     </div>
@@ -58,20 +53,32 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { ClassSpaceOverview } from '@alumni/shared'
 import { fetchClassSpaceOverview } from '../api/classSpace'
 import ClassSpaceAlbumRail from './ClassSpaceAlbumRail.vue'
-import ClassSpaceTimelinePreview from './ClassSpaceTimelinePreview.vue'
+import ClassSpaceSectionNav from './ClassSpaceSectionNav.vue'
+import ClassSpaceTimelineRail from './ClassSpaceTimelineRail.vue'
 import GroupChatStage from './GroupChatStage.vue'
 
 const props = defineProps<{
   apiBase: string
+  siteBase: string
 }>()
 
 const overviewData = ref<ClassSpaceOverview | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const sections = computed(() => overviewData.value ? [
+  { id: 'group-chat', label: '群聊', count: overviewData.value.counts.groupMessages },
+  { id: 'albums', label: '影像', count: overviewData.value.counts.albums },
+  { id: 'timeline', label: '时光', count: overviewData.value.counts.timelineItems },
+] : [])
+
+function href(path: string) {
+  const base = props.siteBase.endsWith('/') ? props.siteBase : `${props.siteBase}/`
+  return `${base}${path.replace(/^\/+/, '')}`
+}
 
 async function loadData() {
   loading.value = true
@@ -90,14 +97,9 @@ onMounted(loadData)
 
 <style scoped>
 .class-space-hub { width: 100%; }
-.class-space-workbench { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: var(--spacing-xl); align-items: start; }
-.class-space-directory { position: sticky; top: calc(var(--nav-height) + var(--spacing-md)); display: grid; gap: 2px; padding: var(--spacing-sm); background: var(--color-paper-bg-soft); border: 1px solid var(--color-paper-border); }
-.class-space-directory p { margin: 0 0 4px; padding: 0 var(--spacing-sm); color: var(--color-paper-muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
-.class-space-directory a { min-height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--spacing-sm); color: var(--color-paper-ink); text-decoration: none; font-size: 14px; }
-.class-space-directory a:hover { color: var(--color-paper-brown); background: var(--color-paper-card); }
-.class-space-directory span { color: var(--color-paper-muted); font-size: 12px; }
-.class-space-main { display: grid; min-width: 0; gap: var(--spacing-xxl); }
-.hub-section { scroll-margin-top: calc(var(--nav-height) + var(--spacing-lg)); }
+.class-space-workbench { display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg); align-items: start; }
+.class-space-main { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--spacing-xxl); }
+.hub-section { min-width: 0; scroll-margin-top: calc(var(--nav-height) + var(--spacing-lg)); }
 .section-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-md); margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-paper-border); }
 .section-header h2 { margin: 2px 0 0; color: var(--color-paper-ink); font-family: var(--font-display); font-size: 26px; }
 .section-header a { color: var(--color-paper-brown); font-size: 13px; text-decoration: none; white-space: nowrap; }
@@ -112,11 +114,8 @@ onMounted(loadData)
 .retry-btn { min-height: 44px; margin-top: var(--spacing-lg); padding: 0 var(--spacing-lg); color: #fffaf2; background: var(--color-paper-brown); border: 0; font: inherit; font-weight: 700; cursor: pointer; }
 @keyframes hub-pulse { 50% { opacity: 0.45; } }
 
-@media (max-width: 1099px) {
-  .class-space-workbench { grid-template-columns: 1fr; }
-  .class-space-directory { position: static; display: flex; overflow-x: auto; padding: 0; background: transparent; border: 0; border-bottom: 1px solid var(--color-paper-border); }
-  .class-space-directory p { display: none; }
-  .class-space-directory a { flex: 0 0 auto; min-height: 42px; }
+@media (min-width: 1100px) {
+  .class-space-workbench { grid-template-columns: 176px minmax(0, 1fr); gap: var(--spacing-xl); }
 }
 
 @media (max-width: 768px) {

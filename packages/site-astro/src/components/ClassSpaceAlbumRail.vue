@@ -5,7 +5,7 @@
         <a
           v-for="album in albums"
           :key="album.id"
-          :href="'/album#album-' + album.id"
+          :href="albumHref(album.id)"
           class="album-rail-card"
         >
           <div class="album-cover-wrapper">
@@ -16,13 +16,7 @@
               loading="lazy"
               class="album-cover"
             />
-            <div v-else class="album-cover-placeholder">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-                <circle cx="9" cy="9" r="2"/>
-                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-              </svg>
-            </div>
+            <div v-else class="album-cover-placeholder">暂无封面</div>
             <div class="photo-count-badge">
               {{ album.photoCount }} 张
             </div>
@@ -44,17 +38,23 @@
 
 <script setup lang="ts">
 import type { ClassSpaceAlbumPreview } from '@alumni/shared'
+import { joinApiUrl } from '../utils/apiBase'
 
 const props = defineProps<{
   albums: ClassSpaceAlbumPreview[]
   apiBase: string
+  siteBase: string
 }>()
 
 function getPhotoUrl(r2Key: string | null) {
   if (!r2Key) return ''
   if (r2Key.startsWith('http')) return r2Key
-  // 拼接 API base 路径
-  return `${props.apiBase}/api/files/${r2Key}`
+  return joinApiUrl(props.apiBase, `/api/files/${r2Key.replace(/^\/+/, '')}`)
+}
+
+function albumHref(albumId: string) {
+  const base = props.siteBase.endsWith('/') ? props.siteBase : `${props.siteBase}/`
+  return `${base}album#album-${albumId}`
 }
 </script>
 
@@ -72,6 +72,8 @@ function getPhotoUrl(r2Key: string | null) {
   padding: var(--spacing-sm) 0 var(--spacing-md) 0;
   scrollbar-width: thin;
   scrollbar-color: var(--color-paper-border) transparent;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x pan-y;
 }
 
 /* 隐藏 Webkit 默认滚动条，使用自定义的优雅滚动条 */
@@ -94,8 +96,7 @@ function getPhotoUrl(r2Key: string | null) {
 }
 
 .album-rail-card {
-  flex: 0 0 240px;
-  width: 240px;
+  flex: 0 0 clamp(220px, 25vw, 292px);
   background: var(--color-paper-card, #fcfaf2);
   border: 1px solid var(--color-paper-border, #eedec4);
   border-radius: var(--rounded-md);
@@ -103,6 +104,7 @@ function getPhotoUrl(r2Key: string | null) {
   box-shadow: var(--shadow-paper-card, 0 4px 12px rgba(139,120,95,0.06));
   text-decoration: none;
   color: inherit;
+  scroll-snap-align: start;
   transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart), border-color var(--duration-normal) var(--ease-out-quart);
 }
 
@@ -115,7 +117,7 @@ function getPhotoUrl(r2Key: string | null) {
 .album-cover-wrapper {
   position: relative;
   width: 100%;
-  height: 160px;
+  aspect-ratio: 3 / 2;
   background: var(--color-surface-soft, #f7f6f2);
   overflow: hidden;
 }
@@ -145,7 +147,6 @@ function getPhotoUrl(r2Key: string | null) {
   bottom: var(--spacing-sm);
   right: var(--spacing-sm);
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
   color: #fff;
   font-size: 11px;
   padding: 3px var(--spacing-xs);
@@ -200,11 +201,7 @@ function getPhotoUrl(r2Key: string | null) {
 
 @media (max-width: 768px) {
   .album-rail-card {
-    flex: 0 0 200px;
-    width: 200px;
-  }
-  .album-cover-wrapper {
-    height: 130px;
+    flex-basis: min(72vw, 260px);
   }
 }
 </style>
