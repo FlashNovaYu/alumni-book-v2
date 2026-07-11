@@ -58,4 +58,16 @@ describe('Pages production deployment contract', () => {
     expect(headers).toContain('max-age=31536000')
     expect(headers).toContain('immutable')
   })
+
+  it('deploys the unified Pages app and keeps Worker deployment manual', () => {
+    const pagesWorkflow = read('.github/workflows/deploy-site.yml')
+    expect(pagesWorkflow).toContain('pnpm prepare:pages')
+    expect(pagesWorkflow).toContain('pnpm smoke:pages')
+    expect(pagesWorkflow).toContain('wrangler.pages.toml')
+    expect(pagesWorkflow).toContain("VITE_WORKER_URL: 'https://alumni-book.pages.dev'")
+
+    const workerWorkflow = read('.github/workflows/deploy-worker.yml')
+    expect(workerWorkflow).toContain('workflow_dispatch:')
+    expect(workerWorkflow).not.toContain('push:')
+  })
 })
