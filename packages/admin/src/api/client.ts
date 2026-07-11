@@ -74,7 +74,7 @@ export async function verifyAdminToken(token: string): Promise<boolean> {
     }, { apiBase: API_BASE })
     return true
   } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 401) return false
+    if (error instanceof ApiRequestError && error.status !== undefined) return false
     throw error
   }
 }
