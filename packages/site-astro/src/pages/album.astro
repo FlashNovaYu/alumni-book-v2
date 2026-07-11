@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
 
 interface Album {
   id: string; title: string; description: string; frameStyle: string
@@ -22,7 +23,7 @@ async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<a
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
-      return await res.json()
+      return normalizeLegacyFileUrls(await res.json())
     } catch (e: any) {
       if (attempt === retries) {
         throw e

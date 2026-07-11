@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../../layouts/MainLayout.astro'
 import StudentProfile from '../../components/StudentProfile.vue'
+import { normalizeLegacyFileUrls } from '../../../../../workers/api/src/lib/fileUrl'
 
 export async function getStaticPaths() {
   async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
@@ -10,7 +11,7 @@ export async function getStaticPaths() {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`)
         }
-        return await res.json()
+        return normalizeLegacyFileUrls(await res.json())
       } catch (e: any) {
         if (attempt === retries) {
           throw e
@@ -48,7 +49,7 @@ async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<a
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
-      return await res.json()
+      return normalizeLegacyFileUrls(await res.json())
     } catch (e: any) {
       if (attempt === retries) {
         throw e
@@ -81,7 +82,7 @@ let museum = {
 
 try {
   const configRes = await fetch(`${API_BASE}/api/config`)
-  const configJson = await configRes.json()
+  const configJson = normalizeLegacyFileUrls(await configRes.json()) as any
   museum = { ...museum, ...(configJson.data?.museum || {}) }
 } catch {}
 

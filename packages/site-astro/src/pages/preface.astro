@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import PrefaceWall from '../components/PrefaceWall.vue'
+import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
@@ -19,7 +20,7 @@ async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<a
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
-      return await res.json()
+      return normalizeLegacyFileUrls(await res.json())
     } catch (e: any) {
       if (attempt === retries) {
         throw e

@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { normalizeLegacyFileUrls } from '../../../workers/api/src/lib/fileUrl'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -23,7 +24,7 @@ async function fetchJSON(path: string, retries = 4, delay = 1000) {
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`)
       }
-      const data = await res.json()
+      const data = normalizeLegacyFileUrls(await res.json())
       return (data as any).data || data
     } catch (e: any) {
       if (attempt === retries) {

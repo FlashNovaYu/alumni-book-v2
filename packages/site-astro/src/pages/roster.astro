@@ -4,6 +4,7 @@ import RosterWall from '../components/RosterWall.vue'
 import RankingsPanel from '../components/RankingsPanel.vue'
 import ClassGraphPreview from '../components/ClassGraphPreview.vue'
 import SeatMapPreview from '../components/SeatMapPreview.vue'
+import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
 
 interface Classmate {
   name: string; slug: string; hasPage: boolean
@@ -22,7 +23,7 @@ async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<a
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
-      return await res.json()
+      return normalizeLegacyFileUrls(await res.json())
     } catch (e: any) {
       if (attempt === retries) {
         throw e
