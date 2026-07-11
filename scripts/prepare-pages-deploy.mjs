@@ -30,12 +30,17 @@ execFileSync(process.execPath, [
   'exec', 'wrangler',
   'pages', 'functions', 'build',
   functionsDir,
-  '--outfile', workerOut,
+  '--outdir', workerOut,
   '--output-routes-path', routesOut,
   '--project-directory', join(rootDir, 'packages/site-astro'),
   '--compatibility-date', '2024-10-22',
   '--minify',
 ], { cwd: rootDir, stdio: 'inherit' })
+
+const workerEntry = join(workerOut, 'index.js')
+if (!existsSync(workerEntry)) {
+  throw new Error('Pages Worker 构建产物缺少 _worker.js/index.js')
+}
 
 const routes = JSON.parse(readFileSync(routesOut, 'utf8'))
 for (const route of ['/api/*', '/student/*']) {

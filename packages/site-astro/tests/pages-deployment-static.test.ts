@@ -59,6 +59,13 @@ describe('Pages production deployment contract', () => {
     expect(headers).toContain('immutable')
   })
 
+  it('builds the Pages Worker as a deployable module directory', () => {
+    const prepareScript = read('scripts/prepare-pages-deploy.mjs')
+    expect(prepareScript).toContain("const workerOut = join(deployDir, '_worker.js')")
+    expect(prepareScript).toContain("'--outdir', workerOut")
+    expect(prepareScript).not.toContain("'--outfile', workerOut")
+  })
+
   it('deploys the unified Pages app and keeps Worker deployment manual', () => {
     const pagesWorkflow = read('.github/workflows/deploy-site.yml')
     expect(pagesWorkflow).toContain('pnpm prepare:pages')
