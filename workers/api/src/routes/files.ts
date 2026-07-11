@@ -46,6 +46,23 @@ filesRoutes.on(['GET', 'HEAD'], '/files/*', async (c) => {
     }
   }
 
+  if (c.req.header('Range')) {
+    const object = await c.env.R2.get(key, { range: c.req.raw.headers })
+    if (!object) return c.json({ success: false, message: '文件不存在' }, 404)
+    if (!object.range) return c.json({ success: false, message: '请求范围无效' }, 416)
+
+    const offset = 'suffix' in object.range
+      ? Math.max(object.size - object.range.suffix, 0)
+      : (object.range.offset || 0)
+    const length = 'suffix' in object.range
+      ? Math.min(object.range.suffix, object.size)
+      : (object.range.length || object.size - offset)
+    const headers = createHeaders(object)
+    headers.set('Content-Length', String(length))
+    headers.set('Content-Range', `bytes ${offset}-${offset + length - 1}/${object.size}`)
+    return new Response(object.body, { status: 206, headers })
+  }
+
   const cache = typeof caches === 'undefined'
     ? null
     : (caches as unknown as { default: Cache }).default

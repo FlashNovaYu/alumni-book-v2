@@ -56,6 +56,17 @@ describe('R2 file delivery', () => {
     expect(await response.text()).toBe('')
   })
 
+  it('Range returns the requested byte with partial-content metadata', async () => {
+    const response = await dispatch(new Request(`http://localhost/api/files/${key}`, {
+      headers: { Range: 'bytes=0-0' },
+    }))
+
+    expect(response.status).toBe(206)
+    expect(response.headers.get('Content-Range')).toBe('bytes 0-0/4')
+    expect(response.headers.get('Content-Length')).toBe('1')
+    expect(Array.from(new Uint8Array(await response.arrayBuffer()))).toEqual([1])
+  })
+
   it('returns 404 for a missing object', async () => {
     const response = await dispatch(new Request('http://localhost/api/files/photos/missing.jpg'))
     expect(response.status).toBe(404)
