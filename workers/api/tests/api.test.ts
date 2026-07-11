@@ -337,6 +337,43 @@ describe('Museum Gallery & Timeline API', () => {
 })
 
 describe('Admin Student API & Message Submission', () => {
+  it('POST /api/students — 自动初始化默认密码并要求首次改密', async () => {
+    const token = await loginAsAdminForTest()
+    const createReq = new Request('http://localhost/api/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: '新建账号同学', slug: 'new-account-student' }),
+    })
+    const createCtx = createExecutionContext()
+    const createRes = await worker.fetch(createReq, env, createCtx)
+    await waitOnExecutionContext(createCtx)
+    const createBody = await createRes.json() as any
+
+    expect(createRes.status).toBe(200)
+    expect(createBody.data).not.toHaveProperty('initialPassword')
+
+    const row = await env.DB.prepare(
+      'SELECT account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ?'
+    ).bind('new-account-student').first() as any
+    expect(row.account_password_hash).toMatch(/^pbkdf2:/)
+    expect(row.account_password_hash).not.toContain('123456')
+    expect(row.account_initial_password_changed).toBe(0)
+    expect(row.account_status).toBe('pending')
+
+    const loginReq = new Request('http://localhost/api/classmate-auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: 'new-account-student', password: '123456' }),
+    })
+    const loginCtx = createExecutionContext()
+    const loginRes = await worker.fetch(loginReq, env, loginCtx)
+    await waitOnExecutionContext(loginCtx)
+    const loginBody = await loginRes.json() as any
+
+    expect(loginRes.status).toBe(200)
+    expect(loginBody.data.mustChangePassword).toBe(true)
+  })
+
   it('PUT /api/students/:slug — 管理员更新学生档案与隐私权限', async () => {
     // 1. 登录获取 admin token
     const loginReq = new Request('http://localhost/api/auth/login', {
