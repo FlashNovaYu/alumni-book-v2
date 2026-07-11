@@ -224,6 +224,16 @@ describe('导航与表单无障碍', () => {
     expect(nav).toContain("event.key === 'Escape'")
     expect(nav).toContain("event.key === 'Enter'")
     expect(nav).toContain("event.key === ' '")
+    expect(nav).not.toContain('aria-haspopup="true"')
+    expect(nav).not.toMatch(/role="menu(?:item)?"/)
+    expect(nav).toContain('aria-controls="nav-dropdown-menu"')
+    expect(nav).toContain('role="dialog"')
+    expect(nav).toContain('aria-modal="true"')
+    expect(nav).toContain('aria-labelledby="mobile-drawer-title"')
+    expect(nav).toContain('id="mobile-drawer-title"')
+    expect(nav).toContain('topNavDrawerCleanup')
+    expect(nav).toContain("document.removeEventListener('keydown', onDrawerKeydown)")
+    expect(nav).toContain('if (!focusableElements.length) return;')
     expect(nav).toContain('.nav-dropdown:focus-within .dropdown-menu')
     expect(nav).toContain('.nav-dropdown.is-open .dropdown-menu')
     expect(nav).toMatch(/\.mobile-toggle\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/)
@@ -277,9 +287,19 @@ describe('导航与表单无障碍', () => {
           </div>
         </nav>
         <button id="mobile-menu-trigger">打开菜单</button>
-        <button id="mobile-menu-close">关闭菜单</button>
         <div class="mobile-drawer-overlay"></div>
-        <main id="outside">页面内容</main>
+        <div class="mobile-drawer" role="dialog" aria-modal="true" aria-labelledby="mobile-drawer-title" aria-hidden="true">
+          <div class="drawer-header">
+            <span id="mobile-drawer-title">导航菜单</span>
+            <button id="mobile-menu-close">关闭菜单</button>
+          </div>
+          <div class="drawer-links">
+            <a href="#preface">前言</a>
+            <a href="#roster">同学档案</a>
+            <a href="#mailbox">班级信箱</a>
+          </div>
+        </div>
+        <main id="outside"><button id="outside-control">页面内容</button></main>
         <script>${extractLastScript(nav)}</script>
       `)
 
@@ -307,6 +327,21 @@ describe('导航与表单无障碍', () => {
 
       await page.locator('#nav-dropdown-trigger').press(' ')
       expect(await state()).toBe('true')
+      expect(await menuVisibility()).toBe('visible')
+
+      await page.locator('#mobile-menu-trigger').click()
+      expect(await page.locator('.mobile-drawer').getAttribute('aria-hidden')).toBe('false')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-close')
+
+      await page.locator('#mobile-menu-close').press('Shift+Tab')
+      expect(await page.evaluate(() => document.activeElement?.getAttribute('href'))).toBe('#mailbox')
+
+      await page.locator('.mobile-drawer a[href="#mailbox"]').press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-close')
+
+      await page.locator('#mobile-menu-close').press('Escape')
+      expect(await page.locator('.mobile-drawer').getAttribute('aria-hidden')).toBe('true')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-trigger')
     } finally {
       await browser.close()
     }

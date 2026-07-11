@@ -33,7 +33,7 @@ const isHome = currentPath === base || currentPath === href('/')
       
       <!-- 更多功能下拉菜单 -->
       <div class="nav-dropdown">
-        <button id="nav-dropdown-trigger" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="nav-dropdown-menu">
+        <button id="nav-dropdown-trigger" class="nav-dropdown-trigger" aria-expanded="false" aria-controls="nav-dropdown-menu">
           <span class="link-text">更多功能</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdown-chevron"><path d="m6 9 6 6 6-6"/></svg>
         </button>
@@ -60,8 +60,9 @@ const isHome = currentPath === base || currentPath === href('/')
 
 <!-- 移动端侧滑抽屉结构 -->
 <div class="mobile-drawer-overlay"></div>
-<div class="mobile-drawer">
+<div class="mobile-drawer" role="dialog" aria-modal="true" aria-labelledby="mobile-drawer-title" aria-hidden="true">
   <div class="drawer-header">
+    <h2 id="mobile-drawer-title" class="drawer-title">导航菜单</h2>
     <a href={href('/')} class="nav-brand">
       <span class="brand-mark"><IconBrand size={20} /></span>
       <span class="brand-text">同学录</span>
@@ -481,6 +482,17 @@ const isHome = currentPath === base || currentPath === href('/')
     padding: 16px 20px;
     border-bottom: 1px solid var(--color-paper-border);
   }
+  .drawer-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
   .drawer-close {
     width: 44px;
     height: 44px;
@@ -577,28 +589,62 @@ const isHome = currentPath === base || currentPath === href('/')
     const trigger = document.getElementById('mobile-menu-trigger');
     const closeBtn = document.getElementById('mobile-menu-close');
     const overlay = document.querySelector('.mobile-drawer-overlay');
+    const drawer = document.querySelector('.mobile-drawer');
+    if (!trigger || !drawer) return;
+
+    const getFocusableElements = () => Array.from(drawer.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(element => element.getClientRects().length > 0);
     
     function openDrawer() {
       document.documentElement.classList.add('nav-open');
+      drawer.setAttribute('aria-hidden', 'false');
+      closeBtn?.focus();
     }
     function closeDrawer() {
+      const wasOpen = document.documentElement.classList.contains('nav-open');
       document.documentElement.classList.remove('nav-open');
+      drawer.setAttribute('aria-hidden', 'true');
+      if (wasOpen) trigger.focus();
+    }
+    function onDrawerKeydown(event) {
+      if (!document.documentElement.classList.contains('nav-open')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDrawer();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusableElements = getFocusableElements();
+      if (!focusableElements.length) return;
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     
-    if (trigger) trigger.addEventListener('click', openDrawer);
+    trigger.addEventListener('click', openDrawer);
     if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
     if (overlay) overlay.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', onDrawerKeydown);
     
     // 每次开始路由转换前均强制关闭抽屉并清除滚动锁定，防止切页后页面锁定
     document.addEventListener('astro:before-preparation', closeDrawer);
     topNavDrawerCleanup = () => {
-      if (trigger) trigger.removeEventListener('click', openDrawer);
+      trigger.removeEventListener('click', openDrawer);
       if (closeBtn) closeBtn.removeEventListener('click', closeDrawer);
       if (overlay) overlay.removeEventListener('click', closeDrawer);
+      document.removeEventListener('keydown', onDrawerKeydown);
       document.removeEventListener('astro:before-preparation', closeDrawer);
     };
   }
-
   function initDropdown() {
     if (topNavDropdownCleanup) topNavDropdownCleanup();
     const dropdown = document.querySelector('.nav-dropdown');

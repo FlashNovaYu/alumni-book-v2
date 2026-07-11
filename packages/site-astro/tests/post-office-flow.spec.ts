@@ -117,6 +117,7 @@ test('top navigation dropdown supports keyboard controls and expanded state', as
 
   await page.keyboard.press('Space')
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.locator('#nav-dropdown-menu')).toBeVisible()
   await page.locator('main').click({ position: { x: 1, y: 1 } })
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 })
