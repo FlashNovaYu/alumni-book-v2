@@ -4,6 +4,7 @@
 import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createClassmateSession, deleteClassmateSession, verifyClassmateSession } from '../lib/classmateSession'
+import { loadActiveAdmin } from '../lib/adminAuth'
 
 type Bindings = {
   DB: D1Database
@@ -59,6 +60,19 @@ classmateAuthRoutes.get('/me', async (c) => {
       mustChangePassword: !row.account_initial_password_changed,
     },
   })
+})
+
+classmateAuthRoutes.get('/admin-entry', async (c) => {
+  const slug = await verifyClassmateSession(c.env.DB, c.req.header('X-Classmate-Token'))
+  if (!slug) return c.json({ success: false, message: '登录已失效' }, 401)
+  const account = await c.env.DB.prepare(
+    `SELECT id FROM admin_accounts
+     WHERE account_type = 'classmate_linked' AND student_slug = ? AND status = 'active' AND is_owner = 0`
+  ).bind(slug).first<{ id: string }>()
+  if (!account) return c.json({ success: true, data: { available: false } })
+  const admin = await loadActiveAdmin(c.env.DB, account.id)
+  if (!admin) return c.json({ success: true, data: { available: false } })
+  return c.json({ success: true, data: { available: true, displayName: admin.displayName, permissions: admin.permissions } })
 })
 
 classmateAuthRoutes.post('/change-password', async (c) => {

@@ -227,4 +227,15 @@ describe('Administrator RBAC schema', () => {
     ).first() as any
     expect(created).toMatchObject({ role_id: 'moderator', must_change_password: 1 })
   })
+
+  it('exposes a minimal management entry only to active linked classmates', async () => {
+    await env.DB.prepare("UPDATE admin_accounts SET status = 'active', display_name = '入口测试员' WHERE id = 'adm_linked_test'").run()
+    const response = await worker.fetch(new Request('http://localhost/api/classmate-auth/admin-entry', {
+      headers: { 'X-Classmate-Token': 'classmate-exchange-token' },
+    }), env, createExecutionContext())
+    expect(response.status).toBe(200)
+    const body = await response.json() as any
+    expect(body.data).toMatchObject({ available: true, displayName: '入口测试员' })
+    expect(body.data.token).toBeUndefined()
+  })
 })
