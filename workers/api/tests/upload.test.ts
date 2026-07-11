@@ -1,6 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import worker from '../src/index'
+import { uploadRoutes } from '../src/routes/upload'
 import { initTestDb } from './db-helper'
 
 beforeAll(async () => {
@@ -16,6 +17,17 @@ beforeAll(async () => {
 })
 
 describe('Classmate Self-Service Upload', () => {
+  function createMiscImageUploadRequest() {
+    const formData = new FormData()
+    formData.append('file', new File([new Uint8Array([1, 2, 3])], 'same-image.png', { type: 'image/png' }))
+    formData.append('type', 'misc')
+
+    return new Request('http://localhost/upload', {
+      method: 'POST',
+      body: formData,
+    })
+  }
+
   async function getTokens() {
     const tReqZs = new Request('http://localhost/api/classmate/token', {
       method: 'POST',
@@ -109,6 +121,26 @@ describe('Classmate Self-Service Upload', () => {
     expect(body.success).toBe(true)
     expect(body.data.url).toContain('/api/files/avatars/zhangsan_')
     expect(body.data.r2Key).toContain('avatars/zhangsan_')
+  })
+
+  it('generates distinct misc image keys when uploads share the same millisecond', async () => {
+    const fixedNow = 1_700_000_000_000
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
+
+    try {
+      const [firstRes, secondRes] = await Promise.all([
+        uploadRoutes.fetch(createMiscImageUploadRequest(), env),
+        uploadRoutes.fetch(createMiscImageUploadRequest(), env),
+      ])
+      const first = await firstRes.json() as any
+      const second = await secondRes.json() as any
+
+      expect(first.data.r2Key).toContain(`misc/${fixedNow}_same-image.png_`)
+      expect(second.data.r2Key).toContain(`misc/${fixedNow}_same-image.png_`)
+      expect(first.data.r2Key).not.toBe(second.data.r2Key)
+    } finally {
+      dateNow.mockRestore()
+    }
   })
 
   it('rejects upload for other classmate (cross-user violation)', async () => {

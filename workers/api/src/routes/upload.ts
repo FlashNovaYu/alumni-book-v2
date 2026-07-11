@@ -86,7 +86,7 @@ uploadRoutes.post('/upload', async (c) => {
   } else if (type === 'background' && slug) {
     r2Key = `backgrounds/${slug}_${timestamp}.${ext}`
   } else {
-    r2Key = `misc/${timestamp}_${file.name}`
+    r2Key = `misc/${timestamp}_${file.name}_${crypto.randomUUID()}`
   }
 
   // 3. 上传新文件

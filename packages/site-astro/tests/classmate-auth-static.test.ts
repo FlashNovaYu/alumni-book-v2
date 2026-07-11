@@ -33,4 +33,23 @@ describe('classmate account login frontend', () => {
       expect(source).not.toContain("sessionStorage.removeItem('classmate_name'")
     }
   })
+
+  it('gives student creation and profile inputs Chinese accessible names', () => {
+    const studentsPath = path.resolve(__dirname, '../../admin/src/views/StudentsView.vue')
+    const selfEditPath = path.resolve(__dirname, '../src/components/SelfEditPanel.vue')
+    const messageWallPath = path.resolve(__dirname, '../src/components/MessageWall.vue')
+
+    const students = fs.readFileSync(studentsPath, 'utf-8')
+    const selfEdit = fs.readFileSync(selfEditPath, 'utf-8')
+    const messageWall = fs.readFileSync(messageWallPath, 'utf-8')
+
+    expect(students).toContain('aria-label="新建学生姓名"')
+    expect(students).toContain('aria-label="新建学生链接标识"')
+    expect(selfEdit).toContain('aria-label="昵称"')
+    expect(selfEdit).toContain('aria-label="毕业年份"')
+    expect(selfEdit).toContain('aria-label="MBTI 类型"')
+    expect(selfEdit).toContain(':aria-label="f.label"')
+    expect(selfEdit).toContain('第 ${idx + 1} 个小传标题')
+    expect(messageWall).toContain('aria-label="留言内容"')
+  })
 })
