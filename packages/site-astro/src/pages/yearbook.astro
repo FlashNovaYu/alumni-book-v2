@@ -450,10 +450,17 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     overflow-wrap: anywhere;
     word-break: break-word;
   }
+  .msg-card-time {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
   .msg-card-text {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 8;
+    line-clamp: 8;
+    max-height: 12em;
     overflow: hidden;
     font-size: 13px;
     line-height: 1.5;

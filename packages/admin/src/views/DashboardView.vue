@@ -50,11 +50,11 @@
           <li v-if="stats.auditAlerts?.some(a => a.type === 'missingGroupName')" class="audit-item" style="color: var(--color-warning, #e65100); font-weight: 500;">
             ⚠️ 班级图谱缺少小组信息，请在学生档案中补全 groupName。
           </li>
-          <li v-for="(alert, idx) in stats.auditAlerts.slice(0, 12)" :key="idx" class="audit-item">
+          <li v-for="(alert, idx) in stats.auditAlerts.slice(0, MAX_AUDIT_ALERTS)" :key="idx" class="audit-item">
             <span>{{ typeof alert === 'string' ? alert : alert.message }}</span>
           </li>
-          <li v-if="stats.auditAlerts.length > 12" class="audit-item audit-item-more">
-            其余 {{ stats.auditAlerts.length - 12 }} 项问题未展开显示。
+          <li v-if="stats.auditAlerts.length > MAX_AUDIT_ALERTS" class="audit-item audit-item-more">
+            其余 {{ stats.auditAlerts.length - MAX_AUDIT_ALERTS }} 项问题未展开显示。
           </li>
         </ul>
         <p v-else class="text-success">目前没有发现任何内容缺失问题！</p>
@@ -150,6 +150,8 @@
 import { ref, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
 import type { ApiResponse } from '@alumni/shared'
+
+const MAX_AUDIT_ALERTS = 12
 
 const stats = ref({
   studentCount: 0,

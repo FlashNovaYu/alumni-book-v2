@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { chromium } from '@playwright/test'
 import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 
 const src = resolve(__dirname, '../src')
 const read = (relativePath: string) => readFileSync(resolve(src, relativePath), 'utf-8')
+const extractStyles = (source: string) => source.match(/<style>([\s\S]*)<\/style>/)?.[1] || ''
 
 describe('同学会话失效约束', () => {
   it('为班级空间携带同学令牌并通过统一处理器处理 401', () => {
@@ -74,7 +76,7 @@ describe('长内容与年度册入口可靠性', () => {
   it('将时间轴说明稳定限制为六行', () => {
     const timeline = read('pages/timeline.astro')
 
-    expect(timeline).toMatch(/\.tl-desc\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*6;[^}]*overflow:\s*hidden;/)
+    expect(timeline).toMatch(/\.tl-desc\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*6;[^}]*line-clamp:\s*6;[^}]*max-height:\s*9\.6em;[^}]*overflow:\s*hidden;/)
   })
 
   it('仅将年度册留言正文稳定限制为八行', () => {
@@ -84,10 +86,14 @@ describe('长内容与年度册入口可靠性', () => {
     expect(messageTemplate).toContain('msg-card-author')
     expect(messageTemplate).toContain('msg-card-time')
     expect(messageTemplate).toContain('<p class="msg-card-text mt-2">{msg.content}</p>')
-    expect(yearbook).toMatch(/\.msg-card-text\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*8;[^}]*overflow:\s*hidden;/)
+    expect(yearbook).toMatch(/\.msg-card-text\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*8;[^}]*line-clamp:\s*8;[^}]*max-height:\s*12em;[^}]*overflow:\s*hidden;/)
     expect(yearbook.match(/-webkit-line-clamp:\s*8;/g)).toHaveLength(1)
 
-    const readRule = (selector: string) => yearbook.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`))?.[1] || ''
+    const readRule = (selector: string) => {
+      const rule = yearbook.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`))?.[1] || ''
+      expect(rule, `${selector} 应定义 CSS 规则`).not.toBe('')
+      return rule
+    }
     const protectedMetaRules = [
       readRule('msg-card-meta'),
       readRule('msg-card-author'),
@@ -111,9 +117,10 @@ describe('长内容与年度册入口可靠性', () => {
 
     expect(dashboard).toContain("stats.auditAlerts?.some(a => a.type === 'missingSeatNo')")
     expect(dashboard).toContain("stats.auditAlerts?.some(a => a.type === 'missingGroupName')")
-    expect(dashboard).toContain('v-for="(alert, idx) in stats.auditAlerts.slice(0, 12)"')
-    expect(dashboard).toContain('v-if="stats.auditAlerts.length > 12"')
-    expect(dashboard).toContain('{{ stats.auditAlerts.length - 12 }}')
+    expect(dashboard).toContain('const MAX_AUDIT_ALERTS = 12')
+    expect(dashboard).toContain('v-for="(alert, idx) in stats.auditAlerts.slice(0, MAX_AUDIT_ALERTS)"')
+    expect(dashboard).toContain('v-if="stats.auditAlerts.length > MAX_AUDIT_ALERTS"')
+    expect(dashboard).toContain('{{ stats.auditAlerts.length - MAX_AUDIT_ALERTS }}')
   })
 
   it('将控制台设置快捷入口指向已注册的设置路由', () => {
@@ -121,5 +128,84 @@ describe('长内容与年度册入口可靠性', () => {
 
     expect(dashboard).toContain('<router-link to="/settings" class="btn-action">前言寄语与致谢设置</router-link>')
     expect(dashboard).not.toContain('<router-link to="/config"')
+  })
+})
+
+describe('长内容浏览器布局可靠性', () => {
+  it('使用生产样式限制超长正文，并让打印按钮位于固定导航之下', async () => {
+    const timelineStyles = extractStyles(read('pages/timeline.astro'))
+    const yearbookStyles = extractStyles(read('pages/yearbook.astro'))
+    const tokens = readFileSync(resolve(src, '../../shared/src/tokens.css'), 'utf-8')
+    const browser = await chromium.launch({ headless: true })
+
+    try {
+      const page = await browser.newPage({ viewport: { width: 1024, height: 768 } })
+      const longText = '超长内容 '.repeat(500)
+      await page.setContent(`
+        <style>
+          ${tokens}
+          ${timelineStyles}
+          ${yearbookStyles}
+          html, body { margin: 0; }
+          .fixture { width: 320px; }
+          .fixture .tl-desc, .fixture .msg-card-text { margin: 0; }
+          .fixture .yearbook-msg-card { padding: 0; }
+          .fixture-nav { position: fixed; inset: 0 0 auto; height: var(--nav-height); }
+        </style>
+        <nav class="fixture-nav"></nav>
+        <div class="yearbook-page">
+          <button class="print-btn">打印</button>
+        </div>
+        <div class="fixture">
+          <div class="tl-card"><p class="tl-desc">${longText}</p></div>
+          <div class="yearbook-msg-card">
+            <div class="msg-card-meta"><span class="msg-card-author">作者</span><span class="msg-card-time">日期</span></div>
+            <p class="msg-card-text">${longText}</p>
+          </div>
+        </div>
+      `)
+
+      const metrics = await page.evaluate(() => {
+        const measureText = (selector: string, lines: number) => {
+          const element = document.querySelector<HTMLElement>(selector)!
+          const style = getComputedStyle(element)
+          const lineHeight = Number.parseFloat(style.lineHeight)
+          const maxHeight = Number.parseFloat(style.maxHeight)
+          return { height: element.getBoundingClientRect().height, lineHeight, maxHeight, expected: lineHeight * lines }
+        }
+        const timelineCard = document.querySelector<HTMLElement>('.tl-card')!
+        const timelineCardStyle = getComputedStyle(timelineCard)
+        const timelineExtraHeight =
+          Number.parseFloat(timelineCardStyle.paddingTop) +
+          Number.parseFloat(timelineCardStyle.paddingBottom) +
+          Number.parseFloat(timelineCardStyle.borderTopWidth) +
+          Number.parseFloat(timelineCardStyle.borderBottomWidth)
+        const meta = document.querySelector<HTMLElement>('.msg-card-meta')!
+        const messageCard = document.querySelector<HTMLElement>('.yearbook-msg-card')!
+        const nav = document.querySelector<HTMLElement>('.fixture-nav')!
+        const printButton = document.querySelector<HTMLElement>('.print-btn')!
+
+        return {
+          timeline: measureText('.tl-desc', 6),
+          yearbook: measureText('.msg-card-text', 8),
+          timelineCardHeight: timelineCard.getBoundingClientRect().height,
+          timelineCardLimit: timelineExtraHeight,
+          yearbookCardHeight: messageCard.getBoundingClientRect().height,
+          yearbookMetaHeight: meta.getBoundingClientRect().height,
+          navBottom: nav.getBoundingClientRect().bottom,
+          printButtonTop: printButton.getBoundingClientRect().top,
+        }
+      })
+
+      expect(metrics.timeline.maxHeight).toBeCloseTo(metrics.timeline.expected, 1)
+      expect(metrics.timeline.height).toBeLessThanOrEqual(metrics.timeline.maxHeight + 1)
+      expect(metrics.timelineCardHeight).toBeLessThanOrEqual(metrics.timeline.maxHeight + metrics.timelineCardLimit + 1)
+      expect(metrics.yearbook.maxHeight).toBeCloseTo(metrics.yearbook.expected, 1)
+      expect(metrics.yearbook.height).toBeLessThanOrEqual(metrics.yearbook.maxHeight + 1)
+      expect(metrics.yearbookCardHeight).toBeLessThanOrEqual(metrics.yearbookMetaHeight + metrics.yearbook.maxHeight + 1)
+      expect(metrics.printButtonTop).toBeGreaterThanOrEqual(metrics.navBottom)
+    } finally {
+      await browser.close()
+    }
   })
 })
