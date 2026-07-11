@@ -27,6 +27,8 @@ C:\Users\Administrator\Projects\
 5. 分离头指针的评审工作树仍保留原提交和工作树登记。
 6. 旧版 V10 只归档，不删除；独立 Rust 项目移出 V2 项目族目录。
 
+执行期间检测到 `codex/ui-audit-fixes` 从原先与 `main` 相同的提交继续产生了独立提交，因此按第 4 条规则将其视为活跃工作树保留，不执行原定清理。
+
 ## 备份
 
 备份写入 `C:\Users\Administrator\Documents\ProjectArchives\alumnibook-cleanup-2026-07-12`。每个待清理工作树保存：

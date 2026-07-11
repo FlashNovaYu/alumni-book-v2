@@ -35,7 +35,7 @@
 **Files:**
 - Remove: `C:\Users\Administrator\.gemini\antigravity\brain\760be07f-5e85-4ff3-b35c-1a68572ee5ee\.system_generated\worktrees` 下所有 HEAD 已包含于 `main` 的评审工作树
 - Remove: `C:\Users\Administrator\.gemini\antigravity\brain\eda9e6fb-d2fd-42a3-8464-744f3a24b598\.system_generated\worktrees` 下所有 HEAD 已包含于 `main` 的实现工作树
-- Remove: `C:\Users\Administrator\Projects\alumnibook\alumni-book-v2\.worktrees\ui-audit-fixes`
+- Retain: `C:\Users\Administrator\Projects\alumnibook\alumni-book-v2\.worktrees\ui-audit-fixes`（执行期间检测到独立新提交，按活跃工作树处理）
 
 - [ ] **Step 1: 再次验证可移除条件**
 
