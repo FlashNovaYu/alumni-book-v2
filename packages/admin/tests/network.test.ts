@@ -68,7 +68,6 @@ test('POST 网络异常不会自动重试', async () => {
 
   assert.equal(attempts, 1)
 })
-
 test('后端错误保留状态码和 message', async () => {
   await assert.rejects(
     requestJson('/api/auth/login', { method: 'POST' }, {
@@ -109,4 +108,3 @@ test('请求超过时限时中止并返回超时错误', async () => {
 
   assert.equal(attempts, 1)
 })
-

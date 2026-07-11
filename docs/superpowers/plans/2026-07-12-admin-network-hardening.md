@@ -148,4 +148,3 @@ Expected: 返回非生产预览 URL；首页、后台资源和 `/api/health` 均
 - [ ] **Step 6: 记录验证结果并提交**
 
 将命令结果、预览 URL、提交 SHA 与生产未变更声明写入 `docs/phase-admin-network-hardening-acceptance-report.md`，然后提交。
-
