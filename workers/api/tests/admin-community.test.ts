@@ -24,10 +24,10 @@ function adminHeaders(token: string) {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 }
 
-async function seedMessage(id: string, slug = AUTHOR_SLUG) {
+async function seedMessage(id: string, slug = AUTHOR_SLUG, clientNonce = `group:${id}`) {
   await env.DB.prepare(
-    "INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, '待治理正文', 'visible', datetime('now'), datetime('now'))"
-  ).bind(id, slug, slug === AUTHOR_SLUG ? '治理作者' : '治理同学').run()
+    "INSERT INTO public_messages (id, author_slug, author_name, content, status, client_nonce, created_at, updated_at) VALUES (?, ?, ?, '待治理正文', 'visible', ?, datetime('now'), datetime('now'))"
+  ).bind(id, slug, slug === AUTHOR_SLUG ? '治理作者' : '治理同学', clientNonce).run()
 }
 
 async function notificationCount(type: string, relatedId: string) {
@@ -79,6 +79,24 @@ describe('Admin group chat moderation API', () => {
     const listed = await request('/api/admin/group-chat/messages?status=hidden', { headers: adminHeaders(token) })
     const payload = await listed.json() as any
     expect(payload.data).toEqual([expect.objectContaining({ id: 'admin-community-hidden', status: 'hidden', author: expect.objectContaining({ slug: AUTHOR_SLUG }) })])
+  })
+
+  it('separates realtime group chat from historical public submissions', async () => {
+    const token = await login()
+    await seedMessage('admin-community-realtime')
+    await env.DB.prepare(
+      "INSERT INTO public_messages (id, author_slug, author_name, content, status, client_nonce, created_at, updated_at) VALUES (?, ?, ?, '历史投稿', 'visible', NULL, datetime('now'), datetime('now'))"
+    ).bind('admin-community-history', AUTHOR_SLUG, '治理作者').run()
+
+    const group = await request('/api/admin/group-chat/messages', { headers: adminHeaders(token) })
+    const history = await request('/api/admin/public-messages', { headers: adminHeaders(token) })
+    const groupItems = ((await group.json()) as any).data
+    const historyItems = ((await history.json()) as any).data
+
+    expect(groupItems.map((item: any) => item.id)).toContain('admin-community-realtime')
+    expect(groupItems.map((item: any) => item.id)).not.toContain('admin-community-history')
+    expect(historyItems.map((item: any) => item.id)).toContain('admin-community-history')
+    expect(historyItems.map((item: any) => item.id)).not.toContain('admin-community-realtime')
   })
 
   it('hides and restores a message idempotently with one notification per state transition', async () => {

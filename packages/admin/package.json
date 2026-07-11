@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite --port 3001",
     "build": "vue-tsc --noEmit && vite build",
+    "test": "node tests/community-static.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
   },

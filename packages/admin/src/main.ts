@@ -26,7 +26,7 @@ const router = createRouter({
         { path: 'messages', name: 'messages', component: () => import('./views/MessagesView.vue') },
         { path: 'timeline', name: 'timeline', component: () => import('./views/TimelineEventsView.vue') },
         { path: 'settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
-        { path: 'mail', name: 'mail', component: () => import('./views/MailView.vue') },
+        { path: 'mail', name: 'notifications', component: () => import('./views/MailView.vue') },
       ],
     },
   ],

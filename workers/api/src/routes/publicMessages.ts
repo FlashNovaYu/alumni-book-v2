@@ -145,7 +145,7 @@ publicMessagesRoutes.put('/public-messages/:id/react', async (c) => {
 publicMessagesRoutes.get('/admin/public-messages', async (c) => {
   const status = c.req.query('status')
   const binds: string[] = []
-  let sql = 'SELECT * FROM public_messages WHERE 1=1'
+  let sql = "SELECT * FROM public_messages WHERE (client_nonce IS NULL OR client_nonce LIKE 'legacy:%')"
   if (status) {
     const databaseStatus = status === 'approved' ? 'visible' : status
     sql += ' AND status = ?'

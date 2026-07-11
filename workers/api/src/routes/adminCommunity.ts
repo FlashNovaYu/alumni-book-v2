@@ -116,9 +116,10 @@ adminCommunityRoutes.get('/admin/group-chat/messages', async (c) => {
   const status = c.req.query('status')
   const valid = new Set(['visible', 'hidden', 'recalled_by_author', 'recalled_by_admin'])
   if (status && !valid.has(status)) return c.json({ success: false, message: '状态无效' }, 400)
+  const groupChatOnly = "client_nonce IS NOT NULL AND client_nonce NOT LIKE 'legacy:%'"
   const query = status
-    ? c.env.DB.prepare('SELECT * FROM public_messages WHERE status = ? ORDER BY updated_at DESC, id DESC LIMIT 100').bind(status)
-    : c.env.DB.prepare('SELECT * FROM public_messages ORDER BY updated_at DESC, id DESC LIMIT 100')
+    ? c.env.DB.prepare(`SELECT * FROM public_messages WHERE ${groupChatOnly} AND status = ? ORDER BY updated_at DESC, id DESC LIMIT 100`).bind(status)
+    : c.env.DB.prepare(`SELECT * FROM public_messages WHERE ${groupChatOnly} ORDER BY updated_at DESC, id DESC LIMIT 100`)
   const { results } = await query.all()
   return c.json({ success: true, data: (results || []).map(messageData) })
 })
