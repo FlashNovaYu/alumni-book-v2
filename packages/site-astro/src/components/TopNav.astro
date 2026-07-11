@@ -6,7 +6,7 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 const isHome = currentPath === base || currentPath === href('/')
 ---
-<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`}>
+<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`} data-api-base={CLIENT_API_BASE}>
   <div class="nav-inner container">
     <a href={href('/')} class="nav-brand">
       <span class="brand-mark"><IconBrand size={20} /></span>
@@ -89,7 +89,9 @@ const isHome = currentPath === base || currentPath === href('/')
 </div>
 
 <!-- 原生极速同步会话与未读数脚本 -->
-<script is:inline define:vars={{ CLIENT_API_BASE }}>
+<script>
+  import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../api/classmateSession'
+
   function syncNavSession() {
     try {
       const studentStr = sessionStorage.getItem('classmate_account_student');
@@ -119,9 +121,14 @@ const isHome = currentPath === base || currentPath === href('/')
         stamps.forEach(stamp => { stamp.hidden = true; });
         return;
       }
-      const res = await fetch(CLIENT_API_BASE + '/api/inbox/summary', {
+      const apiBase = document.querySelector('.top-nav')?.dataset.apiBase || '';
+      const res = await fetch(apiBase + '/api/inbox/summary', {
         headers: { 'X-Classmate-Token': token }
       });
+      if (res.status === 401) {
+        alert(SESSION_EXPIRED_MESSAGE);
+        handleClassmateUnauthorized();
+      }
       if (!res.ok) return;
       const data = await res.json();
       const count = data && data.data ? Number(data.data.totalUnread || 0) : 0;
@@ -129,7 +136,9 @@ const isHome = currentPath === base || currentPath === href('/')
         stamp.hidden = count <= 0;
         stamp.textContent = count > 99 ? '99+' : String(count);
       });
-    } catch (e) {}
+    } catch (error) {
+      if (error instanceof Error && error.message === SESSION_EXPIRED_MESSAGE) return;
+    }
   }
   
   // 1. 首帧执行以避免闪烁

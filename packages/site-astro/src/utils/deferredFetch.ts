@@ -1,3 +1,5 @@
+import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../api/classmateSession'
+
 export function runWhenIdle(task: () => void, timeout = 2500) {
   if (typeof window === 'undefined') return
   if ('requestIdleCallback' in window) {
@@ -38,6 +40,7 @@ export function isDeepEqual(obj1: any, obj2: any): boolean {
 export async function fetchJsonIfChanged(url: string, etagKey: string, customHeaders: Record<string, string> = {}) {
   if (typeof window === 'undefined') {
     const res = await fetch(url, { headers: customHeaders })
+    if (res.status === 401 && customHeaders['X-Classmate-Token']) handleClassmateUnauthorized()
     return { changed: true, data: await res.json() }
   }
 
@@ -51,6 +54,7 @@ export async function fetchJsonIfChanged(url: string, etagKey: string, customHea
 
   try {
     const res = await fetch(url, { headers, cache: 'no-cache' })
+    if (res.status === 401 && headers['X-Classmate-Token']) handleClassmateUnauthorized()
     if (res.status === 304 && cachedData) {
       return { changed: false, data: JSON.parse(cachedData) }
     }
@@ -65,6 +69,7 @@ export async function fetchJsonIfChanged(url: string, etagKey: string, customHea
 
     return { changed: true, data }
   } catch (e) {
+    if (e instanceof Error && e.message === SESSION_EXPIRED_MESSAGE) throw e
     if (cachedData) {
       return { changed: false, data: JSON.parse(cachedData) }
     }

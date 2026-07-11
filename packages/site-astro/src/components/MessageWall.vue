@@ -90,6 +90,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { getSessionName, getClassmateToken, getClassmateStudent } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../api/classmateSession'
 
 interface Message {
   id: string; authorName: string; content: string; createdAt: string
@@ -212,6 +213,7 @@ async function submitReply(msgId: string) {
       },
       body: JSON.stringify({ reply: text }),
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       const msg = messages.value.find(m => m.id === msgId)
@@ -220,13 +222,14 @@ async function submitReply(msgId: string) {
         msg.replyAt = new Date().toISOString()
       }
       delete replyTexts.value[msgId]
-    } else if (res.status === 401) {
-      sessionStorage.removeItem(`classmate_token_${props.studentSlug}`)
-      alert('身份校验已过期，请重新尝试回复')
     } else {
       alert(data.message || '回复失败')
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === SESSION_EXPIRED_MESSAGE) {
+      alert(SESSION_EXPIRED_MESSAGE)
+      return
+    }
     alert('网络错误，请稍后重试')
   }
 }

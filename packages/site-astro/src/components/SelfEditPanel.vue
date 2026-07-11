@@ -204,6 +204,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../api/classmateSession'
 
 const props = defineProps<{
   studentSlug: string
@@ -343,6 +344,7 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
       headers: authHeaders(),
       body: fd,
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       if (type === 'avatar') form.avatarUrl = data.data.url
@@ -351,7 +353,11 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
     } else {
       saveMsg.value = { type: 'error', text: data.message || '上传失败' }
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === SESSION_EXPIRED_MESSAGE) {
+      saveMsg.value = { type: 'error', text: SESSION_EXPIRED_MESSAGE }
+      return
+    }
     saveMsg.value = { type: 'error', text: '上传失败' }
   } finally {
     uploading.value = false
@@ -381,6 +387,7 @@ async function save() {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       saveMsg.value = { type: 'success', text: '保存成功' }
@@ -390,18 +397,14 @@ async function save() {
         needSetup.value = false
       }
       setTimeout(() => closeEditor(), 1500)
-    } else if (res.status === 401) {
-      token.value = ''
-      sessionStorage.removeItem(`classmate_token_${props.studentSlug}`)
-      if (await ensureToken()) {
-        saving.value = false
-        return save()
-      }
-      saveMsg.value = { type: 'error', text: '身份验证失败，请关闭后重新打开编辑' }
     } else {
       saveMsg.value = { type: 'error', text: data.message || '保存失败' }
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === SESSION_EXPIRED_MESSAGE) {
+      saveMsg.value = { type: 'error', text: SESSION_EXPIRED_MESSAGE }
+      return
+    }
     saveMsg.value = { type: 'error', text: '网络错误' }
   } finally {
     saving.value = false
