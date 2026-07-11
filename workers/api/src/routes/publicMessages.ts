@@ -24,6 +24,21 @@ function legacyPublicStatus(status: string) {
   return status
 }
 
+function bytesToHex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function legacyClientNonce(identity: GroupChatCreatorIdentity, body: any) {
+  const supplied = typeof body?.clientNonce === 'string' ? body.clientNonce.trim() : ''
+  if (supplied) return supplied
+
+  // Older clients have no nonce. A short time window makes a lost-response retry idempotent.
+  const window = Math.floor(Date.now() / 30_000)
+  const fingerprint = [identity.slug, window, body?.content || '', body?.cardStyle || ''].join('\u0000')
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fingerprint))
+  return `legacy:${window}:${bytesToHex(new Uint8Array(digest).slice(0, 12))}`
+}
+
 function formatPublicMessage(row: any) {
   return {
     id: row.id,
@@ -74,11 +89,12 @@ publicMessagesRoutes.post('/public-messages', async (c) => {
   if (isClassmateResponse(identity)) return identity
 
   const body = await c.req.json().catch(() => ({}))
+  const creator = identity as GroupChatCreatorIdentity
 
-  const result = await createGroupChatMessage(c.env.DB, identity as GroupChatCreatorIdentity, {
+  const result = await createGroupChatMessage(c.env.DB, creator, {
     content: body?.content,
     cardStyle: body?.cardStyle,
-    clientNonce: `legacy:${crypto.randomUUID()}`,
+    clientNonce: await legacyClientNonce(creator, body),
   })
 
   if (!result.ok) {

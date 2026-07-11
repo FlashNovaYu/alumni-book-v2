@@ -153,6 +153,29 @@ describe('Legacy public-messages compatibility', () => {
     expect(mutedRes.status).toBe(403)
   })
 
+  it('deduplicates legacy public message retries without a client nonce', async () => {
+    const tokenA = await loginClassmate(A.slug)
+    const payload = { content: '网络重试不应重复发布', cardStyle: 'paper' }
+
+    const first = await request('/api/public-messages', {
+      method: 'POST',
+      headers: classmateHeaders(tokenA),
+      body: JSON.stringify(payload),
+    })
+    const second = await request('/api/public-messages', {
+      method: 'POST',
+      headers: classmateHeaders(tokenA),
+      body: JSON.stringify(payload),
+    })
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect((await first.json() as any).data.id).toBe((await second.json() as any).data.id)
+    await expect(env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM public_messages WHERE author_slug = ? AND content = ?'
+    ).bind(A.slug, payload.content).first()).resolves.toMatchObject({ count: 1 })
+  })
+
   it('keeps the new group-chat endpoint behavior unchanged after service extraction', async () => {
     const tokenB = await loginClassmate(B.slug)
     const nonce = 'legacy-compat-dedup-nonce'
