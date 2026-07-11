@@ -74,20 +74,24 @@ describe('长内容与年度册入口可靠性', () => {
   it('将时间轴说明稳定限制为六行', () => {
     const timeline = read('pages/timeline.astro')
 
-    expect(timeline).toMatch(/\.tl-desc\s*\{[\s\S]*?display:\s*-webkit-box;[\s\S]*?-webkit-box-orient:\s*vertical;[\s\S]*?-webkit-line-clamp:\s*6;[\s\S]*?overflow:\s*hidden;/)
+    expect(timeline).toMatch(/\.tl-desc\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*6;[^}]*overflow:\s*hidden;/)
   })
 
   it('仅将年度册留言正文稳定限制为八行', () => {
     const yearbook = read('pages/yearbook.astro')
 
     expect(yearbook).toMatch(/<div class="msg-card-meta">[\s\S]*?msg-card-author[\s\S]*?msg-card-time[\s\S]*?<\/div>\s*<p class="msg-card-text mt-2">\{msg\.content\}<\/p>/)
-    expect(yearbook).toMatch(/\.msg-card-text\s*\{[\s\S]*?display:\s*-webkit-box;[\s\S]*?-webkit-box-orient:\s*vertical;[\s\S]*?-webkit-line-clamp:\s*8;[\s\S]*?overflow:\s*hidden;/)
+    expect(yearbook).toMatch(/\.msg-card-text\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*8;[^}]*overflow:\s*hidden;/)
+
+    const metaRule = yearbook.match(/\.msg-card-meta\s*\{([^}]*)\}/)?.[1] || ''
+    expect(metaRule).not.toContain('-webkit-line-clamp')
+    expect(metaRule).not.toContain('overflow: hidden')
   })
 
   it('为固定导航下的年度册打印入口预留额外间距', () => {
     const yearbook = read('pages/yearbook.astro')
 
-    expect(yearbook).toMatch(/\.yearbook-page\s*\{[\s\S]*?padding-top:\s*calc\(var\(--nav-height\) \+ var\(--spacing-xl\)\);/)
+    expect(yearbook).toMatch(/\.yearbook-page\s*\{[^}]*padding-top:\s*calc\(var\(--nav-height\) \+ var\(--spacing-xl\)\);/)
   })
 
   it('限制内容巡检逐项告警并保留聚合告警与剩余提示', () => {
