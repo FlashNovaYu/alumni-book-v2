@@ -2,17 +2,22 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { describe, it, expect, beforeAll } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
+import { hashPassword } from '../src/lib/password'
 
 beforeAll(async () => {
   await initTestDb(env.DB)
+  await env.DB.prepare(
+    `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id, is_owner)
+     VALUES (?, 'standalone', ?, ?, ?, 'owner', 1)`
+  ).bind('adm_api_owner', 'test-owner', '测试主管理员', await hashPassword('test-owner-pass')).run()
 })
 
 describe('Auth API', () => {
-  it('POST /api/auth/login — 默认密码登录成功', async () => {
+  it('POST /api/auth/login — 命名主管理员登录成功', async () => {
     const req = new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'admin888' }),
+      body: JSON.stringify({ username: 'test-owner', password: 'test-owner-pass' }),
     })
     const ctx = createExecutionContext()
     const res = await worker.fetch(req, env, ctx)
@@ -27,7 +32,7 @@ describe('Auth API', () => {
     const req = new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'wrongpassword' }),
+      body: JSON.stringify({ username: 'test-owner', password: 'wrongpassword' }),
     })
     const ctx = createExecutionContext()
     const res = await worker.fetch(req, env, ctx)
@@ -47,7 +52,7 @@ describe('Auth API', () => {
     const loginReq = new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'admin888' }),
+      body: JSON.stringify({ username: 'test-owner', password: 'test-owner-pass' }),
     })
     const loginCtx = createExecutionContext()
     const loginRes = await worker.fetch(loginReq, env, loginCtx)
@@ -342,7 +347,7 @@ describe('Admin Student API & Message Submission', () => {
     const loginReq = new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'admin888' }),
+      body: JSON.stringify({ username: 'test-owner', password: 'test-owner-pass' }),
     })
     const loginCtx = createExecutionContext()
     const loginRes = await worker.fetch(loginReq, env, loginCtx)
@@ -421,7 +426,7 @@ describe('Admin Student API & Message Submission', () => {
     const loginReq = new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'admin888' }),
+      body: JSON.stringify({ username: 'test-owner', password: 'test-owner-pass' }),
     })
     const loginCtx = createExecutionContext()
     const loginRes = await worker.fetch(loginReq, env, loginCtx)
@@ -499,7 +504,7 @@ async function loginAsAdminForTest(): Promise<string> {
   const loginReq = new Request('http://localhost/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: 'admin888' }),
+    body: JSON.stringify({ username: 'test-owner', password: 'test-owner-pass' }),
   })
   const loginCtx = createExecutionContext()
   const loginRes = await worker.fetch(loginReq, env, loginCtx)

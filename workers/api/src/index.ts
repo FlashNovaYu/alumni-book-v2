@@ -448,7 +448,7 @@ function adminGuard(secret: string) {
         }
 
         const session = await c.env.DB.prepare(
-          "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')"
+          "SELECT token FROM admin_sessions WHERE token = ? AND revoked_at IS NULL AND expires_at > datetime('now')"
         ).bind(token).first()
 
         if (!session) {

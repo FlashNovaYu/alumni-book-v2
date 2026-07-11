@@ -1,8 +1,9 @@
-import { env } from 'cloudflare:test'
+import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { initTestDb } from './db-helper'
 import { getAdminPermissions, loadActiveAdmin } from '../src/lib/adminAuth'
 import { runAuditedBatch } from '../src/lib/adminAudit'
+import worker from '../src/index'
 
 beforeAll(async () => {
   await initTestDb(env.DB)
@@ -47,7 +48,7 @@ describe('Administrator RBAC schema', () => {
 
   it('persists a mutation and its audit log together', async () => {
     await env.DB.prepare(
-      "INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id, is_owner) VALUES ('adm_audit_test', 'standalone', 'audit-owner', '主管理员', 'pbkdf2:test:test', 'owner', 1)"
+      "INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id) VALUES ('adm_audit_test', 'standalone', 'audit-owner', '审计测试账号', 'pbkdf2:test:test', 'owner')"
     ).run()
 
     await runAuditedBatch(
@@ -67,5 +68,94 @@ describe('Administrator RBAC schema', () => {
     expect(await env.DB.prepare(
       "SELECT action, resource_type, resource_id FROM admin_audit_logs WHERE admin_account_id = 'adm_audit_test'"
     ).first()).toMatchObject({ action: 'config.update', resource_type: 'site_config', resource_id: 'audit_test_key' })
+  })
+
+  it('migrates the legacy password into a named owner account', async () => {
+    const loginContext = createExecutionContext()
+    const legacyLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'admin888' }),
+    }), env, loginContext)
+    await waitOnExecutionContext(loginContext)
+    expect(legacyLogin.status).toBe(200)
+    const legacyBody = await legacyLogin.json() as any
+    expect(legacyBody.data.setupToken).toBeTypeOf('string')
+    expect(legacyBody.data.token).toBeUndefined()
+
+    const setupContext = createExecutionContext()
+    const setup = await worker.fetch(new Request('http://localhost/api/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        setupToken: legacyBody.data.setupToken,
+        username: 'owner',
+        displayName: '陈老师',
+        password: 'new-pass-123',
+        confirmPassword: 'new-pass-123',
+      }),
+    }), env, setupContext)
+    await waitOnExecutionContext(setupContext)
+    expect(setup.status).toBe(200)
+
+    const owner = await env.DB.prepare(
+      "SELECT account_type, display_name, is_owner FROM admin_accounts WHERE username = 'owner'"
+    ).first() as any
+    expect(owner).toMatchObject({ account_type: 'standalone', display_name: '陈老师', is_owner: 1 })
+
+    const namedLoginContext = createExecutionContext()
+    const namedLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, namedLoginContext)
+    await waitOnExecutionContext(namedLoginContext)
+    const namedBody = await namedLogin.json() as any
+    expect(namedLogin.status).toBe(200)
+    expect(namedBody.data.admin).toMatchObject({ displayName: '陈老师', isOwner: true })
+  })
+
+  it('exchanges an active linked classmate session for a secondary admin session', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO admin_accounts (id, account_type, display_name, student_slug, role_id) VALUES ('adm_linked_test', 'classmate_linked', '运营同学', 'test_init', 'operator')"
+      ),
+      env.DB.prepare(
+        "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES ('classmate-exchange-token', 'test_init', datetime('now', '+1 day'))"
+      ),
+    ])
+
+    const context = createExecutionContext()
+    const response = await worker.fetch(new Request('http://localhost/api/auth/classmate-exchange', {
+      method: 'POST',
+      headers: { 'X-Classmate-Token': 'classmate-exchange-token' },
+    }), env, context)
+    await waitOnExecutionContext(context)
+    const body = await response.json() as any
+    expect(response.status).toBe(200)
+    expect(body.data.admin).toMatchObject({ id: 'adm_linked_test', accountType: 'classmate_linked' })
+
+    await env.DB.prepare("UPDATE admin_accounts SET status = 'disabled' WHERE id = 'adm_linked_test'").run()
+    const rejected = await worker.fetch(new Request('http://localhost/api/auth/classmate-exchange', {
+      method: 'POST',
+      headers: { 'X-Classmate-Token': 'classmate-exchange-token' },
+    }), env, createExecutionContext())
+    expect(rejected.status).toBe(403)
+  })
+
+  it('issues distinct sessions for repeated administrator logins', async () => {
+    const login = () => worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+
+    const first = await login()
+    const second = await login()
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    const firstBody = await first.json() as any
+    const secondBody = await second.json() as any
+    expect(firstBody.data.token).not.toBe(secondBody.data.token)
   })
 })
