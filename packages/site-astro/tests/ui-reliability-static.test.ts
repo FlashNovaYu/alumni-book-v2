@@ -43,6 +43,18 @@ describe('同学会话失效约束', () => {
   })
 })
 
+describe('组合验证前置条件', () => {
+  it('在站点构建测试前完成后台构建', () => {
+    const rootPackage = JSON.parse(readFileSync(resolve(__dirname, '../../../package.json'), 'utf-8')) as {
+      scripts: Record<string, string>
+    }
+    const verifySite = rootPackage.scripts['verify:site']
+
+    expect(verifySite).toContain('pnpm build:admin')
+    expect(verifySite.indexOf('pnpm build:admin')).toBeLessThan(verifySite.indexOf('test:with-build'))
+  })
+})
+
 describe('头像与学生页 hydration 可靠性', () => {
   it('仅在客户端挂载后解析当前同学身份，避免 SSR hydration 状态不一致', () => {
     const profile = read('components/StudentProfile.vue')

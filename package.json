@@ -17,7 +17,7 @@
     "audit:content": "tsx scripts/audit-content.ts",
     "verify:worker": "pnpm --filter worker exec vitest run",
     "verify:admin": "pnpm --filter admin typecheck && pnpm --filter admin build",
-    "verify:site": "pnpm --filter site-astro typecheck && pnpm --filter site-astro test:with-build && pnpm --filter site-astro test:perf-network",
+    "verify:site": "pnpm build:admin && pnpm --filter site-astro typecheck && pnpm --filter site-astro test:with-build && pnpm --filter site-astro test:perf-network",
     "verify:all": "pnpm verify:worker && pnpm verify:admin && pnpm verify:site"
   },
   "devDependencies": {
