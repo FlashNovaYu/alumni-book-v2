@@ -89,7 +89,7 @@ describe('Classmate Self-Service Upload', () => {
 
   it('allows valid image upload', async () => {
     const { zsToken } = await getTokens()
-    const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' })
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])], 'avatar.png', { type: 'image/png' })
     const formData = new FormData()
     formData.append('file', file)
     formData.append('type', 'avatar')

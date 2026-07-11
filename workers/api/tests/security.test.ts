@@ -375,7 +375,7 @@ describe('Security and Session Revocation', () => {
     expect(uploadRes2.status).toBe(400) // Bad Request
 
     // 3. 上传合法头像，旧的 /api/files/avatars/old.png 应当在 R2 里被清理
-    const validFile = new File(['fake-png-content'], 'avatar.png', { type: 'image/png' })
+    const validFile = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])], 'avatar.png', { type: 'image/png' })
     const fd3 = new FormData()
     fd3.append('file', validFile)
     fd3.append('type', 'avatar')
