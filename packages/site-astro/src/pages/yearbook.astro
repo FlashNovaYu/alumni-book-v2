@@ -248,7 +248,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
 <style>
   .yearbook-page {
-    padding-top: var(--nav-height);
+    padding-top: calc(var(--nav-height) + var(--spacing-xl));
     max-width: 900px;
     margin: 0 auto;
     padding-bottom: 80px;
@@ -451,6 +451,10 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     word-break: break-word;
   }
   .msg-card-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 8;
+    overflow: hidden;
     font-size: 13px;
     line-height: 1.5;
     overflow-wrap: anywhere;

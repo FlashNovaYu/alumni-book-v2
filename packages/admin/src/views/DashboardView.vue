@@ -50,8 +50,11 @@
           <li v-if="stats.auditAlerts?.some(a => a.type === 'missingGroupName')" class="audit-item" style="color: var(--color-warning, #e65100); font-weight: 500;">
             ⚠️ 班级图谱缺少小组信息，请在学生档案中补全 groupName。
           </li>
-          <li v-for="(alert, idx) in stats.auditAlerts" :key="idx" class="audit-item">
+          <li v-for="(alert, idx) in stats.auditAlerts.slice(0, 12)" :key="idx" class="audit-item">
             <span>{{ typeof alert === 'string' ? alert : alert.message }}</span>
+          </li>
+          <li v-if="stats.auditAlerts.length > 12" class="audit-item audit-item-more">
+            其余 {{ stats.auditAlerts.length - 12 }} 项问题未展开显示。
           </li>
         </ul>
         <p v-else class="text-success">目前没有发现任何内容缺失问题！</p>
@@ -133,7 +136,7 @@
               <router-link to="/students" class="btn-action">学生信息数据库</router-link>
               <router-link to="/messages" class="btn-action">同学留言墙审核</router-link>
               <router-link to="/albums" class="btn-action">班级相册库管理</router-link>
-              <router-link to="/config" class="btn-action">前言寄语与致谢设置</router-link>
+              <router-link to="/settings" class="btn-action">前言寄语与致谢设置</router-link>
               <a :href="getYearbookUrl()" target="_blank" class="btn-action btn-yearbook">📖 毕业纪念册 (打印/导出 PDF)</a>
             </div>
           </div>
@@ -522,6 +525,9 @@ const getYearbookUrl = () => {
   color: var(--color-error);
   line-height: 1.6;
   margin-bottom: var(--spacing-xxs);
+}
+.audit-item-more {
+  color: var(--color-muted);
 }
 .text-success {
   color: var(--color-success) !important;

@@ -69,3 +69,41 @@ describe('头像与学生页 hydration 可靠性', () => {
     expect(yearbook).toContain('<span class="mate-avatar-char">{mate.name.charAt(0)}</span>')
   })
 })
+
+describe('长内容与年度册入口可靠性', () => {
+  it('将时间轴说明稳定限制为六行', () => {
+    const timeline = read('pages/timeline.astro')
+
+    expect(timeline).toMatch(/\.tl-desc\s*\{[\s\S]*?display:\s*-webkit-box;[\s\S]*?-webkit-box-orient:\s*vertical;[\s\S]*?-webkit-line-clamp:\s*6;[\s\S]*?overflow:\s*hidden;/)
+  })
+
+  it('仅将年度册留言正文稳定限制为八行', () => {
+    const yearbook = read('pages/yearbook.astro')
+
+    expect(yearbook).toMatch(/<div class="msg-card-meta">[\s\S]*?msg-card-author[\s\S]*?msg-card-time[\s\S]*?<\/div>\s*<p class="msg-card-text mt-2">\{msg\.content\}<\/p>/)
+    expect(yearbook).toMatch(/\.msg-card-text\s*\{[\s\S]*?display:\s*-webkit-box;[\s\S]*?-webkit-box-orient:\s*vertical;[\s\S]*?-webkit-line-clamp:\s*8;[\s\S]*?overflow:\s*hidden;/)
+  })
+
+  it('为固定导航下的年度册打印入口预留额外间距', () => {
+    const yearbook = read('pages/yearbook.astro')
+
+    expect(yearbook).toMatch(/\.yearbook-page\s*\{[\s\S]*?padding-top:\s*calc\(var\(--nav-height\) \+ var\(--spacing-xl\)\);/)
+  })
+
+  it('限制内容巡检逐项告警并保留聚合告警与剩余提示', () => {
+    const dashboard = read('../../admin/src/views/DashboardView.vue')
+
+    expect(dashboard).toContain("stats.auditAlerts?.some(a => a.type === 'missingSeatNo')")
+    expect(dashboard).toContain("stats.auditAlerts?.some(a => a.type === 'missingGroupName')")
+    expect(dashboard).toContain('v-for="(alert, idx) in stats.auditAlerts.slice(0, 12)"')
+    expect(dashboard).toContain('v-if="stats.auditAlerts.length > 12"')
+    expect(dashboard).toContain('{{ stats.auditAlerts.length - 12 }}')
+  })
+
+  it('将控制台设置快捷入口指向已注册的设置路由', () => {
+    const dashboard = read('../../admin/src/views/DashboardView.vue')
+
+    expect(dashboard).toContain('<router-link to="/settings" class="btn-action">前言寄语与致谢设置</router-link>')
+    expect(dashboard).not.toContain('<router-link to="/config"')
+  })
+})
