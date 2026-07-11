@@ -80,12 +80,24 @@ describe('长内容与年度册入口可靠性', () => {
   it('仅将年度册留言正文稳定限制为八行', () => {
     const yearbook = read('pages/yearbook.astro')
 
-    expect(yearbook).toMatch(/<div class="msg-card-meta">[\s\S]*?msg-card-author[\s\S]*?msg-card-time[\s\S]*?<\/div>\s*<p class="msg-card-text mt-2">\{msg\.content\}<\/p>/)
+    const messageTemplate = yearbook.match(/<div class="msg-card-meta">[\s\S]*?msg-card-author[\s\S]*?msg-card-time[\s\S]*?<\/div>\s*<p class="msg-card-text mt-2">\{msg\.content\}<\/p>/)?.[0] || ''
+    expect(messageTemplate).toContain('msg-card-author')
+    expect(messageTemplate).toContain('msg-card-time')
+    expect(messageTemplate).toContain('<p class="msg-card-text mt-2">{msg.content}</p>')
     expect(yearbook).toMatch(/\.msg-card-text\s*\{[^}]*display:\s*-webkit-box;[^}]*-webkit-box-orient:\s*vertical;[^}]*-webkit-line-clamp:\s*8;[^}]*overflow:\s*hidden;/)
+    expect(yearbook.match(/-webkit-line-clamp:\s*8;/g)).toHaveLength(1)
 
-    const metaRule = yearbook.match(/\.msg-card-meta\s*\{([^}]*)\}/)?.[1] || ''
-    expect(metaRule).not.toContain('-webkit-line-clamp')
-    expect(metaRule).not.toContain('overflow: hidden')
+    const readRule = (selector: string) => yearbook.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`))?.[1] || ''
+    const protectedMetaRules = [
+      readRule('msg-card-meta'),
+      readRule('msg-card-author'),
+      readRule('msg-card-time'),
+    ]
+    for (const rule of protectedMetaRules) {
+      expect(rule).not.toContain('-webkit-line-clamp')
+      expect(rule).not.toContain('overflow: hidden')
+      expect(rule).not.toContain('text-overflow')
+    }
   })
 
   it('为固定导航下的年度册打印入口预留额外间距', () => {
