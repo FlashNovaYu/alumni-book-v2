@@ -186,6 +186,60 @@ export const testMigrations = [
     )`,
     `CREATE INDEX IF NOT EXISTS idx_mail_recipients_slug ON mail_recipients(recipient_slug, read_at)`,
     `CREATE INDEX IF NOT EXISTS idx_mail_messages_thread ON mail_messages(thread_id, created_at)`,
+  ]},
+  { name: '0012_admin_rbac', queries: [
+    `CREATE TABLE IF NOT EXISTS admin_roles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      is_system INTEGER NOT NULL DEFAULT 1,
+      description TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_role_permissions (
+      role_id TEXT NOT NULL,
+      permission TEXT NOT NULL,
+      PRIMARY KEY (role_id, permission)
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_accounts (
+      id TEXT PRIMARY KEY,
+      account_type TEXT NOT NULL,
+      username TEXT UNIQUE,
+      display_name TEXT NOT NULL,
+      student_slug TEXT UNIQUE,
+      password_hash TEXT,
+      role_id TEXT NOT NULL,
+      must_change_password INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      is_owner INTEGER NOT NULL DEFAULT 0,
+      last_login_at TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_account_permissions (
+      admin_account_id TEXT NOT NULL,
+      permission TEXT NOT NULL,
+      effect TEXT NOT NULL,
+      PRIMARY KEY (admin_account_id, permission)
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_audit_logs (
+      id TEXT PRIMARY KEY,
+      admin_account_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      reason TEXT,
+      before_summary TEXT,
+      after_summary TEXT,
+      metadata TEXT DEFAULT '{}',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `ALTER TABLE admin_sessions ADD COLUMN admin_account_id TEXT`,
+    `ALTER TABLE admin_sessions ADD COLUMN revoked_at TEXT`,
+    `INSERT OR IGNORE INTO admin_roles (id, name, description) VALUES
+      ('owner', '主管理员', '拥有全部后台权限'),
+      ('content_admin', '内容管理员', '管理全部非核心业务模块'),
+      ('moderator', '内容审核员', '审核与处置公共内容'),
+      ('operator', '运营管理员', '发布通知、管理相册和时光轴')`,
   ]}
 ]
 
