@@ -419,7 +419,7 @@ function permissionForMethod(read: AdminPermission, write: AdminPermission) {
 }
 
 function requireSessionForWrites(c: any, next: any) {
-  return c.req.method === 'GET' ? next() : requireAdminSession(c, () => requirePasswordChangeCompleted(c, next))
+  return c.req.method === 'GET' ? next() : requireAdminSession(c, async () => { await requirePasswordChangeCompleted(c, next) })
 }
 
 function requireOwnerForWrites(c: any, next: any) {

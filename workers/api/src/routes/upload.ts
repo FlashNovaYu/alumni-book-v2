@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import { getAdminPrincipal, hasPermission } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -24,28 +26,16 @@ const ALLOWED_MIMES: Record<string, string[]> = {
   misc: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'],
 }
 
-async function deleteOldFile(db: D1Database, r2: R2Bucket, query: string, params: any[]) {
-  try {
-    const row = await db.prepare(query).bind(...params).first()
-    if (!row) return
-    
-    // 获取现有的文件 URL 并解析出 R2 key
-    const url = (row as any).avatar_url || (row as any).background_url || (row as any).music_url
-    if (url) {
-      const parts = url.split('/api/files/')
-      if (parts.length === 2) {
-        const oldKey = parts[1]
-        await r2.delete(oldKey)
-      }
-    }
-  } catch (e) {
-    console.error('Failed to delete old file from R2:', e)
-  }
+function fileKeyFromUrl(url: string | null | undefined) {
+  const parts = String(url || '').split('/api/files/')
+  return parts.length === 2 ? parts[1] : null
 }
 
 uploadRoutes.post('/upload', async (c) => {
   const db = c.env.DB
   const r2 = c.env.R2
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
 
   if (!r2) {
     return c.json({ success: false, message: '文件存储(R2)未启用' }, 503)
@@ -56,6 +46,11 @@ uploadRoutes.post('/upload', async (c) => {
   const type = formData.get('type') as string
   const slug = formData.get('slug') as string
   const albumId = formData.get('albumId') as string
+
+  const requiredPermission = ['avatar', 'music', 'background'].includes(type) ? 'students.manage' : 'content.manage'
+  if (!hasPermission(admin, requiredPermission)) {
+    return c.json({ success: false, message: '当前管理员没有此文件管理权限' }, 403)
+  }
 
   if (!file) {
     return c.json({ success: false, message: '没有文件' }, 400)
@@ -97,27 +92,50 @@ uploadRoutes.post('/upload', async (c) => {
   // 统一存为相对路径，有利于环境迁移与解耦
   const relativeUrl = `/api/files/${r2Key}`
 
-  // 4. 清理旧文件并更新数据库
+  // 4. 先让业务数据与审计记录原子提交；批处理失败时补偿删除刚上传的对象。
+  let previousKey: string | null = null
+  let mutation: D1PreparedStatement | null = null
+  let resourceType = 'upload'
+  let resourceId = r2Key
   if (type === 'avatar' && slug) {
-    await deleteOldFile(db, r2, 'SELECT avatar_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET avatar_url = ? WHERE slug = ?').bind(relativeUrl, slug).run()
+    const previous = await db.prepare('SELECT avatar_url FROM students WHERE slug = ?').bind(slug).first<any>()
+    previousKey = fileKeyFromUrl(previous?.avatar_url)
+    mutation = db.prepare('UPDATE students SET avatar_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+    resourceType = 'student'; resourceId = slug
   }
 
   if (type === 'music' && slug) {
-    await deleteOldFile(db, r2, 'SELECT music_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET music_url = ? WHERE slug = ?').bind(relativeUrl, slug).run()
+    const previous = await db.prepare('SELECT music_url FROM students WHERE slug = ?').bind(slug).first<any>()
+    previousKey = fileKeyFromUrl(previous?.music_url)
+    mutation = db.prepare('UPDATE students SET music_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+    resourceType = 'student'; resourceId = slug
   }
 
   if (type === 'background' && slug) {
-    await deleteOldFile(db, r2, 'SELECT background_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET background_url = ? WHERE slug = ?').bind(relativeUrl, slug).run()
+    const previous = await db.prepare('SELECT background_url FROM students WHERE slug = ?').bind(slug).first<any>()
+    previousKey = fileKeyFromUrl(previous?.background_url)
+    mutation = db.prepare('UPDATE students SET background_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+    resourceType = 'student'; resourceId = slug
   }
 
   if (type === 'photo' && albumId) {
     const photoId = `photo_${timestamp}_${Math.random().toString(36).slice(2, 6)}`
-    await db.prepare(
+    mutation = db.prepare(
       'INSERT INTO photos (id, album_id, filename, r2_key) VALUES (?, ?, ?, ?)'
-    ).bind(photoId, albumId, file.name, r2Key).run()
+    ).bind(photoId, albumId, file.name, r2Key)
+    resourceType = 'photo'; resourceId = photoId
+  }
+
+  try {
+    await runAuditedBatch(db, admin.id, mutation ? [mutation] : [], {
+      action: 'file.upload', resourceType, resourceId, after: { type, filename: file.name, r2Key },
+    })
+  } catch (error) {
+    await r2.delete(r2Key).catch(() => undefined)
+    return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
+  }
+  if (previousKey && previousKey !== r2Key) {
+    await r2.delete(previousKey).catch(() => undefined)
   }
 
   const origin = new URL(c.req.url).origin

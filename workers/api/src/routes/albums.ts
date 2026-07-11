@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -10,6 +12,8 @@ export const albumsRoutes = new Hono<{ Bindings: Bindings }>()
 // 创建相册
 albumsRoutes.post('/albums', async (c) => {
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const body = await c.req.json()
 
   if (!body.title) {
@@ -18,7 +22,7 @@ albumsRoutes.post('/albums', async (c) => {
 
   const id = `album_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
-  await db.prepare(
+  await runAuditedBatch(db, admin.id, [db.prepare(
     'INSERT INTO albums (id, title, description, frame_style, cover_r2_key, tags, featured) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).bind(
     id,
@@ -28,7 +32,7 @@ albumsRoutes.post('/albums', async (c) => {
     body.coverR2Key || null,
     body.tags ? JSON.stringify(body.tags) : '[]',
     body.featured ? 1 : 0
-  ).run()
+  )], { action: 'album.create', resourceType: 'album', resourceId: id, after: { title: body.title } })
 
   return c.json({ success: true, data: { id } })
 })
@@ -37,6 +41,8 @@ albumsRoutes.post('/albums', async (c) => {
 albumsRoutes.put('/albums/:id', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const body = await c.req.json()
 
   const fields: string[] = []
@@ -54,8 +60,10 @@ albumsRoutes.put('/albums/:id', async (c) => {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)
   }
 
+  const before = await db.prepare('SELECT title, description, frame_style, sort_order, featured FROM albums WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '相册不存在' }, 404)
   values.push(id)
-  await db.prepare(`UPDATE albums SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+  await runAuditedBatch(db, admin.id, [db.prepare(`UPDATE albums SET ${fields.join(', ')} WHERE id = ?`).bind(...values)], { action: 'album.update', resourceType: 'album', resourceId: id, before, after: body })
 
   return c.json({ success: true, message: '更新成功' })
 })
@@ -65,12 +73,24 @@ albumsRoutes.delete('/albums/:id', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
   const r2 = (c.env as any).R2
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { reason } = await c.req.json().catch(() => ({}))
+  const cleanReason = String(reason || '').trim()
+  if (!cleanReason) return c.json({ success: false, message: '删除相册时请填写原因' }, 400)
+  const album = await db.prepare('SELECT title FROM albums WHERE id = ?').bind(id).first()
+  if (!album) return c.json({ success: false, message: '相册不存在' }, 404)
+  const { results: photos } = await db.prepare('SELECT r2_key FROM photos WHERE album_id = ?').bind(id).all()
 
-  // 物理删除该相册下的所有 R2 文件
+  await runAuditedBatch(db, admin.id, [
+    db.prepare('DELETE FROM photos WHERE album_id = ?').bind(id),
+    db.prepare('DELETE FROM albums WHERE id = ?').bind(id),
+  ], { action: 'album.delete', resourceType: 'album', resourceId: id, reason: cleanReason, before: { album, photoCount: photos?.length || 0 } })
+
+  // D1 与审计先原子提交；对象存储清理失败仅留下不可访问的孤儿文件，不会破坏数据库一致性。
   try {
-    const { results } = await db.prepare('SELECT r2_key FROM photos WHERE album_id = ?').bind(id).all()
-    if (results && r2) {
-      for (const row of results) {
+    if (photos && r2) {
+      for (const row of photos) {
         const key = (row as any).r2_key
         if (key) {
           await r2.delete(key)
@@ -81,9 +101,6 @@ albumsRoutes.delete('/albums/:id', async (c) => {
     console.error('Failed to cleanup album photos from R2:', e)
   }
 
-  await db.prepare('DELETE FROM photos WHERE album_id = ?').bind(id).run()
-  await db.prepare('DELETE FROM albums WHERE id = ?').bind(id).run()
-
   return c.json({ success: true, message: '删除成功' })
 })
 
@@ -91,6 +108,8 @@ albumsRoutes.delete('/albums/:id', async (c) => {
 albumsRoutes.put('/photos/:id', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const body = await c.req.json()
 
   const fields: string[] = []
@@ -103,8 +122,10 @@ albumsRoutes.put('/photos/:id', async (c) => {
     return c.json({ success: false, message: '没有要更新的字段' }, 400)
   }
 
+  const before = await db.prepare('SELECT caption, sort_order FROM photos WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '照片不存在' }, 404)
   values.push(id)
-  await db.prepare(`UPDATE photos SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+  await runAuditedBatch(db, admin.id, [db.prepare(`UPDATE photos SET ${fields.join(', ')} WHERE id = ?`).bind(...values)], { action: 'photo.update', resourceType: 'photo', resourceId: id, before, after: body })
 
   return c.json({ success: true, message: '照片更新成功' })
 })
@@ -114,6 +135,11 @@ albumsRoutes.delete('/photos/:id', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
   const r2 = (c.env as any).R2
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { reason } = await c.req.json().catch(() => ({}))
+  const cleanReason = String(reason || '').trim()
+  if (!cleanReason) return c.json({ success: false, message: '删除照片时请填写原因' }, 400)
 
   const photo = await db.prepare('SELECT r2_key FROM photos WHERE id = ?').bind(id).first()
   if (!photo) {
@@ -121,6 +147,7 @@ albumsRoutes.delete('/photos/:id', async (c) => {
   }
 
   const key = (photo as any).r2_key
+  await runAuditedBatch(db, admin.id, [db.prepare('DELETE FROM photos WHERE id = ?').bind(id)], { action: 'photo.delete', resourceType: 'photo', resourceId: id, reason: cleanReason, before: photo })
   if (key && r2) {
     try {
       await r2.delete(key)
@@ -128,8 +155,6 @@ albumsRoutes.delete('/photos/:id', async (c) => {
       console.error('Failed to delete photo from R2:', e)
     }
   }
-
-  await db.prepare('DELETE FROM photos WHERE id = ?').bind(id).run()
 
   return c.json({ success: true, message: '照片删除成功' })
 })

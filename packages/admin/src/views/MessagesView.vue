@@ -260,11 +260,14 @@ async function togglePin(id: string, pinned: boolean) {
 }
 
 async function toggleHide(id: string, hidden: boolean) {
+  const reason = hidden ? prompt('请输入隐藏原因：') : ''
+  if (hidden && reason === null) return
+  if (hidden && !reason?.trim()) { showToast('error', '隐藏原因不能为空'); return }
   processing.value = true
   try {
     await adminFetch(`/api/admin/messages/${id}/hide`, {
       method: 'PUT',
-      body: JSON.stringify({ hidden }),
+      body: JSON.stringify({ hidden, reason: reason?.trim() }),
     })
     const msg = messages.value.find(m => m.id === id)
     if (msg) msg.isHidden = hidden
@@ -278,9 +281,12 @@ async function toggleHide(id: string, hidden: boolean) {
 
 async function remove(id: string) {
   if (!confirm('确定删除？')) return
+  const reason = prompt('请输入删除原因：')
+  if (reason === null) return
+  if (!reason.trim()) { showToast('error', '删除原因不能为空'); return }
   processing.value = true
   try {
-    await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE' })
+    await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE', body: JSON.stringify({ reason: reason.trim() }) })
     messages.value = messages.value.filter(m => m.id !== id)
     showToast('success', '已删除')
   } catch (e: any) {
@@ -292,11 +298,15 @@ async function remove(id: string) {
 
 async function batchAction(action: string, hidden?: boolean) {
   if (action === 'delete' && !confirm(`确定删除选中的 ${selectedIds.value.length} 条留言？`)) return
+  const needsReason = action === 'delete' || (action === 'hide' && hidden)
+  const reason = needsReason ? prompt('请输入本次操作原因：') : ''
+  if (needsReason && reason === null) return
+  if (needsReason && !reason?.trim()) { showToast('error', '操作原因不能为空'); return }
   processing.value = true
   try {
     await adminFetch('/api/admin/messages/batch', {
       method: 'POST',
-      body: JSON.stringify({ ids: selectedIds.value, action, hidden })
+      body: JSON.stringify({ ids: selectedIds.value, action, hidden, reason: reason?.trim() })
     })
     if (action === 'approve') {
       messages.value.forEach(m => {

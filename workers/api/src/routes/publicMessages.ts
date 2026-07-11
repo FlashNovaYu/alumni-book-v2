@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { createNotification } from '../lib/notificationService'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -130,15 +132,19 @@ publicMessagesRoutes.get('/admin/public-messages', async (c) => {
 
 publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
   const id = c.req.param('id')
-  const row = await c.env.DB.prepare('SELECT author_slug FROM public_messages WHERE id = ?').bind(id).first() as any
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const row = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
 
-  await c.env.DB.prepare(
-    "UPDATE public_messages SET status = 'approved', reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
-  ).bind(id).run()
-  await c.env.DB.prepare(
-    "INSERT INTO content_reviews (id, content_type, content_id, action) VALUES (?, 'public_message', ?, 'approve')"
-  ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id).run()
+  await runAuditedBatch(c.env.DB, admin.id, [
+    c.env.DB.prepare(
+      "UPDATE public_messages SET status = 'approved', reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
+    ).bind(id),
+    c.env.DB.prepare(
+      "INSERT INTO content_reviews (id, content_type, content_id, action, admin_id) VALUES (?, 'public_message', ?, 'approve', ?)"
+    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, admin.id),
+  ], { action: 'public_message.approve', resourceType: 'public_message', resourceId: id, before: { status: row.status }, after: { status: 'approved' } })
   await createNotification(c.env.DB, {
     recipientSlug: row.author_slug,
     type: 'public_message_approved',
@@ -153,19 +159,23 @@ publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
 
 publicMessagesRoutes.put('/admin/public-messages/:id/reject', async (c) => {
   const id = c.req.param('id')
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await c.req.json().catch(() => ({}))
   const reviewReason = String(reason || '').trim()
   if (!reviewReason) return c.json({ success: false, message: '请填写退回原因' }, 400)
 
-  const row = await c.env.DB.prepare('SELECT author_slug FROM public_messages WHERE id = ?').bind(id).first() as any
+  const row = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
 
-  await c.env.DB.prepare(
-    "UPDATE public_messages SET status = 'rejected', review_reason = ?, reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
-  ).bind(reviewReason, id).run()
-  await c.env.DB.prepare(
-    "INSERT INTO content_reviews (id, content_type, content_id, action, reason) VALUES (?, 'public_message', ?, 'reject', ?)"
-  ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, reviewReason).run()
+  await runAuditedBatch(c.env.DB, admin.id, [
+    c.env.DB.prepare(
+      "UPDATE public_messages SET status = 'rejected', review_reason = ?, reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
+    ).bind(reviewReason, id),
+    c.env.DB.prepare(
+      "INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) VALUES (?, 'public_message', ?, 'reject', ?, ?)"
+    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, reviewReason, admin.id),
+  ], { action: 'public_message.reject', resourceType: 'public_message', resourceId: id, reason: reviewReason, before: { status: row.status }, after: { status: 'rejected' } })
   await createNotification(c.env.DB, {
     recipientSlug: row.author_slug,
     type: 'public_message_rejected',
@@ -180,29 +190,50 @@ publicMessagesRoutes.put('/admin/public-messages/:id/reject', async (c) => {
 
 publicMessagesRoutes.put('/admin/public-messages/:id/hide', async (c) => {
   const id = c.req.param('id')
-  const { hidden } = await c.req.json().catch(() => ({}))
-  await c.env.DB.prepare(
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { hidden, reason } = await c.req.json().catch(() => ({}))
+  const cleanReason = String(reason || '').trim()
+  if (hidden && !cleanReason) return c.json({ success: false, message: '隐藏留言时请填写原因' }, 400)
+  const before = await c.env.DB.prepare('SELECT status FROM public_messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare(
     "UPDATE public_messages SET status = ?, updated_at = datetime('now') WHERE id = ?"
-  ).bind(hidden ? 'hidden' : 'approved', id).run()
+  ).bind(hidden ? 'hidden' : 'approved', id)], { action: hidden ? 'public_message.hide' : 'public_message.unhide', resourceType: 'public_message', resourceId: id, reason: cleanReason || null, before, after: { status: hidden ? 'hidden' : 'approved' } })
   return c.json({ success: true, message: hidden ? '已隐藏' : '已取消隐藏' })
 })
 
 publicMessagesRoutes.put('/admin/public-messages/:id/pin', async (c) => {
   const id = c.req.param('id')
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { pinned } = await c.req.json().catch(() => ({}))
-  await c.env.DB.prepare('UPDATE public_messages SET pinned = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(pinned ? 1 : 0, id).run()
+  const before = await c.env.DB.prepare('SELECT pinned FROM public_messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare('UPDATE public_messages SET pinned = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(pinned ? 1 : 0, id)], { action: pinned ? 'public_message.pin' : 'public_message.unpin', resourceType: 'public_message', resourceId: id, before, after: { pinned: !!pinned } })
   return c.json({ success: true, message: pinned ? '已置顶' : '已取消置顶' })
 })
 
 publicMessagesRoutes.put('/admin/public-messages/:id/feature', async (c) => {
   const id = c.req.param('id')
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { featured } = await c.req.json().catch(() => ({}))
-  await c.env.DB.prepare('UPDATE public_messages SET featured = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(featured ? 1 : 0, id).run()
+  const before = await c.env.DB.prepare('SELECT featured FROM public_messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare('UPDATE public_messages SET featured = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(featured ? 1 : 0, id)], { action: featured ? 'public_message.feature' : 'public_message.unfeature', resourceType: 'public_message', resourceId: id, before, after: { featured: !!featured } })
   return c.json({ success: true, message: featured ? '已精选' : '已取消精选' })
 })
 
 publicMessagesRoutes.delete('/admin/public-messages/:id', async (c) => {
   const id = c.req.param('id')
-  await c.env.DB.prepare('DELETE FROM public_messages WHERE id = ?').bind(id).run()
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { reason } = await c.req.json().catch(() => ({}))
+  const cleanReason = String(reason || '').trim()
+  if (!cleanReason) return c.json({ success: false, message: '删除留言时请填写原因' }, 400)
+  const before = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare('DELETE FROM public_messages WHERE id = ?').bind(id)], { action: 'public_message.delete', resourceType: 'public_message', resourceId: id, reason: cleanReason, before })
   return c.json({ success: true, message: '已删除' })
 })

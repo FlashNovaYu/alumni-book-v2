@@ -409,4 +409,40 @@ describe('Administrator RBAC schema', () => {
       "SELECT action, resource_id FROM admin_audit_logs WHERE resource_id = 'msg_audit_test'"
     ).first()).toMatchObject({ action: 'message.approve', resource_id: 'msg_audit_test' })
   })
+
+  it('requires reasons and records audits for destructive moderation actions', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO messages (id, student_slug, author_name, content) VALUES ('msg_reason_test', 'test_init', '测试同学', '需要隐藏')"),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_reason_test', 'test_init', '测试同学', '需要删除', 'approved')"),
+    ])
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+
+    const missingReason = await worker.fetch(new Request('http://localhost/api/admin/messages/msg_reason_test/hide', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ hidden: true }),
+    }), env, createExecutionContext())
+    expect(missingReason.status).toBe(400)
+
+    const hide = await worker.fetch(new Request('http://localhost/api/admin/messages/msg_reason_test/hide', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ hidden: true, reason: '包含不适合公开的内容' }),
+    }), env, createExecutionContext())
+    expect(hide.status).toBe(200)
+    expect(await env.DB.prepare("SELECT reason FROM admin_audit_logs WHERE action = 'message.hide' AND resource_id = 'msg_reason_test'").first())
+      .toMatchObject({ reason: '包含不适合公开的内容' })
+
+    const deleteWithoutReason = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_reason_test', {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    expect(deleteWithoutReason.status).toBe(400)
+
+    const remove = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_reason_test', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason: '重复发布' }),
+    }), env, createExecutionContext())
+    expect(remove.status).toBe(200)
+    expect(await env.DB.prepare("SELECT reason FROM admin_audit_logs WHERE action = 'public_message.delete' AND resource_id = 'pm_reason_test'").first())
+      .toMatchObject({ reason: '重复发布' })
+  })
 })

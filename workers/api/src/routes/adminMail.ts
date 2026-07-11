@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { jwt } from 'hono/jwt'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -82,6 +84,8 @@ function buildAdminMailStatements(db: D1Database, recipientSlug: string, subject
 }
 
 adminMailRoutes.post('/admin/mail/send', async (c) => {
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { recipientSlug, subject, body, allowReply } = await c.req.json()
   const cleanSubject = normalizeBody(subject, 80)
   const cleanBody = normalizeBody(body, 2000)
@@ -95,12 +99,17 @@ adminMailRoutes.post('/admin/mail/send', async (c) => {
   if (!recipient) return c.json({ success: false, message: '收件人不存在' }, 404)
 
   const { threadId, statements } = buildAdminMailStatements(c.env.DB, cleanRecipient, cleanSubject, cleanBody, !!allowReply)
-  await c.env.DB.batch(statements)
+  await runAuditedBatch(c.env.DB, admin.id, statements, {
+    action: 'notification.send', resourceType: 'mail_thread', resourceId: threadId,
+    after: { recipientSlug: cleanRecipient, subject: cleanSubject, allowReply: !!allowReply },
+  })
 
   return c.json({ success: true, message: '信件已发送', data: { id: threadId } })
 })
 
 adminMailRoutes.post('/admin/mail/broadcast', async (c) => {
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { subject, body, allowReply } = await c.req.json()
   const cleanSubject = normalizeBody(subject, 80)
   const cleanBody = normalizeBody(body, 2000)
@@ -124,7 +133,10 @@ adminMailRoutes.post('/admin/mail/broadcast', async (c) => {
   }
 
   if (allStatements.length > 0) {
-    await c.env.DB.batch(allStatements)
+    await runAuditedBatch(c.env.DB, admin.id, allStatements, {
+      action: 'notification.broadcast', resourceType: 'mail_thread', resourceId: sent.join(','),
+      after: { sentCount: sent.length, subject: cleanSubject, allowReply: !!allowReply },
+    })
   }
 
   return c.json({ success: true, message: '群发完成', data: { sentCount: sent.length } })

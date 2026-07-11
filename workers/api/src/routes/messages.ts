@@ -237,8 +237,16 @@ messagesRoutes.put('/admin/messages/:id/approve', async (c) => {
 messagesRoutes.put('/admin/messages/:id/hide', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
-  const { hidden } = await c.req.json()
-  await db.prepare('UPDATE messages SET is_hidden = ? WHERE id = ?').bind(hidden ? 1 : 0, id).run()
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { hidden, reason } = await c.req.json()
+  const cleanReason = String(reason || '').trim()
+  if (hidden && !cleanReason) return c.json({ success: false, message: '隐藏留言时请填写原因' }, 400)
+  const before = await db.prepare('SELECT is_hidden FROM messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(db, admin.id, [
+    db.prepare('UPDATE messages SET is_hidden = ? WHERE id = ?').bind(hidden ? 1 : 0, id),
+  ], { action: hidden ? 'message.hide' : 'message.unhide', resourceType: 'message', resourceId: id, reason: cleanReason || null, before, after: { isHidden: !!hidden } })
   return c.json({ success: true, message: hidden ? '已隐藏' : '已取消隐藏' })
 })
 
@@ -246,29 +254,46 @@ messagesRoutes.put('/admin/messages/:id/hide', async (c) => {
 messagesRoutes.put('/admin/messages/:id/pin', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { pinned } = await c.req.json()
-  await db.prepare('UPDATE messages SET pinned = ? WHERE id = ?').bind(pinned ? 1 : 0, id).run()
+  const before = await db.prepare('SELECT pinned FROM messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(db, admin.id, [
+    db.prepare('UPDATE messages SET pinned = ? WHERE id = ?').bind(pinned ? 1 : 0, id),
+  ], { action: pinned ? 'message.pin' : 'message.unpin', resourceType: 'message', resourceId: id, before, after: { pinned: !!pinned } })
   return c.json({ success: true, message: pinned ? '已置顶' : '已取消置顶' })
 })
 
 // 批量操作留言
 messagesRoutes.post('/admin/messages/batch', async (c) => {
   const db = c.env.DB
-  const { ids, action, hidden } = await c.req.json()
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { ids, action, hidden, reason } = await c.req.json()
   if (!Array.isArray(ids) || ids.length === 0) {
     return c.json({ success: false, message: '无效的 ID 数组' }, 400)
   }
+  const cleanReason = String(reason || '').trim()
+  if ((action === 'delete' || (action === 'hide' && hidden)) && !cleanReason) {
+    return c.json({ success: false, message: '该批量操作需要填写原因' }, 400)
+  }
 
   const placeholders = ids.map(() => '?').join(',')
+  let mutation: D1PreparedStatement
   if (action === 'approve') {
-    await db.prepare(`UPDATE messages SET is_approved = 1 WHERE id IN (${placeholders})`).bind(...ids).run()
+    mutation = db.prepare(`UPDATE messages SET is_approved = 1 WHERE id IN (${placeholders})`).bind(...ids)
   } else if (action === 'hide') {
-    await db.prepare(`UPDATE messages SET is_hidden = ? WHERE id IN (${placeholders})`).bind(hidden ? 1 : 0, ...ids).run()
+    mutation = db.prepare(`UPDATE messages SET is_hidden = ? WHERE id IN (${placeholders})`).bind(hidden ? 1 : 0, ...ids)
   } else if (action === 'delete') {
-    await db.prepare(`DELETE FROM messages WHERE id IN (${placeholders})`).bind(...ids).run()
+    mutation = db.prepare(`DELETE FROM messages WHERE id IN (${placeholders})`).bind(...ids)
   } else {
     return c.json({ success: false, message: '不支持的批量操作' }, 400)
   }
+  await runAuditedBatch(db, admin.id, [mutation], {
+    action: `message.batch_${action}`, resourceType: 'message', resourceId: ids.join(','), reason: cleanReason || null,
+    after: { count: ids.length, hidden: action === 'hide' ? !!hidden : undefined },
+  })
 
   return c.json({ success: true, message: '批量操作成功' })
 })
@@ -277,6 +302,15 @@ messagesRoutes.post('/admin/messages/batch', async (c) => {
 messagesRoutes.delete('/admin/messages/:id', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
-  await db.prepare('DELETE FROM messages WHERE id = ?').bind(id).run()
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { reason } = await c.req.json().catch(() => ({}))
+  const cleanReason = String(reason || '').trim()
+  if (!cleanReason) return c.json({ success: false, message: '删除留言时请填写原因' }, 400)
+  const before = await db.prepare('SELECT student_slug, author_name FROM messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(db, admin.id, [db.prepare('DELETE FROM messages WHERE id = ?').bind(id)], {
+    action: 'message.delete', resourceType: 'message', resourceId: id, reason: cleanReason, before,
+  })
   return c.json({ success: true, message: '已删除' })
 })
