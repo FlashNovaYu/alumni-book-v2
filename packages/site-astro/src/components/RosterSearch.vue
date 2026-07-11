@@ -1,6 +1,6 @@
 <template>
   <div class="search-box">
-    <input v-model="keyword" type="text" class="text-input search-input" placeholder="搜索同学姓名…" autocomplete="off" />
+    <input v-model="keyword" type="text" class="text-input search-input" placeholder="搜索同学姓名…" autocomplete="off" aria-label="搜索同学" />
     <p v-if="keyword" class="search-count">找到 {{ filteredCount }} 位同学</p>
   </div>
 </template>

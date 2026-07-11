@@ -5,6 +5,7 @@
       ref="composer"
       :submitting="submitting"
       :notice="notice"
+      textarea-label="公共留言内容"
       @submit="handleComposerSubmit"
     />
 

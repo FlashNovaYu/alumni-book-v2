@@ -2,9 +2,11 @@
   <div class="public-message-board__composer">
     <textarea
       v-model="content"
+      id="public-message-content"
       class="paper-textarea"
       placeholder="写一张便签，贴到全班的留言墙上..."
       maxlength="500"
+      :aria-label="textareaLabel"
     />
     <div class="public-message-board__tools">
       <select v-model="cardStyle" class="paper-select" aria-label="便签样式">
@@ -28,6 +30,7 @@ import { ref } from 'vue'
 const props = defineProps<{
   submitting: boolean
   notice: { type: 'success' | 'error'; text: string } | null
+  textareaLabel: string
 }>()
 
 const emit = defineEmits<{

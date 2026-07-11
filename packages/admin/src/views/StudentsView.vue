@@ -6,7 +6,7 @@
     </div>
 
     <div class="search-bar">
-      <input v-model="keyword" type="text" class="text-input" placeholder="搜索学生姓名…" />
+      <input v-model="keyword" type="text" class="text-input" placeholder="搜索学生姓名…" aria-label="搜索学生" />
     </div>
 
     <div class="student-list">

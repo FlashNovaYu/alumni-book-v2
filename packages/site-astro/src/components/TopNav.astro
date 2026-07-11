@@ -33,11 +33,11 @@ const isHome = currentPath === base || currentPath === href('/')
       
       <!-- 更多功能下拉菜单 -->
       <div class="nav-dropdown">
-        <button class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+        <button id="nav-dropdown-trigger" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="nav-dropdown-menu">
           <span class="link-text">更多功能</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdown-chevron"><path d="m6 9 6 6 6-6"/></svg>
         </button>
-        <div class="dropdown-menu">
+        <div id="nav-dropdown-menu" class="dropdown-menu">
           <a href={href('/album')} class={`dropdown-item ${currentPath.startsWith(href('/album')) ? 'active' : ''}`}>影像馆</a>
           <a href={href('/timeline')} class={`dropdown-item ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`}>时光轴</a>
           <a href={href('/yearbook')} class={`dropdown-item ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`}>年度册 (PDF)</a>
@@ -135,9 +135,12 @@ const isHome = currentPath === base || currentPath === href('/')
   syncNavSession();
   syncMailUnread();
   
-  // 2. 页面载入时执行
-  document.addEventListener('astro:page-load', syncNavSession);
-  document.addEventListener('astro:page-load', syncMailUnread);
+  // 2. 页面载入时执行（视图过渡时只注册一次，避免重复请求）
+  if (!window.__alumni_nav_page_load_bound) {
+    document.addEventListener('astro:page-load', syncNavSession);
+    document.addEventListener('astro:page-load', syncMailUnread);
+    window.__alumni_nav_page_load_bound = true;
+  }
   
   // 3. 事件广播通知时更新
   if (!window.__alumni_inbox_bound) {
@@ -315,7 +318,8 @@ const isHome = currentPath === base || currentPath === href('/')
     transition: transform var(--duration-fast) var(--ease-out-quart);
   }
   
-  .nav-dropdown:hover .dropdown-chevron {
+  .nav-dropdown:focus-within .dropdown-chevron,
+  .nav-dropdown.is-open .dropdown-chevron {
     transform: rotate(180deg);
   }
   
@@ -342,11 +346,19 @@ const isHome = currentPath === base || currentPath === href('/')
     z-index: 120;
   }
   
-  .nav-dropdown:hover .dropdown-menu {
+  .nav-dropdown:focus-within .dropdown-menu,
+  .nav-dropdown.is-open .dropdown-menu {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
     transform: translateX(-50%) translateY(4px);
+  }
+
+  .nav-dropdown:focus-within .nav-dropdown-trigger[aria-expanded="false"] + .dropdown-menu {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(8px);
   }
   
   .dropdown-item {
@@ -416,14 +428,15 @@ const isHome = currentPath === base || currentPath === href('/')
     .ink-line {
       animation: none;
     }
-    .nav-dropdown:hover .dropdown-menu,
+    .nav-dropdown:focus-within .dropdown-menu,
+    .nav-dropdown.is-open .dropdown-menu,
     .mobile-drawer,
     .mobile-drawer-overlay {
       transition: none !important;
     }
   }
 
-  .mobile-toggle { display: none; background: none; border: none; cursor: pointer; color: var(--color-paper-ink); padding: 4px; align-items: center; justify-content: center; margin-left: auto; }
+  .mobile-toggle { display: none; width: 44px; height: 44px; background: none; border: none; cursor: pointer; color: var(--color-paper-ink); padding: 0; align-items: center; justify-content: center; margin-left: auto; }
 
   /* 移动端侧滑抽屉样式 */
   .mobile-drawer-overlay {
@@ -469,11 +482,13 @@ const isHome = currentPath === base || currentPath === href('/')
     border-bottom: 1px solid var(--color-paper-border);
   }
   .drawer-close {
+    width: 44px;
+    height: 44px;
     background: none;
     border: none;
     cursor: pointer;
     color: var(--color-paper-muted);
-    padding: 4px;
+    padding: 0;
     border-radius: var(--rounded-sm);
   }
   .drawer-close:hover {
@@ -539,6 +554,8 @@ const isHome = currentPath === base || currentPath === href('/')
 
 <script>
   let topNavScrollCleanup;
+  let topNavDrawerCleanup;
+  let topNavDropdownCleanup;
 
   function initScroll() {
     if (topNavScrollCleanup) topNavScrollCleanup();
@@ -556,6 +573,7 @@ const isHome = currentPath === base || currentPath === href('/')
   }
 
   function initMobileDrawer() {
+    if (topNavDrawerCleanup) topNavDrawerCleanup();
     const trigger = document.getElementById('mobile-menu-trigger');
     const closeBtn = document.getElementById('mobile-menu-close');
     const overlay = document.querySelector('.mobile-drawer-overlay');
@@ -573,15 +591,64 @@ const isHome = currentPath === base || currentPath === href('/')
     
     // 每次开始路由转换前均强制关闭抽屉并清除滚动锁定，防止切页后页面锁定
     document.addEventListener('astro:before-preparation', closeDrawer);
+    topNavDrawerCleanup = () => {
+      if (trigger) trigger.removeEventListener('click', openDrawer);
+      if (closeBtn) closeBtn.removeEventListener('click', closeDrawer);
+      if (overlay) overlay.removeEventListener('click', closeDrawer);
+      document.removeEventListener('astro:before-preparation', closeDrawer);
+    };
+  }
+
+  function initDropdown() {
+    if (topNavDropdownCleanup) topNavDropdownCleanup();
+    const dropdown = document.querySelector('.nav-dropdown');
+    const trigger = dropdown?.querySelector('.nav-dropdown-trigger');
+    if (!dropdown || !trigger) return;
+
+    const setOpen = (isOpen) => {
+      dropdown.classList.toggle('is-open', isOpen);
+      trigger.setAttribute('aria-expanded', String(isOpen));
+    };
+    const toggle = () => setOpen(trigger.getAttribute('aria-expanded') !== 'true');
+    const onTriggerClick = (event) => {
+      event.preventDefault();
+      toggle();
+    };
+    const onKeydown = (event) => {
+      if (event.target === trigger && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        toggle();
+      } else if (event.key === 'Escape') {
+        setOpen(false);
+        trigger.focus();
+      }
+    };
+    const onDocumentPointerDown = (event) => {
+      if (!dropdown.contains(event.target)) setOpen(false);
+    };
+
+    trigger.addEventListener('click', onTriggerClick);
+    dropdown.addEventListener('keydown', onKeydown);
+    document.addEventListener('pointerdown', onDocumentPointerDown);
+    topNavDropdownCleanup = () => {
+      trigger.removeEventListener('click', onTriggerClick);
+      dropdown.removeEventListener('keydown', onKeydown);
+      document.removeEventListener('pointerdown', onDocumentPointerDown);
+    };
   }
 
   // 1. 首屏初始化
   initScroll();
   initMobileDrawer();
+  initDropdown();
 
   // 2. 视图过渡后再次绑定
-  document.addEventListener('astro:page-load', () => {
-    initScroll();
-    initMobileDrawer();
-  });
+  if (!window.__alumni_top_nav_bound) {
+    document.addEventListener('astro:page-load', () => {
+      initScroll();
+      initMobileDrawer();
+      initDropdown();
+    });
+    window.__alumni_top_nav_bound = true;
+  }
 </script>

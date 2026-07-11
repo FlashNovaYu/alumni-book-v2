@@ -6,6 +6,7 @@ import { resolve } from 'path'
 const src = resolve(__dirname, '../src')
 const read = (relativePath: string) => readFileSync(resolve(src, relativePath), 'utf-8')
 const extractStyles = (source: string) => source.match(/<style>([\s\S]*)<\/style>/)?.[1] || ''
+const extractLastScript = (source: string) => Array.from(source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)).at(-1)?.[1] || ''
 
 describe('同学会话失效约束', () => {
   it('为班级空间携带同学令牌并通过统一处理器处理 401', () => {
@@ -204,6 +205,108 @@ describe('长内容浏览器布局可靠性', () => {
       expect(metrics.yearbook.height).toBeLessThanOrEqual(metrics.yearbook.maxHeight + 1)
       expect(metrics.yearbookCardHeight).toBeLessThanOrEqual(metrics.yearbookMetaHeight + metrics.yearbook.maxHeight + 1)
       expect(metrics.printButtonTop).toBeGreaterThanOrEqual(metrics.navBottom)
+    } finally {
+      await browser.close()
+    }
+  })
+})
+
+describe('导航与表单无障碍', () => {
+  it('为可键盘操作的导航、搜索和表单控件声明可访问名称与关联', () => {
+    const nav = read('components/TopNav.astro')
+    const rosterSearch = read('components/RosterSearch.vue')
+    const publicMessageBoard = read('components/PublicMessageBoard.vue')
+    const messageComposer = read('components/MessageComposer.vue')
+    const studentsView = read('../../admin/src/views/StudentsView.vue')
+    const settingsView = read('../../admin/src/views/SettingsView.vue')
+    const adminLayout = read('../../admin/src/views/AdminLayout.vue')
+
+    expect(nav).toContain("event.key === 'Escape'")
+    expect(nav).toContain("event.key === 'Enter'")
+    expect(nav).toContain("event.key === ' '")
+    expect(nav).toContain('.nav-dropdown:focus-within .dropdown-menu')
+    expect(nav).toContain('.nav-dropdown.is-open .dropdown-menu')
+    expect(nav).toMatch(/\.mobile-toggle\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/)
+    expect(nav).toMatch(/\.drawer-close\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/)
+    expect(rosterSearch).toContain('aria-label="搜索同学"')
+    expect(publicMessageBoard).toContain('textarea-label="公共留言内容"')
+    expect(messageComposer).toContain(':aria-label="textareaLabel"')
+    expect(studentsView).toContain('aria-label="搜索学生"')
+    for (const id of [
+      'preface-title',
+      'preface-subtitle',
+      'preface-content',
+      'footer-copyright',
+      'footer-beian',
+      'footer-beian-url',
+      'typography-font-family',
+      'typography-font-size',
+      'museum-enabled',
+      'museum-hero-eyebrow',
+      'museum-hero-title',
+      'museum-hero-subtitle',
+      'museum-particle-level',
+      'museum-enable-class-graph',
+      'museum-enable-seat-map',
+    ]) {
+      expect(settingsView).toContain(`for="${id}"`)
+      expect(settingsView).toContain(`id="${id}"`)
+    }
+    expect(settingsView).toContain(':aria-label="`第 ${i + 1} 位致谢姓名`"')
+    expect(settingsView).toContain(':aria-label="`第 ${i + 1} 位致谢角色`"')
+    const sidebarLinks = Array.from(adminLayout.matchAll(/<router-link[\s\S]*?<\/router-link>/g))
+    expect(sidebarLinks).toHaveLength(7)
+    for (const link of sidebarLinks) {
+      expect(link[0]).toMatch(/title="[^"]+"/)
+      expect(link[0]).toMatch(/aria-label="[^"]+"/)
+    }
+  })
+
+  it('在浏览器中以键盘开关下拉菜单，并在页面过渡后避免重复绑定', async () => {
+    const nav = read('components/TopNav.astro')
+    const browser = await chromium.launch({ headless: true })
+
+    try {
+      const page = await browser.newPage()
+      await page.setContent(`
+        <style>${extractStyles(nav)}</style>
+        <nav class="top-nav">
+          <div class="nav-dropdown">
+            <button id="nav-dropdown-trigger" class="nav-dropdown-trigger" aria-expanded="false">更多功能</button>
+            <div id="nav-dropdown-menu" class="dropdown-menu"><a href="#album">影像馆</a></div>
+          </div>
+        </nav>
+        <button id="mobile-menu-trigger">打开菜单</button>
+        <button id="mobile-menu-close">关闭菜单</button>
+        <div class="mobile-drawer-overlay"></div>
+        <main id="outside">页面内容</main>
+        <script>${extractLastScript(nav)}</script>
+      `)
+
+      await page.evaluate(() => {
+        document.dispatchEvent(new Event('astro:page-load'))
+        document.dispatchEvent(new Event('astro:page-load'))
+      })
+
+      const state = async () => page.locator('#nav-dropdown-trigger').getAttribute('aria-expanded')
+      const menuVisibility = async () => page.locator('#nav-dropdown-menu').evaluate(element => getComputedStyle(element).visibility)
+      await page.locator('#nav-dropdown-trigger').click()
+      expect(await state()).toBe('true')
+      expect(await page.locator('.nav-dropdown').evaluate(element => element.classList.contains('is-open'))).toBe(true)
+      expect(await menuVisibility()).toBe('visible')
+
+      await page.locator('#nav-dropdown-trigger').press('Escape')
+      expect(await state()).toBe('false')
+      expect(await menuVisibility()).toBe('hidden')
+
+      await page.locator('#nav-dropdown-trigger').press('Enter')
+      expect(await state()).toBe('true')
+
+      await page.mouse.click(5, 200)
+      expect(await state()).toBe('false')
+
+      await page.locator('#nav-dropdown-trigger').press(' ')
+      expect(await state()).toBe('true')
     } finally {
       await browser.close()
     }

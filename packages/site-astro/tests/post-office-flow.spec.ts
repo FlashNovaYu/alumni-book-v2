@@ -99,11 +99,34 @@ test('logged-in navigation exposes public messages and mailbox with unread stamp
   await expect(page.locator('.mail-unread-stamp').first()).toContainText('2')
 })
 
+test('top navigation dropdown supports keyboard controls and expanded state', async ({ page }) => {
+  await seedClassmateSession(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const trigger = page.getByRole('button', { name: '更多功能' })
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+  await trigger.focus()
+  await page.keyboard.press('Enter')
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.locator('.nav-dropdown')).toHaveClass(/is-open/)
+
+  await page.keyboard.press('Escape')
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('.nav-dropdown')).not.toHaveClass(/is-open/)
+
+  await page.keyboard.press('Space')
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await page.locator('main').click({ position: { x: 1, y: 1 } })
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+})
+
 test('public message page can submit a pending message', async ({ page }) => {
   await seedClassmateSession(page)
   await page.goto('./messages/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('heading', { name: /公共留言/ })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: '公共留言内容' })).toBeVisible()
   await page.getByPlaceholder(/写一张便签/).fill('测试公共留言')
   await page.getByRole('button', { name: /提交留言/ }).click()
   await expect(page.getByText(/等待审核/)).toBeVisible()
