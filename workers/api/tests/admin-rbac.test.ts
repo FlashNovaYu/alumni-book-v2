@@ -201,6 +201,44 @@ describe('Administrator RBAC schema', () => {
     expect(studentBody.data.info.phone).toBeUndefined()
   })
 
+  it('returns a permission-scoped workbench without student data for a moderator', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+         VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+      ).bind('adm_workbench_test', 'workbench-moderator', '工作台审核员', await hashPassword('workbench-pass')),
+      env.DB.prepare(
+        "INSERT INTO messages (id, student_slug, author_name, content) VALUES ('msg_workbench_test', 'test_init', '待审核同学', '需要审核的个人留言')"
+      ),
+      env.DB.prepare(
+        "INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_workbench_test', 'test_init', '待审核同学', '需要审核的公共留言', 'pending')"
+      ),
+    ])
+
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'workbench-moderator', password: 'workbench-pass' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+
+    const response = await worker.fetch(new Request('http://localhost/api/admin/workbench', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    const body = await response.json() as any
+
+    expect(response.status).toBe(200)
+    expect(body.data.todos).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'profile-messages', to: '/messages', count: expect.any(Number) }),
+      expect.objectContaining({ id: 'public-messages', to: '/messages', count: expect.any(Number) }),
+    ]))
+    expect(body.data.summary).toEqual([])
+    expect(body.data).not.toHaveProperty('studentCount')
+    expect(body.data).not.toHaveProperty('recentStudents')
+    expect(body.data).not.toHaveProperty('topVisited')
+    expect(body.data).not.toHaveProperty('auditAlerts')
+  })
+
   it('allows the owner to create a standalone secondary administrator', async () => {
     const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
       method: 'POST',

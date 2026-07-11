@@ -17,7 +17,7 @@ import { notificationsRoutes } from './routes/notifications'
 import { inboxRoutes } from './routes/inbox'
 import { mailboxRoutes } from './routes/mailbox'
 import { adminAccountsRoutes } from './routes/adminAccounts'
-import { requireAdminSession, requireOwner, requirePermission, type AdminPermission } from './lib/adminAuth'
+import { getAdminPrincipal, hasPermission, requireAdminSession, requireOwner, requirePermission, type AdminPermission } from './lib/adminAuth'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
@@ -433,6 +433,7 @@ function permissionForWrites(permission: AdminPermission) {
 // 管理接口先解析会话，再按业务能力授权。前端隐藏入口不构成安全边界。
 app.use('/api/admin/*', requireAdminSession)
 app.use('/api/admin/stats', requireOwner)
+app.use('/api/admin/workbench', requirePermission('dashboard.view'))
 app.use('/api/admin/accounts*', requireOwner)
 app.use('/api/admin/account-candidates', requireOwner)
 app.use('/api/admin/audit-logs', requireOwner)
@@ -468,6 +469,48 @@ app.route('/api', inboxRoutes)
 app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
 app.route('/api', adminAccountsRoutes)
+
+// 次级管理员工作台只聚合其职责范围内的计数与快捷入口，避免下发同学档案、浏览排行或资料完整度等数据。
+app.get('/api/admin/workbench', async (c) => {
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+
+  const todos: Array<{ id: string; label: string; count: number; to: string }> = []
+  const summary: Array<{ id: string; label: string; value: number; to: string }> = []
+
+  if (hasPermission(admin, 'moderation.view')) {
+    const [profileMessages, publicMessages] = await Promise.all([
+      c.env.DB.prepare('SELECT COUNT(*) AS count FROM messages WHERE is_approved = 0').first<{ count: number }>(),
+      c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE status = 'pending'").first<{ count: number }>(),
+    ])
+    todos.push(
+      { id: 'profile-messages', label: '个人留言待审核', count: profileMessages?.count || 0, to: '/messages' },
+      { id: 'public-messages', label: '公共留言待审核', count: publicMessages?.count || 0, to: '/messages' },
+    )
+  }
+
+  if (hasPermission(admin, 'content.manage')) {
+    const [albums, photos, timelineEvents] = await Promise.all([
+      c.env.DB.prepare('SELECT COUNT(*) AS count FROM albums').first<{ count: number }>(),
+      c.env.DB.prepare('SELECT COUNT(*) AS count FROM photos').first<{ count: number }>(),
+      c.env.DB.prepare('SELECT COUNT(*) AS count FROM timeline_events').first<{ count: number }>(),
+    ])
+    summary.push(
+      { id: 'albums', label: '班级相册', value: albums?.count || 0, to: '/albums' },
+      { id: 'photos', label: '相册照片', value: photos?.count || 0, to: '/albums' },
+      { id: 'timeline-events', label: '时光轴事件', value: timelineEvents?.count || 0, to: '/timeline' },
+    )
+  }
+
+  if (hasPermission(admin, 'notifications.view')) {
+    const threads = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM mail_threads WHERE created_by_type = 'admin'"
+    ).first<{ count: number }>()
+    summary.push({ id: 'mail-threads', label: '已发通知', value: threads?.count || 0, to: '/mail' })
+  }
+
+  return c.json({ success: true, data: { todos, summary } })
+})
 
 // 管理后台统计
 app.get('/api/admin/stats', async (c) => {
