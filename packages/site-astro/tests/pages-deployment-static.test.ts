@@ -45,7 +45,7 @@ describe('Pages production deployment contract', () => {
   })
 
   it('declares direct Pages bindings and legacy redirects', () => {
-    const config = read('wrangler.pages.toml')
+    const config = read('wrangler.toml')
     expect(config).toContain('pages_build_output_dir = "./deploy"')
     expect(config).toContain('binding = "DB"')
     expect(config).toContain('binding = "R2"')
@@ -63,7 +63,8 @@ describe('Pages production deployment contract', () => {
     const pagesWorkflow = read('.github/workflows/deploy-site.yml')
     expect(pagesWorkflow).toContain('pnpm prepare:pages')
     expect(pagesWorkflow).toContain('pnpm smoke:pages')
-    expect(pagesWorkflow).toContain('wrangler.pages.toml')
+    expect(pagesWorkflow).toContain('wrangler --cwd ../.. pages deploy deploy')
+    expect(pagesWorkflow).not.toContain('wrangler.pages.toml')
     expect(pagesWorkflow).toContain("VITE_WORKER_URL: 'https://alumni-book.pages.dev'")
 
     const workerWorkflow = read('.github/workflows/deploy-worker.yml')
