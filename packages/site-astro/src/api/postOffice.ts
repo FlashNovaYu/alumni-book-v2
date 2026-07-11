@@ -7,7 +7,13 @@ function classmateHeaders(): Record<string, string> {
   return token ? { 'X-Classmate-Token': token } : {}
 }
 
-async function parse<T>(res: Response, fallback: string): Promise<T> {
+async function parsePublicResponse<T>(res: Response, fallback: string): Promise<T> {
+  const data = await res.json() as ApiResponse<T>
+  if (!res.ok || !data.success || !data.data) throw new Error(data.message || fallback)
+  return data.data
+}
+
+async function parseClassmate<T>(res: Response, fallback: string): Promise<T> {
   const data = await parseClassmateResponse<T>(res)
   if (!res.ok || !data.success || !data.data) throw new Error(data.message || fallback)
   return data.data
@@ -67,17 +73,17 @@ export async function reactToPublicMessage(apiBase: string, id: string, reaction
     headers: { 'Content-Type': 'application/json', ...classmateHeaders() },
     body: JSON.stringify({ reaction }),
   })
-  return parse<{ reactions: Record<string, number> }>(res, '表情回应失败')
+  return parseClassmate<{ reactions: Record<string, number> }>(res, '表情回应失败')
 }
 
 export async function fetchInboxSummary(apiBase: string) {
   const res = await fetch(joinApiUrl(apiBase, '/api/inbox/summary'), { headers: classmateHeaders() })
-  return parse<InboxSummary>(res, '未读消息加载失败')
+  return parseClassmate<InboxSummary>(res, '未读消息加载失败')
 }
 
 export async function fetchNotifications(apiBase: string) {
   const res = await fetch(joinApiUrl(apiBase, '/api/notifications'), { headers: classmateHeaders() })
-  return parse<{ items: NotificationItem[] }>(res, '通知加载失败')
+  return parseClassmate<{ items: NotificationItem[] }>(res, '通知加载失败')
 }
 
 export async function markNotificationRead(apiBase: string, id: string) {
@@ -88,7 +94,7 @@ export async function markNotificationRead(apiBase: string, id: string) {
 
 export async function fetchMailboxThread(apiBase: string, threadId: string) {
   const res = await fetch(joinApiUrl(apiBase, `/api/mailbox/threads/${threadId}`), { headers: classmateHeaders() })
-  return parse<MailboxThreadDetail>(res, '信件详情加载失败')
+  return parseClassmate<MailboxThreadDetail>(res, '信件详情加载失败')
 }
 
 export async function replyMailboxThread(apiBase: string, threadId: string, body: string) {
@@ -103,5 +109,5 @@ export async function replyMailboxThread(apiBase: string, threadId: string, body
 
 export async function fetchRecipientDirectory(apiBase: string) {
   const res = await fetch(joinApiUrl(apiBase, '/api/classmates'))
-  return parse<ClassmateEntry[]>(res, '同学目录加载失败')
+  return parsePublicResponse<ClassmateEntry[]>(res, '同学目录加载失败')
 }

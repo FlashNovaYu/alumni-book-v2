@@ -29,4 +29,13 @@ describe('同学会话失效约束', () => {
     expect(mailbox).toContain('{{ loadError }}')
     expect(mailbox).toContain('v-if="!loadError"')
   })
+
+  it('将可靠性回归纳入默认站点测试，并让公开目录保持公开解析', () => {
+    const packageJson = readFileSync(resolve(__dirname, '../package.json'), 'utf-8')
+    const postOffice = read('api/postOffice.ts')
+
+    expect(packageJson).toContain('tests/ui-reliability-static.test.ts')
+    expect(postOffice).toContain('parsePublicResponse')
+    expect(postOffice).toContain('return parsePublicResponse<ClassmateEntry[]>(res, \'同学目录加载失败\')')
+  })
 })
