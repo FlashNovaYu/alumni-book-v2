@@ -13,7 +13,7 @@
       <div v-for="student in filtered" :key="student.id" class="student-row card">
         <div class="student-info">
           <div class="student-avatar">
-            <img v-if="student.avatarUrl" :src="student.avatarUrl" :alt="student.name" />
+            <img v-if="student.avatarUrl && !failedAvatarIds.has(student.id)" :src="student.avatarUrl" :alt="student.name" @error="failedAvatarIds.add(student.id)" />
             <span v-else>{{ student.name.charAt(0) }}</span>
           </div>
             <div>
@@ -71,6 +71,7 @@ const keyword = ref('')
 const showCreate = ref(false)
 const creating = ref(false)
 const newStudent = ref({ name: '', slug: '' })
+const failedAvatarIds = ref(new Set<string>())
 
 const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase()

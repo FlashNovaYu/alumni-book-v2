@@ -161,7 +161,14 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
             <div class="yearbook-mate-card card">
               <div class="mate-avatar-box">
                 {mate.avatarUrl ? (
-                  <img src={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`} alt={mate.name} />
+                  <object
+                    class="mate-avatar-image"
+                    data={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`}
+                    aria-label={`${mate.name}的头像`}
+                    style="aspect-ratio: 1"
+                  >
+                    <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
+                  </object>
                 ) : (
                   <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
                 )}
@@ -390,10 +397,11 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     justify-content: center;
     border: 2px solid var(--color-hairline);
   }
-  .mate-avatar-box img {
+  .mate-avatar-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
   }
   .mate-avatar-char {
     font-size: 24px;
