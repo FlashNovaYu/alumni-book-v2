@@ -16,28 +16,36 @@ async function seedClassmateSession(page: any) {
 const mockOverviewData = {
   success: true,
   data: {
-    messages: [
+    chat: {
+      items: [
       {
         id: 'msg-1',
-        authorSlug: 'zhangsan',
-        authorName: '张三',
-        content: '张三的精美留言',
-        cardStyle: 'paper',
-        status: 'approved',
-        reactions: { '❤️': 2 },
-        createdAt: '2026-07-10T12:00:00.000Z'
+          author: { name: '张三', slug: 'zhangsan', avatarUrl: null },
+          content: '张三的群聊消息',
+          status: 'visible',
+          replyTo: null,
+          reactionCounts: { '❤️': 2 },
+          myReaction: null,
+          canRecall: false,
+          createdAt: '2026-07-10T12:00:00.000Z',
+          updatedAt: '2026-07-10T12:00:00.000Z',
       },
       {
         id: 'msg-2',
-        authorSlug: 'lisi',
-        authorName: '李四',
-        content: '李四的黑板便签',
-        cardStyle: 'chalkboard',
-        status: 'approved',
-        reactions: { '👍': 1 },
-        createdAt: '2026-07-10T12:01:00.000Z'
+          author: { name: '李四', slug: 'lisi', avatarUrl: null },
+          content: '李四的群聊消息',
+          status: 'visible',
+          replyTo: null,
+          reactionCounts: { '👍': 1 },
+          myReaction: null,
+          canRecall: false,
+          createdAt: '2026-07-10T12:01:00.000Z',
+          updatedAt: '2026-07-10T12:01:00.000Z',
       }
-    ],
+      ],
+      cursor: 'test-chat-cursor',
+      mute: null,
+    },
     albums: [
       {
         id: 'album-1',
@@ -57,7 +65,7 @@ const mockOverviewData = {
       }
     ],
     counts: {
-      approvedMessages: 2,
+      groupMessages: 2,
       albums: 1,
       timelineItems: 1
     }
@@ -88,15 +96,15 @@ test.describe('Class Space Flow', () => {
     await expect(page.getByRole('heading', { name: '班级空间', exact: true, level: 1 })).toBeVisible()
     
     // 验证侧边导航
-    const sidebar = page.locator('.sidebar-nav-card')
-    await expect(sidebar).toBeVisible()
-    await expect(sidebar.getByRole('link', { name: /留言/ })).toBeVisible()
-    await expect(sidebar.getByRole('link', { name: /影像/ })).toBeVisible()
-    await expect(sidebar.getByRole('link', { name: /时间/ })).toBeVisible()
+    const directory = page.locator('.class-space-directory')
+    await expect(directory).toBeVisible()
+    await expect(directory.getByRole('link', { name: /群聊/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /影像/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /时光/ })).toBeVisible()
 
-    // 验证留言卡片内容
-    await expect(page.getByText('张三的精美留言')).toBeVisible()
-    await expect(page.getByText('李四的黑板便签')).toBeVisible()
+    // 验证群聊消息内容
+    await expect(page.locator('[data-message-id="msg-1"]')).toContainText('张三的群聊消息')
+    await expect(page.locator('[data-message-id="msg-2"]')).toContainText('李四的群聊消息')
 
     // 验证相册轨道
     await expect(page.getByText('青春毕业照')).toBeVisible()
@@ -108,7 +116,7 @@ test.describe('Class Space Flow', () => {
     // 验证时间轴预览
     await expect(page.getByText('班级空间大事件')).toBeVisible()
     await expect(page.getByText('今日班级空间系统正式上线啦！')).toBeVisible()
-    await expect(page.locator('time')).toContainText('2026年7月10日')
+    await expect(page.locator('time.timeline-time')).toContainText('2026年7月10日')
   })
 
   test('mobile layout displays without horizontal overflow', async ({ page }) => {
@@ -129,8 +137,8 @@ test.describe('Class Space Flow', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
     expect(overflow).toBe(false)
 
-    // 验证移动端下，侧边栏变为顶部水平导航，没有了标题
-    await expect(page.locator('.nav-title')).toBeHidden()
+    // 验证移动端下，目录改为顶部横向锚点条
+    await expect(page.locator('.class-space-directory')).toBeVisible()
   })
 
   test('error state and retry button functionality', async ({ page }) => {
@@ -169,6 +177,6 @@ test.describe('Class Space Flow', () => {
 
     // 应该重新加载并加载成功，展示数据
     await expect(page.locator('.hub-error')).toBeHidden()
-    await expect(page.getByText('张三的精美留言')).toBeVisible()
+    await expect(page.getByText('张三的群聊消息')).toBeVisible()
   })
 })

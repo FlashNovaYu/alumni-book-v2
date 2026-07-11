@@ -68,13 +68,19 @@ describe('class space responsive dashboard contracts', () => {
     expect(source).not.toContain('ScrollTrigger')
   })
 
-  it('verifies ClassSpaceHub.vue exists, handles API overview fetching, state orchestration, and sub-components', () => {
+  it('verifies ClassSpaceHub.vue mounts the group chat workbench from the authenticated overview', () => {
     expect(existsSync(resolve(src, 'components/ClassSpaceHub.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'composables/useGroupChat.ts'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/GroupChatStage.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/GroupChatMessage.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/GroupChatComposer.vue'))).toBe(true)
     const source = read('components/ClassSpaceHub.vue')
-    expect(source).toContain('ClassSpaceMessageStage')
+    expect(source).toContain('GroupChatStage')
     expect(source).toContain('ClassSpaceAlbumRail')
     expect(source).toContain('ClassSpaceTimelinePreview')
     expect(source).toContain('fetchClassSpaceOverview')
+    expect(source).toContain('id="group-chat"')
+    expect(source).not.toContain('ClassSpaceMessageStage')
     expect(source).not.toContain('AlbumGrid')
     expect(source).not.toContain('ScrollTrigger')
   })
