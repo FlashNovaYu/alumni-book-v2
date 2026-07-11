@@ -43,4 +43,19 @@ describe('Pages production deployment contract', () => {
     expect(notFound).toContain('href="/admin/"')
     expect(notFound).toContain("var siteBase = '/';")
   })
+
+  it('declares direct Pages bindings and legacy redirects', () => {
+    const config = read('wrangler.pages.toml')
+    expect(config).toContain('pages_build_output_dir = "./deploy"')
+    expect(config).toContain('binding = "DB"')
+    expect(config).toContain('binding = "R2"')
+    expect(config).not.toContain('JWT_SECRET')
+
+    const redirects = read('packages/site-astro/public/_redirects')
+    expect(redirects).toContain('/alumni-book-v2/* /:splat 302')
+
+    const headers = read('packages/site-astro/public/_headers')
+    expect(headers).toContain('max-age=31536000')
+    expect(headers).toContain('immutable')
+  })
 })
