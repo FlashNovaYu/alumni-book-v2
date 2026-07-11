@@ -34,7 +34,11 @@ test.describe('public site major redesign responsive smoke', () => {
   }
 
   test('yearbook broken avatar fallback stays centered without outer flex layout', async ({ page }) => {
-    await page.route('https://avatar.invalid/**', route => route.fulfill({ status: 404, body: '' }))
+    let invalidAvatarRequests = 0
+    await page.route('https://avatar.invalid/**', route => {
+      invalidAvatarRequests += 1
+      return route.fulfill({ status: 404, body: '' })
+    })
     await page.setContent(`
       <style>${yearbookStyles}</style>
       <style>.mate-avatar-box { display: block; }</style>
@@ -46,21 +50,32 @@ test.describe('public site major redesign responsive smoke', () => {
     `)
 
     const fallback = page.locator('.mate-avatar-image > .mate-avatar-char')
+    await expect.poll(() => invalidAvatarRequests).toBeGreaterThan(0)
     await expect(fallback).toBeVisible()
 
     const centers = await page.evaluate(() => {
       const avatar = document.querySelector('.mate-avatar-box')!.getBoundingClientRect()
-      const fallback = document.querySelector('.mate-avatar-char')!.getBoundingClientRect()
+      const fallback = document.querySelector('.mate-avatar-char')!
+      const range = document.createRange()
+      range.selectNodeContents(fallback)
+      const text = range.getBoundingClientRect()
+      const styles = getComputedStyle(fallback)
       return {
         avatarWidth: avatar.width,
         avatarHeight: avatar.height,
-        horizontal: Math.abs((fallback.left + fallback.width / 2) - (avatar.left + avatar.width / 2)),
-        vertical: Math.abs((fallback.top + fallback.height / 2) - (avatar.top + avatar.height / 2)),
+        display: styles.display,
+        alignItems: styles.alignItems,
+        justifyContent: styles.justifyContent,
+        horizontal: Math.abs((text.left + text.width / 2) - (avatar.left + avatar.width / 2)),
+        vertical: Math.abs((text.top + text.height / 2) - (avatar.top + avatar.height / 2)),
       }
     })
 
     expect(centers.avatarWidth).toBe(60)
     expect(centers.avatarHeight).toBe(60)
+    expect(centers.display).toBe('flex')
+    expect(centers.alignItems).toBe('center')
+    expect(centers.justifyContent).toBe('center')
     expect(centers.horizontal).toBeLessThanOrEqual(1)
     expect(centers.vertical).toBeLessThanOrEqual(1)
   })
