@@ -67,10 +67,6 @@ test.beforeEach(async ({ page }) => {
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [{ name: '测试同学', slug: 'test_init', avatarUrl: null }, { name: '李四', slug: 'lisi', avatarUrl: null }] }),
   }))
-  await page.route('**/api/mailbox/**', (route) => route.fulfill({
-    contentType: 'application/json',
-    body: JSON.stringify({ success: true, data: { items: [] } }),
-  }))
 })
 
 test('班级信箱以会话式私聊展示历史、重试发送并复用已有会话', async ({ page }) => {

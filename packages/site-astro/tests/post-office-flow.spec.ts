@@ -69,26 +69,6 @@ test.beforeEach(async ({ page }) => {
     })
   })
 
-  await page.route('**/api/mailbox/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          items: [{
-            id: 'thread_1',
-            subject: '欢迎来到班级邮局',
-            threadType: 'system',
-            senderName: '系统邮局',
-            preview: '你的收件箱已经准备好了',
-            unread: true,
-            updatedAt: '2026-07-06 12:00:00',
-          }],
-        },
-      }),
-    })
-  })
 })
 
 test('logged-in navigation exposes public messages and mailbox with unread stamp', async ({ page }) => {

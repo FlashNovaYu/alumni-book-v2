@@ -96,7 +96,7 @@ test.describe('Class Space Flow', () => {
     await expect(page.getByRole('heading', { name: '班级空间', exact: true, level: 1 })).toBeVisible()
     
     // 验证侧边导航
-    const directory = page.locator('.class-space-directory')
+    const directory = page.locator('.class-space-section-nav')
     await expect(directory).toBeVisible()
     await expect(directory.getByRole('link', { name: /群聊/ })).toBeVisible()
     await expect(directory.getByRole('link', { name: /影像/ })).toBeVisible()
@@ -111,12 +111,12 @@ test.describe('Class Space Flow', () => {
     await expect(page.getByText('15 张')).toBeVisible()
     // 链接带有 #album-
     const albumLink = page.locator('a.album-rail-card')
-    await expect(albumLink).toHaveAttribute('href', '/album#album-album-1')
+    await expect(albumLink).toHaveAttribute('href', /\/(?:alumni-book-v2\/)?album#album-album-1$/)
 
     // 验证时间轴预览
     await expect(page.getByText('班级空间大事件')).toBeVisible()
     await expect(page.getByText('今日班级空间系统正式上线啦！')).toBeVisible()
-    await expect(page.locator('time.timeline-time')).toContainText('2026年7月10日')
+    await expect(page.locator('.timeline-rail-card time')).toContainText('2026年7月10日')
   })
 
   test('mobile layout displays without horizontal overflow', async ({ page }) => {
@@ -138,7 +138,7 @@ test.describe('Class Space Flow', () => {
     expect(overflow).toBe(false)
 
     // 验证移动端下，目录改为顶部横向锚点条
-    await expect(page.locator('.class-space-directory')).toBeVisible()
+    await expect(page.locator('.class-space-section-nav')).toBeVisible()
   })
 
   test('error state and retry button functionality', async ({ page }) => {

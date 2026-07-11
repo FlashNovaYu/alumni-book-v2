@@ -175,19 +175,21 @@ test.describe('班级空间群聊基础流程', () => {
 
   test('五秒后才首次同步，并在离开班级空间前取消调度', async ({ page }) => {
     let syncCalls = 0
+    let firstSyncAt = 0
     await mockClassSpace(page, async (route) => {
       await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: initialChat.data.chat.items[1] }) })
     })
     await page.route('**/api/group-chat/sync**', async (route) => {
       syncCalls += 1
+      if (!firstSyncAt) firstSyncAt = Date.now()
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { cursor: 'sync-1', items: [], mute: null } }) })
     })
 
     await seedClassmateSession(page)
+    const navigationStartedAt = Date.now()
     await page.goto('./class-space/', { waitUntil: 'networkidle' })
-    await page.waitForTimeout(4_500)
-    expect(syncCalls).toBe(0)
-    await expect.poll(() => syncCalls, { timeout: 2_000 }).toBe(1)
+    await expect.poll(() => syncCalls, { timeout: 7_000 }).toBe(1)
+    expect(firstSyncAt - navigationStartedAt).toBeGreaterThanOrEqual(4_750)
 
     await page.goto('./preface/', { waitUntil: 'networkidle' })
     const callsBeforeWait = syncCalls

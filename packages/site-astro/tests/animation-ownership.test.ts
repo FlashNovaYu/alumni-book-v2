@@ -46,4 +46,17 @@ describe('animation ownership', () => {
     expect(reveal).toContain('activeObserver.disconnect()')
     expect(layout).toContain('initGlobalReveal(true)')
   })
+
+  it('keeps chat islands out of global reveal ownership and scopes all polling cleanup', () => {
+    const groupChat = read('composables/useGroupChat.ts')
+    const inbox = read('composables/useInbox.ts')
+    const stage = read('components/GroupChatStage.vue')
+    const polling = read('composables/useVisibilityPolling.ts')
+
+    expect(groupChat).toContain('useVisibilityPolling')
+    expect(inbox).toContain('useVisibilityPolling')
+    expect(stage).not.toContain('data-reveal')
+    expect(polling).toContain('onScopeDispose(stop)')
+    expect(polling).toContain("removeEventListener('visibilitychange'")
+  })
 })

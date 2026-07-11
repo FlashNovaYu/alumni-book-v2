@@ -257,3 +257,45 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
   const hasScrollTrigger = hasRequestedChunk(requests, 'scrolltrigger')
   expect(hasScrollTrigger, 'Student page should not load ScrollTrigger after CSS-first profile redesign').toBe(false)
 })
+
+test('class space and mailbox stop their five-second sync after navigation away', async ({ page }) => {
+  let overviewCalls = 0
+  let groupSyncCalls = 0
+  let inboxSyncCalls = 0
+
+  await page.route('**/api/class-space/overview', (route) => {
+    overviewCalls += 1
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+      success: true,
+      data: { chat: { items: [], cursor: 'overview-cursor', mute: null }, albums: [], timeline: [], counts: { groupMessages: 0, albums: 0, timelineItems: 0 } },
+    }) })
+  })
+  await page.route('**/api/group-chat/sync**', (route) => {
+    groupSyncCalls += 1
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { cursor: 'group-sync', items: [], mute: null } }) })
+  })
+  await page.route('**/api/direct-conversations', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [] } }) }))
+  await page.route('**/api/notifications', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [] } }) }))
+  await page.route('**/api/inbox/summary', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { directUnread: 0, notificationUnread: 0, totalUnread: 0 } }) }))
+  await page.route('**/api/inbox/sync**', (route) => {
+    inboxSyncCalls += 1
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { cursor: 'inbox-sync', conversations: [], messages: [], notifications: [], unread: { directUnread: 0, notificationUnread: 0, totalUnread: 0 } } }) })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./class-space/', { waitUntil: 'networkidle' })
+  await expect.poll(() => groupSyncCalls, { timeout: 7_000 }).toBe(1)
+  expect(overviewCalls).toBe(1)
+
+  await page.goto('./preface/', { waitUntil: 'networkidle' })
+  const groupCallsAfterLeave = groupSyncCalls
+  await page.waitForTimeout(5_500)
+  expect(groupSyncCalls).toBe(groupCallsAfterLeave)
+
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+  await expect.poll(() => inboxSyncCalls, { timeout: 7_000 }).toBe(1)
+  await page.goto('./preface/', { waitUntil: 'networkidle' })
+  const inboxCallsAfterLeave = inboxSyncCalls
+  await page.waitForTimeout(5_500)
+  expect(inboxSyncCalls).toBe(inboxCallsAfterLeave)
+})
