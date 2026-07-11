@@ -20,6 +20,7 @@ import { mailboxRoutes } from './routes/mailbox'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
+import { filesRoutes } from './routes/files'
 
 
 type Bindings = {
@@ -408,35 +409,7 @@ app.get('/api/rankings', async (c) => {
 })
 
 // R2 文件访问
-app.get('/api/files/*', async (c) => {
-  const key = c.req.path.replace('/api/files/', '')
-  if (!key) {
-    return c.json({ success: false, message: '文件路径无效' }, 400)
-  }
-  if (!c.env.R2) {
-    return c.json({ success: false, message: '文件存储(R2)未启用' }, 503)
-  }
-  
-  const object = await c.env.R2.get(key)
-
-  if (!object) {
-    return c.json({ success: false, message: '文件不存在' }, 404)
-  }
-
-  const clientEtag = c.req.header('If-None-Match')
-  if (object.httpEtag && clientEtag === object.httpEtag) {
-    return new Response(null, { status: 304 })
-  }
-
-  const headers = new Headers()
-  headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream')
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  if (object.httpEtag) {
-    headers.set('ETag', object.httpEtag)
-  }
-
-  return new Response(object.body, { headers })
-})
+app.route('/api', filesRoutes)
 
 // JWT 中间件包装器
 function jwtGuard(secret: string) {
