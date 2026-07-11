@@ -200,4 +200,31 @@ describe('Administrator RBAC schema', () => {
     const studentBody = await studentRead.json() as any
     expect(studentBody.data.info.phone).toBeUndefined()
   })
+
+  it('allows the owner to create a standalone secondary administrator', async () => {
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+
+    const response = await worker.fetch(new Request('http://localhost/api/admin/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        accountType: 'standalone',
+        displayName: '新审核员',
+        username: 'new-moderator',
+        initialPassword: 'new-moderator-pass',
+        roleId: 'moderator',
+        permissionOverrides: [],
+      }),
+    }), env, createExecutionContext())
+    expect(response.status).toBe(201)
+    const created = await env.DB.prepare(
+      "SELECT role_id, must_change_password FROM admin_accounts WHERE username = 'new-moderator'"
+    ).first() as any
+    expect(created).toMatchObject({ role_id: 'moderator', must_change_password: 1 })
+  })
 })

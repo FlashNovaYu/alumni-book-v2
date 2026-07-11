@@ -16,6 +16,7 @@ import { publicMessagesRoutes } from './routes/publicMessages'
 import { notificationsRoutes } from './routes/notifications'
 import { inboxRoutes } from './routes/inbox'
 import { mailboxRoutes } from './routes/mailbox'
+import { adminAccountsRoutes } from './routes/adminAccounts'
 import { requireAdminSession, requireOwner, requirePermission, type AdminPermission } from './lib/adminAuth'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
@@ -432,6 +433,9 @@ function permissionForWrites(permission: AdminPermission) {
 // 管理接口先解析会话，再按业务能力授权。前端隐藏入口不构成安全边界。
 app.use('/api/admin/*', requireAdminSession)
 app.use('/api/admin/stats', requireOwner)
+app.use('/api/admin/accounts*', requireOwner)
+app.use('/api/admin/account-candidates', requireOwner)
+app.use('/api/admin/audit-logs', requireOwner)
 app.use('/api/admin/messages', permissionForMethod('moderation.view', 'moderation.manage'))
 app.use('/api/admin/messages/:id', permissionForMethod('moderation.view', 'moderation.manage'))
 app.use('/api/admin/messages/batch', permissionForMethod('moderation.view', 'moderation.manage'))
@@ -463,6 +467,7 @@ app.route('/api', notificationsRoutes)
 app.route('/api', inboxRoutes)
 app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
+app.route('/api', adminAccountsRoutes)
 
 // 管理后台统计
 app.get('/api/admin/stats', async (c) => {
