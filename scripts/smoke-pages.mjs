@@ -44,14 +44,23 @@ const albumsResponse = await request('/api/albums')
 expectStatus(albumsResponse, [200], '相册 API')
 const albumsBody = await albumsResponse.json()
 const albums = albumsBody.data || []
-const r2Key = albums
+const r2Keys = albums
   .flatMap(album => [album.coverR2Key, ...(album.photos || []).map(photo => photo.r2Key)])
-  .find(Boolean)
-if (!r2Key) throw new Error('线上相册没有可用于 R2 烟雾测试的文件')
+  .filter(Boolean)
+if (r2Keys.length === 0) throw new Error('线上相册没有可用于 R2 烟雾测试的文件')
 
-const encodedKey = String(r2Key).split('/').map(encodeURIComponent).join('/')
-const filePath = `/api/files/${encodedKey}`
-const head = await request(filePath, { method: 'HEAD' })
+let filePath
+let head
+for (const r2Key of r2Keys) {
+  const encodedKey = String(r2Key).split('/').map(encodeURIComponent).join('/')
+  const candidatePath = `/api/files/${encodedKey}`
+  try {
+    head = await request(candidatePath, { method: 'HEAD' }, 1)
+    filePath = candidatePath
+    break
+  } catch {}
+}
+if (!head || !filePath) throw new Error('线上相册没有可访问的 R2 文件')
 expectStatus(head, [200], 'R2 HEAD')
 for (const header of ['content-type', 'content-length', 'etag', 'accept-ranges', 'cache-control']) {
   if (!head.headers.get(header)) throw new Error(`R2 HEAD 缺少 ${header}`)
