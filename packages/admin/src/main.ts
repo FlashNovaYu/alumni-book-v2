@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import App from './App.vue'
+import { verifyAdminToken } from './api/client'
 import '@alumni/shared/src/tokens.css'
 import './styles/admin.css'
 
@@ -42,13 +43,8 @@ router.beforeEach(async (to) => {
     }
     if (!(window as any).__admin_token_verified) {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-        const res = await fetch(`${API_BASE}/api/auth/verify`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        if (!res.ok) {
+        const isValid = await verifyAdminToken(token)
+        if (!isValid) {
           sessionStorage.removeItem('admin_token')
           return { name: 'login' }
         }
