@@ -3,67 +3,42 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import App from './App.vue'
 import '@alumni/shared/src/tokens.css'
 import './styles/admin.css'
+import { fetchCurrentAdmin } from './api/client'
 
 const adminBase = import.meta.env.BASE_URL || '/admin/'
-
 const router = createRouter({
   history: createWebHashHistory(adminBase),
   routes: [
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('./views/LoginView.vue'),
-    },
-    {
-      path: '/',
-      component: () => import('./views/AdminLayout.vue'),
-      children: [
-        { path: '', redirect: '/dashboard' },
-        { path: 'dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
-        { path: 'students', name: 'students', component: () => import('./views/StudentsView.vue') },
-        { path: 'students/:id', name: 'student-edit', component: () => import('./views/StudentEditView.vue') },
-        { path: 'albums', name: 'albums', component: () => import('./views/AlbumsView.vue') },
-        { path: 'messages', name: 'messages', component: () => import('./views/MessagesView.vue') },
-        { path: 'timeline', name: 'timeline', component: () => import('./views/TimelineEventsView.vue') },
-        { path: 'settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
-        { path: 'mail', name: 'mail', component: () => import('./views/MailView.vue') },
-      ],
-    },
+    { path: '/login', name: 'login', component: () => import('./views/LoginView.vue') },
+    { path: '/setup', name: 'setup', component: () => import('./views/AdminSetupView.vue') },
+    { path: '/classmate', name: 'classmate-entry', component: () => import('./views/ClassmateEntryView.vue') },
+    { path: '/', component: () => import('./views/AdminLayout.vue'), children: [
+      { path: '', redirect: '/dashboard' },
+      { path: 'dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue') },
+      { path: 'students', name: 'students', component: () => import('./views/StudentsView.vue') },
+      { path: 'students/:id', name: 'student-edit', component: () => import('./views/StudentEditView.vue') },
+      { path: 'albums', name: 'albums', component: () => import('./views/AlbumsView.vue') },
+      { path: 'messages', name: 'messages', component: () => import('./views/MessagesView.vue') },
+      { path: 'timeline', name: 'timeline', component: () => import('./views/TimelineEventsView.vue') },
+      { path: 'settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
+      { path: 'mail', name: 'mail', component: () => import('./views/MailView.vue') },
+    ] },
   ],
 })
 
 router.beforeEach(async (to) => {
-  const token = sessionStorage.getItem('admin_token')
-  const isLoggedIn = !!token
-
-  if (to.name !== 'login') {
-    if (!isLoggedIn) {
-      return { name: 'login' }
-    }
-    if (!(window as any).__admin_token_verified) {
-      try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-        const res = await fetch(`${API_BASE}/api/auth/verify`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        if (!res.ok) {
-          sessionStorage.removeItem('admin_token')
-          return { name: 'login' }
-        }
-        (window as any).__admin_token_verified = true
-      } catch {
-        // 网络连接失败暂不强制退出，保持高可用性
-      }
-    }
-  } else {
-    if (isLoggedIn) {
-      return { name: 'dashboard' }
-    }
+  if (['login', 'setup', 'classmate-entry'].includes(String(to.name))) {
+    if (to.name === 'login' && sessionStorage.getItem('admin_token')) return { name: 'dashboard' }
+    return true
+  }
+  if (!sessionStorage.getItem('admin_token')) return { name: 'login' }
+  try {
+    await fetchCurrentAdmin()
+    return true
+  } catch {
+    sessionStorage.removeItem('admin_token')
+    return { name: 'login' }
   }
 })
 
-const app = createApp(App)
-app.use(router)
-app.mount('#app')
+createApp(App).use(router).mount('#app')

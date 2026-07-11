@@ -332,6 +332,53 @@ export interface InboxSummary {
   totalUnread: number
 }
 
+export const ADMIN_PERMISSIONS = [
+  'dashboard.view', 'moderation.view', 'moderation.manage', 'content.manage',
+  'notifications.view', 'notifications.publish', 'students.manage',
+  'site.settings.manage', 'admins.manage', 'audit.view',
+] as const
+
+export type AdminPermission = typeof ADMIN_PERMISSIONS[number]
+export type AdminRoleId = 'owner' | 'content_admin' | 'moderator' | 'operator'
+
+export interface AdminIdentity {
+  id: string
+  displayName: string
+  accountType: 'standalone' | 'classmate_linked'
+  studentSlug: string | null
+  isOwner: boolean
+  mustChangePassword: boolean
+  permissions: AdminPermission[]
+}
+
+export interface AdminAccountSummary {
+  id: string
+  accountType: 'standalone' | 'classmate_linked'
+  username: string | null
+  displayName: string
+  studentSlug: string | null
+  roleId: AdminRoleId
+  status: 'active' | 'disabled'
+  isOwner: boolean
+  mustChangePassword: boolean
+  lastLoginAt: string | null
+  createdAt: string
+  canDisable: boolean
+}
+
+export interface AdminAuditLog {
+  id: string
+  admin_account_id: string
+  admin_display_name: string
+  action: string
+  resource_type: string
+  resource_id: string
+  reason: string | null
+  before_summary: string | null
+  after_summary: string | null
+  created_at: string
+}
+
 export interface MailboxThreadDetail {
   thread: Pick<MailboxThread, 'id' | 'subject' | 'threadType' | 'allowReply' | 'updatedAt'>
   messages: MailboxMessage[]
