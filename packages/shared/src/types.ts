@@ -340,6 +340,7 @@ export const ADMIN_PERMISSIONS = [
 
 export type AdminPermission = typeof ADMIN_PERMISSIONS[number]
 export type AdminRoleId = 'owner' | 'content_admin' | 'moderator' | 'operator'
+export type AdminPermissionOverride = { permission: AdminPermission; effect: 'allow' | 'deny' }
 
 export interface AdminIdentity {
   id: string
@@ -364,6 +365,8 @@ export interface AdminAccountSummary {
   lastLoginAt: string | null
   createdAt: string
   canDisable: boolean
+  permissionOverrides: AdminPermissionOverride[]
+  permissions: AdminPermission[]
 }
 
 export interface AdminAuditLog {

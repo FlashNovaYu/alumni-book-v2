@@ -133,6 +133,15 @@ export function requirePermission(permission: AdminPermission): MiddlewareHandle
   }
 }
 
+export const requirePasswordChangeCompleted: MiddlewareHandler = async (c, next) => {
+  const principal = getAdminPrincipal(c)
+  if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  if (principal.mustChangePassword) {
+    return c.json({ success: false, message: '请先修改初始密码后再进入管理后台' }, 403)
+  }
+  return next()
+}
+
 export const requireOwner: MiddlewareHandler = async (c, next) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)

@@ -17,7 +17,7 @@ import { notificationsRoutes } from './routes/notifications'
 import { inboxRoutes } from './routes/inbox'
 import { mailboxRoutes } from './routes/mailbox'
 import { adminAccountsRoutes } from './routes/adminAccounts'
-import { getAdminPrincipal, hasPermission, requireAdminSession, requireOwner, requirePermission, type AdminPermission } from './lib/adminAuth'
+import { getAdminPrincipal, hasPermission, requireAdminSession, requireOwner, requirePasswordChangeCompleted, requirePermission, type AdminPermission } from './lib/adminAuth'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
@@ -419,7 +419,7 @@ function permissionForMethod(read: AdminPermission, write: AdminPermission) {
 }
 
 function requireSessionForWrites(c: any, next: any) {
-  return c.req.method === 'GET' ? next() : requireAdminSession(c, next)
+  return c.req.method === 'GET' ? next() : requireAdminSession(c, () => requirePasswordChangeCompleted(c, next))
 }
 
 function requireOwnerForWrites(c: any, next: any) {
@@ -431,7 +431,7 @@ function permissionForWrites(permission: AdminPermission) {
 }
 
 // 管理接口先解析会话，再按业务能力授权。前端隐藏入口不构成安全边界。
-app.use('/api/admin/*', requireAdminSession)
+app.use('/api/admin/*', requireAdminSession, requirePasswordChangeCompleted)
 app.use('/api/admin/stats', requireOwner)
 app.use('/api/admin/workbench', requirePermission('dashboard.view'))
 app.use('/api/admin/accounts*', requireOwner)
@@ -448,11 +448,11 @@ app.use('/api/students', requireSessionForWrites, requireOwnerForWrites)
 app.use('/api/students/:slug', requireSessionForWrites, requireOwnerForWrites)
 app.use('/api/config', requireSessionForWrites, requireOwnerForWrites)
 app.use('/api/albums', requireSessionForWrites, permissionForWrites('content.manage'))
-app.use('/api/albums/:id', requireAdminSession, requirePermission('content.manage'))
-app.use('/api/photos/:id', requireAdminSession, requirePermission('content.manage'))
-app.use('/api/upload', requireAdminSession)
+app.use('/api/albums/:id', requireAdminSession, requirePasswordChangeCompleted, requirePermission('content.manage'))
+app.use('/api/photos/:id', requireAdminSession, requirePasswordChangeCompleted, requirePermission('content.manage'))
+app.use('/api/upload', requireAdminSession, requirePasswordChangeCompleted)
 app.use('/api/timeline/events', requireSessionForWrites, permissionForWrites('content.manage'))
-app.use('/api/timeline/events/:id', requireAdminSession, requirePermission('content.manage'))
+app.use('/api/timeline/events/:id', requireAdminSession, requirePasswordChangeCompleted, requirePermission('content.manage'))
 
 // 注册路由
 app.route('/api', studentsRoutes)

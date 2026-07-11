@@ -13,6 +13,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('./views/LoginView.vue') },
     { path: '/setup', name: 'setup', component: () => import('./views/AdminSetupView.vue') },
     { path: '/classmate', name: 'classmate-entry', component: () => import('./views/ClassmateEntryView.vue') },
+    { path: '/change-password', name: 'change-password', component: () => import('./views/ChangeAdminPasswordView.vue') },
     { path: '/', component: () => import('./views/AdminLayout.vue'), children: [
       { path: '', redirect: '/dashboard' },
       { path: 'dashboard', name: 'dashboard', component: () => import('./views/DashboardView.vue'), meta: { permission: 'dashboard.view' } },
@@ -49,6 +50,18 @@ function firstAccessibleRoute(admin: AdminIdentity): string | null {
 }
 
 router.beforeEach(async (to) => {
+  if (to.name === 'change-password') {
+    if (!sessionStorage.getItem('admin_token')) return { name: 'login' }
+    try {
+      const admin = await fetchCurrentAdmin()
+      if (admin.mustChangePassword) return true
+      const destination = firstAccessibleRoute(admin)
+      return destination ? { name: destination } : { name: 'login' }
+    } catch {
+      sessionStorage.removeItem('admin_token')
+      return { name: 'login' }
+    }
+  }
   if (['login', 'setup', 'classmate-entry'].includes(String(to.name))) {
     if (to.name === 'login' && sessionStorage.getItem('admin_token')) {
       try {
@@ -65,6 +78,7 @@ router.beforeEach(async (to) => {
   if (!sessionStorage.getItem('admin_token')) return { name: 'login' }
   try {
     const admin = await fetchCurrentAdmin()
+    if (admin.mustChangePassword) return { name: 'change-password' }
     const permission = to.meta.permission as AdminPermission | undefined
     if (!canAccess(admin, permission)) {
       const destination = firstAccessibleRoute(admin)

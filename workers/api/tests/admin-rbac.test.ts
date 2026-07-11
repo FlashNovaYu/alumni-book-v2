@@ -266,6 +266,121 @@ describe('Administrator RBAC schema', () => {
     expect(created).toMatchObject({ role_id: 'moderator', must_change_password: 1 })
   })
 
+  it('updates a secondary administrator role and permission overrides', async () => {
+    const ownerLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const ownerToken = (await ownerLogin.json() as any).data.token
+
+    const create = await worker.fetch(new Request('http://localhost/api/admin/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({
+        accountType: 'standalone', displayName: '待调整管理员', username: 'editable-admin',
+        initialPassword: 'editable-pass', roleId: 'moderator', permissionOverrides: [],
+      }),
+    }), env, createExecutionContext())
+    const accountId = (await create.json() as any).data.id
+
+    const update = await worker.fetch(new Request(`http://localhost/api/admin/accounts/${accountId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({
+        displayName: '已调整管理员', roleId: 'operator',
+        permissionOverrides: [
+          { permission: 'content.manage', effect: 'deny' },
+          { permission: 'moderation.view', effect: 'allow' },
+        ],
+      }),
+    }), env, createExecutionContext())
+
+    expect(update.status).toBe(200)
+    expect(await env.DB.prepare('SELECT display_name, role_id FROM admin_accounts WHERE id = ?').bind(accountId).first())
+      .toMatchObject({ display_name: '已调整管理员', role_id: 'operator' })
+    expect(await getAdminPermissions(env.DB, accountId)).toEqual(expect.arrayContaining(['moderation.view', 'notifications.publish']))
+    expect(await getAdminPermissions(env.DB, accountId)).not.toContain('content.manage')
+    expect(await env.DB.prepare(
+      "SELECT action FROM admin_audit_logs WHERE resource_id = ? AND action = 'admin_account.update'"
+    ).bind(accountId).first()).toBeTruthy()
+  })
+
+  it('requires a reset standalone administrator to change password before using the workbench', async () => {
+    await env.DB.prepare(
+      `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+       VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+    ).bind('adm_reset_test', 'reset-admin', '重置测试管理员', await hashPassword('before-reset')).run()
+
+    const previousLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'reset-admin', password: 'before-reset' }),
+    }), env, createExecutionContext())
+    const previousToken = (await previousLogin.json() as any).data.token
+    const ownerLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const ownerToken = (await ownerLogin.json() as any).data.token
+
+    const reset = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reset_test/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ initialPassword: 'after-reset' }),
+    }), env, createExecutionContext())
+    expect(reset.status).toBe(200)
+
+    const staleSession = await worker.fetch(new Request('http://localhost/api/admin/workbench', {
+      headers: { Authorization: `Bearer ${previousToken}` },
+    }), env, createExecutionContext())
+    expect(staleSession.status).toBe(401)
+
+    const resetLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'reset-admin', password: 'after-reset' }),
+    }), env, createExecutionContext())
+    const resetToken = (await resetLogin.json() as any).data.token
+    const blockedWorkbench = await worker.fetch(new Request('http://localhost/api/admin/workbench', {
+      headers: { Authorization: `Bearer ${resetToken}` },
+    }), env, createExecutionContext())
+    expect(blockedWorkbench.status).toBe(403)
+  })
+
+  it('revokes a selected administrator sessions and filters audit logs', async () => {
+    await env.DB.prepare(
+      `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+       VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+    ).bind('adm_revoke_test', 'revoke-admin', '撤销测试管理员', await hashPassword('revoke-pass')).run()
+    const targetLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'revoke-admin', password: 'revoke-pass' }),
+    }), env, createExecutionContext())
+    const targetToken = (await targetLogin.json() as any).data.token
+    const ownerLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const ownerToken = (await ownerLogin.json() as any).data.token
+
+    const revoke = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_revoke_test/revoke-sessions', {
+      method: 'POST', headers: { Authorization: `Bearer ${ownerToken}` },
+    }), env, createExecutionContext())
+    expect(revoke.status).toBe(200)
+
+    const revokedMe = await worker.fetch(new Request('http://localhost/api/auth/me', {
+      headers: { Authorization: `Bearer ${targetToken}` },
+    }), env, createExecutionContext())
+    expect(revokedMe.status).toBe(401)
+
+    const logs = await worker.fetch(new Request(
+      'http://localhost/api/admin/audit-logs?action=admin_account.revoke_sessions&resourceType=admin_account'
+    , { headers: { Authorization: `Bearer ${ownerToken}` } }), env, createExecutionContext())
+    const body = await logs.json() as any
+    expect(logs.status).toBe(200)
+    expect(body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'admin_account.revoke_sessions', resource_id: 'adm_revoke_test' }),
+    ]))
+  })
+
   it('exposes a minimal management entry only to active linked classmates', async () => {
     await env.DB.prepare("UPDATE admin_accounts SET status = 'active', display_name = '入口测试员' WHERE id = 'adm_linked_test'").run()
     const response = await worker.fetch(new Request('http://localhost/api/classmate-auth/admin-entry', {

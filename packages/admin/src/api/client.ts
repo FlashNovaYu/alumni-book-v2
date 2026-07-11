@@ -99,6 +99,12 @@ export async function fetchCurrentAdmin(): Promise<AdminIdentity> {
   return currentAdmin
 }
 
+export async function changeAdminPassword(oldPassword: string, newPassword: string, confirmPassword: string): Promise<void> {
+  await adminFetch<ApiResponse>('/api/auth/change-password', {
+    method: 'POST', body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
+  })
+}
+
 export async function exchangeClassmateSession(): Promise<AdminIdentity> {
   const classmateToken = sessionStorage.getItem('classmate_account_token')
   if (!classmateToken) throw new Error('请先登录同学账号')

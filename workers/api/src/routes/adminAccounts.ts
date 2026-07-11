@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { ADMIN_PERMISSIONS, getAdminPrincipal, type AdminPermission } from '../lib/adminAuth'
+import { ADMIN_PERMISSIONS, getAdminPermissions, getAdminPrincipal, type AdminPermission } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 import { hashPassword } from '../lib/password'
 
@@ -12,10 +12,13 @@ export const adminAccountsRoutes = new Hono<{ Bindings: Bindings }>()
 function validOverrides(value: unknown): Override[] | null {
   if (!Array.isArray(value)) return []
   const overrides: Override[] = []
+  const permissions = new Set<AdminPermission>()
   for (const item of value) {
     if (!item || typeof item !== 'object') return null
     const { permission, effect } = item as Override
     if (!(ADMIN_PERMISSIONS as readonly string[]).includes(permission) || (effect !== 'allow' && effect !== 'deny')) return null
+    if (permissions.has(permission)) return null
+    permissions.add(permission)
     overrides.push({ permission, effect })
   }
   return overrides
@@ -26,9 +29,11 @@ adminAccountsRoutes.get('/admin/accounts', async (c) => {
     `SELECT id, account_type, username, display_name, student_slug, role_id, status, is_owner, must_change_password, last_login_at, created_at
      FROM admin_accounts ORDER BY is_owner DESC, created_at ASC`
   ).all()
-  return c.json({
-    success: true,
-    data: (results || []).map((row: any) => ({
+  const accounts = await Promise.all((results || []).map(async (row: any) => {
+    const { results: overrides } = await c.env.DB.prepare(
+      'SELECT permission, effect FROM admin_account_permissions WHERE admin_account_id = ? ORDER BY permission'
+    ).bind(row.id).all<Override>()
+    return {
       id: row.id,
       accountType: row.account_type,
       username: row.username || null,
@@ -41,8 +46,11 @@ adminAccountsRoutes.get('/admin/accounts', async (c) => {
       lastLoginAt: row.last_login_at || null,
       createdAt: row.created_at,
       canDisable: !row.is_owner,
-    })),
-  })
+      permissionOverrides: overrides || [],
+      permissions: await getAdminPermissions(c.env.DB, row.id),
+    }
+  }))
+  return c.json({ success: true, data: accounts })
 })
 
 adminAccountsRoutes.get('/admin/account-candidates', async (c) => {
@@ -108,6 +116,44 @@ adminAccountsRoutes.post('/admin/accounts', async (c) => {
   return c.json({ success: true, data: { id } }, 201)
 })
 
+adminAccountsRoutes.put('/admin/accounts/:id', async (c) => {
+  const principal = getAdminPrincipal(c)
+  if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({})) as any
+  const displayName = String(body.displayName || '').trim()
+  const roleId = String(body.roleId || '')
+  const overrides = validOverrides(body.permissionOverrides)
+  if (!displayName || !SECONDARY_ROLES.has(roleId) || !overrides) {
+    return c.json({ success: false, message: '管理员资料、角色或权限覆盖无效' }, 400)
+  }
+
+  const account = await c.env.DB.prepare(
+    'SELECT display_name, role_id, is_owner FROM admin_accounts WHERE id = ?'
+  ).bind(id).first<{ display_name: string; role_id: string; is_owner: number }>()
+  if (!account) return c.json({ success: false, message: '管理员不存在' }, 404)
+  if (account.is_owner) return c.json({ success: false, message: '主管理员角色不可通过此处调整' }, 400)
+  const { results: previousOverrides } = await c.env.DB.prepare(
+    'SELECT permission, effect FROM admin_account_permissions WHERE admin_account_id = ? ORDER BY permission'
+  ).bind(id).all<Override>()
+
+  const statements: D1PreparedStatement[] = [
+    c.env.DB.prepare(
+      "UPDATE admin_accounts SET display_name = ?, role_id = ?, updated_at = datetime('now') WHERE id = ?"
+    ).bind(displayName, roleId, id),
+    c.env.DB.prepare('DELETE FROM admin_account_permissions WHERE admin_account_id = ?').bind(id),
+    ...overrides.map(override => c.env.DB.prepare(
+      'INSERT INTO admin_account_permissions (admin_account_id, permission, effect) VALUES (?, ?, ?)'
+    ).bind(id, override.permission, override.effect)),
+  ]
+  await runAuditedBatch(c.env.DB, principal.id, statements, {
+    action: 'admin_account.update', resourceType: 'admin_account', resourceId: id,
+    before: { displayName: account.display_name, roleId: account.role_id, overrides: previousOverrides || [] },
+    after: { displayName, roleId, overrides },
+  })
+  return c.json({ success: true })
+})
+
 adminAccountsRoutes.post('/admin/accounts/:id/disable', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
@@ -122,11 +168,67 @@ adminAccountsRoutes.post('/admin/accounts/:id/disable', async (c) => {
   return c.json({ success: true })
 })
 
+adminAccountsRoutes.post('/admin/accounts/:id/reset-password', async (c) => {
+  const principal = getAdminPrincipal(c)
+  if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const id = c.req.param('id')
+  const { initialPassword } = await c.req.json().catch(() => ({})) as { initialPassword?: string }
+  const password = String(initialPassword || '')
+  if (password.length < 8) return c.json({ success: false, message: '初始密码至少 8 位' }, 400)
+  const account = await c.env.DB.prepare(
+    'SELECT account_type, is_owner, must_change_password FROM admin_accounts WHERE id = ?'
+  ).bind(id).first<{ account_type: string; is_owner: number; must_change_password: number }>()
+  if (!account) return c.json({ success: false, message: '管理员不存在' }, 404)
+  if (account.is_owner || account.account_type !== 'standalone') {
+    return c.json({ success: false, message: '只能重置次级独立管理员的密码' }, 400)
+  }
+  await runAuditedBatch(c.env.DB, principal.id, [
+    c.env.DB.prepare(
+      "UPDATE admin_accounts SET password_hash = ?, must_change_password = 1, updated_at = datetime('now') WHERE id = ?"
+    ).bind(await hashPassword(password), id),
+    c.env.DB.prepare("UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_account_id = ? AND revoked_at IS NULL").bind(id),
+  ], {
+    action: 'admin_account.reset_password', resourceType: 'admin_account', resourceId: id,
+    before: { mustChangePassword: !!account.must_change_password },
+    after: { mustChangePassword: true, sessionsRevoked: true },
+  })
+  return c.json({ success: true })
+})
+
+adminAccountsRoutes.post('/admin/accounts/:id/revoke-sessions', async (c) => {
+  const principal = getAdminPrincipal(c)
+  if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const id = c.req.param('id')
+  const account = await c.env.DB.prepare('SELECT id FROM admin_accounts WHERE id = ?').bind(id).first()
+  if (!account) return c.json({ success: false, message: '管理员不存在' }, 404)
+  await runAuditedBatch(c.env.DB, principal.id, [
+    c.env.DB.prepare("UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_account_id = ? AND revoked_at IS NULL").bind(id),
+  ], {
+    action: 'admin_account.revoke_sessions', resourceType: 'admin_account', resourceId: id,
+    after: { sessionsRevoked: true },
+  })
+  return c.json({ success: true })
+})
+
 adminAccountsRoutes.get('/admin/audit-logs', async (c) => {
+  const conditions: string[] = []
+  const binds: string[] = []
+  const actorId = c.req.query('actorId')
+  const action = c.req.query('action')
+  const resourceType = c.req.query('resourceType')
+  const from = c.req.query('from')
+  const to = c.req.query('to')
+  if (actorId) { conditions.push('l.admin_account_id = ?'); binds.push(actorId) }
+  if (action) { conditions.push('l.action = ?'); binds.push(action) }
+  if (resourceType) { conditions.push('l.resource_type = ?'); binds.push(resourceType) }
+  if (from) { conditions.push('l.created_at >= ?'); binds.push(from) }
+  if (to) { conditions.push("l.created_at < datetime(?, '+1 day')"); binds.push(to) }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
   const { results } = await c.env.DB.prepare(
     `SELECT l.*, a.display_name AS admin_display_name
      FROM admin_audit_logs l JOIN admin_accounts a ON a.id = l.admin_account_id
+     ${where}
      ORDER BY l.created_at DESC LIMIT 100`
-  ).all()
+  ).bind(...binds).all()
   return c.json({ success: true, data: results || [] })
 })
