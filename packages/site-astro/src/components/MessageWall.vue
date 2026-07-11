@@ -9,6 +9,7 @@
         class="text-input msg-textarea"
         :class="'style-preview-' + selectedCardStyle"
         placeholder="把这句话贴进 TA 的青春档案里…"
+        aria-label="留言内容"
         maxlength="500"
         rows="3"
       ></textarea>

@@ -42,11 +42,11 @@
             <h2 class="title-md">新建学生</h2>
             <div class="form-group">
               <label class="form-label">姓名</label>
-              <input v-model="newStudent.name" type="text" class="text-input" placeholder="学生姓名" />
+              <input v-model="newStudent.name" type="text" class="text-input" placeholder="学生姓名" aria-label="新建学生姓名" />
             </div>
             <div class="form-group">
               <label class="form-label">Slug (URL 标识)</label>
-              <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" />
+              <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" aria-label="新建学生链接标识" />
             </div>
             <div class="modal-actions">
               <button class="btn-secondary" @click="showCreate = false">取消</button>
