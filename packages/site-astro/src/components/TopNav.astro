@@ -60,7 +60,7 @@ const isHome = currentPath === base || currentPath === href('/')
 
 <!-- 移动端侧滑抽屉结构 -->
 <div class="mobile-drawer-overlay"></div>
-<div class="mobile-drawer" role="dialog" aria-modal="true" aria-labelledby="mobile-drawer-title" aria-hidden="true">
+<div class="mobile-drawer" role="dialog" aria-modal="true" aria-labelledby="mobile-drawer-title" aria-hidden="true" inert>
   <div class="drawer-header">
     <h2 id="mobile-drawer-title" class="drawer-title">导航菜单</h2>
     <a href={href('/')} class="nav-brand">
@@ -591,12 +591,14 @@ const isHome = currentPath === base || currentPath === href('/')
     const overlay = document.querySelector('.mobile-drawer-overlay');
     const drawer = document.querySelector('.mobile-drawer');
     if (!trigger || !drawer) return;
+    drawer.inert = true;
 
     const getFocusableElements = () => Array.from(drawer.querySelectorAll(
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     )).filter(element => element.getClientRects().length > 0);
     
     function openDrawer() {
+      drawer.inert = false;
       document.documentElement.classList.add('nav-open');
       drawer.setAttribute('aria-hidden', 'false');
       closeBtn?.focus();
@@ -605,6 +607,7 @@ const isHome = currentPath === base || currentPath === href('/')
       const wasOpen = document.documentElement.classList.contains('nav-open');
       document.documentElement.classList.remove('nav-open');
       drawer.setAttribute('aria-hidden', 'true');
+      drawer.inert = true;
       if (wasOpen) trigger.focus();
     }
     function onDrawerKeydown(event) {

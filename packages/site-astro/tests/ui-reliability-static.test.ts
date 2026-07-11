@@ -231,6 +231,9 @@ describe('导航与表单无障碍', () => {
     expect(nav).toContain('aria-modal="true"')
     expect(nav).toContain('aria-labelledby="mobile-drawer-title"')
     expect(nav).toContain('id="mobile-drawer-title"')
+    expect(nav).toMatch(/class="mobile-drawer"[^>]*aria-hidden="true"[^>]*inert/)
+    expect(nav).toContain('drawer.inert = true')
+    expect(nav).toContain('drawer.inert = false')
     expect(nav).toContain('topNavDrawerCleanup')
     expect(nav).toContain("document.removeEventListener('keydown', onDrawerKeydown)")
     expect(nav).toContain('if (!focusableElements.length) return;')
@@ -308,6 +311,11 @@ describe('导航与表单无障碍', () => {
         document.dispatchEvent(new Event('astro:page-load'))
       })
 
+      expect(await page.locator('.mobile-drawer').getAttribute('inert')).not.toBeNull()
+      await page.locator('#mobile-menu-trigger').focus()
+      await page.keyboard.press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('outside-control')
+
       const state = async () => page.locator('#nav-dropdown-trigger').getAttribute('aria-expanded')
       const menuVisibility = async () => page.locator('#nav-dropdown-menu').evaluate(element => getComputedStyle(element).visibility)
       await page.locator('#nav-dropdown-trigger').click()
@@ -331,6 +339,7 @@ describe('导航与表单无障碍', () => {
 
       await page.locator('#mobile-menu-trigger').click()
       expect(await page.locator('.mobile-drawer').getAttribute('aria-hidden')).toBe('false')
+      expect(await page.locator('.mobile-drawer').getAttribute('inert')).toBeNull()
       expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-close')
 
       await page.locator('#mobile-menu-close').press('Shift+Tab')
@@ -341,7 +350,11 @@ describe('导航与表单无障碍', () => {
 
       await page.locator('#mobile-menu-close').press('Escape')
       expect(await page.locator('.mobile-drawer').getAttribute('aria-hidden')).toBe('true')
+      expect(await page.locator('.mobile-drawer').getAttribute('inert')).not.toBeNull()
       expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-trigger')
+
+      await page.keyboard.press('Tab')
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('outside-control')
     } finally {
       await browser.close()
     }
