@@ -21,6 +21,7 @@ import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
 import { filesRoutes } from './routes/files'
+import { normalizeFileUrl } from './lib/fileUrl'
 
 
 type Bindings = {
@@ -182,7 +183,7 @@ app.get('/api/classmates', async (c) => {
       name: row.name,
       slug: row.slug,
       hasPage: true,
-      avatarUrl: row.avatar_url,
+      avatarUrl: normalizeFileUrl(row.avatar_url),
       motto: info.motto || '',
       nickname: info.nickname || '',
       school: row.school || info.school || '',
@@ -376,14 +377,14 @@ app.get('/api/rankings', async (c) => {
     const visits = (visitsResults.results || []).map((r: any) => ({
       name: r.name,
       slug: r.slug,
-      avatarUrl: r.avatar_url,
+      avatarUrl: normalizeFileUrl(r.avatar_url),
       value: `${r.visit_count || 0} 次浏览`,
     }))
 
     const messages = (messagesResults.results || []).map((r: any) => ({
       name: r.name,
       slug: r.slug,
-      avatarUrl: r.avatar_url,
+      avatarUrl: normalizeFileUrl(r.avatar_url),
       value: `${r.message_count || 0} 条留言`,
     }))
 
@@ -392,7 +393,7 @@ app.get('/api/rankings', async (c) => {
       return {
         name: r.name,
         slug: r.slug,
-        avatarUrl: r.avatar_url,
+        avatarUrl: normalizeFileUrl(r.avatar_url),
         value: `更新于 ${dateStr}`,
       }
     })
@@ -727,11 +728,11 @@ function formatStudent(row: any) {
     name: row.name,
     slug: row.slug,
     isOwner: !!row.is_owner,
-    avatarUrl: row.avatar_url,
-    musicUrl: row.music_url,
+    avatarUrl: normalizeFileUrl(row.avatar_url),
+    musicUrl: normalizeFileUrl(row.music_url),
     musicTitle: row.music_title,
     musicAutoplay: !!row.music_autoplay,
-    backgroundUrl: row.background_url,
+    backgroundUrl: normalizeFileUrl(row.background_url),
     backgroundColor: row.background_color,
     customHtml: row.custom_html,
     privacyLevel: row.privacy_level || 'classmates',

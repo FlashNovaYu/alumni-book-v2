@@ -4,6 +4,7 @@
 import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createClassmateSession, deleteClassmateSession, verifyClassmateSession } from '../lib/classmateSession'
+import { normalizeFileUrl } from '../lib/fileUrl'
 
 type Bindings = {
   DB: D1Database
@@ -40,7 +41,7 @@ classmateAuthRoutes.post('/login', async (c) => {
     data: {
       token,
       mustChangePassword: !student.account_initial_password_changed,
-      student: { name: student.name, slug: student.slug, avatarUrl: student.avatar_url },
+      student: { name: student.name, slug: student.slug, avatarUrl: normalizeFileUrl(student.avatar_url) },
     },
   })
 })
@@ -55,7 +56,7 @@ classmateAuthRoutes.get('/me', async (c) => {
   return c.json({
     success: true,
     data: {
-      student: { name: row.name, slug: row.slug, avatarUrl: row.avatar_url },
+      student: { name: row.name, slug: row.slug, avatarUrl: normalizeFileUrl(row.avatar_url) },
       mustChangePassword: !row.account_initial_password_changed,
     },
   })

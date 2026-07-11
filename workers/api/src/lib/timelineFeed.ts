@@ -1,3 +1,5 @@
+import { normalizeFileUrl } from './fileUrl'
+
 export type TimelineFeedType = 'event' | 'message' | 'photo' | 'join'
 
 export async function getTimelineFeed(
@@ -75,7 +77,7 @@ export async function getTimelineFeed(
               title: `${(s as any).name} 加入了同学录`,
               date: (s as any).created_at,
               slug: (s as any).slug,
-              avatarUrl: (s as any).avatar_url,
+              avatarUrl: normalizeFileUrl((s as any).avatar_url),
             })
           }
         })

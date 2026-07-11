@@ -122,6 +122,49 @@ describe('Public API', () => {
     expect(Array.isArray(body.data[0].tags)).toBe(true)
   })
 
+  it('公开 API 将旧 Worker 文件地址规范化为同源路径', async () => {
+    const legacyOrigin = 'https://alumni-book-api.chenyuhao2263.workers.dev'
+    await env.DB.prepare(`
+      INSERT INTO students (
+        id, name, slug, avatar_url, music_url, background_url, info, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      'legacy-file-url-id',
+      '旧地址同学',
+      'legacy-file-url',
+      `${legacyOrigin}/api/files/avatars/legacy.png`,
+      `${legacyOrigin}/api/files/music/legacy.mp3`,
+      `${legacyOrigin}/api/files/backgrounds/legacy.png`,
+      '{}',
+    ).run()
+
+    const studentCtx = createExecutionContext()
+    const studentRes = await worker.fetch(
+      new Request('http://localhost/api/students/legacy-file-url?audience=public'),
+      env,
+      studentCtx,
+    )
+    await waitOnExecutionContext(studentCtx)
+    const studentBody = await studentRes.json() as any
+    expect(studentBody.data.avatarUrl).toBe('/api/files/avatars/legacy.png')
+    expect(studentBody.data.musicUrl).toBe('/api/files/music/legacy.mp3')
+    expect(studentBody.data.backgroundUrl).toBe('/api/files/backgrounds/legacy.png')
+
+    const classmatesCtx = createExecutionContext()
+    const classmatesRes = await worker.fetch(new Request('http://localhost/api/classmates'), env, classmatesCtx)
+    await waitOnExecutionContext(classmatesCtx)
+    const classmatesBody = await classmatesRes.json() as any
+    const classmate = classmatesBody.data.find((item: any) => item.slug === 'legacy-file-url')
+    expect(classmate.avatarUrl).toBe('/api/files/avatars/legacy.png')
+
+    const timelineCtx = createExecutionContext()
+    const timelineRes = await worker.fetch(new Request('http://localhost/api/timeline?type=join'), env, timelineCtx)
+    await waitOnExecutionContext(timelineCtx)
+    const timelineBody = await timelineRes.json() as any
+    const timelineItem = timelineBody.data.find((item: any) => item.slug === 'legacy-file-url')
+    expect(timelineItem.avatarUrl).toBe('/api/files/avatars/legacy.png')
+  })
+
   it('GET /api/config — 返回站点配置', async () => {
     const req = new Request('http://localhost/api/config')
     const ctx = createExecutionContext()
