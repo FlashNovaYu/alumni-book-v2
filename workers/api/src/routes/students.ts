@@ -117,7 +117,18 @@ studentsRoutes.put('/students/:slug', async (c) => {
   fields.push("updated_at = datetime('now')")
   values.push(slug)
 
-  await runAuditedBatch(db, admin.id, [db.prepare(`UPDATE students SET ${fields.join(', ')} WHERE slug = ?`).bind(...values)], { action: 'student.update', resourceType: 'student', resourceId: slug, before: { name: (existing as any).name }, after: { changedFields: Object.keys(body).filter(key => !key.toLowerCase().includes('password') && key !== 'editSecret') } })
+  const mutations: D1PreparedStatement[] = [db.prepare(`UPDATE students SET ${fields.join(', ')} WHERE slug = ?`).bind(...values)]
+  if (body.accountInitialPassword !== undefined && body.accountInitialPassword !== null && body.accountInitialPassword !== '') {
+    mutations.push(
+      db.prepare('DELETE FROM classmate_sessions WHERE student_slug = ?').bind(slug),
+      db.prepare(
+        `UPDATE admin_sessions SET revoked_at = datetime('now')
+         WHERE admin_account_id IN (SELECT id FROM admin_accounts WHERE account_type = 'classmate_linked' AND student_slug = ?)
+           AND revoked_at IS NULL`
+      ).bind(slug),
+    )
+  }
+  await runAuditedBatch(db, admin.id, mutations, { action: 'student.update', resourceType: 'student', resourceId: slug, before: { name: (existing as any).name }, after: { changedFields: Object.keys(body).filter(key => !key.toLowerCase().includes('password') && key !== 'editSecret'), sessionsRevoked: mutations.length > 1 } })
 
   return c.json({ success: true, message: '更新成功' })
 })

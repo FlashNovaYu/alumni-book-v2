@@ -16,7 +16,7 @@
 
 | 项目 | 命令 | 结果 |
 | --- | --- | --- |
-| Worker | `pnpm verify:worker` | 通过，63/63 测试 |
+| Worker | `pnpm verify:worker` | 通过，65/65 测试 |
 | 后台静态权限检查 | `pnpm --filter admin test:static` | 通过 |
 | 后台类型检查与构建 | `pnpm --filter admin build` | 通过 |
 | 公开站点类型检查 | `pnpm --filter site-astro typecheck` | 通过 |

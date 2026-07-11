@@ -17,7 +17,7 @@ import { notificationsRoutes } from './routes/notifications'
 import { inboxRoutes } from './routes/inbox'
 import { mailboxRoutes } from './routes/mailbox'
 import { adminAccountsRoutes } from './routes/adminAccounts'
-import { getAdminPrincipal, hasPermission, requireAdminSession, requireOwner, requirePasswordChangeCompleted, requirePermission, type AdminPermission } from './lib/adminAuth'
+import { getAdminPrincipal, hasPermission, loadActiveAdmin, requireAdminSession, requireOwner, requirePasswordChangeCompleted, requirePermission, type AdminPermission } from './lib/adminAuth'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
@@ -632,12 +632,11 @@ async function determineAudience(c: any, studentSlug: string): Promise<'public' 
   if (adminToken) {
     try {
       const session = await c.env.DB.prepare(
-        `SELECT s.token
-         FROM admin_sessions s
-         INNER JOIN admin_accounts a ON a.id = s.admin_account_id
-         WHERE s.token = ? AND s.revoked_at IS NULL AND s.expires_at > datetime('now') AND a.status = 'active'`
-      ).bind(adminToken).first()
-      if (session) return 'admin'
+        `SELECT admin_account_id FROM admin_sessions
+         WHERE token = ? AND revoked_at IS NULL AND expires_at > datetime('now')`
+      ).bind(adminToken).first<{ admin_account_id: string }>()
+      const admin = session ? await loadActiveAdmin(c.env.DB, session.admin_account_id) : null
+      if (admin && !admin.mustChangePassword && hasPermission(admin, 'students.manage')) return 'admin'
     } catch {}
   }
 

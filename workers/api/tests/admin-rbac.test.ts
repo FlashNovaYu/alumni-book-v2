@@ -117,6 +117,9 @@ describe('Administrator RBAC schema', () => {
   })
 
   it('exchanges an active linked classmate session for a secondary admin session', async () => {
+    await env.DB.prepare(
+      "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = 'test_init'"
+    ).bind(await hashPassword('classmate-pass')).run()
     await env.DB.batch([
       env.DB.prepare(
         "INSERT INTO admin_accounts (id, account_type, display_name, student_slug, role_id) VALUES ('adm_linked_test', 'classmate_linked', '运营同学', 'test_init', 'operator')"
@@ -135,6 +138,13 @@ describe('Administrator RBAC schema', () => {
     const body = await response.json() as any
     expect(response.status).toBe(200)
     expect(body.data.admin).toMatchObject({ id: 'adm_linked_test', accountType: 'classmate_linked' })
+
+    await env.DB.prepare("UPDATE students SET account_initial_password_changed = 0, account_status = 'pending' WHERE slug = 'test_init'").run()
+    const blockedUntilPasswordChanged = await worker.fetch(new Request('http://localhost/api/auth/classmate-exchange', {
+      method: 'POST', headers: { 'X-Classmate-Token': 'classmate-exchange-token' },
+    }), env, createExecutionContext())
+    expect(blockedUntilPasswordChanged.status).toBe(403)
+    await env.DB.prepare("UPDATE students SET account_initial_password_changed = 1, account_status = 'active' WHERE slug = 'test_init'").run()
 
     await env.DB.prepare("UPDATE admin_accounts SET status = 'disabled' WHERE id = 'adm_linked_test'").run()
     const rejected = await worker.fetch(new Request('http://localhost/api/auth/classmate-exchange', {
@@ -158,6 +168,61 @@ describe('Administrator RBAC schema', () => {
     const firstBody = await first.json() as any
     const secondBody = await second.json() as any
     expect(firstBody.data.token).not.toBe(secondBody.data.token)
+  })
+
+  it('revokes other standalone administrator sessions after a password change', async () => {
+    await env.DB.prepare(
+      "INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id) VALUES (?, 'standalone', ?, ?, ?, 'moderator')"
+    ).bind('adm_password_sessions', 'password-sessions', '改密测试', await hashPassword('old-password')).run()
+    const login = () => worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'password-sessions', password: 'old-password' }),
+    }), env, createExecutionContext())
+    const first = await login()
+    const second = await login()
+    const firstToken = (await first.json() as any).data.token
+    const secondToken = (await second.json() as any).data.token
+    const changed = await worker.fetch(new Request('http://localhost/api/auth/change-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${firstToken}` },
+      body: JSON.stringify({ oldPassword: 'old-password', newPassword: 'new-password', confirmPassword: 'new-password' }),
+    }), env, createExecutionContext())
+    expect(changed.status).toBe(200)
+    const stillCurrent = await worker.fetch(new Request('http://localhost/api/auth/me', { headers: { Authorization: `Bearer ${firstToken}` } }), env, createExecutionContext())
+    expect(stillCurrent.status).toBe(200)
+    const revokedOther = await worker.fetch(new Request('http://localhost/api/auth/me', { headers: { Authorization: `Bearer ${secondToken}` } }), env, createExecutionContext())
+    expect(revokedOther.status).toBe(401)
+  })
+
+  it('invalidates classmate and linked administrator sessions when an owner resets a classmate password', async () => {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE admin_accounts SET status = 'active' WHERE id = 'adm_linked_test'"),
+      env.DB.prepare("UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = 'test_init'").bind(await hashPassword('before-owner-reset')),
+      env.DB.prepare("INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES ('classmate-reset-token', 'test_init', datetime('now', '+1 day'))"),
+    ])
+    const exchange = await worker.fetch(new Request('http://localhost/api/auth/classmate-exchange', {
+      method: 'POST', headers: { 'X-Classmate-Token': 'classmate-reset-token' },
+    }), env, createExecutionContext())
+    const linkedAdminToken = (await exchange.json() as any).data.token
+    const ownerLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const ownerToken = (await ownerLogin.json() as any).data.token
+
+    const reset = await worker.fetch(new Request('http://localhost/api/students/test_init', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+      body: JSON.stringify({ accountInitialPassword: 'after-owner-reset' }),
+    }), env, createExecutionContext())
+    expect(reset.status).toBe(200)
+
+    const oldExchange = await worker.fetch(new Request('http://localhost/api/auth/classmate-exchange', {
+      method: 'POST', headers: { 'X-Classmate-Token': 'classmate-reset-token' },
+    }), env, createExecutionContext())
+    expect(oldExchange.status).toBe(401)
+    const linkedMe = await worker.fetch(new Request('http://localhost/api/auth/me', {
+      headers: { Authorization: `Bearer ${linkedAdminToken}` },
+    }), env, createExecutionContext())
+    expect(linkedMe.status).toBe(401)
   })
 
   it('restricts moderators to their assigned management capability', async () => {
@@ -192,7 +257,12 @@ describe('Administrator RBAC schema', () => {
 
     await env.DB.prepare(
       "UPDATE students SET info = ? WHERE slug = 'test_init'"
-    ).bind(JSON.stringify({ phone: '13800000000', visibility: { phone: 'owner' } })).run()
+    ).bind(JSON.stringify({ phone: '13800000000', visibility: { phone: 'hidden' } })).run()
+    const activeStudentRead = await worker.fetch(new Request('http://localhost/api/students/test_init', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    const activeStudentBody = await activeStudentRead.json() as any
+    expect(activeStudentBody.data.info.phone).toBeUndefined()
     await env.DB.prepare("UPDATE admin_accounts SET status = 'disabled' WHERE id = 'adm_moderator_test'").run()
     const studentRead = await worker.fetch(new Request('http://localhost/api/students/test_init', {
       headers: { Authorization: `Bearer ${token}` },
@@ -382,9 +452,13 @@ describe('Administrator RBAC schema', () => {
   })
 
   it('exposes a minimal management entry only to active linked classmates', async () => {
-    await env.DB.prepare("UPDATE admin_accounts SET status = 'active', display_name = '入口测试员' WHERE id = 'adm_linked_test'").run()
+    await env.DB.batch([
+      env.DB.prepare("UPDATE admin_accounts SET status = 'active', display_name = '入口测试员' WHERE id = 'adm_linked_test'"),
+      env.DB.prepare("UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active' WHERE slug = 'test_init'").bind(await hashPassword('entry-pass')),
+      env.DB.prepare("INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES ('classmate-entry-token', 'test_init', datetime('now', '+1 day'))"),
+    ])
     const response = await worker.fetch(new Request('http://localhost/api/classmate-auth/admin-entry', {
-      headers: { 'X-Classmate-Token': 'classmate-exchange-token' },
+      headers: { 'X-Classmate-Token': 'classmate-entry-token' },
     }), env, createExecutionContext())
     expect(response.status).toBe(200)
     const body = await response.json() as any

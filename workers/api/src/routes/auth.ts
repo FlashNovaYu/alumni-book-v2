@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { getAdminPrincipal, loadActiveAdmin, requireAdminSession } from '../lib/adminAuth'
 import { verifyClassmateSession } from '../lib/classmateSession'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -151,8 +152,10 @@ authRoutes.post('/classmate-exchange', async (c) => {
   if (!studentSlug) return c.json({ success: false, message: '同学登录已失效' }, 401)
 
   const account = await c.env.DB.prepare(
-    `SELECT id FROM admin_accounts
-     WHERE account_type = 'classmate_linked' AND student_slug = ? AND status = 'active' AND is_owner = 0`
+    `SELECT a.id FROM admin_accounts a
+     INNER JOIN students s ON s.slug = a.student_slug
+     WHERE a.account_type = 'classmate_linked' AND a.student_slug = ? AND a.status = 'active' AND a.is_owner = 0
+       AND s.account_status != 'locked' AND s.account_initial_password_changed = 1 AND s.account_password_hash IS NOT NULL`
   ).bind(studentSlug).first<{ id: string }>()
   if (!account) return c.json({ success: false, message: '当前同学账号没有可用的管理权限' }, 403)
 
@@ -183,9 +186,15 @@ authRoutes.post('/change-password', requireAdminSession, async (c) => {
   if (!account || !(await verifyPassword(oldPassword, account.password_hash))) {
     return c.json({ success: false, message: '原密码错误' }, 403)
   }
-  await c.env.DB.prepare(
-    "UPDATE admin_accounts SET password_hash = ?, must_change_password = 0, updated_at = datetime('now') WHERE id = ?"
-  ).bind(await hashPassword(newPassword), principal.id).run()
+  const currentToken = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '')
+  await runAuditedBatch(c.env.DB, principal.id, [
+    c.env.DB.prepare(
+      "UPDATE admin_accounts SET password_hash = ?, must_change_password = 0, updated_at = datetime('now') WHERE id = ?"
+    ).bind(await hashPassword(newPassword), principal.id),
+    c.env.DB.prepare(
+      "UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_account_id = ? AND token != ? AND revoked_at IS NULL"
+    ).bind(principal.id, currentToken || ''),
+  ], { action: 'admin_account.change_password', resourceType: 'admin_account', resourceId: principal.id, after: { sessionsRevoked: true } })
   return c.json({ success: true, message: '密码已更新' })
 })
 
