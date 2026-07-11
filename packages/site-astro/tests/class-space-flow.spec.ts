@@ -114,7 +114,8 @@ test.describe('Class Space Flow', () => {
     await expect(page.getByText('15 张')).toBeVisible()
     // 链接带有 #album-
     const albumLink = page.locator('a.album-rail-card')
-    await expect(albumLink).toHaveAttribute('href', '/album#album-album-1')
+    const siteBasePath = new URL(page.url()).pathname.replace(/class-space\/?$/, '')
+    await expect(albumLink).toHaveAttribute('href', `${siteBasePath}album#album-album-1`)
 
     // 验证时间轴预览
     await expect(page.getByText('班级空间大事件')).toBeVisible()
