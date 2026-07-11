@@ -7,7 +7,7 @@
     "build": "npm run build:data && astro build",
     "build:data": "tsx scripts/fetch-data.ts",
     "preview": "astro preview",
-    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts tests/feature-static.test.ts tests/performance-static.test.ts tests/student-profile-lifecycle.test.ts tests/animation-ownership.test.ts tests/classmate-auth-static.test.ts tests/responsive-vintage-static.test.ts tests/public-site-major-redesign-static.test.ts tests/post-office-static.test.ts tests/class-space-navigation-static.test.ts tests/pages-functions.test.ts",
+    "test": "vitest run tests/navigation.test.ts tests/privacy-static.test.ts tests/feature-static.test.ts tests/performance-static.test.ts tests/student-profile-lifecycle.test.ts tests/animation-ownership.test.ts tests/classmate-auth-static.test.ts tests/responsive-vintage-static.test.ts tests/public-site-major-redesign-static.test.ts tests/post-office-static.test.ts tests/class-space-navigation-static.test.ts tests/pages-functions.test.ts tests/pages-deployment-static.test.ts",
     "test:with-build": "pnpm build && pnpm test",
     "test:perf-network": "tsx scripts/run-playwright-preview.ts tests/performance-network.spec.ts tests/classmate-login-flow.spec.ts tests/homepage-cover-login.spec.ts tests/public-site-major-redesign-visual.spec.ts tests/post-office-flow.spec.ts",
     "typecheck": "vue-tsc --noEmit && tsc --noEmit -p tsconfig.functions.json"

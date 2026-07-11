@@ -8,7 +8,7 @@ const __dirname = dirname(__filename)
 const API_BASE =
   process.env.VITE_WORKER_URL ||
   process.env.VITE_API_BASE_URL ||
-  'https://alumni-book-api.chenyuhao2263.workers.dev'
+  'https://alumni-book.pages.dev'
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
