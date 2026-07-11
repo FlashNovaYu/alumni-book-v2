@@ -22,6 +22,8 @@ const router = createRouter({
       { path: 'timeline', name: 'timeline', component: () => import('./views/TimelineEventsView.vue') },
       { path: 'settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
       { path: 'mail', name: 'mail', component: () => import('./views/MailView.vue') },
+      { path: 'accounts', name: 'accounts', component: () => import('./views/AdminAccountsView.vue') },
+      { path: 'audit-logs', name: 'audit-logs', component: () => import('./views/AuditLogView.vue') },
     ] },
   ],
 })
