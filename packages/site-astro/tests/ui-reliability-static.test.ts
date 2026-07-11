@@ -59,9 +59,14 @@ describe('组合验证前置条件', () => {
       scripts: Record<string, string>
     }
     const verifyAll = rootPackage.scripts['verify:all']
+    const verifyAdmin = rootPackage.scripts['verify:admin']
 
     expect(verifyAll).toContain('pnpm verify:site')
     expect(verifyAll).not.toContain('pnpm verify:admin')
+    expect(verifyAll).not.toContain('pnpm build:admin')
+    expect(rootPackage.scripts).toHaveProperty('verify:admin')
+    expect(verifyAdmin).toContain('pnpm --filter admin typecheck')
+    expect(verifyAdmin).toContain('pnpm --filter admin build')
   })
 })
 
