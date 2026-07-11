@@ -7,6 +7,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "test": "node tests/network-integration-static.mjs && pnpm run test:network",
     "test:network": "tsx --test tests/network.test.ts",
+    "verify:dist-network": "node tests/dist-network.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit"
   },
