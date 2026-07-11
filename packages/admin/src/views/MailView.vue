@@ -4,7 +4,7 @@
       <h1 class="page-title">班级邮局</h1>
     </div>
 
-    <form class="card mail-form" @submit.prevent="send">
+    <form v-if="canPublish" class="card mail-form" @submit.prevent="send">
       <label>
         收件人 slug
         <input v-model="form.recipientSlug" class="text-input" placeholder="留空时使用群发" />
@@ -27,12 +27,13 @@
       </div>
       <p v-if="toast" :class="'toast-inline ' + toast.type">{{ toast.message }}</p>
     </form>
+    <div v-else class="card permission-notice">当前账号可以查看通知记录，但没有发布通知的权限。</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { adminFetch } from '@/api/client'
+import { computed, reactive, ref } from 'vue'
+import { adminFetch, getCurrentAdmin } from '@/api/client'
 
 const sending = ref(false)
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -41,6 +42,10 @@ const form = reactive({
   subject: '',
   body: '',
   allowReply: false,
+})
+const canPublish = computed(() => {
+  const admin = getCurrentAdmin()
+  return !!admin && (admin.isOwner || admin.permissions.includes('notifications.publish'))
 })
 
 let toastTimeout: any = null
@@ -115,4 +120,5 @@ async function broadcast() {
 }
 .toast-inline.success { color: var(--color-success); }
 .toast-inline.error { color: var(--color-error); }
+.permission-notice { max-width: 760px; color: var(--color-muted); }
 </style>

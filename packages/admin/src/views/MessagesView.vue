@@ -16,7 +16,7 @@
     </div>
 
     <!-- 批量操作区 -->
-    <div v-if="messageType === 'profile' && selectedIds.length > 0" class="batch-actions-panel card">
+    <div v-if="canManage && messageType === 'profile' && selectedIds.length > 0" class="batch-actions-panel card">
       <span class="batch-count">已选中 <strong>{{ selectedIds.length }}</strong> 条：</span>
       <div class="batch-buttons">
         <button class="btn-primary btn-sm" @click="batchAction('approve')" :disabled="processing">批量通过</button>
@@ -34,7 +34,7 @@
       <div v-for="msg in filteredMessages" :key="msg.id" class="msg-card card" :class="{ 'msg-pinned': msg.pinned }">
         <div class="msg-card-inner">
           <!-- 选择框 -->
-          <div class="msg-select-col">
+          <div v-if="canManage" class="msg-select-col">
             <input type="checkbox" v-model="selectedIds" :value="msg.id" class="msg-checkbox" />
           </div>
           
@@ -55,13 +55,13 @@
             </div>
             <div v-if="msg.reply" class="msg-reply-inline">回复：{{ msg.reply }}</div>
             <div class="msg-actions">
-              <button v-if="!msg.isApproved" class="btn-primary btn-sm" @click="approve(msg.id)" :disabled="processing">审核通过</button>
-              <button class="btn-secondary btn-sm" @click="togglePin(msg.id, !msg.pinned)" :disabled="processing">
+              <button v-if="canManage && !msg.isApproved" class="btn-primary btn-sm" @click="approve(msg.id)" :disabled="processing">审核通过</button>
+              <button v-if="canManage" class="btn-secondary btn-sm" @click="togglePin(msg.id, !msg.pinned)" :disabled="processing">
                 {{ msg.pinned ? '取消置顶' : '置顶' }}
               </button>
-              <button v-if="!msg.isHidden" class="btn-secondary btn-sm" @click="toggleHide(msg.id, true)" :disabled="processing">隐藏</button>
-              <button v-else class="btn-secondary btn-sm" @click="toggleHide(msg.id, false)" :disabled="processing">取消隐藏</button>
-              <button class="btn-danger btn-sm" @click="remove(msg.id)" :disabled="processing">删除</button>
+              <button v-if="canManage && !msg.isHidden" class="btn-secondary btn-sm" @click="toggleHide(msg.id, true)" :disabled="processing">隐藏</button>
+              <button v-else-if="canManage" class="btn-secondary btn-sm" @click="toggleHide(msg.id, false)" :disabled="processing">取消隐藏</button>
+              <button v-if="canManage" class="btn-danger btn-sm" @click="remove(msg.id)" :disabled="processing">删除</button>
             </div>
           </div>
         </div>
@@ -91,8 +91,8 @@
               退回原因：{{ msg.reviewReason }}
             </div>
             <div class="msg-actions">
-              <button v-if="msg.status === 'pending'" class="btn-primary btn-sm" @click="approvePublic(msg.id)" :disabled="processing">审核通过</button>
-              <button v-if="msg.status === 'pending'" class="btn-danger btn-sm" @click="rejectPublic(msg.id)" :disabled="processing">退回</button>
+              <button v-if="canManage && msg.status === 'pending'" class="btn-primary btn-sm" @click="approvePublic(msg.id)" :disabled="processing">审核通过</button>
+              <button v-if="canManage && msg.status === 'pending'" class="btn-danger btn-sm" @click="rejectPublic(msg.id)" :disabled="processing">退回</button>
             </div>
           </div>
         </div>
@@ -111,7 +111,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { adminFetch } from '@/api/client'
+import { adminFetch, getCurrentAdmin } from '@/api/client'
 
 interface Message {
   id: string; studentSlug: string; authorName: string; content: string
@@ -129,6 +129,10 @@ const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 
 const messageType = ref<'profile' | 'public'>('profile')
 const publicMessages = ref<any[]>([])
+const canManage = computed(() => {
+  const admin = getCurrentAdmin()
+  return !!admin && (admin.isOwner || admin.permissions.includes('moderation.manage'))
+})
 
 let toastTimeout: any = null
 function showToast(type: 'success' | 'error', message: string) {

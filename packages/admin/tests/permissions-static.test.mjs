@@ -8,6 +8,8 @@ const accountsApi = readFileSync(new URL('../src/api/adminAccounts.ts', import.m
 const accountsView = readFileSync(new URL('../src/views/AdminAccountsView.vue', import.meta.url), 'utf8')
 const auditView = readFileSync(new URL('../src/views/AuditLogView.vue', import.meta.url), 'utf8')
 const client = readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8')
+const messagesView = readFileSync(new URL('../src/views/MessagesView.vue', import.meta.url), 'utf8')
+const mailView = readFileSync(new URL('../src/views/MailView.vue', import.meta.url), 'utf8')
 
 assert.match(dashboard, /\/api\/admin\/workbench/)
 assert.doesNotMatch(dashboard, /\/api\/admin\/stats/)
@@ -43,5 +45,7 @@ assert.match(auditView, /开始日期/)
 assert.match(client, /changeAdminPassword/)
 assert.match(main, /path: '\/change-password'/)
 assert.match(main, /admin\.mustChangePassword/)
+assert.match(messagesView, /canManage/)
+assert.match(mailView, /canPublish/)
 
 console.log('权限感知工作台静态检查通过')
