@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -221,7 +223,13 @@ messagesRoutes.get('/admin/messages', async (c) => {
 messagesRoutes.put('/admin/messages/:id/approve', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
-  await db.prepare('UPDATE messages SET is_approved = 1 WHERE id = ?').bind(id).run()
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const before = await db.prepare('SELECT is_approved FROM messages WHERE id = ?').bind(id).first()
+  if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
+  await runAuditedBatch(db, admin.id, [
+    db.prepare('UPDATE messages SET is_approved = 1 WHERE id = ?').bind(id),
+  ], { action: 'message.approve', resourceType: 'message', resourceId: id, before, after: { isApproved: true } })
   return c.json({ success: true, message: '已审核通过' })
 })
 

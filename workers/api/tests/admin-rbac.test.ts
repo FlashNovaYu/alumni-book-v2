@@ -238,4 +238,22 @@ describe('Administrator RBAC schema', () => {
     expect(body.data).toMatchObject({ available: true, displayName: '入口测试员' })
     expect(body.data.token).toBeUndefined()
   })
+
+  it('records the acting administrator when approving a profile message', async () => {
+    await env.DB.prepare(
+      "INSERT INTO messages (id, student_slug, author_name, content) VALUES ('msg_audit_test', 'test_init', '测试同学', '请审核我')"
+    ).run()
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+    const approval = await worker.fetch(new Request('http://localhost/api/admin/messages/msg_audit_test/approve', {
+      method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    expect(approval.status).toBe(200)
+    expect(await env.DB.prepare(
+      "SELECT action, resource_id FROM admin_audit_logs WHERE resource_id = 'msg_audit_test'"
+    ).first()).toMatchObject({ action: 'message.approve', resource_id: 'msg_audit_test' })
+  })
 })
