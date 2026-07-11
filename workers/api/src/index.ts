@@ -68,6 +68,26 @@ app.use('*', async (c, next) => {
   return corsMiddleware(c, next)
 })
 
+app.use('/api/*', async (c, next) => {
+  const missingBindings = [
+    !c.env?.DB && 'DB',
+    !c.env?.R2 && 'R2',
+    !c.env?.JWT_SECRET && 'JWT_SECRET',
+  ].filter(Boolean)
+
+  if (missingBindings.length > 0) {
+    const requestId = c.get('requestId') || 'unknown'
+    console.error(`[Request ID: ${requestId}] Cloudflare bindings are incomplete`)
+    return c.json({
+      success: false,
+      message: '服务配置不完整',
+      requestId,
+    }, 503)
+  }
+
+  return next()
+})
+
 const PUBLIC_REVALIDATED_GET_PREFIXES = [
   '/api/classmates',
   '/api/students',

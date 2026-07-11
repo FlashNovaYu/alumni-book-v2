@@ -88,6 +88,22 @@ describe('Public API', () => {
     expect(body.data.status).toBe('ok')
   })
 
+  it('GET /api/health — 缺少生产绑定时返回安全的 503', async () => {
+    const req = new Request('http://localhost/api/health')
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(req, { CORS_ORIGIN: '*' } as any, ctx)
+    await waitOnExecutionContext(ctx)
+
+    expect(res.status).toBe(503)
+    const body = await res.json() as any
+    expect(body.success).toBe(false)
+    expect(body.message).toBe('服务配置不完整')
+    expect(body.requestId).toBeTruthy()
+    expect(JSON.stringify(body)).not.toContain('JWT_SECRET')
+    expect(JSON.stringify(body)).not.toContain('DB')
+    expect(JSON.stringify(body)).not.toContain('R2')
+  })
+
   it('GET /api/classmates — 返回同学名单', async () => {
     await env.DB.prepare(
       "INSERT INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)"
