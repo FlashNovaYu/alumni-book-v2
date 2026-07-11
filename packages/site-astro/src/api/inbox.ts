@@ -1,4 +1,4 @@
-import type { DirectConversation, DirectMessage, InboxSummary, NotificationItem } from '@alumni/shared'
+import type { ClassmateEntry, DirectConversation, DirectMessage, InboxSummary, NotificationItem } from '@alumni/shared'
 import { requestClassmateApi } from './classmateRequest'
 
 export interface InboxRequestOptions {
@@ -34,6 +34,10 @@ function queryPath(path: string, query: Record<string, string | number | null | 
 
 export function fetchDirectConversations(apiBase: string, options: InboxRequestOptions = {}): Promise<{ items: DirectConversation[] }> {
   return requestClassmateApi(apiBase, '/api/direct-conversations', { signal: options.signal }, '会话列表加载失败')
+}
+
+export function fetchInboxClassmates(apiBase: string, options: InboxRequestOptions = {}): Promise<ClassmateEntry[]> {
+  return requestClassmateApi(apiBase, '/api/classmates', { signal: options.signal }, '同学目录加载失败')
 }
 
 export function startDirectConversation(

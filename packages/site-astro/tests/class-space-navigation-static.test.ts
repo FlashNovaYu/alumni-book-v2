@@ -121,7 +121,7 @@ describe('class mailbox components static constraints', () => {
 
   it('verifies RecipientPicker.vue supports search and excludes self', () => {
     const source = read('components/RecipientPicker.vue')
-    expect(source).toContain('fetchRecipientDirectory')
+    expect(source).toContain('fetchInboxClassmates')
     expect(source).toContain('mySlug')
     expect(source).toContain('avatarUrl')
   })
@@ -135,13 +135,16 @@ describe('class mailbox components static constraints', () => {
     expect(source).toContain('body')
   })
 
-  it('verifies MailboxApp.vue orchestrates the components and triggers events', () => {
+  it('verifies MailboxApp.vue orchestrates the conversation and notification workbench', () => {
     const source = read('components/MailboxApp.vue')
-    expect(source).toContain('Promise.all')
-    expect(source).toContain('fetchMailboxThreads')
-    expect(source).toContain('fetchNotifications')
-    expect(source).toContain('alumni:inbox-changed')
-    expect(source).toContain('window.dispatchEvent')
+    expect(source).toContain('useInbox')
+    expect(source).toContain('DirectConversationList')
+    expect(source).toContain('DirectConversationView')
+    expect(source).toContain('NotificationList')
+    expect(source).toContain('NotificationDetail')
+    expect(source).toContain('NewConversationDialog')
+    expect(source).not.toContain('fetchMailboxThreads')
+    expect(source).not.toContain('MailComposer')
   })
 })
 

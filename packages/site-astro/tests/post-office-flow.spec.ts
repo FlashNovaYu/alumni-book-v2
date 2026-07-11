@@ -106,6 +106,15 @@ test('legacy public message page redirects to the class group chat', async ({ pa
       body: JSON.stringify({ success: true, data: { chat: { items: [], cursor: 'legacy', mute: null }, albums: [], timeline: [], counts: { groupMessages: 0, albums: 0, timelineItems: 0 } } }),
     })
   })
+
+  await page.route('**/api/direct-conversations', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { items: [] } }),
+    })
+  })
+
   await seedClassmateSession(page)
   await page.goto('./messages/', { waitUntil: 'networkidle' })
 
@@ -117,7 +126,8 @@ test('mailbox page is usable on mobile without horizontal overflow', async ({ pa
   await seedClassmateSession(page)
   await page.goto('./mailbox/', { waitUntil: 'networkidle' })
 
-  await expect(page.getByRole('heading', { name: '班级邮局', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '班级信箱', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '私聊' })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
   expect(overflow).toBe(false)
 })
