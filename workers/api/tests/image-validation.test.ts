@@ -1,4 +1,5 @@
 import { env, createExecutionContext } from 'cloudflare:test'
+import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { detectImageFormat, validateImageUpload } from '../src/lib/imageValidation'
 import { classmateRoutes } from '../src/routes/classmate'
@@ -10,6 +11,8 @@ const heicHeader = new Uint8Array([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x7
 const student = { id: 'image_validation_student', name: '图片校验同学', slug: 'image-validation-user' }
 const classmateToken = 'image-validation-session'
 const bindings = { DB: env.DB, R2: env.R2, JWT_SECRET: 'test-secret' }
+const adminApi = new Hono<{ Bindings: typeof bindings }>()
+adminApi.route('/api', uploadRoutes)
 
 beforeAll(async () => {
   await initTestDb(env.DB)
@@ -46,6 +49,9 @@ describe('image validation', () => {
   })
 
   it('rejects disguised HEIC uploads from both routes before R2 writes', async () => {
+    const classmateAvatarBefore = (await env.DB.prepare(
+      'SELECT avatar_url FROM students WHERE slug = ?',
+    ).bind(student.slug).first() as any)?.avatar_url
     const classmateResponse = await classmateRoutes.fetch(new Request('http://localhost/classmate/upload', {
       method: 'POST',
       headers: { 'X-Classmate-Token': classmateToken },
@@ -54,14 +60,25 @@ describe('image validation', () => {
 
     expect(classmateResponse.status).toBe(400)
     expect((await classmateResponse.json() as any).message).toBe('图片内容与文件格式不一致')
+    const classmateAvatarAfter = (await env.DB.prepare(
+      'SELECT avatar_url FROM students WHERE slug = ?',
+    ).bind(student.slug).first() as any)?.avatar_url
+    expect(classmateAvatarAfter).toBe(classmateAvatarBefore)
 
-    const adminResponse = await uploadRoutes.fetch(new Request('http://localhost/upload', {
+    const adminAvatarBefore = (await env.DB.prepare(
+      'SELECT avatar_url FROM students WHERE slug = ?',
+    ).bind(student.slug).first() as any)?.avatar_url
+    const adminResponse = await adminApi.fetch(new Request('http://localhost/api/upload', {
       method: 'POST',
       body: uploadForm(heicHeader, 'avatar.png'),
     }), bindings, createExecutionContext())
 
     expect(adminResponse.status).toBe(400)
     expect((await adminResponse.json() as any).message).toBe('图片内容与文件格式不一致')
+    const adminAvatarAfter = (await env.DB.prepare(
+      'SELECT avatar_url FROM students WHERE slug = ?',
+    ).bind(student.slug).first() as any)?.avatar_url
+    expect(adminAvatarAfter).toBe(adminAvatarBefore)
     expect((await env.R2.list({ prefix: `avatars/${student.slug}_` })).objects).toHaveLength(0)
   })
 
@@ -69,6 +86,18 @@ describe('image validation', () => {
     const response = await classmateRoutes.fetch(new Request('http://localhost/classmate/upload', {
       method: 'POST',
       headers: { 'X-Classmate-Token': classmateToken },
+      body: uploadForm(pngHeader, 'avatar.heic'),
+    }), bindings, createExecutionContext())
+    const body = await response.json() as any
+
+    expect(response.status).toBe(200)
+    expect(body.data.r2Key).toMatch(new RegExp(`^avatars/${student.slug}_\\d+\\.png$`))
+    expect((await env.R2.get(body.data.r2Key))?.httpMetadata?.contentType).toBe('image/png')
+  })
+
+  it('uses a canonical extension and MIME for a valid PNG admin upload', async () => {
+    const response = await adminApi.fetch(new Request('http://localhost/api/upload', {
+      method: 'POST',
       body: uploadForm(pngHeader, 'avatar.heic'),
     }), bindings, createExecutionContext())
     const body = await response.json() as any
