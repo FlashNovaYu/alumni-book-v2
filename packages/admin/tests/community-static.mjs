@@ -30,6 +30,7 @@ assert.match(messages, /loadVersion/)
 const mail = read('views/MailView.vue')
 const layout = read('views/AdminLayout.vue')
 const main = read('main.ts')
+const studentsView = read('views/StudentsView.vue')
 for (const token of ['通知中心', 'sendAdminNotification', 'broadcastAdminNotification', 'fetchAdminNotificationHistory']) {
   assert.match(mail, new RegExp(token))
 }
@@ -38,5 +39,7 @@ assert.doesNotMatch(mail, /\/api\/admin\/mail\//)
 assert.match(mail, /historyRequest/)
 assert.match(layout, /通知中心/)
 assert.match(main, /path: 'mail', name: 'notifications'/)
+assert.match(studentsView, /初始密码为 123456/)
+assert.match(studentsView, /首次登录后修改/)
 
 console.log('后台社群治理与通知中心静态契约通过')
