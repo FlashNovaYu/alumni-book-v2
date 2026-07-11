@@ -1,5 +1,6 @@
 import { getClassmateToken, type ApiResponse, type ClassmateEntry, type InboxSummary, type MailboxThreadDetail, type NotificationItem } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import { handleClassmateUnauthorized } from './classmateSession'
 
 function classmateHeaders(): Record<string, string> {
   const token = getClassmateToken()
@@ -7,9 +8,14 @@ function classmateHeaders(): Record<string, string> {
 }
 
 async function parse<T>(res: Response, fallback: string): Promise<T> {
-  const data = await res.json() as ApiResponse<T>
+  const data = await parseClassmateResponse<T>(res)
   if (!res.ok || !data.success || !data.data) throw new Error(data.message || fallback)
   return data.data
+}
+
+async function parseClassmateResponse<T = any>(res: Response): Promise<ApiResponse<T>> {
+  if (res.status === 401) handleClassmateUnauthorized()
+  return res.json() as Promise<ApiResponse<T>>
 }
 
 export async function fetchPublicMessages(apiBase: string) {
@@ -21,7 +27,7 @@ export async function fetchMyPublicMessages(apiBase: string) {
   const res = await fetch(joinApiUrl(apiBase, '/api/public-messages/mine'), {
     headers: classmateHeaders(),
   })
-  return res.json()
+  return parseClassmateResponse(res)
 }
 
 export async function submitPublicMessage(apiBase: string, content: string, cardStyle: string) {
@@ -33,14 +39,14 @@ export async function submitPublicMessage(apiBase: string, content: string, card
     },
     body: JSON.stringify({ content, cardStyle }),
   })
-  return res.json()
+  return parseClassmateResponse(res)
 }
 
 export async function fetchMailboxThreads(apiBase: string) {
   const res = await fetch(joinApiUrl(apiBase, '/api/mailbox/threads'), {
     headers: classmateHeaders(),
   })
-  return res.json()
+  return parseClassmateResponse(res)
 }
 
 export async function sendMailboxThread(apiBase: string, payload: { recipientSlug: string; subject: string; body: string }) {
@@ -52,7 +58,7 @@ export async function sendMailboxThread(apiBase: string, payload: { recipientSlu
     },
     body: JSON.stringify(payload),
   })
-  return res.json()
+  return parseClassmateResponse(res)
 }
 
 export async function reactToPublicMessage(apiBase: string, id: string, reaction: string) {
@@ -76,6 +82,7 @@ export async function fetchNotifications(apiBase: string) {
 
 export async function markNotificationRead(apiBase: string, id: string) {
   const res = await fetch(joinApiUrl(apiBase, `/api/notifications/${id}/read`), { method: 'PUT', headers: classmateHeaders() })
+  if (res.status === 401) handleClassmateUnauthorized()
   if (!res.ok) throw new Error('通知标记失败')
 }
 
@@ -90,6 +97,7 @@ export async function replyMailboxThread(apiBase: string, threadId: string, body
     headers: { 'Content-Type': 'application/json', ...classmateHeaders() },
     body: JSON.stringify({ body }),
   })
+  if (res.status === 401) handleClassmateUnauthorized()
   if (!res.ok) throw new Error(((await res.json()) as ApiResponse).message || '回复失败')
 }
 

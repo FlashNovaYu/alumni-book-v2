@@ -10,6 +10,8 @@
       </button>
     </div>
 
+    <p v-if="loadError" class="mailbox-load-error" role="alert">{{ loadError }}</p>
+
     <!-- 写信模式 -->
     <div v-if="mode === 'compose'" class="compose-container">
       <MailComposer
@@ -27,6 +29,7 @@
       <!-- 左侧列表栏 -->
       <div class="mailbox-list-pane">
         <MailboxList
+          v-if="!loadError"
           :notifications="notifications"
           :mails="mails"
           :loading="loading"
@@ -76,6 +79,7 @@ const mails = ref<MailboxThread[]>([])
 const notifications = ref<NotificationItem[]>([])
 const selectedItem = ref<AggregatedInboxItem | null>(null)
 const composerRef = ref<InstanceType<typeof MailComposer> | null>(null)
+const loadError = ref<string | null>(null)
 
 // 广播自定义事件通知更新未读数
 function broadcastInboxChanged() {
@@ -96,6 +100,7 @@ function switchMode(newMode: 'inbox' | 'compose') {
 // 并行加载通知与邮件列表
 async function loadData() {
   loading.value = true
+  loadError.value = null
   try {
     const [threadsRes, notifRes] = await Promise.all([
       fetchMailboxThreads(props.apiBase),
@@ -107,6 +112,7 @@ async function loadData() {
     notifications.value = notifRes.items || []
   } catch (err) {
     console.error('加载信箱数据失败', err)
+    loadError.value = err instanceof Error ? err.message : '加载信箱数据失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -164,7 +170,7 @@ async function handleSendMail(payload: { recipientSlug: string; subject: string;
       notice.value = { type: 'error', text: data.message || '发送失败' }
     }
   } catch (err) {
-    notice.value = { type: 'error', text: '网络错误，请稍后重试' }
+    notice.value = { type: 'error', text: err instanceof Error ? err.message : '网络错误，请稍后重试' }
   } finally {
     sending.value = false
   }
@@ -202,6 +208,12 @@ onMounted(loadData)
   border-color: var(--color-paper-brown);
   color: var(--color-paper-brown);
   background: rgba(139, 94, 60, 0.05);
+}
+
+.mailbox-load-error {
+  margin: 0;
+  color: var(--color-error, #c53030);
+  font-weight: 600;
 }
 
 .compose-container {
