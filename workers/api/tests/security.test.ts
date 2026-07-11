@@ -80,7 +80,7 @@ describe('Security and Session Revocation', () => {
     expect(statsRes2.status).toBe(401)
     const errBody = await statsRes2.json() as any
     expect(errBody.success).toBe(false)
-    expect(errBody.message).toContain('登录已失效')
+    expect(errBody.message).toContain('管理会话已失效')
   })
 
   it('classmate session token stops working after logout', async () => {

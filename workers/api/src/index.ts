@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { cors } from 'hono/cors'
-import { jwt } from 'hono/jwt'
 import { studentsRoutes } from './routes/students'
 import { configRoutes } from './routes/config'
 import { albumsRoutes } from './routes/albums'
@@ -17,6 +16,7 @@ import { publicMessagesRoutes } from './routes/publicMessages'
 import { notificationsRoutes } from './routes/notifications'
 import { inboxRoutes } from './routes/inbox'
 import { mailboxRoutes } from './routes/mailbox'
+import { requireAdminSession, requireOwner, requirePermission, type AdminPermission } from './lib/adminAuth'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
@@ -117,11 +117,6 @@ app.use('/api/config', etag())
 app.use('/api/albums', etag())
 app.use('/api/rankings', etag())
 app.use('/api/class-space/overview', etag())
-
-// 创建 JWT 中间件
-function createJwtMiddleware(secret: string) {
-  return jwt({ secret, alg: 'HS256' })
-}
 
 // 健康检查
 app.get('/api/health', (c) => {
@@ -418,116 +413,41 @@ app.get('/api/files/*', async (c) => {
   return new Response(object.body, { headers })
 })
 
-// JWT 中间件包装器
-function jwtGuard(secret: string) {
-  const mw = createJwtMiddleware(secret)
-  return async (c: any, next: any) => {
-    try {
-      await mw(c, next)
-    } catch (e) {
-      if (e instanceof HTTPException) return e.getResponse()
-      throw e
-    }
-  }
+function permissionForMethod(read: AdminPermission, write: AdminPermission) {
+  return async (c: any, next: any) => requirePermission(c.req.method === 'GET' ? read : write)(c, next)
 }
 
-// adminGuard 结合了 JWT 签名校验与数据库 admin_sessions 状态校验，防止注销后的 Token 仍可通过验证。
-function adminGuard(secret: string) {
-  const mw = createJwtMiddleware(secret)
-  return async (c: any, next: any) => {
-    try {
-      let isVerified = false
-      let response: any = null
-
-      await mw(c, async () => {
-        const authHeader = c.req.header('Authorization')
-        const token = authHeader?.replace('Bearer ', '')
-        if (!token) {
-          response = c.json({ success: false, message: '未授权' }, 401)
-          return
-        }
-
-        const session = await c.env.DB.prepare(
-          "SELECT token FROM admin_sessions WHERE token = ? AND revoked_at IS NULL AND expires_at > datetime('now')"
-        ).bind(token).first()
-
-        if (!session) {
-          response = c.json({ success: false, message: '登录已失效' }, 401)
-          return
-        }
-
-        isVerified = true
-      })
-
-      if (isVerified) {
-        return next()
-      }
-
-      if (response) {
-        return response
-      }
-
-      return c.json({ success: false, message: '未授权' }, 401)
-    } catch (e) {
-      if (e instanceof HTTPException) return e.getResponse()
-      throw e
-    }
-  }
+function requireSessionForWrites(c: any, next: any) {
+  return c.req.method === 'GET' ? next() : requireAdminSession(c, next)
 }
 
-// 需要认证的路由
-app.use('/api/admin/*', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
+function requireOwnerForWrites(c: any, next: any) {
+  return c.req.method === 'GET' ? next() : requireOwner(c, next)
+}
 
-app.use('/api/students', async (c, next) => {
-  if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
+function permissionForWrites(permission: AdminPermission) {
+  return async (c: any, next: any) => c.req.method === 'GET' ? next() : requirePermission(permission)(c, next)
+}
 
-app.use('/api/students/:slug', async (c, next) => {
-  if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
+// 管理接口先解析会话，再按业务能力授权。前端隐藏入口不构成安全边界。
+app.use('/api/admin/*', requireAdminSession)
+app.use('/api/admin/stats', requireOwner)
+app.use('/api/admin/messages', permissionForMethod('moderation.view', 'moderation.manage'))
+app.use('/api/admin/messages/:id', permissionForMethod('moderation.view', 'moderation.manage'))
+app.use('/api/admin/messages/batch', permissionForMethod('moderation.view', 'moderation.manage'))
+app.use('/api/admin/public-messages', permissionForMethod('moderation.view', 'moderation.manage'))
+app.use('/api/admin/public-messages/:id', permissionForMethod('moderation.view', 'moderation.manage'))
+app.use('/api/admin/mail/*', permissionForMethod('notifications.view', 'notifications.publish'))
 
-app.use('/api/config', async (c, next) => {
-  if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/albums', async (c, next) => {
-  if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/albums/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/photos/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/upload', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/admin/messages', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/admin/messages/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/timeline/events', async (c, next) => {
-  if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
-
-app.use('/api/timeline/events/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
-})
+app.use('/api/students', requireSessionForWrites, requireOwnerForWrites)
+app.use('/api/students/:slug', requireSessionForWrites, requireOwnerForWrites)
+app.use('/api/config', requireSessionForWrites, requireOwnerForWrites)
+app.use('/api/albums', requireSessionForWrites, permissionForWrites('content.manage'))
+app.use('/api/albums/:id', requireAdminSession, requirePermission('content.manage'))
+app.use('/api/photos/:id', requireAdminSession, requirePermission('content.manage'))
+app.use('/api/upload', requireAdminSession)
+app.use('/api/timeline/events', requireSessionForWrites, permissionForWrites('content.manage'))
+app.use('/api/timeline/events/:id', requireAdminSession, requirePermission('content.manage'))
 
 // 注册路由
 app.route('/api', studentsRoutes)
@@ -664,7 +584,10 @@ async function determineAudience(c: any, studentSlug: string): Promise<'public' 
   if (adminToken) {
     try {
       const session = await c.env.DB.prepare(
-        "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')"
+        `SELECT s.token
+         FROM admin_sessions s
+         INNER JOIN admin_accounts a ON a.id = s.admin_account_id
+         WHERE s.token = ? AND s.revoked_at IS NULL AND s.expires_at > datetime('now') AND a.status = 'active'`
       ).bind(adminToken).first()
       if (session) return 'admin'
     } catch {}

@@ -4,6 +4,7 @@ import { initTestDb } from './db-helper'
 import { getAdminPermissions, loadActiveAdmin } from '../src/lib/adminAuth'
 import { runAuditedBatch } from '../src/lib/adminAudit'
 import worker from '../src/index'
+import { hashPassword } from '../src/lib/password'
 
 beforeAll(async () => {
   await initTestDb(env.DB)
@@ -157,5 +158,46 @@ describe('Administrator RBAC schema', () => {
     const firstBody = await first.json() as any
     const secondBody = await second.json() as any
     expect(firstBody.data.token).not.toBe(secondBody.data.token)
+  })
+
+  it('restricts moderators to their assigned management capability', async () => {
+    await env.DB.prepare(
+      `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+       VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+    ).bind('adm_moderator_test', 'moderator', '审核同学', await hashPassword('moderator-pass')).run()
+
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'moderator', password: 'moderator-pass' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+
+    const messageList = await worker.fetch(new Request('http://localhost/api/admin/messages', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    expect(messageList.status).toBe(200)
+
+    const stats = await worker.fetch(new Request('http://localhost/api/admin/stats', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    expect(stats.status).toBe(403)
+
+    const studentUpdate = await worker.fetch(new Request('http://localhost/api/students/test_init', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: '不应写入' }),
+    }), env, createExecutionContext())
+    expect(studentUpdate.status).toBe(403)
+
+    await env.DB.prepare(
+      "UPDATE students SET info = ? WHERE slug = 'test_init'"
+    ).bind(JSON.stringify({ phone: '13800000000', visibility: { phone: 'owner' } })).run()
+    await env.DB.prepare("UPDATE admin_accounts SET status = 'disabled' WHERE id = 'adm_moderator_test'").run()
+    const studentRead = await worker.fetch(new Request('http://localhost/api/students/test_init', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    const studentBody = await studentRead.json() as any
+    expect(studentBody.data.info.phone).toBeUndefined()
   })
 })

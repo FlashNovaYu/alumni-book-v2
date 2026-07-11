@@ -240,6 +240,20 @@ export const testMigrations = [
       ('content_admin', '内容管理员', '管理全部非核心业务模块'),
       ('moderator', '内容审核员', '审核与处置公共内容'),
       ('operator', '运营管理员', '发布通知、管理相册和时光轴')`,
+    `INSERT OR IGNORE INTO admin_role_permissions (role_id, permission) VALUES
+      ('content_admin', 'dashboard.view'),
+      ('content_admin', 'moderation.view'),
+      ('content_admin', 'moderation.manage'),
+      ('content_admin', 'content.manage'),
+      ('content_admin', 'notifications.view'),
+      ('content_admin', 'notifications.publish'),
+      ('moderator', 'dashboard.view'),
+      ('moderator', 'moderation.view'),
+      ('moderator', 'moderation.manage'),
+      ('operator', 'dashboard.view'),
+      ('operator', 'content.manage'),
+      ('operator', 'notifications.view'),
+      ('operator', 'notifications.publish')`,
   ]}
 ]
 
