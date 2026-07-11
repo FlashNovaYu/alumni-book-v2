@@ -53,6 +53,16 @@ describe('组合验证前置条件', () => {
     expect(verifySite).toContain('pnpm build:admin')
     expect(verifySite.indexOf('pnpm build:admin')).toBeLessThan(verifySite.indexOf('test:with-build'))
   })
+
+  it('顶层组合验证复用站点链路的后台构建', () => {
+    const rootPackage = JSON.parse(readFileSync(resolve(__dirname, '../../../package.json'), 'utf-8')) as {
+      scripts: Record<string, string>
+    }
+    const verifyAll = rootPackage.scripts['verify:all']
+
+    expect(verifyAll).toContain('pnpm verify:site')
+    expect(verifyAll).not.toContain('pnpm verify:admin')
+  })
 })
 
 describe('头像与学生页 hydration 可靠性', () => {

@@ -18,7 +18,7 @@
     "verify:worker": "pnpm --filter worker exec vitest run",
     "verify:admin": "pnpm --filter admin typecheck && pnpm --filter admin build",
     "verify:site": "pnpm build:admin && pnpm --filter site-astro typecheck && pnpm --filter site-astro test:with-build && pnpm --filter site-astro test:perf-network",
-    "verify:all": "pnpm verify:worker && pnpm verify:admin && pnpm verify:site"
+    "verify:all": "pnpm verify:worker && pnpm verify:site"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
