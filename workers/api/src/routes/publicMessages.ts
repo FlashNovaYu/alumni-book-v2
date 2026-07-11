@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
-import { createNotification } from '../lib/notificationService'
+import { buildNotificationStatement } from '../lib/notificationService'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 
@@ -137,22 +137,18 @@ publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
   const row = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
 
+  const notification = buildNotificationStatement(c.env.DB, {
+    recipientSlug: row.author_slug, type: 'public_message_approved', title: '公共留言已通过审核',
+    body: '你提交的公共留言已经展示在班级留言墙。', relatedType: 'public_message', relatedId: id,
+  })
   await runAuditedBatch(c.env.DB, admin.id, [
     c.env.DB.prepare(
       "UPDATE public_messages SET status = 'approved', reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
     ).bind(id),
     c.env.DB.prepare(
       "INSERT INTO content_reviews (id, content_type, content_id, action, admin_id) VALUES (?, 'public_message', ?, 'approve', ?)"
-    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, admin.id),
+    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, admin.id), notification.statement,
   ], { action: 'public_message.approve', resourceType: 'public_message', resourceId: id, before: { status: row.status }, after: { status: 'approved' } })
-  await createNotification(c.env.DB, {
-    recipientSlug: row.author_slug,
-    type: 'public_message_approved',
-    title: '公共留言已通过审核',
-    body: '你提交的公共留言已经展示在班级留言墙。',
-    relatedType: 'public_message',
-    relatedId: id,
-  })
 
   return c.json({ success: true, message: '已审核通过' })
 })
@@ -168,22 +164,18 @@ publicMessagesRoutes.put('/admin/public-messages/:id/reject', async (c) => {
   const row = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
 
+  const notification = buildNotificationStatement(c.env.DB, {
+    recipientSlug: row.author_slug, type: 'public_message_rejected', title: '公共留言未通过审核',
+    body: reviewReason, relatedType: 'public_message', relatedId: id,
+  })
   await runAuditedBatch(c.env.DB, admin.id, [
     c.env.DB.prepare(
       "UPDATE public_messages SET status = 'rejected', review_reason = ?, reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
     ).bind(reviewReason, id),
     c.env.DB.prepare(
       "INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) VALUES (?, 'public_message', ?, 'reject', ?, ?)"
-    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, reviewReason, admin.id),
+    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, reviewReason, admin.id), notification.statement,
   ], { action: 'public_message.reject', resourceType: 'public_message', resourceId: id, reason: reviewReason, before: { status: row.status }, after: { status: 'rejected' } })
-  await createNotification(c.env.DB, {
-    recipientSlug: row.author_slug,
-    type: 'public_message_rejected',
-    title: '公共留言未通过审核',
-    body: reviewReason,
-    relatedType: 'public_message',
-    relatedId: id,
-  })
 
   return c.json({ success: true, message: '已退回留言' })
 })

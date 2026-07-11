@@ -634,7 +634,7 @@ async function determineAudience(c: any, studentSlug: string): Promise<'public' 
       const session = await c.env.DB.prepare(
         `SELECT admin_account_id FROM admin_sessions
          WHERE token = ? AND revoked_at IS NULL AND expires_at > datetime('now')`
-      ).bind(adminToken).first<{ admin_account_id: string }>()
+      ).bind(adminToken).first() as { admin_account_id: string } | null
       const admin = session ? await loadActiveAdmin(c.env.DB, session.admin_account_id) : null
       if (admin && !admin.mustChangePassword && hasPermission(admin, 'students.manage')) return 'admin'
     } catch {}
