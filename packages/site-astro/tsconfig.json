@@ -18,6 +18,8 @@
     }
   },
   "exclude": [
-    "src/components/ui"
+    "src/components/ui",
+    "functions",
+    "tests/pages-functions.test.ts"
   ]
 }
