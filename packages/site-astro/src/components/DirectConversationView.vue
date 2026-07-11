@@ -81,8 +81,9 @@ function formatTime(value: string) {
 .direct-composer button:disabled, .direct-composer textarea:disabled { opacity: 0.58; cursor: not-allowed; }
 .detail-empty { display: grid; min-height: 420px; place-items: center; color: var(--color-paper-muted); background: var(--color-paper-card); border: 1px dashed var(--color-paper-border); font-size: 14px; }
 @media (max-width: 768px) {
-  .direct-conversation-view { min-height: calc(100vh - 160px); }
+  .direct-conversation-view { min-height: calc(100dvh - 52px); }
   .direct-composer { grid-template-columns: 1fr; }
   .direct-composer button { width: 100%; }
+  .direct-composer { padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); }
 }
 </style>

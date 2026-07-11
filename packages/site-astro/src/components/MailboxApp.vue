@@ -8,24 +8,25 @@
     </header>
 
     <p v-if="error" class="mailbox-error" role="alert">{{ error }}</p>
-    <div id="inbox-panel" class="mailbox-workspace" role="tabpanel" :aria-labelledby="mode === 'direct' ? 'inbox-tab-direct' : 'inbox-tab-notification'">
+    <div id="inbox-panel" class="mailbox-workspace" :class="{ 'has-detail': detailOpen }" role="tabpanel" :aria-labelledby="mode === 'direct' ? 'inbox-tab-direct' : 'inbox-tab-notification'">
       <aside class="mailbox-sidebar">
         <DirectConversationList
           v-if="mode === 'direct'"
           :items="conversations"
           :selected-id="selectedConversation?.id"
-          @select="selectConversation"
+          @select="openConversation"
           @new="newConversationOpen = true"
         />
         <NotificationList
           v-else
           :items="notifications"
           :selected-id="selectedNotification?.id"
-          @select="selectNotification"
+          @select="openNotification"
         />
       </aside>
 
       <div class="mailbox-detail-pane" :aria-busy="loading">
+        <button v-if="detailOpen" type="button" class="mobile-detail-back" @click="closeDetail">返回信箱</button>
         <DirectConversationView
           v-if="mode === 'direct'"
           :peer="selectedPeer"
@@ -45,8 +46,9 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getClassmateStudent } from '@alumni/shared'
+import type { DirectConversation, NotificationItem } from '@alumni/shared'
 import { fetchInboxClassmates } from '../api/inbox'
 import { useInbox } from '../composables/useInbox'
 import DirectConversationList from './DirectConversationList.vue'
@@ -77,9 +79,11 @@ const {
   selectConversation,
   selectNotification,
   startConversation,
+  clearSelection,
   send,
   retry,
 } = useInbox(props.apiBase)
+const detailOpen = computed(() => Boolean(selectedConversation.value || selectedNotification.value || selectedPeer.value))
 
 async function chooseRecipient(recipient: Parameters<typeof startConversation>[0]) {
   await startConversation(recipient)
@@ -97,8 +101,49 @@ function handleTabKey(event: KeyboardEvent) {
   void nextTick(() => (nextMode === 'direct' ? directTab.value : notificationTab.value)?.focus())
 }
 
+function writeDetailUrl(key: 'conversation' | 'notification', value: string) {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('conversation')
+  url.searchParams.delete('notification')
+  url.searchParams.set(key, value)
+  window.history.pushState({ alumniInbox: true }, '', url)
+}
+
+async function openConversation(conversation: DirectConversation, updateUrl = true) {
+  await selectConversation(conversation)
+  if (updateUrl) writeDetailUrl('conversation', conversation.id)
+}
+
+async function openNotification(notification: NotificationItem, updateUrl = true) {
+  await selectNotification(notification)
+  if (updateUrl) writeDetailUrl('notification', notification.id)
+}
+
+function closeDetail() {
+  if (window.history.state?.alumniInbox) {
+    window.history.back()
+    return
+  }
+
+  const url = new URL(window.location.href)
+  url.searchParams.delete('conversation')
+  url.searchParams.delete('notification')
+  window.history.replaceState(window.history.state, '', url)
+  clearSelection()
+}
+
+function restoreFromLocation() {
+  const params = new URLSearchParams(window.location.search)
+  const conversation = conversations.value.find(item => item.id === params.get('conversation'))
+  const notification = notifications.value.find(item => item.id === params.get('notification'))
+  if (conversation) return void openConversation(conversation, false)
+  if (notification) return void openNotification(notification, false)
+  clearSelection()
+}
+
 onMounted(async () => {
   await loadInitial()
+  restoreFromLocation()
   if (!props.defaultRecipient) return
 
   const existing = conversations.value.find(item => item.peer.slug === props.defaultRecipient)
@@ -115,6 +160,9 @@ onMounted(async () => {
     newConversationOpen.value = true
   }
 })
+
+onMounted(() => window.addEventListener('popstate', restoreFromLocation))
+onBeforeUnmount(() => window.removeEventListener('popstate', restoreFromLocation))
 </script>
 
 <style scoped>
@@ -128,9 +176,13 @@ onMounted(async () => {
 .mailbox-workspace { display: grid; grid-template-columns: clamp(320px, 30vw, 360px) minmax(0, 1fr); min-height: 640px; border-top: 1px solid var(--color-paper-border); }
 .mailbox-sidebar { min-width: 0; background: var(--color-paper-card); border-right: 1px solid var(--color-paper-border); }
 .mailbox-detail-pane { min-width: 0; }
+.mobile-detail-back { display: none; }
 @media (max-width: 768px) {
   .mailbox-toolbar { align-items: flex-start; }
   .mailbox-workspace { grid-template-columns: minmax(0, 1fr); min-height: 0; }
   .mailbox-sidebar { border-right: 0; border-bottom: 1px solid var(--color-paper-border); }
+  .mailbox-workspace.has-detail .mailbox-sidebar { display: none; }
+  .mailbox-workspace:not(.has-detail) .mailbox-detail-pane { display: none; }
+  .mobile-detail-back { display: inline-flex; align-items: center; min-height: 40px; padding: 0; color: var(--color-paper-brown); background: transparent; border: 0; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 }
 </style>

@@ -59,6 +59,15 @@ describe('可见性轮询生命周期契约', () => {
     expect(source).toContain('20_000')
     expect(source).toContain('30_000')
   })
+
+  it('让信箱仅在可见在线时同步，并将本地未读变化通知导航栏', () => {
+    const source = read('composables/useInbox.ts')
+
+    expect(source).toContain("import { useVisibilityPolling } from './useVisibilityPolling'")
+    expect(source).toContain('useVisibilityPolling({ run: syncNow, initialDelay: 5_000, baseDelay: 5_000, maxDelay: 30_000 })')
+    expect(source).toContain('function updateUnread')
+    expect(source).toContain("new CustomEvent('alumni:inbox-changed'")
+  })
 })
 
 describe('纸质档案导航契约', () => {

@@ -235,3 +235,28 @@ test('信箱分段控件支持左右方向键切换', async ({ page }) => {
   await expect(notificationTab).toBeFocused()
   await expect(notificationTab).toHaveAttribute('aria-selected', 'true')
 })
+
+test('手机端详情写入 URL 并由浏览器返回恢复会话列表', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+
+  await page.getByRole('button', { name: '李四', exact: true }).click()
+  await expect(page).toHaveURL(/\/mailbox\/\?conversation=conversation-lisi/)
+  await expect(page.locator('.mailbox-workspace')).toHaveClass(/has-detail/)
+  await page.goBack()
+  await expect(page).toHaveURL(/\/mailbox\/?$/)
+  await expect(page.locator('.direct-conversation-list')).toBeVisible()
+  await expect(page.locator('.mailbox-workspace')).not.toHaveClass(/has-detail/)
+})
+
+test('手机端从直达会话详情返回时清除详情查询参数', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/?conversation=conversation-lisi', { waitUntil: 'networkidle' })
+
+  await expect(page.locator('.mailbox-workspace')).toHaveClass(/has-detail/)
+  await page.getByRole('button', { name: '返回信箱' }).click()
+  await expect(page).toHaveURL(/\/mailbox\/?$/)
+  await expect(page.locator('.direct-conversation-list')).toBeVisible()
+})

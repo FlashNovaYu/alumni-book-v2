@@ -11,6 +11,7 @@ import {
   startDirectConversation,
   syncInbox,
 } from '../api/inbox'
+import { useVisibilityPolling } from './useVisibilityPolling'
 
 export type InboxMode = 'direct' | 'notifications'
 export type InboxConnectionState = 'ready' | 'syncing' | 'error'
@@ -79,7 +80,20 @@ export function useInbox(apiBase: string) {
   function reduceUnread(direct = 0, notification = 0) {
     const directUnread = Math.max(0, unread.value.directUnread - direct)
     const notificationUnread = Math.max(0, unread.value.notificationUnread - notification)
-    unread.value = { directUnread, notificationUnread, totalUnread: directUnread + notificationUnread }
+    updateUnread({ directUnread, notificationUnread, totalUnread: directUnread + notificationUnread })
+  }
+
+  function updateUnread(next: InboxSummary) {
+    const directUnread = Math.max(0, next.directUnread)
+    const notificationUnread = Math.max(0, next.notificationUnread)
+    const updated = { directUnread, notificationUnread, totalUnread: directUnread + notificationUnread }
+    const previous = unread.value
+    if (previous.directUnread === updated.directUnread && previous.notificationUnread === updated.notificationUnread) return
+
+    unread.value = updated
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('alumni:inbox-changed', { detail: updated }))
+    }
   }
 
   async function loadInitial() {
@@ -93,7 +107,7 @@ export function useInbox(apiBase: string) {
       ])
       conversations.value = sortConversations(conversationData.items)
       notifications.value = notificationData.items
-      unread.value = summary
+      updateUnread(summary)
       connectionState.value = 'ready'
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : '信箱加载失败'
@@ -150,6 +164,14 @@ export function useInbox(apiBase: string) {
     messages.value = []
     mode.value = 'direct'
     return Promise.resolve()
+  }
+
+  function clearSelection() {
+    selectedConversation.value = null
+    selectedNotification.value = null
+    selectedRecipient.value = null
+    messages.value = []
+    error.value = null
   }
 
   async function transmit(message: DirectInboxMessage) {
@@ -259,19 +281,19 @@ export function useInbox(apiBase: string) {
         await markNotificationRead(apiBase, notification.id)
       } catch {
         replaceNotification(notification)
-        unread.value = {
+        updateUnread({
           directUnread: unread.value.directUnread,
           notificationUnread: unread.value.notificationUnread + 1,
           totalUnread: unread.value.totalUnread + 1,
-        }
+        })
       }
     }
   }
 
-  async function syncNow() {
+  async function syncNow(signal?: AbortSignal) {
     connectionState.value = 'syncing'
     try {
-      const result = await syncInbox(apiBase, cursor.value || undefined)
+      const result = await syncInbox(apiBase, cursor.value || undefined, { signal })
       cursor.value = result.cursor
       result.conversations.forEach(upsertConversation)
       result.messages.forEach((message) => {
@@ -282,13 +304,18 @@ export function useInbox(apiBase: string) {
         if (notifications.value.some(item => item.id === notification.id)) replaceNotification(notification)
         else notifications.value = [notification, ...notifications.value]
       })
-      unread.value = result.unread
+      updateUnread(result.unread)
       connectionState.value = 'ready'
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : '信箱同步失败'
-      connectionState.value = 'error'
+      if ((cause as Error).name !== 'AbortError') {
+        error.value = cause instanceof Error ? cause.message : '信箱同步失败'
+        connectionState.value = 'error'
+      }
+      throw cause
     }
   }
+
+  useVisibilityPolling({ run: syncNow, initialDelay: 5_000, baseDelay: 5_000, maxDelay: 30_000 })
 
   return {
     mode,
@@ -308,6 +335,7 @@ export function useInbox(apiBase: string) {
     selectConversation,
     selectNotification,
     startConversation,
+    clearSelection,
     send,
     retry,
     markCurrentRead,
