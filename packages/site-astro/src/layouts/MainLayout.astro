@@ -36,11 +36,10 @@ import '../styles/global.css'
       </main>
       <script>
         import { initGlobalReveal } from '../scripts/globalReveal'
+        import { initNavRuntime } from '../scripts/navRuntime'
 
-        // 监听视图过渡完成事件，每次进入新页面自动初始化全局 Reveal 动效
-        document.addEventListener('astro:page-load', () => {
-          initGlobalReveal(true)
-        })
+        initGlobalReveal(true)
+        initNavRuntime()
       </script>
       <AppFooter />
     </div>

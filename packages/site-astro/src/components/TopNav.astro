@@ -1,587 +1,421 @@
 ---
 import IconBrand from './icons/IconBrand.astro'
+
 const currentPath = Astro.url.pathname
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
-const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 const isHome = currentPath === base || currentPath === href('/')
+const navItems = [
+  { href: '/preface', label: '前言' },
+  { href: '/roster', label: '同学档案' },
+  { href: '/class-space', label: '班级空间' },
+  { href: '/album', label: '影像馆' },
+  { href: '/timeline', label: '时光轴' },
+  { href: '/yearbook', label: '年度册' },
+]
+const isActive = (path: string) => currentPath === href(path) || currentPath.startsWith(`${href(path)}/`)
+const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学录'
 ---
-<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`}>
+
+<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
   <div class="nav-inner container">
-    <a href={href('/')} class="nav-brand">
-      <span class="brand-mark"><IconBrand size={20} /></span>
+    <a href={href('/')} class="nav-brand" data-nav-home aria-label="同学录首页">
+      <span class="brand-mark"><IconBrand size={19} /></span>
       <span class="brand-text">同学录</span>
     </a>
-    
-    <button id="mobile-menu-trigger" class="mobile-toggle" aria-label="菜单">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+
+    <button class="mobile-nav-button" type="button" data-nav-open aria-label="打开目录">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
     </button>
-    
-    <div class="nav-links">
-      <a href={href('/preface')} class={`nav-link ${currentPath.startsWith(href('/preface')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/preface')) ? 'page' : undefined}>
-        <span class="link-text">前言</span>
-        {currentPath.startsWith(href('/preface')) && <span class="ink-line" transition:name="active-ink-line"></span>}
+    <p class="mobile-page-title" aria-live="polite">{pageTitle}</p>
+
+    <div class="nav-directory" data-nav-directory>
+      <span class="nav-active-paper" aria-hidden="true"></span>
+      <span class="nav-active-ink ink-line" aria-hidden="true"></span>
+      {navItems.map((item) => (
+        <a
+          href={href(item.href)}
+          class={`nav-link ${isActive(item.href) ? 'is-active' : ''}`}
+          data-nav-item
+          aria-current={isActive(item.href) ? 'page' : undefined}
+        >
+          {item.label}
+        </a>
+      ))}
+    </div>
+
+    <div class="nav-utilities">
+      <a
+        href={href('/account')}
+        class="nav-account-button"
+        data-nav-session-only
+        hidden
+        aria-label="账号中心"
+        title="账号中心"
+      >
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20c.7-3.4 3-5.1 6.5-5.1s5.8 1.7 6.5 5.1" /></svg>
       </a>
-      <a href={href('/roster')} class={`nav-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/roster')) ? 'page' : undefined}>
-        <span class="link-text">同学档案</span>
-        {currentPath.startsWith(href('/roster')) && <span class="ink-line" transition:name="active-ink-line"></span>}
-      </a>
-      <a href={href('/class-space')} class={`nav-link ${currentPath.startsWith(href('/class-space')) ? 'active' : ''}`} aria-current={currentPath.startsWith(href('/class-space')) ? 'page' : undefined}>
-        <span class="link-text">班级空间</span>
-        {currentPath.startsWith(href('/class-space')) && <span class="ink-line" transition:name="active-ink-line"></span>}
-      </a>
-      
-      <!-- 更多功能下拉菜单 -->
-      <div class="nav-dropdown">
-        <button class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false">
-          <span class="link-text">更多功能</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdown-chevron"><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-        <div class="dropdown-menu">
-          <a href={href('/album')} class={`dropdown-item ${currentPath.startsWith(href('/album')) ? 'active' : ''}`}>影像馆</a>
-          <a href={href('/timeline')} class={`dropdown-item ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`}>时光轴</a>
-          <a href={href('/yearbook')} class={`dropdown-item ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`}>年度册 (PDF)</a>
-        </div>
-      </div>
-      
-      <a id="classmate-nav-account-link" href={href('/account')} class={`nav-link ${currentPath.startsWith(href('/account')) ? 'active' : ''}`} style="display: none;" aria-current={currentPath.startsWith(href('/account')) ? 'page' : undefined}>
-        <span class="link-text">账号中心</span>
-        {currentPath.startsWith(href('/account')) && <span class="ink-line" transition:name="active-ink-line"></span>}
-      </a>
-      
-      <!-- 邮箱按钮，绝对定位不占用其他选项空间，规避抖动 -->
-      <a href={href('/mailbox')} class={`nav-mailbox-button ${currentPath.startsWith(href('/mailbox')) ? 'active' : ''}`} title="班级信箱" aria-label="班级信箱">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mail"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        <span class="mail-unread-stamp" hidden></span>
+      <a
+        href={href('/mailbox')}
+        class={`nav-mailbox-button ${isActive('/mailbox') ? 'is-active' : ''}`}
+        data-nav-session-only
+        hidden
+        aria-label="班级信箱"
+        title="班级信箱"
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5" /><path d="m4 7 8 5 8-5" /></svg>
+        <span class="mail-unread-stamp" data-nav-unread hidden></span>
       </a>
     </div>
   </div>
 </nav>
 
-<!-- 移动端侧滑抽屉结构 -->
-<div class="mobile-drawer-overlay"></div>
-<div class="mobile-drawer">
-  <div class="drawer-header">
-    <a href={href('/')} class="nav-brand">
-      <span class="brand-mark"><IconBrand size={20} /></span>
-      <span class="brand-text">同学录</span>
-    </a>
-    <button id="mobile-menu-close" class="drawer-close" aria-label="关闭菜单">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+<div class="mobile-drawer-overlay" data-nav-overlay></div>
+<aside class="mobile-drawer" data-nav-drawer aria-label="站内目录" aria-hidden="true">
+  <header class="drawer-header">
+    <div>
+      <p class="drawer-kicker">CLASS ARCHIVE</p>
+      <strong>目录</strong>
+    </div>
+    <button class="drawer-icon-button" type="button" data-nav-close aria-label="关闭目录">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
     </button>
-  </div>
-  <div class="drawer-links">
-    <a href={href('/preface')} class={`drawer-link ${currentPath.startsWith(href('/preface')) ? 'active' : ''}`}>前言</a>
-    <a href={href('/roster')} class={`drawer-link ${currentPath.startsWith(href('/roster')) ? 'active' : ''}`}>同学档案</a>
-    <a href={href('/class-space')} class={`drawer-link ${currentPath.startsWith(href('/class-space')) ? 'active' : ''}`}>班级空间</a>
-    <div class="drawer-divider"></div>
-    <a href={href('/album')} class={`drawer-link ${currentPath.startsWith(href('/album')) ? 'active' : ''}`}>影像馆</a>
-    <a href={href('/timeline')} class={`drawer-link ${currentPath.startsWith(href('/timeline')) ? 'active' : ''}`}>时光轴</a>
-    <a href={href('/yearbook')} class={`drawer-link ${currentPath.startsWith(href('/yearbook')) ? 'active' : ''}`}>年度册 (PDF)</a>
-    <div class="drawer-divider"></div>
-    <a id="mobile-drawer-account-link" href={href('/account')} class={`drawer-link ${currentPath.startsWith(href('/account')) ? 'active' : ''}`} style="display: none;">账号中心</a>
-    <a href={href('/mailbox')} class={`drawer-link ${currentPath.startsWith(href('/mailbox')) ? 'active' : ''}`}>
-      <span>班级信箱</span>
-      <span class="mail-unread-stamp" hidden></span>
-    </a>
-  </div>
-</div>
+  </header>
 
-<!-- 原生极速同步会话与未读数脚本 -->
-<script is:inline define:vars={{ CLIENT_API_BASE }}>
-  function syncNavSession() {
-    try {
-      const studentStr = sessionStorage.getItem('classmate_account_student');
-      const token = sessionStorage.getItem('classmate_account_token');
-      const nav = document.querySelector('.top-nav');
-      
-      const accountLink = document.getElementById('classmate-nav-account-link');
-      const mobileAccountLink = document.getElementById('mobile-drawer-account-link');
-      
-      if (studentStr && token) {
-        if (nav) nav.classList.add('has-session');
-        if (accountLink) accountLink.style.display = 'inline-flex';
-        if (mobileAccountLink) mobileAccountLink.style.display = 'flex';
-      } else {
-        if (nav) nav.classList.remove('has-session');
-        if (accountLink) accountLink.style.display = 'none';
-        if (mobileAccountLink) mobileAccountLink.style.display = 'none';
-      }
-    } catch (e) {}
-  }
-  
-  async function syncMailUnread() {
-    try {
-      const token = sessionStorage.getItem('classmate_account_token');
-      const stamps = document.querySelectorAll('.mail-unread-stamp');
-      if (!token) {
-        stamps.forEach(stamp => { stamp.hidden = true; });
-        return;
-      }
-      const res = await fetch(CLIENT_API_BASE + '/api/inbox/summary', {
-        headers: { 'X-Classmate-Token': token }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const count = data && data.data ? Number(data.data.totalUnread || 0) : 0;
-      stamps.forEach(stamp => {
-        stamp.hidden = count <= 0;
-        stamp.textContent = count > 99 ? '99+' : String(count);
-      });
-    } catch (e) {}
-  }
-  
-  // 1. 首帧执行以避免闪烁
-  syncNavSession();
-  syncMailUnread();
-  
-  // 2. 页面载入时执行
-  document.addEventListener('astro:page-load', syncNavSession);
-  document.addEventListener('astro:page-load', syncMailUnread);
-  
-  // 3. 事件广播通知时更新
-  if (!window.__alumni_inbox_bound) {
-    window.addEventListener('alumni:inbox-changed', syncMailUnread);
-    window.__alumni_inbox_bound = true;
-  }
-</script>
+  <div class="drawer-account" data-nav-session-only hidden>
+    <span>当前登录</span>
+    <strong data-nav-student-name>同学</strong>
+    <a href={href('/account')}>进入账号中心</a>
+  </div>
+
+  <div class="drawer-links">
+    {navItems.map((item) => (
+      <a href={href(item.href)} class={`drawer-link ${isActive(item.href) ? 'is-active' : ''}`}>
+        <span>{item.label}</span>
+        {isActive(item.href) && <span class="drawer-active-mark" aria-hidden="true"></span>}
+      </a>
+    ))}
+  </div>
+
+  <footer class="drawer-footer" data-nav-session-only hidden>
+    <a href={href('/mailbox')} class="drawer-mail-link">
+      <span>班级信箱</span>
+      <span class="mail-unread-stamp" data-nav-unread hidden></span>
+    </a>
+    <button type="button" class="drawer-logout-button" data-nav-logout>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6V4h9v16h-9v-2" /><path d="m13 12-4 0m2-3-3 3 3 3" /></svg>
+      退出登录
+    </button>
+  </footer>
+</aside>
 
 <style>
-  .top-nav--home:not(.has-session) {
-    width: 220px;
-  }
-
-  .top-nav--home:not(.has-session) .nav-links,
-  .top-nav--home:not(.has-session) .mobile-toggle {
-    display: none !important;
-  }
-
-  .top-nav--home:not(.has-session) .nav-inner {
-    justify-content: center;
-  }
-
-  .top-nav--home:not(.has-session) .nav-brand {
-    margin-inline: auto;
-  }
-
-  /* 悬浮胶囊毛玻璃顶栏 */
   .top-nav {
-    position: fixed;
-    top: 1.25rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    width: 820px; /* 固定宽度，彻底消除抖动 */
-    max-width: calc(100% - 2.5rem);
-    height: 54px;
-    background-color: color-mix(in srgb, var(--color-paper-card) 86%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--color-paper-border);
-    border-radius: 9999px;
-    box-shadow: var(--shadow-paper-card);
-    transition: all var(--duration-normal) var(--ease-out-quart);
+    position: sticky;
+    top: 0;
+    z-index: var(--z-nav);
+    min-height: var(--nav-height);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-paper-border) 88%, var(--color-paper-brown));
+    background-color: var(--color-paper-card);
+    box-shadow: 0 2px 0 rgba(96, 65, 35, 0.035);
   }
-  
-  /* 滚动时紧贴 */
-  .top-nav.scrolled {
-    top: 0.75rem;
-    background-color: color-mix(in srgb, var(--color-paper-card) 94%, transparent);
-    box-shadow: var(--shadow-paper-panel);
+
+  .top-nav.is-scrolled {
+    box-shadow: 0 7px 18px rgba(74, 50, 29, 0.1);
   }
 
   .nav-inner {
-    height: 100%;
-    display: flex;
-    align-items: center;
+    min-height: var(--nav-height);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: stretch;
     gap: var(--spacing-md);
-    padding: 0 1.5rem;
   }
 
   .nav-brand {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: var(--spacing-xs);
-    text-decoration: none;
+    gap: 7px;
+    align-self: center;
     color: var(--color-paper-ink);
+    text-decoration: none;
+    white-space: nowrap;
   }
 
-  .brand-mark { 
-    font-size: 18px; 
-    color: var(--color-paper-brown); 
-    display: flex;
-    align-items: center;
+  .brand-mark {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    color: var(--color-paper-stamp-red);
+    border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 38%, var(--color-paper-border));
+    background: var(--color-paper-bg-soft);
   }
 
-  .brand-text { 
-    font-family: var(--font-display); 
-    font-size: 19px; 
-    font-weight: 600; 
-    letter-spacing: 0.05em; 
+  .brand-text {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 
-  .nav-links { 
-    display: flex; 
-    align-items: center; 
-    gap: var(--spacing-xs); 
-    margin-left: auto; 
+  .nav-directory {
     position: relative;
-    padding-right: 48px; /* 留给绝对定位邮箱的安全空位 */
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-width: 0;
   }
 
-  /* 导航项 */
   .nav-link {
     position: relative;
-    padding: 6px 14px;
-    font-size: var(--type-nav-link-size);
-    font-weight: var(--type-nav-link-weight);
-    color: var(--color-paper-muted);
-    border-radius: var(--rounded-md);
-    text-decoration: none;
-    transition: color var(--duration-fast) var(--ease-out-quart),
-              background-color var(--duration-fast) var(--ease-out-quart);
-  }
-
-  .nav-link:hover { 
-    color: var(--color-paper-ink); 
-    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent); 
-  }
-
-  .nav-link.active {
-    color: var(--color-paper-brown);
-    font-weight: 600;
-  }
-
-  .paper-bookmark-nav {
-    border-radius: 18px;
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--color-paper-card) 92%, transparent), color-mix(in srgb, var(--color-paper-card) 82%, transparent)),
-      repeating-linear-gradient(90deg, rgba(112, 86, 55, 0.05) 0 1px, transparent 1px 8px);
-    border-color: color-mix(in srgb, var(--color-paper-border) 82%, var(--color-paper-brown));
-    box-shadow: 0 14px 34px rgba(74, 50, 29, 0.12), inset 0 1px 0 rgba(255,255,255,0.55);
-  }
-
-  .paper-bookmark-nav::before {
-    content: '';
-    position: absolute;
-    left: 22px;
-    right: 22px;
-    bottom: -1px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(117, 77, 40, 0.28), transparent);
-    pointer-events: none;
-  }
-
-  .ink-line {
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: 4px;
-    height: 2px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, transparent, var(--color-paper-brown), var(--color-paper-stamp-red), transparent);
-    transform-origin: center;
-    animation: inkLineFlow 2.8s ease-in-out infinite;
-  }
-
-  /* 下拉菜单样式 */
-  .nav-dropdown {
-    position: relative;
-    display: inline-block;
-  }
-  
-  .nav-dropdown-trigger {
-    background: none;
-    border: none;
-    padding: 6px 14px;
-    font-size: var(--type-nav-link-size);
-    font-weight: var(--type-nav-link-weight);
-    color: var(--color-paper-muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    border-radius: var(--rounded-md);
-    transition: color var(--duration-fast) var(--ease-out-quart),
-              background-color var(--duration-fast) var(--ease-out-quart);
-  }
-  
-  .nav-dropdown-trigger:hover {
-    color: var(--color-paper-ink);
-    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
-  }
-  
-  .dropdown-chevron {
-    transition: transform var(--duration-fast) var(--ease-out-quart);
-  }
-  
-  .nav-dropdown:hover .dropdown-chevron {
-    transform: rotate(180deg);
-  }
-  
-  .dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(8px);
-    background-color: var(--color-paper-card);
-    border: 1px solid var(--color-paper-border);
-    border-radius: var(--rounded-md);
-    box-shadow: var(--shadow-paper-panel);
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 120px;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity var(--duration-fast) var(--ease-out-quart),
-                transform var(--duration-fast) var(--ease-out-quart),
-                visibility var(--duration-fast);
-    z-index: 120;
-  }
-  
-  .nav-dropdown:hover .dropdown-menu {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateX(-50%) translateY(4px);
-  }
-  
-  .dropdown-item {
-    padding: 8px 12px;
-    font-size: 13px;
-    color: var(--color-paper-muted);
-    text-decoration: none;
-    border-radius: var(--rounded-sm);
-    text-align: center;
-    transition: color var(--duration-fast), background-color var(--duration-fast);
-  }
-  
-  .dropdown-item:hover, .dropdown-item.active {
-    color: var(--color-paper-ink);
-    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
-  }
-
-  .nav-mailbox-button {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--rounded-md);
-    color: var(--color-paper-muted);
-    transition: color var(--duration-fast) var(--ease-out-quart),
-              background-color var(--duration-fast) var(--ease-out-quart);
-  }
-  
-  .nav-mailbox-button:hover, .nav-mailbox-button.active {
-    color: var(--color-paper-ink);
-    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
-  }
-
-  .mail-unread-stamp {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
-    line-height: 1;
+    min-width: 76px;
+    padding: 0 12px;
+    color: var(--color-paper-muted);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-decoration: none;
+    transition: color var(--duration-fast) ease;
+  }
+
+  .nav-link:hover,
+  .nav-link.is-active { color: var(--color-paper-ink); }
+
+  .nav-active-paper,
+  .nav-active-ink {
+    position: absolute;
+    left: 0;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .nav-active-paper {
+    top: 9px;
+    bottom: 8px;
+    z-index: 0;
+    border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
+    background: var(--color-paper-bg-soft);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
+  }
+
+  .nav-active-ink {
+    bottom: 6px;
+    z-index: 2;
+    height: 2px;
+    background: var(--color-paper-stamp-red);
+    transform-origin: left center;
+    transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
+  }
+
+  .nav-utilities {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .nav-account-button,
+  .nav-mailbox-button,
+  .mobile-nav-button,
+  .drawer-icon-button {
+    display: inline-grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border: 0;
+    color: var(--color-paper-muted);
+    background: transparent;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+  }
+
+  .nav-account-button:hover,
+  .nav-mailbox-button:hover,
+  .nav-mailbox-button.is-active,
+  .mobile-nav-button:hover,
+  .drawer-icon-button:hover {
+    color: var(--color-paper-ink);
+    background: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
+  }
+
+  .nav-mailbox-button { position: relative; }
+
+  .mail-unread-stamp {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: #fffaf2;
     background: var(--color-paper-stamp-red);
-    box-shadow: 0 2px 8px rgba(130, 42, 33, 0.24);
+    border-radius: 9px;
+    font-size: 10px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
 
-  .mail-unread-stamp[hidden] {
-    display: none;
-  }
+  .mail-unread-stamp[hidden] { display: none; }
 
-  @keyframes inkLineFlow {
-    0%, 100% { opacity: 0.72; transform: scaleX(0.88); }
-    50% { opacity: 1; transform: scaleX(1); }
-  }
+  .mobile-nav-button,
+  .mobile-page-title { display: none; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .ink-line {
-      animation: none;
-    }
-    .nav-dropdown:hover .dropdown-menu,
-    .mobile-drawer,
-    .mobile-drawer-overlay {
-      transition: none !important;
-    }
-  }
-
-  .mobile-toggle { display: none; background: none; border: none; cursor: pointer; color: var(--color-paper-ink); padding: 4px; align-items: center; justify-content: center; margin-left: auto; }
-
-  /* 移动端侧滑抽屉样式 */
   .mobile-drawer-overlay {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.4);
-    z-index: 1000;
-    opacity: 0;
+    z-index: calc(var(--z-nav) + 1);
     visibility: hidden;
-    transition: opacity 0.3s ease;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(46, 34, 22, 0.28);
+    opacity: 0;
+    transition: opacity var(--duration-normal) ease, visibility var(--duration-normal) ease;
   }
+
   .mobile-drawer {
     position: fixed;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: 280px;
-    background-color: var(--color-paper-card);
-    border-left: 1px solid var(--color-paper-border);
-    z-index: 1001;
-    transform: translateX(100%);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+    inset: 0 auto 0 0;
+    z-index: calc(var(--z-nav) + 2);
     display: flex;
+    width: min(320px, calc(100vw - 40px));
     flex-direction: column;
+    color: var(--color-paper-ink);
+    background: var(--color-paper-card);
+    border-right: 1px solid var(--color-paper-border);
+    box-shadow: 10px 0 26px rgba(74, 50, 29, 0.14);
+    transform: translateX(-102%);
+    transition: transform var(--duration-normal) var(--ease-out-quart);
   }
-  
-  html.nav-open .mobile-drawer-overlay {
-    opacity: 1;
-    visibility: visible;
-  }
-  html.nav-open .mobile-drawer {
-    transform: translateX(0);
-  }
-  
+
+  :global(html.nav-open) { overflow: hidden; }
+  :global(html.nav-open) .mobile-drawer-overlay { visibility: visible; opacity: 1; }
+  :global(html.nav-open) .mobile-drawer { transform: translateX(0); }
+
   .drawer-header {
+    min-height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 0 var(--spacing-lg);
     border-bottom: 1px solid var(--color-paper-border);
   }
-  .drawer-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--color-paper-muted);
-    padding: 4px;
-    border-radius: var(--rounded-sm);
+
+  .drawer-header p,
+  .drawer-header strong { display: block; margin: 0; }
+  .drawer-header strong { font-family: var(--font-display); font-size: 22px; }
+  .drawer-kicker { color: var(--color-paper-muted); font-size: 10px; letter-spacing: 0.12em; }
+
+  .drawer-account {
+    display: grid;
+    gap: 4px;
+    margin: var(--spacing-md) var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+    background: var(--color-paper-bg-soft);
+    border: 1px solid var(--color-paper-border);
   }
-  .drawer-close:hover {
-    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
-    color: var(--color-paper-ink);
-  }
-  
+
+  .drawer-account span { color: var(--color-paper-muted); font-size: 12px; }
+  .drawer-account strong { font-size: 16px; }
+  .drawer-account a { color: var(--color-paper-brown); font-size: 13px; text-decoration: none; }
+
   .drawer-links {
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    overflow-y: auto;
+    display: grid;
+    gap: 2px;
+    padding: var(--spacing-lg);
   }
-  .drawer-link {
-    padding: 12px 16px;
-    color: var(--color-paper-muted);
-    text-decoration: none;
-    border-radius: var(--rounded-md);
-    font-size: 15px;
-    font-weight: 500;
+
+  .drawer-link,
+  .drawer-mail-link {
+    min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: background-color var(--duration-fast), color var(--duration-fast);
-  }
-  .drawer-link:hover, .drawer-link.active {
-    background-color: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
-    color: var(--color-paper-brown);
-  }
-  
-  .drawer-link .mail-unread-stamp {
-    position: relative;
-    top: auto;
-    right: auto;
-  }
-  
-  .drawer-divider {
-    height: 1px;
-    background-color: var(--color-paper-border);
-    margin: 8px 0;
+    padding: 0 var(--spacing-sm);
+    color: var(--color-paper-muted);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-paper-border) 70%, transparent);
   }
 
-  /* 响应式断点 */
+  .drawer-link.is-active { color: var(--color-paper-ink); font-weight: 700; }
+  .drawer-active-mark { width: 20px; height: 2px; background: var(--color-paper-stamp-red); }
+
+  .drawer-footer {
+    display: grid;
+    gap: var(--spacing-xs);
+    margin-top: auto;
+    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+    border-top: 1px solid var(--color-paper-border);
+  }
+
+  .drawer-mail-link { position: relative; padding-right: 28px; }
+  .drawer-mail-link .mail-unread-stamp { top: 13px; right: 7px; }
+
+  .drawer-logout-button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--color-paper-stamp-red);
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 28%, var(--color-paper-border));
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .top-nav--home:not(.has-session) .nav-directory,
+  .top-nav--home:not(.has-session) .nav-utilities,
+  .top-nav--home:not(.has-session) .mobile-nav-button,
+  .top-nav--home:not(.has-session) .mobile-page-title { display: none; }
+  .top-nav--home:not(.has-session) .nav-inner { grid-template-columns: 1fr; }
+  .top-nav--home:not(.has-session) .nav-brand { justify-self: center; }
+
+  @media (max-width: 980px) {
+    .nav-link { min-width: 0; padding: 0 9px; font-size: 13px; }
+    .nav-inner { gap: var(--spacing-xs); }
+  }
+
   @media (max-width: 768px) {
-    .top-nav {
-      top: 1rem;
-      width: calc(100% - 1.5rem);
+    .top-nav { min-height: 52px; }
+    .nav-inner {
+      min-height: 52px;
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      padding: 0;
     }
-    .mobile-toggle { display: flex; }
-    .nav-links { display: none; }
+    .nav-brand,
+    .nav-directory,
+    .nav-account-button { display: none; }
+    .mobile-nav-button { display: inline-grid; }
+    .mobile-page-title {
+      display: block;
+      overflow: hidden;
+      margin: 0;
+      color: var(--color-paper-ink);
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 52px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .nav-utilities { justify-content: flex-end; }
+    .nav-mailbox-button { width: 44px; height: 44px; }
+    .top-nav--home:not(.has-session) .nav-inner { grid-template-columns: 1fr; }
+    .top-nav--home:not(.has-session) .nav-brand { display: inline-flex; }
+  }
 
-    .top-nav--home:not(.has-session) {
-      width: min(220px, calc(100% - 1.5rem));
-    }
-
-    .top-nav--home:not(.has-session) .mobile-toggle {
-      display: none !important;
-    }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-active-paper,
+    .nav-active-ink,
+    .mobile-drawer,
+    .mobile-drawer-overlay { transition: none; }
   }
 </style>
-
-<script>
-  let topNavScrollCleanup;
-
-  function initScroll() {
-    if (topNavScrollCleanup) topNavScrollCleanup();
-    const nav = document.querySelector('.top-nav');
-    if (nav) {
-      const onScroll = () => {
-        nav.classList.toggle('scrolled', window.scrollY > 10);
-      };
-      window.addEventListener('scroll', onScroll, { passive: true });
-      topNavScrollCleanup = () => {
-        window.removeEventListener('scroll', onScroll);
-      };
-      onScroll();
-    }
-  }
-
-  function initMobileDrawer() {
-    const trigger = document.getElementById('mobile-menu-trigger');
-    const closeBtn = document.getElementById('mobile-menu-close');
-    const overlay = document.querySelector('.mobile-drawer-overlay');
-    
-    function openDrawer() {
-      document.documentElement.classList.add('nav-open');
-    }
-    function closeDrawer() {
-      document.documentElement.classList.remove('nav-open');
-    }
-    
-    if (trigger) trigger.addEventListener('click', openDrawer);
-    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
-    if (overlay) overlay.addEventListener('click', closeDrawer);
-    
-    // 每次开始路由转换前均强制关闭抽屉并清除滚动锁定，防止切页后页面锁定
-    document.addEventListener('astro:before-preparation', closeDrawer);
-  }
-
-  // 1. 首屏初始化
-  initScroll();
-  initMobileDrawer();
-
-  // 2. 视图过渡后再次绑定
-  document.addEventListener('astro:page-load', () => {
-    initScroll();
-    initMobileDrawer();
-  });
-</script>

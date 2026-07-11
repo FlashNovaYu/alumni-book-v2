@@ -64,11 +64,12 @@ describe('public site major redesign constraints', () => {
 
   it('top nav supports a minimal logged-out homepage state', () => {
     const source = read('components/TopNav.astro')
+    const runtime = read('scripts/navRuntime.ts')
 
     expect(source).toContain('top-nav--home')
     expect(source).toContain('has-session')
     expect(source).toContain('.top-nav--home:not(.has-session)')
-    expect(source).toContain('classmate_account_student')
+    expect(runtime).toContain('getClassmateStudent')
   })
 
   it('profile and photo wall do not own ScrollTrigger animations', () => {

@@ -60,3 +60,51 @@ describe('可见性轮询生命周期契约', () => {
     expect(source).toContain('30_000')
   })
 })
+
+describe('纸质档案导航契约', () => {
+  it('用目录条替换玻璃灯条，并保留稳定的活动纸签和信箱入口', () => {
+    const nav = read('components/TopNav.astro')
+
+    expect(nav).toContain('paper-bookmark-nav')
+    expect(nav).toContain('nav-active-paper')
+    expect(nav).toContain('nav-active-ink')
+    expect(nav).toContain('mobile-page-title')
+    expect(nav).toContain('nav-mailbox-button')
+    expect(nav).not.toContain('backdrop-filter')
+    expect(nav).not.toContain('width: 820px')
+    expect(nav).not.toContain('inkLineFlow')
+  })
+
+  it('将跨页面导航行为收束到可销毁的单例运行时', () => {
+    expect(existsSync(resolve(src, 'scripts/navRuntime.ts'))).toBe(true)
+    const runtime = read('scripts/navRuntime.ts')
+    const layout = read('layouts/MainLayout.astro')
+
+    expect(runtime).toContain('astro:before-swap')
+    expect(runtime).toContain('window.__alumniNavRuntime')
+    expect(runtime).toContain('ResizeObserver')
+    expect(runtime).toContain('setTimeout')
+    expect(runtime).not.toContain('setInterval')
+    expect(layout).toContain('initNavRuntime')
+  })
+
+  it('粘性目录条不再让纸张页面重复预留导航高度', () => {
+    const globalCss = read('styles/global.css')
+
+    expect(globalCss).not.toContain('padding-top: calc(var(--nav-height)')
+  })
+
+  it('从目录条左侧定位活动纸签，避免 flex 静态位置叠加偏移', () => {
+    const nav = read('components/TopNav.astro')
+    const activeLayer = nav.match(/\.nav-active-paper,\s*\.nav-active-ink\s*\{([\s\S]*?)\n  \}/)
+
+    expect(activeLayer?.[1]).toContain('left: 0;')
+  })
+
+  it('以全局根节点状态驱动移动目录抽屉打开', () => {
+    const nav = read('components/TopNav.astro')
+
+    expect(nav).toContain(':global(html.nav-open) .mobile-drawer')
+    expect(nav).toContain(':global(html.nav-open) .mobile-drawer-overlay')
+  })
+})

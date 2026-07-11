@@ -90,11 +90,12 @@ describe('responsive vintage paper redesign static constraints', () => {
     expect(messageWall).toContain('overflow-x: auto')
   })
 
-  it('top nav protects against duplicate scroll listener binding across Astro transitions', () => {
+  it('top nav delegates transition lifecycle cleanup to the navigation singleton', () => {
     const nav = read('components/TopNav.astro')
+    const runtime = read('scripts/navRuntime.ts')
 
-    expect(nav).toContain('let topNavScrollCleanup')
-    expect(nav).toContain('topNavScrollCleanup()')
-    expect(nav).toContain("document.addEventListener('astro:page-load'")
+    expect(nav).toContain('mobile-page-title')
+    expect(runtime).toContain('window.__alumniNavRuntime')
+    expect(runtime).toContain('astro:before-swap')
   })
 })
