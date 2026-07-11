@@ -4,8 +4,9 @@
 
 - 分支：`codex/class-space-chat-rework`
 - 验收时基线提交：`97f7251ec6f98ba38e411a971b0307671a3547c6`
-- 验收时间：2026-07-11 19:49 - 19:54（Asia/Shanghai）
-- 本报告覆盖 Task 17 的未提交验收门禁改动；生产迁移和部署不在本次验收范围内。
+- Task 17 验收提交：`d4a1101`
+- 验收与发布时间：2026-07-11 19:49 - 20:15（Asia/Shanghai）
+- 本报告覆盖 Task 17 验收门禁与 Task 18 的生产迁移、部署记录。
 
 ## 自动化结果
 
@@ -36,7 +37,7 @@
 
 结论：三个视口均未见元素重叠、空白画布或页面级横向溢出；相册与时间轴轨道末端露出的卡片属于预期的横向滚动提示。
 
-## 本地迁移依据
+## 迁移依据
 
 本次没有再次执行 `pnpm migrate:chat-data -- --local`，因为该命令会改写本地 D1 状态。迁移逻辑已包含在本次通过的 Worker 全量测试中；此前记录的两次本地演练见 `docs/phase-14-backend-compatibility-acceptance-report.md`：
 
@@ -47,18 +48,32 @@
 - 迁移通知：1
 - `anomalies`：0
 
-两次演练的目标数量一致，记录结论为幂等。远程 D1 备份、迁移和复核尚未执行。
+两次演练的目标数量一致，记录结论为幂等。
+
+## 生产发布记录
+
+- 远程 D1 备份：`.artifacts/pre-chat-rework.sql`，31,232 字节。该文件已通过 `.gitignore` 排除。
+- 远程结构迁移：`0012_chat_rework.sql` 与 `0013_notification_sync_events.sql` 均成功应用。`0013` 是 inbox 增量同步所需的通知事件表、回填与触发器迁移。
+- 远程归并报告：`.artifacts/chat-migration-report.json`。
+  - `sourcePrivateThreads: 0`
+  - `sourcePrivateMessages: 0`
+  - `directConversations: 0`
+  - `directMessages: 0`
+  - `migratedNotifications: 0`
+  - `anomalies: 0`
+- Worker：已部署 `alumni-book-api`，版本 `03bcd12c-fe41-4777-b941-bcb6d0c3f5c0`；`https://alumni-book-api.chenyuhao2263.workers.dev/api/health` 返回 200。
+- Pages：已部署到生产 `main` 分支，发布 URL 为 `https://08e6cffd.alumni-book.pages.dev`，主域为 `https://alumni-book.pages.dev`。
+- 生产静态烟测：`/alumni-book-v2/` 首页、首页实际 JavaScript 资源、`/alumni-book-v2/admin/` 及其实际 JavaScript 资源、`/alumni-book-v2/api/health`、`/alumni-book-v2/api/students` 均返回 200。
+- 发布工具修正：根脚本的 `deploy:worker` 与 `db:migrate` 已补齐 `pnpm --filter worker run`，避免 pnpm 将包脚本误解析为自身命令；Worker 实际部署与 D1 帮助命令均已验证该入口。
 
 ## 已知限制
 
 - 群聊与信箱使用可见性驱动的五秒轮询，而非 WebSocket 实时推送。
 - 私聊暂不支持图片或文件附件。
 - 私聊不向发送方展示已读回执。
+- 未提供独立的生产测试同学账号凭据，因此未执行会产生聊天、回应、撤回、私聊或已读写入的双账号认证烟测；本次只完成无副作用的生产静态与 API 代理检查。
 
-## 未执行的生产步骤
+## 发布后待办
 
-- 未导出远程 D1 备份。
-- 未应用远程 `0012_chat_rework.sql` 迁移，未运行远程旧数据归并。
-- 未部署 Worker 或 Cloudflare Pages，未进行生产双账号冒烟测试。
-
-上述步骤属于 Task 18，必须先完成远程备份并将迁移报告、Worker 版本和 Pages URL 追加到本报告后再标记上线完成。
+- 将当前分支的发布修正推送到 GitHub 并合并至 `main`，使仓库源码与已发布产物一致。
+- 获得两名专用测试同学账号后，补做 Task 18 规定的认证型双账号烟测，并由管理员撤回测试消息。
