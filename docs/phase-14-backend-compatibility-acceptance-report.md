@@ -3,22 +3,25 @@
 ## 基线
 - 分支：codex/class-space-chat-rework
 - 起始提交：556f5b3
-- 最终提交：a523f66467966721877a287065d928c02644e3ae
-- 验收时间：2026-07-10T19:19:16Z
+- 验收代码提交：ad22a27a2e4e539419072b1611fa23d22042d078
+- 复验时间：2026-07-11T05:36:50Z
 
 ## 实施范围
 - 共享群聊创建服务
 - 旧公共留言兼容
 - 旧信箱只读兼容
 - 本地迁移与通知同步事件核对
+- 旧公共留言短期重试去重
 
 ## 自动化结果
-- 定向 Vitest：6 文件、87 测试、全部通过
-- Worker 全量：12 文件、128 测试、全部通过
+- 定向 Vitest：6 文件、88 测试、全部通过
+- Worker 全量：12 文件、129 测试、全部通过
 - TypeScript：无错误
 - git diff --check：无错误（仅有 CRLF 警告）
 
 ## 本地迁移演练
+
+以下两次演练结果由 MIMO 在本阶段实现时记录。本轮复验未再次运行该命令，因为它会改写本地 D1 状态；迁移核心与通知同步事件覆盖已通过 Worker 自动化测试。
 - 第一次报告：
   - sourcePrivateThreads: 3
   - sourcePrivateMessages: 5
@@ -56,6 +59,7 @@ b490701 test: verify migrated notification sync events
 f102067 refactor: share group chat creation service
 f124539 test: add missing mailbox summary anonymous 401 assertion
 ea330f5 test: define legacy chat compatibility contracts
+ad22a27 fix: deduplicate legacy message retries
 ```
 
 ## 改动文件清单
