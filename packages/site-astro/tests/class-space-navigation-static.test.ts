@@ -15,47 +15,50 @@ describe('class space and inbox contracts', () => {
   })
 })
 
-describe('class space public message wall refactoring static constraints', () => {
-  it('verifies that the split files exist', () => {
-    expect(existsSync(resolve(src, 'composables/usePublicMessages.ts'))).toBe(true)
-    expect(existsSync(resolve(src, 'components/MessageComposer.vue'))).toBe(true)
-    expect(existsSync(resolve(src, 'components/MessageCardGrid.vue'))).toBe(true)
+describe('class space group chat migration static constraints', () => {
+  it('removes the obsolete public message wall split and redirects its route to group chat', () => {
+    expect(existsSync(resolve(src, 'composables/usePublicMessages.ts'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/PublicMessageBoard.vue'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/MessageComposer.vue'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/MessageCardGrid.vue'))).toBe(false)
+
+    const messagesPage = read('pages/messages.astro')
+    expect(messagesPage).toContain('class-space#group-chat')
+    expect(messagesPage).not.toContain('class-space/#group-chat')
   })
 
-  it('verifies usePublicMessages.ts interface and logic', () => {
-    const source = read('composables/usePublicMessages.ts')
-    expect(source).toContain('approved')
-    expect(source).toContain('mine')
-    expect(source).toContain('loading')
-    expect(source).toContain('submitting')
-    expect(source).toContain('notice')
-    expect(source).toContain('loadApproved')
-    expect(source).toContain('loadMine')
-    expect(source).toContain('submit')
-    expect(source).toContain('react')
+  it('keeps advanced interaction state in the shared group chat composable', () => {
+    const source = read('composables/useGroupChat.ts')
+
+    for (const token of ['replyTarget', 'react', 'recall', 'loadMine', 'useVisibilityPolling']) {
+      expect(source).toContain(token)
+    }
+    expect(source).toContain('reactionWriteQueues')
+    expect(source).toContain('baseDelay: 5_000')
   })
 
-  it('verifies MessageComposer.vue has input, submit triggers and reset exposure', () => {
-    const source = read('components/MessageComposer.vue')
-    expect(source).toContain('textarea')
-    expect(source).toContain('submit')
-    expect(source).toContain('defineExpose')
-    expect(source).toContain('reset')
-  })
+  it('exposes quoted messages, reactions, recall and personal records through chat components', () => {
+    const message = read('components/GroupChatMessage.vue')
+    const composer = read('components/GroupChatComposer.vue')
+    const stage = read('components/GroupChatStage.vue')
 
-  it('verifies MessageCardGrid.vue has reactions and responsive design removing card rotation', () => {
-    const source = read('components/MessageCardGrid.vue')
-    expect(source).toContain('react')
-    expect(source).toContain('❤️')
-    expect(source).toContain('👍')
-    expect(source).toContain('😂')
-    expect(source).toContain('🎉')
-    
-    // 断言移动端样式下去掉了卡片旋转
-    expect(source).toContain('@media')
-    expect(source).toContain('max-width: 768px')
-    expect(source).toContain('transform')
-    expect(source).toContain('none')
+    expect(existsSync(resolve(src, 'components/GroupChatMineDrawer.vue'))).toBe(true)
+    expect(message).toContain('引用这条消息')
+    expect(message).toContain('撤回这条消息')
+    expect(message).toContain('canRecall')
+    expect(message).toContain('reactionTrigger')
+    expect(composer).toContain('composer-reply-preview')
+    expect(stage).toContain('GroupChatMineDrawer')
+    expect(stage).toContain('isRecallAvailable')
+    expect(stage).toContain('onBeforeUnmount')
+    expect(stage).toContain('closeMine')
+
+    const mineDrawer = read('components/GroupChatMineDrawer.vue')
+    expect(mineDrawer).toContain('groupedMessages')
+    expect(mineDrawer).toContain('previousBodyOverflow')
+    expect(mineDrawer).toContain('restoreInteractionState')
+    expect(mineDrawer).toContain('trapFocus')
+    expect(mineDrawer).toContain('onBeforeUnmount')
   })
 })
 

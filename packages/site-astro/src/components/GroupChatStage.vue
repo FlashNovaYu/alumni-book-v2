@@ -6,6 +6,7 @@
         <h2>班级群聊</h2>
       </div>
       <span class="chat-connection" :data-state="connectionState">{{ connectionLabel }}</span>
+      <button class="chat-mine-button" type="button" @click="openMine">查看我的记录</button>
     </div>
 
     <div class="chat-log-wrap">
@@ -17,7 +18,11 @@
           :key="message.id"
           :message="message"
           :is-own="message.author.slug === currentSlug"
+          :can-recall="isRecallAvailable(message)"
           @retry="retry"
+          @reply="setReplyTarget"
+          @react="handleReact"
+          @recall="handleRecall"
         />
         <p v-if="!items.length" class="chat-empty">还没有消息，写下第一句吧。</p>
       </div>
@@ -26,17 +31,19 @@
       </button>
     </div>
 
-    <GroupChatComposer :mute="mute" :sending="connectionState === 'syncing'" @send="sendMessage" />
+    <GroupChatComposer :mute="mute" :sending="sending" :reply-target="replyTarget" @send="sendMessage" @clear-reply="clearReplyTarget" />
+    <GroupChatMineDrawer :open="mineOpen" :items="mine" :loading="mineLoading" @close="closeMine" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getClassmateStudent, type ClassmateSessionStudent, type GroupChatMessage as GroupChatPayload } from '@alumni/shared'
 import type { GroupChatMute } from '../api/groupChat'
-import { useGroupChat } from '../composables/useGroupChat'
+import { useGroupChat, type GroupChatUiMessage } from '../composables/useGroupChat'
 import GroupChatComposer from './GroupChatComposer.vue'
 import GroupChatMessage from './GroupChatMessage.vue'
+import GroupChatMineDrawer from './GroupChatMineDrawer.vue'
 
 const props = defineProps<{
   apiBase: string
@@ -51,11 +58,20 @@ const positioned = ref(false)
 const {
   items,
   mute,
+  replyTarget,
+  mine,
+  mineLoading,
   loadingOlder,
+  sending,
   connectionState,
   newMessageCount,
   send,
   retry,
+  react,
+  recall,
+  loadMine,
+  setReplyTarget,
+  clearReplyTarget,
   loadOlder,
   setNearBottom,
   consumeNewMessages,
@@ -67,6 +83,13 @@ const {
 })
 
 const connectionLabel = computed(() => ({ ready: '已连接', syncing: '发送中', error: '等待重试' }[connectionState.value]))
+const mineOpen = ref(false)
+const recallClock = ref(Date.now())
+let recallClockTimer: ReturnType<typeof setInterval> | null = null
+
+function isRecallAvailable(message: GroupChatUiMessage) {
+  return message.canRecall && Date.parse(message.createdAt) + 2 * 60 * 1000 > recallClock.value
+}
 
 function scrollToEnd() {
   if (log.value) log.value.scrollTop = log.value.scrollHeight
@@ -92,6 +115,11 @@ async function sendMessage(content: string) {
   scrollToEnd()
 }
 
+async function handleReact(messageId: string, reaction: string) { await react(messageId, reaction) }
+async function handleRecall(messageId: string) { await recall(messageId) }
+async function openMine() { mineOpen.value = true; await loadMine() }
+function closeMine() { mineOpen.value = false }
+
 async function scrollToLatest() {
   await nextTick()
   scrollToEnd()
@@ -103,6 +131,13 @@ onMounted(async () => {
   await nextTick()
   scrollToEnd()
   positioned.value = true
+  recallClockTimer = setInterval(() => { recallClock.value = Date.now() }, 1_000)
+})
+
+onBeforeUnmount(() => {
+  if (recallClockTimer) clearInterval(recallClockTimer)
+  recallClockTimer = null
+  closeMine()
 })
 
 watch(() => items.value.length, async () => {
@@ -118,6 +153,7 @@ watch(() => items.value.length, async () => {
 <style scoped>
 .group-chat-stage { display: grid; gap: var(--spacing-md); padding: var(--spacing-lg); background: var(--color-paper-card); border: 1px solid var(--color-paper-border); box-shadow: var(--shadow-paper-card); }
 .chat-stage-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
+.chat-mine-button { min-height:36px; padding:0 8px; color:var(--color-paper-brown); background:transparent; border:1px solid var(--color-paper-border); font:inherit; font-size:12px; cursor:pointer; }
 .chat-stage-header h2 { margin: 2px 0 0; color: var(--color-paper-ink); font-family: var(--font-display); font-size: 24px; line-height: 1.2; }
 .chat-connection { padding: 4px 7px; color: var(--color-paper-muted); border: 1px solid var(--color-paper-border); font-size: 11px; white-space: nowrap; }
 .chat-connection[data-state="error"] { color: var(--color-paper-stamp-red); border-color: color-mix(in srgb, var(--color-paper-stamp-red) 35%, var(--color-paper-border)); }

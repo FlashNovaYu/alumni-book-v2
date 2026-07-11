@@ -23,22 +23,22 @@ describe('class post office static constraints', () => {
     expect(source).not.toContain('复古床头灯泡渐变光晕')
   })
 
-  it('adds public message and mailbox public pages', () => {
+  it('keeps mailbox public page and makes group chat the canonical public message entry', () => {
     expect(exists('pages/messages.astro')).toBe(true)
     expect(exists('pages/mailbox.astro')).toBe(true)
-    expect(exists('components/PublicMessageBoard.vue')).toBe(true)
+    expect(exists('components/PublicMessageBoard.vue')).toBe(false)
     expect(exists('components/MailboxApp.vue')).toBe(true)
   })
 
-  it('keeps post office pages in paper page shell', () => {
+  it('redirects the legacy public message page and keeps mailbox in the paper page shell', () => {
     const messages = read('pages/messages.astro')
     const mailbox = read('pages/mailbox.astro')
 
-    for (const source of [messages, mailbox]) {
-      expect(source).toContain('page-shell')
-      expect(source).toContain('page-header')
-      expect(source).toContain('paper-panel')
-    }
+    expect(messages).toContain('class-space')
+    expect(messages).toContain('group-chat')
+    expect(mailbox).toContain('page-shell')
+    expect(mailbox).toContain('page-header')
+    expect(mailbox).toContain('paper-panel')
   })
 
   it('adds profile write-mail entry without replacing profile message wall', () => {
