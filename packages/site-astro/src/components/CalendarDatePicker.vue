@@ -7,7 +7,18 @@
         :value="tempInput"
         placeholder="YYYY-MM-DD"
         readonly
+        aria-label="选择日期"
+        aria-haspopup="dialog"
+        :aria-expanded="isOpen"
+        @keydown="handleInputKeydown"
       />
+      <button
+        v-if="tempInput"
+        type="button"
+        class="date-clear"
+        aria-label="清空日期"
+        @click.stop="clearDate"
+      >×</button>
       <span class="calendar-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
@@ -20,7 +31,7 @@
 
     <!-- 日历弹窗 -->
     <Transition name="fade">
-      <div v-if="isOpen" class="calendar-popover">
+      <div v-if="isOpen" class="calendar-popover" role="dialog" aria-label="选择日期">
         <!-- 1. 日期视图 -->
         <div v-if="viewMode === 'days'" class="view-days">
           <div class="popover-header">
@@ -265,21 +276,34 @@ function isCellToday(y: number, m: number, d: number, today: Date): boolean {
 }
 
 // 交互操作
-function togglePopover(e: Event) {
-  const target = e.target as HTMLElement
-  if (target.classList.contains('date-input')) {
-    isOpen.value = true
-  } else {
-    isOpen.value = !isOpen.value
+function openPopover() {
+  isOpen.value = true
+  viewMode.value = 'days'
+  const parsed = parsedSelectedDate.value
+  if (parsed) {
+    panelYear.value = parsed.year
+    panelMonth.value = parsed.month
   }
-  if (isOpen.value) {
-    viewMode.value = 'days'
-    const parsed = parsedSelectedDate.value
-    if (parsed) {
-      panelYear.value = parsed.year
-      panelMonth.value = parsed.month
-    }
+}
+
+function togglePopover() {
+  if (isOpen.value) isOpen.value = false
+  else openPopover()
+}
+
+function handleInputKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+    event.preventDefault()
+    openPopover()
+  } else if (event.key === 'Escape') {
+    isOpen.value = false
   }
+}
+
+function clearDate() {
+  emit('update:modelValue', '')
+  tempInput.value = ''
+  isOpen.value = false
 }
 
 function prevMonth() {
@@ -366,8 +390,22 @@ onBeforeUnmount(() => {
 
 .date-input {
   width: 100%;
-  padding-right: 32px;
-  cursor: text;
+  padding-right: 64px;
+  cursor: pointer;
+}
+
+.date-clear {
+  position: absolute;
+  right: 34px;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--color-muted-soft, #8e8b82);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .calendar-icon {

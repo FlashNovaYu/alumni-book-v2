@@ -305,6 +305,9 @@ describe('只读日期选择器', () => {
       expect(source).not.toContain('@blur="handleBlur"')
       expect(source).not.toContain('@keyup.enter="handleEnter"')
       expect(source).not.toContain('function validateAndCommitInput')
+      expect(source).toContain('@keydown="handleInputKeydown"')
+      expect(source).toContain('aria-label="清空日期"')
+      expect(source).toContain('function clearDate()')
     }
   })
 })

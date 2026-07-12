@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { normalizeLegacyFileUrls } from '../../../workers/api/src/lib/fileUrl'
+import { toPublicStudent } from '../src/utils/publicStudent'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -58,7 +59,10 @@ async function main() {
     const name = path.replace('/api/', '')
     try {
       const data = await fetchJSON(path)
-      writeFileSync(join(outDir, `${name}.json`), JSON.stringify(data))
+      const publicData = path === '/api/students' && Array.isArray(data)
+        ? data.map(toPublicStudent)
+        : data
+      writeFileSync(join(outDir, `${name}.json`), JSON.stringify(publicData))
       console.log(`  Fetched ${name}`)
     } catch (e: any) {
       console.error(`  Failed to fetch ${name}: ${e.message}`)

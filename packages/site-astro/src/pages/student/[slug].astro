@@ -2,6 +2,7 @@
 import MainLayout from '../../layouts/MainLayout.astro'
 import StudentProfile from '../../components/StudentProfile.vue'
 import { normalizeLegacyFileUrls } from '../../../../../workers/api/src/lib/fileUrl'
+import { toPublicStudent } from '../../utils/publicStudent'
 
 export async function getStaticPaths() {
   async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
@@ -64,7 +65,7 @@ async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<a
 let student: any = null
 try {
   const data = await fetchWithRetry(`${API_BASE}/api/students/${slug}?audience=public`)
-  if (data.success && data.data) student = data.data
+  if (data.success && data.data) student = toPublicStudent(data.data)
 } catch (e: any) {
   console.error(`❌ [slug].astro failed to fetch student detail for ${slug}: ${e.message}. Aborting build.`)
   throw e
