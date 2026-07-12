@@ -70,9 +70,9 @@ const overviewData = ref<ClassSpaceOverview | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const sections = computed(() => overviewData.value ? [
-  { id: 'group-chat', label: '群聊', count: overviewData.value.counts.groupMessages },
-  { id: 'albums', label: '影像', count: overviewData.value.counts.albums },
-  { id: 'timeline', label: '时光', count: overviewData.value.counts.timelineItems },
+  { id: 'group-chat', index: '01', label: '班级群聊', description: '此刻的对话', count: overviewData.value.counts.groupMessages },
+  { id: 'albums', index: '02', label: '精选影像', description: '值得翻看的照片', count: overviewData.value.counts.albums },
+  { id: 'timeline', index: '03', label: '班级大事', description: '由我们郑重记下', count: overviewData.value.counts.timelineItems },
 ] : [])
 
 function href(path: string) {
