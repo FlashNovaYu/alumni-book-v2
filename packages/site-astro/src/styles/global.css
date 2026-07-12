@@ -549,14 +549,14 @@ html.vt-mailbox::view-transition-new(root) {
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); /* 阻尼指数拉伸 */
 }
 
-/* 过渡期间，旧卡片在向四周拉伸的同时平滑淡出 */
+/* 过渡期间，旧卡片底板以柔和的 ease-out 平滑淡出 */
 ::view-transition-old(active-card) {
-  animation: activeCardFadeOut 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: activeCardFadeOut 0.18s ease-out both;
 }
 
-/* 过渡期间，新详情页的内容在卡片拉伸接近完成时延迟淡出/淡入，防止拉伸失真 */
+/* 过渡期间，新详情页的底板快照在缩放的同时平滑淡入 */
 ::view-transition-new(active-card) {
-  animation: activeCardFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both; /* 0.22s 延迟 */
+  animation: activeCardFadeIn 0.22s ease-in both;
 }
 
 @keyframes activeCardFadeOut {
@@ -566,6 +566,23 @@ html.vt-mailbox::view-transition-new(root) {
 @keyframes activeCardFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* 详情页载入时，正文子元素以延迟滑入呈现，保证底板拉伸时的零割裂感 */
+.student-page .hero-content,
+.student-page .student-body {
+  animation: detailContentFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
+}
+
+@keyframes detailContentFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 4. A11y 无障碍支持：尊重 prefers-reduced-motion 系统动画设置 */

@@ -5,11 +5,11 @@
     :style="isTransitioning ? 'view-transition-name: active-card' : ''"
     @click="handleTransition"
   >
-    <div class="archive-card__avatar">
+    <div class="archive-card__avatar" :class="{ 'vt-fade-out': isTransitioning }">
       <img v-if="card.avatarUrl && !avatarError" ref="avatarImage" :src="avatarSrc" :alt="card.name" width="72" height="72" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="markAvatarError" />
       <span v-else>{{ card.name.charAt(0) }}</span>
     </div>
-    <div class="archive-card__body">
+    <div class="archive-card__body" :class="{ 'vt-fade-out': isTransitioning }">
       <div class="archive-card__name">{{ card.name }}</div>
       <p class="archive-card__motto">{{ card.motto }}</p>
       <div class="archive-card__tags">
@@ -134,5 +134,10 @@ const avatarSrc = computed(() => {
   font-size: 12px;
   color: var(--color-paper-stamp-red);
   min-height: 22px;
+}
+
+.vt-fade-out {
+  opacity: 0 !important;
+  transition: opacity 0.08s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 </style>
