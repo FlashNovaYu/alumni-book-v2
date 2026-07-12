@@ -43,6 +43,14 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         const isExempt = isHome || path.includes('/admin/') || path.includes('/404')
         const classmateToken = sessionStorage.getItem('classmate_account_token')
 
+        try {
+          const student = JSON.parse(sessionStorage.getItem('classmate_account_student') || 'null')
+          const adminEntry = JSON.parse(sessionStorage.getItem('alumni_nav_admin_entry') || 'null')
+          if (classmateToken && student?.slug && adminEntry?.studentSlug === student.slug && adminEntry.available === true) {
+            document.documentElement.classList.add('has-admin-entry')
+          }
+        } catch {}
+
         if (!isExempt && !classmateToken) {
           const adminToken = sessionStorage.getItem('admin_token')
           if (adminToken) {

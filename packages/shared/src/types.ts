@@ -360,7 +360,7 @@ export interface ClassSpaceTimelinePreview {
 export interface ClassSpaceOverview {
   chat: {
     items: GroupChatMessage[]
-    cursor: string
+    cursor: string | null
     mute: { reason: string; mutedUntil: string | null } | null
   }
   albums: ClassSpaceAlbumPreview[]

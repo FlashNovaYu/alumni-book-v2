@@ -23,9 +23,12 @@ async function list(c: any, mine: boolean) {
   if (isClassmateResponse(identity)) return identity
   const before = parseBefore(c)
   if (c.req.query('before') && !before) return c.json({ success: false, message: '游标无效' }, 400)
-  const items = await listGroupMessages(c.env.DB, identity.slug, { before, limit: parseLimit(c.req.query('limit')), mine })
+  const limit = parseLimit(c.req.query('limit'))
+  const results = await listGroupMessages(c.env.DB, identity.slug, { before, limit: limit + 1, mine })
+  const hasMore = results.length > limit
+  const items = hasMore ? results.slice(1) : results
   const oldest = items[0]
-  return c.json({ success: true, data: { items, nextCursor: oldest ? encodeCursor({ timestamp: oldest.createdAt, id: oldest.id }) : null } })
+  return c.json({ success: true, data: { items, nextCursor: hasMore && oldest ? encodeCursor({ timestamp: oldest.createdAt, id: oldest.id }) : null } })
 }
 
 groupChatRoutes.get('/group-chat/messages', (c) => list(c, false))
