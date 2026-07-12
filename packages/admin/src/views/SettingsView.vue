@@ -8,6 +8,26 @@
     </div>
 
     <div class="settings-grid">
+      <div class="card">
+        <h2 class="title-md section-heading">站点基本资料</h2>
+        <div class="form-group">
+          <label class="form-label" for="identity-site-name">站点名称</label>
+          <input id="identity-site-name" v-model="config.identity.siteName" type="text" class="text-input" maxlength="60" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="identity-class-name">班级名称</label>
+          <input id="identity-class-name" v-model="config.identity.className" type="text" class="text-input" maxlength="80" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="identity-class-year">届别</label>
+          <input id="identity-class-year" v-model="config.identity.classYear" type="text" class="text-input" maxlength="40" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="identity-share-description">分享摘要</label>
+          <textarea id="identity-share-description" v-model="config.identity.shareDescription" class="textarea" rows="3" maxlength="160"></textarea>
+        </div>
+      </div>
+
       <!-- 前言设置 -->
       <div class="card">
         <h2 class="title-md section-heading">前言</h2>
@@ -141,6 +161,7 @@ const defaultMuseumConfig = {
   enableClassGraph: false,
   enableSeatMap: false,
 }
+const defaultIdentity = { siteName: '同学录', className: '', classYear: '', shareDescription: '' }
 
 const config = ref<SiteConfig>({
   particles: {},
@@ -148,6 +169,7 @@ const config = ref<SiteConfig>({
   preface: { title: '', subtitle: '', content: '' },
   acknowledgments: [],
   typography: { fontFamily: 'default', fontSize: 15 },
+  identity: { ...defaultIdentity },
   museum: { ...defaultMuseumConfig },
 })
 
@@ -185,6 +207,7 @@ onMounted(async () => {
     if (res.data) {
       config.value = {
         ...res.data,
+        identity: { ...defaultIdentity, ...res.data.identity },
         museum: { ...defaultMuseumConfig, ...res.data.museum },
       }
     }

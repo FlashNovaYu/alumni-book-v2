@@ -34,6 +34,27 @@ describe('classmate account login frontend', () => {
     }
   })
 
+  it('allows only a verified administrator session to preview protected pages and consumes site identity', () => {
+    const layout = fs.readFileSync(path.resolve(__dirname, '../src/layouts/MainLayout.astro'), 'utf-8')
+    const footer = fs.readFileSync(path.resolve(__dirname, '../src/components/AppFooter.astro'), 'utf-8')
+
+    expect(layout).toContain("sessionStorage.getItem('admin_token')")
+    expect(layout).toContain('/api/auth/verify')
+    expect(layout).toContain("Authorization: 'Bearer ' + adminToken")
+    expect(layout).toContain('VITE_WORKER_URL')
+    expect(layout).toContain('identity.shareDescription')
+    expect(layout).toContain('[data-site-footer]')
+    expect(layout).not.toContain('previewToken')
+    expect(footer).toContain('data-site-footer')
+  })
+
+  it('opens administrator previews in the current browsing context to preserve the verified session', () => {
+    const students = fs.readFileSync(path.resolve(__dirname, '../../admin/src/views/StudentsView.vue'), 'utf-8')
+
+    expect(students).toContain(':href="getFrontUrl(student.slug)"')
+    expect(students).not.toContain('target="_blank"')
+  })
+
   it('gives student creation and profile inputs Chinese accessible names', () => {
     const studentsPath = path.resolve(__dirname, '../../admin/src/views/StudentsView.vue')
     const selfEditPath = path.resolve(__dirname, '../src/components/SelfEditPanel.vue')

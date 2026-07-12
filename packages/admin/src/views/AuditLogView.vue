@@ -16,10 +16,9 @@
       <div v-else-if="!logs.length" class="empty">没有符合当前条件的管理操作记录。</div>
       <ol v-else class="audit-list">
         <li v-for="log in logs" :key="log.id">
-          <div class="log-heading"><strong>{{ log.admin_display_name }}</strong><span>{{ log.action }}</span><time>{{ formatDate(log.created_at) }}</time></div>
-          <p class="resource">{{ log.resource_type }} · {{ log.resource_id }}</p>
-          <p v-if="log.reason">原因：{{ log.reason }}</p>
-          <details v-if="log.before_summary || log.after_summary"><summary>查看变更摘要</summary><div class="summaries"><pre v-if="log.before_summary">变更前：{{ pretty(log.before_summary) }}</pre><pre v-if="log.after_summary">变更后：{{ pretty(log.after_summary) }}</pre></div></details>
+          <div class="log-heading"><strong>{{ log.admin_display_name }} {{ summaryOf(log).title }}</strong><time>{{ formatDate(log.created_at) }}</time></div>
+          <p v-if="summaryOf(log).detail" class="resource">{{ summaryOf(log).detail }}</p>
+          <p v-if="summaryOf(log).reason">原因：{{ summaryOf(log).reason }}</p>
         </li>
       </ol>
     </div>
@@ -30,15 +29,14 @@
 import { onMounted, reactive, ref } from 'vue'
 import type { AdminAccountSummary, AdminAuditLog } from '@alumni/shared'
 import { listAdminAccounts, listAuditLogs, type AuditLogFilters } from '@/api/adminAccounts'
+import { summarizeAuditLog } from '@/utils/auditSummary'
 
 const logs = ref<AdminAuditLog[]>([])
 const accounts = ref<AdminAccountSummary[]>([])
 const loading = ref(true)
 const filters = reactive<AuditLogFilters>({ actorId: '', action: '', resourceType: '', from: '', to: '' })
 
-function pretty(summary: string) {
-  try { return JSON.stringify(JSON.parse(summary), null, 2) } catch { return summary }
-}
+const summaryOf = summarizeAuditLog
 function formatDate(value: string) { return value ? new Date(value.replace(' ', 'T') + 'Z').toLocaleString('zh-CN') : '' }
 async function load() {
   loading.value = true

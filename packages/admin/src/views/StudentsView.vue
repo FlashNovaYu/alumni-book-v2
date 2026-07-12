@@ -27,7 +27,7 @@
             </div>
         </div>
         <div class="student-actions">
-          <a :href="getFrontUrl(student.slug)" target="_blank" class="btn-secondary button-link">预览</a>
+          <a :href="getFrontUrl(student.slug)" class="btn-secondary button-link">预览</a>
           <router-link :to="`/students/${student.slug}`" class="btn-secondary">编辑</router-link>
           <button class="btn-danger" @click="handleDelete(student)">删除</button>
         </div>

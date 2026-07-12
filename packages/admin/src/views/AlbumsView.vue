@@ -156,14 +156,25 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="uploadAlbum" class="modal-overlay" @click.self="uploadAlbum = null">
-          <div class="modal card">
+          <div class="modal card upload-modal">
             <h2 class="title-md">上传照片到: {{ uploadAlbum.title }}</h2>
-            <div class="form-group">
-              <input type="file" accept="image/*" multiple @change="handlePhotoUpload" />
+            <p class="upload-subtitle">支持拖入多张 JPG、PNG、GIF 或点击选择文件</p>
+            <div
+              class="upload-dropzone"
+              :class="{ 'is-dragover': isDragOver }"
+              @dragover.prevent="isDragOver = true"
+              @dragenter.prevent="isDragOver = true"
+              @dragleave.prevent="isDragOver = false"
+              @drop.prevent="handleFileDrop"
+              @click="triggerFileInput"
+            >
+              <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="handleFileSelect" />
+              <strong>拖入照片至此</strong>
+              <span>或点击选择文件</span>
             </div>
             <div v-if="uploading" class="upload-progress">上传中...</div>
             <div class="modal-actions">
-              <button class="btn-secondary" @click="uploadAlbum = null">关闭</button>
+              <button class="btn-secondary" :disabled="uploading" @click="uploadAlbum = null">关闭</button>
             </div>
           </div>
         </div>
@@ -184,6 +195,8 @@ const albums = ref<any[]>([])
 const showCreate = ref(false)
 const uploadAlbum = ref<any | null>(null)
 const uploading = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+const isDragOver = ref(false)
 const creating = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
 
@@ -242,13 +255,27 @@ function startUpload(album: any) {
   uploadAlbum.value = album
 }
 
-async function handlePhotoUpload(e: Event) {
-  const files = (e.target as HTMLInputElement).files
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function handleFileSelect(event: Event) {
+  const files = (event.target as HTMLInputElement).files
+  if (files) void uploadFiles(files)
+}
+
+function handleFileDrop(event: DragEvent) {
+  isDragOver.value = false
+  const files = event.dataTransfer?.files
+  if (files) void uploadFiles(files)
+}
+
+async function uploadFiles(files: FileList) {
   if (!files?.length || !uploadAlbum.value) return
 
   uploading.value = true
   try {
-    for (const file of files) {
+    for (const file of Array.from(files)) {
       const formData = new FormData()
       const compressed = await compressImage(file, 1280, 0.8)
       formData.append('file', compressed)
@@ -266,6 +293,7 @@ async function handlePhotoUpload(e: Event) {
     alert(e.message || '上传失败')
   } finally {
     uploading.value = false
+    if (fileInput.value) fileInput.value.value = ''
   }
 }
 
@@ -504,6 +532,11 @@ onMounted(loadAlbums)
 .modal h2 { margin-bottom: var(--spacing-lg); }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); }
 .upload-progress { padding: var(--spacing-md); text-align: center; color: var(--color-muted); }
+.upload-modal { max-width: 520px; }
+.upload-subtitle { margin: calc(var(--spacing-md) * -1) 0 var(--spacing-md); color: var(--color-muted); font-size: var(--type-body-sm-size); }
+.upload-dropzone { display: grid; min-height: 180px; place-content: center; gap: var(--spacing-xs); padding: var(--spacing-lg); color: var(--color-muted); text-align: center; border: 2px dashed var(--color-hairline); border-radius: var(--rounded-lg); background: var(--color-surface-cream); cursor: pointer; transition: border-color .2s ease, background-color .2s ease, color .2s ease; }
+.upload-dropzone strong { color: inherit; font-size: var(--type-title-sm-size); }.upload-dropzone span { font-size: var(--type-body-sm-size); }
+.upload-dropzone:hover, .upload-dropzone.is-dragover { color: var(--color-primary); border-color: var(--color-primary); background: var(--color-surface-cream-strong); }
 
 .tag-badge {
   display: inline-block;

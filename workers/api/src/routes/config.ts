@@ -34,6 +34,22 @@ configRoutes.put('/config', async (c) => {
     }
   }
 
+  if (body.identity !== undefined) {
+    const identity = body.identity
+    const keys = ['siteName', 'className', 'classYear', 'shareDescription'] as const
+    if (!identity || typeof identity !== 'object' || keys.some((key) => typeof identity[key] !== 'string')) {
+      return c.json({ success: false, message: 'identity 配置格式不正确' }, 400)
+    }
+    if (
+      identity.siteName.trim().length > 60 ||
+      identity.className.trim().length > 80 ||
+      identity.classYear.trim().length > 40 ||
+      identity.shareDescription.trim().length > 160
+    ) {
+      return c.json({ success: false, message: '站点基本资料长度超出限制' }, 400)
+    }
+  }
+
   const entries = Object.entries(body)
   const previous: Record<string, unknown> = {}
   const statements: D1PreparedStatement[] = []
