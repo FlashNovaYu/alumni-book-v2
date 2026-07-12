@@ -339,6 +339,41 @@ describe('Administrator RBAC schema', () => {
     })
   })
 
+  it('lists all admin timeline events and only reorders a complete same-day group', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO timeline_events (id, title, event_date, sort_order) VALUES ('tle_operations_a', '同日事件一', '2023-06-20', 0)"),
+      env.DB.prepare("INSERT INTO timeline_events (id, title, event_date, sort_order) VALUES ('tle_operations_b', '同日事件二', '2023-06-20', 1)"),
+      env.DB.prepare("INSERT INTO timeline_events (id, title, event_date, sort_order) VALUES ('tle_operations_c', '跨日事件', '2023-06-21', 0)"),
+    ])
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+
+    const listed = await worker.fetch(new Request('http://localhost/api/admin/timeline/events', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    expect(listed.status).toBe(200)
+    expect((await listed.json() as any).data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'tle_operations_a', eventDate: '2023-06-20', sortOrder: 0 }),
+    ]))
+
+    const reordered = await worker.fetch(new Request('http://localhost/api/timeline/events/reorder', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ eventDate: '2023-06-20', ids: ['tle_operations_b', 'tle_operations_a'] }),
+    }), env, createExecutionContext())
+    expect(reordered.status).toBe(200)
+    expect(await env.DB.prepare("SELECT id, sort_order FROM timeline_events WHERE id IN ('tle_operations_a', 'tle_operations_b') ORDER BY sort_order").all())
+      .toMatchObject({ results: [{ id: 'tle_operations_b', sort_order: 0 }, { id: 'tle_operations_a', sort_order: 1 }] })
+
+    const crossDay = await worker.fetch(new Request('http://localhost/api/timeline/events/reorder', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ eventDate: '2023-06-20', ids: ['tle_operations_a', 'tle_operations_c'] }),
+    }), env, createExecutionContext())
+    expect(crossDay.status).toBe(400)
+  })
+
   it('allows the owner to create a standalone secondary administrator', async () => {
     const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
       method: 'POST',

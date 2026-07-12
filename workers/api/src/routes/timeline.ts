@@ -10,11 +10,31 @@ type Bindings = {
 
 export const timelineRoutes = new Hono<{ Bindings: Bindings }>()
 
+function formatAdminTimelineEvent(row: any) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || '',
+    eventDate: row.event_date,
+    photoR2Key: row.photo_r2_key || null,
+    isMilestone: !!row.is_milestone,
+    eventType: row.event_type || 'class_event',
+    sortOrder: Number(row.sort_order || 0),
+  }
+}
+
 // 公开获取时光轴
 timelineRoutes.get('/timeline', async (c) => {
   const requestedType = c.req.query('type') as TimelineFeedType | undefined
   const timeline = await getTimelineFeed(c.env.DB, { type: requestedType, limit: 100 })
   return c.json({ success: true, data: timeline })
+})
+
+timelineRoutes.get('/admin/timeline/events', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM timeline_events ORDER BY event_date DESC, sort_order ASC, id ASC'
+  ).all()
+  return c.json({ success: true, data: (results || []).map(formatAdminTimelineEvent) })
 })
 
 // 管理后台 CRUD
@@ -31,6 +51,37 @@ timelineRoutes.post('/timeline/events', async (c) => {
     'INSERT INTO timeline_events (id, title, description, event_date, photo_r2_key, is_milestone, event_type) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).bind(id, body.title, body.description || '', body.eventDate, body.photoR2Key || null, body.isMilestone ? 1 : 0, body.eventType || 'class_event')], { action: 'timeline_event.create', resourceType: 'timeline_event', resourceId: id, after: { title: body.title, eventDate: body.eventDate } })
   return c.json({ success: true, data: { id } })
+})
+
+timelineRoutes.put('/timeline/events/reorder', async (c) => {
+  const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+
+  const body = await c.req.json().catch(() => ({})) as { eventDate?: unknown; ids?: unknown }
+  const eventDate = typeof body.eventDate === 'string' ? body.eventDate : ''
+  const ids = Array.isArray(body.ids) && body.ids.every((id) => typeof id === 'string') ? body.ids as string[] : []
+  if (!eventDate || ids.length === 0 || new Set(ids).size !== ids.length) {
+    return c.json({ success: false, message: '排序参数无效' }, 400)
+  }
+
+  const placeholders = ids.map(() => '?').join(',')
+  const { results } = await db.prepare(
+    `SELECT id, event_date, sort_order FROM timeline_events WHERE id IN (${placeholders})`
+  ).bind(...ids).all<any>()
+  if ((results || []).length !== ids.length || (results || []).some((row: any) => row.event_date !== eventDate)) {
+    return c.json({ success: false, message: '只能调整同一日期的完整事件顺序' }, 400)
+  }
+
+  const before = (results || []).map((row: any) => ({ id: row.id, sortOrder: row.sort_order }))
+  const mutations = ids.map((id, sortOrder) => db.prepare(
+    'UPDATE timeline_events SET sort_order = ? WHERE id = ?'
+  ).bind(sortOrder, id))
+  await runAuditedBatch(db, admin.id, mutations, {
+    action: 'timeline_event.reorder', resourceType: 'timeline_event', resourceId: eventDate,
+    before, after: { eventDate, ids },
+  })
+  return c.json({ success: true })
 })
 
 timelineRoutes.put('/timeline/events/:id', async (c) => {

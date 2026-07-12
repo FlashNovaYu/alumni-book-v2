@@ -444,6 +444,7 @@ app.use('/api/admin/messages/batch', permissionForMethod('moderation.view', 'mod
 app.use('/api/admin/public-messages', permissionForMethod('moderation.view', 'moderation.manage'))
 app.use('/api/admin/public-messages/:id', permissionForMethod('moderation.view', 'moderation.manage'))
 app.use('/api/admin/public-messages/*', permissionForMethod('moderation.view', 'moderation.manage'))
+app.use('/api/admin/timeline/*', requirePermission('content.manage'))
 app.use('/api/admin/notifications/*', permissionForMethod('notifications.view', 'notifications.publish'))
 app.use('/api/admin/group-chat/*', permissionForMethod('moderation.view', 'moderation.manage'))
 app.use('/api/admin/mail/*', permissionForMethod('notifications.view', 'notifications.publish'))
