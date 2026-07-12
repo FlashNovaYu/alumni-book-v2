@@ -1,7 +1,7 @@
 <template>
   <a :href="card.hasPage ? card.href : '#'" class="archive-card">
     <div class="archive-card__avatar">
-      <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
+      <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" width="72" height="72" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
       <span v-else>{{ card.name.charAt(0) }}</span>
     </div>
     <div class="archive-card__body">
@@ -16,11 +16,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { ArchiveClassmateCard } from '../utils/museumViewModels'
 
 const props = defineProps<{ card: ArchiveClassmateCard; apiBase: string }>()
 const avatarError = ref(false)
+
+watch(() => props.card.avatarUrl, () => { avatarError.value = false })
 
 const avatarSrc = computed(() => {
   if (!props.card.avatarUrl) return ''

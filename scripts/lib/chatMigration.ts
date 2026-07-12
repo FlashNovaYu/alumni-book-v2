@@ -21,7 +21,6 @@ export interface ChatMigrationTargetVerification {
   expectedNotifications: number;
   missingNotifications: number;
 }
-
 // 静态 SQL 语句数组，使用纯 SQL 表达式进行在数据库内部的原子迁移，杜绝任何 JS 变量插值拼接及引号转义风险
 export const legacyChatMigrationStatements: string[] = [
   // 1. 迁移私聊会话 (对 slugs 排序拼接作为稳定会话 ID，支持幂等合并)
@@ -188,7 +187,6 @@ export async function generateChatMigrationReport(db: any): Promise<ChatMigratio
       AND t.created_by_slug = r.recipient_slug
   `).first();
   const badPrivatePairs = Number(badPrivatePairsRow?.count || 0);
-
   // d) 系统/管理员通知收件人不存在于学生表
   const badAdminRecipientsRow = await db.prepare(`
     SELECT COUNT(DISTINCT r.id) as count

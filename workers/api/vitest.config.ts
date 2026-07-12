@@ -8,6 +8,10 @@ export default defineConfig({
       miniflare: {
         d1Databases: ['DB'],
         r2Buckets: ['R2'],
+        bindings: {
+          JWT_SECRET: 'alumni-book-test-secret',
+          CORS_ORIGIN: 'http://localhost:4321',
+        },
       },
     }),
   ],

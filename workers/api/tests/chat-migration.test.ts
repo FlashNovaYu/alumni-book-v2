@@ -130,7 +130,6 @@ describe('Legacy Chat Migration Core', () => {
       expectedNotifications: 1,
       missingNotifications: 0,
     })
-
     // 验证私聊会话已生成并合并，ID是原 legacy ID，nonce 格式正确
     const convs = await env.DB.prepare("SELECT * FROM direct_conversations WHERE id = 'conv_direct-student-a_direct-student-b'").all()
     expect(convs.results).toHaveLength(1)
@@ -196,7 +195,6 @@ describe('Legacy Chat Migration Core', () => {
         recipient_slug: STUDENT_A,
       }),
     ])
-
     // --- 第二次迁移 (幂等性校验) ---
     for (const sql of legacyChatMigrationStatements) {
       await env.DB.prepare(sql).run()

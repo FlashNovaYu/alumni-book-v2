@@ -277,7 +277,7 @@ async function openEditor() {
 async function openEditorAfterAuthed() {
   try {
     const url = joinApiUrl(props.apiBase, `/api/students/${props.studentSlug}`)
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: authHeaders() })
     const data = await res.json()
     if (data.success && data.data) {
       const s = data.data as Student

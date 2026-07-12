@@ -104,6 +104,16 @@ try {
     })
     .catch(e => console.error('Timeline SWR sync failed:', e))
 
+  function escapeHtml(value: unknown) {
+    return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;',
+    })[character]!)
+  }
+
   function renderTimeline(type: string) {
     const filtered = type === 'all' ? allItems : allItems.filter((item: any) => item.type === type)
     const lineEl = document.querySelector('.timeline-line')
@@ -121,13 +131,13 @@ try {
       
       if (item.photoUrl) {
         const fullPhoto = item.photoUrl.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl}`
-        extraHtml += `<img src="${fullPhoto}" alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />`
+        extraHtml += `<img src="${escapeHtml(fullPhoto)}" alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />`
       }
       if (item.type === 'join' && item.slug) {
-        extraHtml += `<a href="${href(`/student/${item.slug}`)}" class="tl-link">查看 TA 的主页 →</a>`
+        extraHtml += `<a href="${escapeHtml(href(`/student/${item.slug}`))}" class="tl-link">查看 TA 的主页 →</a>`
       }
       
-      const nodeClass = `timeline-node anim-enter ${isMilestone} type-${item.type}`
+      const nodeClass = `timeline-node anim-enter ${isMilestone} type-${escapeHtml(item.type)}`
       const delay = Math.min(i * 0.05, 0.4)
       
       return `
@@ -135,8 +145,8 @@ try {
           <div class="tl-dot"></div>
           <div class="tl-card">
             <div class="tl-date">${dateStr}</div>
-            <h3 class="tl-title">${item.title}</h3>
-            ${item.description ? `<p class="tl-desc">${item.description}</p>` : ''}
+            <h3 class="tl-title">${escapeHtml(item.title)}</h3>
+            ${item.description ? `<p class="tl-desc">${escapeHtml(item.description)}</p>` : ''}
             ${extraHtml}
           </div>
         </div>
@@ -156,7 +166,7 @@ try {
   })
 </script>
 
-<style>
+<style is:global>
   .timeline-line { position: relative; max-width: 720px; margin: 0 auto; }
   .timeline-line::before {
     content: '';
