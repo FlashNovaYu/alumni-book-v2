@@ -8,6 +8,7 @@ on:
       - 'packages/admin/**'
       - 'packages/shared/**'
       - 'workers/api/**'
+      - '.github/workflows/deploy-site.yml'
       - 'wrangler.toml'
       - 'scripts/prepare-pages-deploy.mjs'
       - 'scripts/smoke-pages.mjs'
@@ -42,6 +43,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter site-astro exec playwright install --with-deps chromium
 
       - name: Create .dev.vars for testing
         run: |
