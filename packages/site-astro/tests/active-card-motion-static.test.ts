@@ -23,15 +23,30 @@ describe('档案卡共享元素转场', () => {
     expect(profile).not.toContain('view-transition-name: active-card')
   })
 
-  it('在返回人物长廊的文档交换前恢复被点击卡片的共享目标', () => {
+  it('在返回人物长廊的文档交换前恢复原分页或检索页中的共享目标', () => {
     const card = read('components/ArchiveRosterCard.vue')
+    const roster = read('components/RosterWall.vue')
     const layout = read('layouts/MainLayout.astro')
 
     expect(card).toContain('data-student-identity-card')
-    expect(card).toContain("sessionStorage.setItem('vt-student-identity-slug', props.card.slug)")
-    expect(layout).toContain("const studentIdentityTransitionKey = 'vt-student-identity-slug'")
+    expect(card).toContain("emit('identity-transition', props.card.slug)")
+    expect(roster).toContain('@identity-transition="rememberIdentityTransition"')
+    expect(roster).toContain('v-for="mate in classmates"')
+    expect(roster).toContain('v-show="isCardVisible(mate)"')
+    expect(roster).toContain("'vt-student-identity-state'")
+    expect(layout).toContain("const studentIdentityTransitionKey = 'vt-student-identity-state'")
     expect(layout).toContain('newDocument?: Document')
     expect(layout).toContain('[data-student-identity-card]')
+  })
+
+  it('只让拥有标准 Hero 目标的同学卡片参与身份共享转场', () => {
+    const card = read('components/ArchiveRosterCard.vue')
+    const roster = read('components/RosterWall.vue')
+    const viewModels = read('utils/museumViewModels.ts')
+
+    expect(card).toContain('card.hasStandardProfile')
+    expect(roster).toContain('hasStandardProfile: boolean')
+    expect(viewModels).toContain('hasStandardProfile: mate.hasStandardProfile !== false')
   })
 
   it('将详情辅助内容与共享身份元素分离，并保留减少动态回退', () => {

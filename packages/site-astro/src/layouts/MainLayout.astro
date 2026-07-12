@@ -113,31 +113,62 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         initNavRuntime()
         initThemeRuntime()
 
-        const studentIdentityTransitionKey = 'vt-student-identity-slug'
+        const studentIdentityTransitionKey = 'vt-student-identity-state'
+
+        type StudentIdentityTransitionState = {
+          slug: string
+          keyword: string
+          page: number
+          visibleSlugs: string[]
+        }
+
+        function readStudentIdentityTransitionState(): StudentIdentityTransitionState | null {
+          try {
+            const raw = sessionStorage.getItem(studentIdentityTransitionKey)
+            if (!raw) return null
+            const state = JSON.parse(raw) as Partial<StudentIdentityTransitionState>
+            if (
+              typeof state.slug !== 'string' ||
+              typeof state.keyword !== 'string' ||
+              typeof state.page !== 'number' ||
+              !Number.isInteger(state.page) ||
+              state.page < 1 ||
+              !Array.isArray(state.visibleSlugs) ||
+              !state.visibleSlugs.every((slug) => typeof slug === 'string')
+            ) return null
+            return state as StudentIdentityTransitionState
+          } catch {
+            return null
+          }
+        }
 
         function restoreStudentIdentityTarget(event: Event) {
           try {
-            const slug = sessionStorage.getItem(studentIdentityTransitionKey)
+            const state = readStudentIdentityTransitionState()
             const targetDocument = (event as Event & { newDocument?: Document }).newDocument
-            if (!slug || !targetDocument) return
+            if (!state || !targetDocument) return
 
-            const card = Array.from(targetDocument.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
-              .find((element) => element.dataset.studentIdentityCard === slug)
+            const cards = Array.from(targetDocument.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
+            const card = cards.find((element) => element.dataset.studentIdentityCard === state.slug)
             if (!card) {
               const fromPath = (event as Event & { from?: URL }).from?.pathname || ''
               if (fromPath.includes('/student/')) sessionStorage.removeItem(studentIdentityTransitionKey)
               return
             }
 
+            const visibleSlugs = new Set(state.visibleSlugs)
+            cards.forEach((element) => {
+              element.style.display = visibleSlugs.has(element.dataset.studentIdentityCard || '') ? '' : 'none'
+            })
+
             const avatar = card.querySelector<HTMLElement>('.archive-card__avatar')
             const name = card.querySelector<HTMLElement>('.archive-card__name')
             if (!avatar || !name) return
 
-            avatar.style.viewTransitionName = 'student-avatar-' + slug
+            avatar.style.viewTransitionName = 'student-avatar-' + state.slug
             avatar.style.setProperty('view-transition-class', 'student-avatar')
-            name.style.viewTransitionName = 'student-name-' + slug
+            name.style.viewTransitionName = 'student-name-' + state.slug
             name.style.setProperty('view-transition-class', 'student-name')
-            sessionStorage.removeItem(studentIdentityTransitionKey)
           } catch {}
         }
 

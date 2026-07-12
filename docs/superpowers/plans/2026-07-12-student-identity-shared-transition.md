@@ -4,7 +4,7 @@
 
 **目标：** 让人物长廊卡片中的头像和姓名以同一位学生的共享元素连续移动至标准个人页 Hero，并在返回时反向恢复。
 
-**架构：** 保留 Astro ClientRouter 和跨文档 View Transitions。被点击卡片仅为头像、姓名写入由 slug 派生的稳定名称；标准个人页以同一 slug 生成目标。返回时，MainLayout 在 astro:before-swap 的 newDocument 中用一次性 session slug 为原卡片补回目标名称。view-transition-class 分别控制头像和姓名的动画时长；浏览器不支持该属性时，view-transition-name 仍会使用默认几何插值。详情页将身份元素与延迟进入的辅助内容分离，避免整体淡入遮挡共享快照。
+**架构：** 保留 Astro ClientRouter 和跨文档 View Transitions。被点击的标准详情卡片仅为头像、姓名写入由 slug 派生的稳定名称；标准个人页以同一 slug 生成目标。返回时，RosterWall 将 slug、关键词、页码和可见卡片写入一次性 session 状态，MainLayout 在 astro:before-swap 的 newDocument 中还原原页并补回目标名称。view-transition-class 分别控制头像和姓名的动画时长；浏览器不支持该属性时，view-transition-name 仍会使用默认几何插值。详情页将身份元素与延迟进入的辅助内容分离，避免整体淡入遮挡共享快照。
 
 **技术栈：** Astro 5、Vue 3、原生 View Transitions API、CSS、Vitest、Playwright。
 
@@ -14,7 +14,9 @@
 
 - 修改：packages/site-astro/src/components/ArchiveRosterCard.vue — 仅为被点击的可访问卡片提供头像、姓名共享名称，移除整卡与预淡出。
 - 修改：packages/site-astro/src/components/StudentProfile.vue — 为标准详情 Hero 提供同名目标，并分离非身份 Hero 内容。
+- 修改：packages/site-astro/src/components/RosterWall.vue — 保留可用于返回快照的卡片根元素，并恢复原来的分页或检索状态。
 - 修改：packages/site-astro/src/layouts/MainLayout.astro — 在返回人物长廊的目标文档交换前恢复被点击卡片的共享目标。
+- 修改：packages/site-astro/src/utils/museumViewModels.ts、packages/shared/src/types.ts、workers/api/src/index.ts — 传递不暴露专属 HTML 的 hasStandardProfile 标记，排除 iframe 专属页。
 - 修改：packages/site-astro/src/styles/global.css — 用身份共享类替换无调用方的 active-card 规则。
 - 修改：packages/site-astro/tests/active-card-motion-static.test.ts — 锁定共享边界与减少动态回退。
 - 新建：packages/site-astro/tests/student-identity-transition-flow.spec.ts — 验证进入、后退、减少动态。

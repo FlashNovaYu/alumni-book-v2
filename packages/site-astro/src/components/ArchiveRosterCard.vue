@@ -25,12 +25,13 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { ArchiveClassmateCard } from '../utils/museumViewModels'
 
 const props = defineProps<{ card: ArchiveClassmateCard; apiBase: string }>()
+const emit = defineEmits<{ 'identity-transition': [slug: string] }>()
 const avatarError = ref(false)
 const avatarImage = ref<HTMLImageElement | null>(null)
 const isTransitioning = ref(false)
 
 const avatarTransitionStyle = computed(() => {
-  if (!isTransitioning.value || !props.card.hasPage) return undefined
+  if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
   return {
     viewTransitionName: 'student-avatar-' + props.card.slug,
     viewTransitionClass: 'student-avatar',
@@ -38,7 +39,7 @@ const avatarTransitionStyle = computed(() => {
 })
 
 const nameTransitionStyle = computed(() => {
-  if (!isTransitioning.value || !props.card.hasPage) return undefined
+  if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
   return {
     viewTransitionName: 'student-name-' + props.card.slug,
     viewTransitionClass: 'student-name',
@@ -46,11 +47,9 @@ const nameTransitionStyle = computed(() => {
 })
 
 function handleTransition() {
-  if (props.card.hasPage) {
+  if (props.card.hasPage && props.card.hasStandardProfile) {
     isTransitioning.value = true
-    try {
-      sessionStorage.setItem('vt-student-identity-slug', props.card.slug)
-    } catch {}
+    emit('identity-transition', props.card.slug)
   }
 }
 

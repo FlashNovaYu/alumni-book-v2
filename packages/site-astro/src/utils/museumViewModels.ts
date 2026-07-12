@@ -6,6 +6,7 @@ export interface ArchiveClassmateCard {
   slug: string
   href: string
   hasPage: boolean
+  hasStandardProfile: boolean
   avatarUrl: string | null
   motto: string
   tags: string[]
@@ -20,6 +21,7 @@ export function toArchiveClassmateCard(mate: ClassmateEntry, siteBase: string): 
     slug: mate.slug,
     href: `${siteBase}${`student/${mate.slug}/`.replace(/^\/+/, '')}`,
     hasPage: mate.hasPage,
+    hasStandardProfile: mate.hasStandardProfile !== false,
     avatarUrl: mate.avatarUrl,
     motto: mate.motto || '这位同学还没有写下座右铭',
     tags: mate.tags || [mate.mbti, mate.school, mate.className].filter(Boolean).map(String).slice(0, 3),

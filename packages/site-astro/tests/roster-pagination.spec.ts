@@ -38,16 +38,16 @@ test('roster paginates nine cards, resets search to the first page, and hides br
   await page.goto('./roster/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('button', { name: '第 2 页' })).toBeVisible()
-  await expect(page.locator('.archive-card')).toHaveCount(9)
-  const firstAvatar = page.locator('.archive-card').first().locator('.archive-card__avatar')
+  await expect(page.locator('.archive-card:visible')).toHaveCount(9)
+  const firstAvatar = page.locator('.archive-card:visible').first().locator('.archive-card__avatar')
   await expect(firstAvatar.locator('img')).toHaveCount(0)
   await expect(firstAvatar).toHaveText('分')
 
   await page.getByRole('button', { name: '第 2 页' }).click()
-  await expect(page.locator('.archive-card')).toHaveCount(1)
+  await expect(page.locator('.archive-card:visible')).toHaveCount(1)
   await expect(page.getByText('分页同学 10')).toBeVisible()
 
   await page.getByRole('textbox', { name: '档案检索' }).fill('分页')
   await expect(page.locator('.roster-pagination button[aria-current="page"]')).toHaveText('1')
-  await expect(page.getByText('分页同学 1')).toBeVisible()
+  await expect(page.locator('.archive-card:visible').getByText('分页同学 1', { exact: true })).toBeVisible()
 })

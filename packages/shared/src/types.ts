@@ -99,6 +99,7 @@ export interface ClassmateEntry {
   name: string
   slug: string
   hasPage: boolean
+  hasStandardProfile?: boolean
   avatarUrl: string | null
   motto: string
   nickname?: string

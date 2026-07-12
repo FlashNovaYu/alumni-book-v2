@@ -9,6 +9,7 @@ import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl
 
 interface Classmate {
   name: string; slug: string; hasPage: boolean
+  hasStandardProfile?: boolean
   avatarUrl: string | null; motto: string
 }
 

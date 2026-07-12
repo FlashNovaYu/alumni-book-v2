@@ -9,10 +9,12 @@
     <!-- 同学列表网格 -->
     <div class="archive-grid">
       <ArchiveRosterCard
-        v-for="mate in paginatedClassmates"
+        v-for="mate in classmates"
         :key="mate.slug"
+        v-show="isCardVisible(mate)"
         :card="toArchiveClassmateCard(mate, siteBase)"
         :api-base="apiBase"
+        @identity-transition="rememberIdentityTransition"
       />
     </div>
 
@@ -56,6 +58,7 @@ interface Classmate {
   name: string
   slug: string
   hasPage: boolean
+  hasStandardProfile: boolean
   avatarUrl: string | null
   motto: string
   nickname?: string
@@ -64,6 +67,37 @@ interface Classmate {
   mbti?: string
   completion?: number
   tags?: string[]
+}
+
+interface IdentityTransitionState {
+  slug: string
+  keyword: string
+  page: number
+  visibleSlugs: string[]
+}
+
+const studentIdentityTransitionKey = 'vt-student-identity-state'
+
+function consumeIdentityTransitionState(): IdentityTransitionState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(studentIdentityTransitionKey)
+    sessionStorage.removeItem(studentIdentityTransitionKey)
+    if (!raw) return null
+    const state = JSON.parse(raw) as Partial<IdentityTransitionState>
+    if (
+      typeof state.slug !== 'string' ||
+      typeof state.keyword !== 'string' ||
+      typeof state.page !== 'number' ||
+      !Number.isInteger(state.page) ||
+      state.page < 1 ||
+      !Array.isArray(state.visibleSlugs) ||
+      !state.visibleSlugs.every((slug) => typeof slug === 'string')
+    ) return null
+    return state as IdentityTransitionState
+  } catch {
+    return null
+  }
 }
 
 const props = defineProps<{
@@ -101,6 +135,12 @@ const paginatedClassmates = computed(() => {
   return filteredClassmates.value.slice(start, start + PAGE_SIZE)
 })
 
+const visibleClassmateSlugs = computed(() => new Set(paginatedClassmates.value.map((mate) => mate.slug)))
+
+function isCardVisible(mate: Classmate) {
+  return visibleClassmateSlugs.value.has(mate.slug)
+}
+
 const pageNumbers = computed<Array<number | 'ellipsis'>>(() => {
   const total = totalPages.value
   const current = currentPage.value
@@ -124,7 +164,24 @@ function goToPage(page: number) {
   rootRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+function rememberIdentityTransition(slug: string) {
+  try {
+    sessionStorage.setItem(studentIdentityTransitionKey, JSON.stringify({
+      slug,
+      keyword: keyword.value,
+      page: currentPage.value,
+      visibleSlugs: paginatedClassmates.value.map((mate) => mate.slug),
+    }))
+  } catch {}
+}
+
 onMounted(() => {
+  const identityReturnState = consumeIdentityTransitionState()
+  if (identityReturnState) {
+    keyword.value = identityReturnState.keyword
+    currentPage.value = identityReturnState.page
+  }
+
   // 避免首屏高并发阻塞，改为 idle 空闲时静默刷新 SWR 数据
   runWhenIdle(async () => {
     try {
