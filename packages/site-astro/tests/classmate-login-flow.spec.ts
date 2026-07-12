@@ -2,6 +2,7 @@
 // CCSwitch: Playwright 端到端测试，验证首次登录强制改密流程。
 
 import { test, expect } from '@playwright/test'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 test('first login requires changing the initial password before entering preface', async ({ page }) => {
   await page.route('**/api/classmates**', async route => {
@@ -26,6 +27,8 @@ test('first login requires changing the initial password before entering preface
   await page.route('**/api/classmate-auth/change-password', async route => {
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true }) })
   })
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
 
   await page.goto('./')
   await page.getByTestId('home-login-cta').click()
