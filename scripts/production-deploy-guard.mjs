@@ -12,7 +12,6 @@ export function validateProductionDeploy(context) {
   if (context.dirty) errors.push('工作树不干净，拒绝生产发布')
   if (errors.length > 0) throw new Error(errors.join('\n'))
 }
-
 function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8' }).trim()
 }
@@ -30,4 +29,3 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   })
   console.log(`生产发布上下文验证通过：${sha}`)
 }
-

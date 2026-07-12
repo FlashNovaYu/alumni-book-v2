@@ -63,4 +63,3 @@ jobs:
           PAGES_BASE_URL: https://alumni-book.pages.dev
           PAGES_EXPECTED_SHA: ${{ github.sha }}
         run: pnpm smoke:pages
-
