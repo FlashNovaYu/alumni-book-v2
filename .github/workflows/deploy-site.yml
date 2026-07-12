@@ -7,6 +7,12 @@ on:
       - 'packages/site-astro/**'
       - 'packages/admin/**'
       - 'packages/shared/**'
+      - 'workers/api/**'
+      - 'wrangler.toml'
+      - 'scripts/prepare-pages-deploy.mjs'
+      - 'scripts/smoke-pages.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   schedule:
     - cron: '3 3 * * *'
   workflow_dispatch:
@@ -21,8 +27,8 @@ jobs:
     env:
       # 客户端 API 设为空，走 Pages Function 同域代理
       VITE_API_BASE_URL: ''
-      # SSG 构建时走 Worker 域名
-      VITE_WORKER_URL: 'https://alumni-book-api.chenyuhao2263.workers.dev'
+      # SSG 构建时读取 Pages 正式入口
+      VITE_WORKER_URL: 'https://alumni-book.pages.dev'
     steps:
       - uses: actions/checkout@v4
 
@@ -48,25 +54,25 @@ jobs:
       - name: Verify Admin build
         run: pnpm verify:admin
         env:
-          SITE_BASE: /alumni-book-v2/
+          SITE_BASE: /
 
       - name: Verify Site build and navigation
         run: pnpm verify:site
         env:
-          SITE_BASE: /alumni-book-v2/
-          VITE_WORKER_URL: 'https://alumni-book-api.chenyuhao2263.workers.dev'
+          SITE_BASE: /
+          VITE_WORKER_URL: 'https://alumni-book.pages.dev'
           VITE_API_BASE_URL: ''
 
-      - name: Prepare deployment
-        run: |
-          mkdir -p deploy
-          cp -r packages/site-astro/dist/* deploy/
-          mkdir -p deploy/admin
-          cp -r packages/admin/dist/* deploy/admin/
-          cp packages/site-astro/_worker.js deploy/
+      - name: Prepare unified Pages deployment
+        run: pnpm prepare:pages
 
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
+        run: pnpm --filter worker exec wrangler --cwd ../.. pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
+
+      - name: Smoke test production Pages deployment
+        env:
+          PAGES_BASE_URL: https://alumni-book.pages.dev
+        run: pnpm smoke:pages

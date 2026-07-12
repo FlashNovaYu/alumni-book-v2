@@ -81,17 +81,17 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
     const adminIndex = resolve(__dirname, '../../admin/dist/index.html')
     expect(existsSync(adminIndex)).toBe(true)
     const content = readFileSync(adminIndex, 'utf-8')
-    expect(content).toContain('/alumni-book-v2/admin/assets/')
-    expect(content).not.toContain('src="/admin/assets/')
+    expect(content).toContain('/admin/assets/')
+    expect(content).not.toContain('/alumni-book-v2/admin/assets/')
   })
 
   it('404 page routes admin links through the GitHub Pages base path', () => {
     const notFoundPath = join(distDir, '404.html')
     expect(existsSync(notFoundPath)).toBe(true)
     const content = readFileSync(notFoundPath, 'utf-8')
-    expect(content).toContain('href="/alumni-book-v2/admin/"')
+    expect(content).toContain('href="/admin/"')
     expect(content).toContain("siteBase + 'admin/#/'")
-    expect(content).not.toContain("window.location.replace('/admin/#/'")
+    expect(content).not.toContain('/alumni-book-v2/admin/')
   })
 
   it('admin production build does not emit source maps', () => {

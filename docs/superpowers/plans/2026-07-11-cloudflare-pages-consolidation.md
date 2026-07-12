@@ -22,7 +22,7 @@
 - `packages/site-astro/tests/pages-deployment-static.test.ts`：部署配置、根路径和生产 API 地址静态约束。
 - `packages/site-astro/public/_redirects`：旧 `/alumni-book-v2/*` 地址兼容跳转。
 - `packages/site-astro/public/_headers`：哈希静态资源长期缓存。
-- `wrangler.pages.toml`：Pages 的 D1、R2 与非秘密变量配置。
+- `wrangler.toml`：Pages 的 D1、R2 与非秘密变量配置。
 - `scripts/prepare-pages-deploy.mjs`：跨平台组装 Pages 部署目录并编译 Functions。
 - `scripts/smoke-pages.mjs`：部署后首页、D1、R2、Range 和旧路径烟雾检查。
 
@@ -663,7 +663,7 @@ git commit -m "feat: target Pages root deployment"
 
 **文件：**
 
-- 新建：`wrangler.pages.toml`
+- 新建：`wrangler.toml`
 - 新建：`packages/site-astro/public/_redirects`
 - 新建：`packages/site-astro/public/_headers`
 - 新建：`scripts/prepare-pages-deploy.mjs`
@@ -675,7 +675,7 @@ git commit -m "feat: target Pages root deployment"
 
 ```ts
 it('declares direct Pages bindings and legacy redirects', () => {
-  const config = read('wrangler.pages.toml')
+  const config = read('wrangler.toml')
   expect(config).toContain('pages_build_output_dir = "./deploy"')
   expect(config).toContain('binding = "DB"')
   expect(config).toContain('binding = "R2"')
@@ -700,7 +700,7 @@ pnpm --filter site-astro exec vitest run tests/pages-deployment-static.test.ts
 
 - [ ] **步骤 2：创建 Pages Wrangler 配置**
 
-创建根目录 `wrangler.pages.toml`：
+创建根目录 `wrangler.toml`：
 
 ```toml
 name = "alumni-book"
@@ -778,7 +778,7 @@ execFileSync(process.execPath, [
   'exec', 'wrangler',
   'pages', 'functions', 'build',
   functionsDir,
-  '--outfile', workerOut,
+  '--outdir', workerOut,
   '--output-routes-path', routesOut,
   '--project-directory', join(rootDir, 'packages/site-astro'),
   '--compatibility-date', '2024-10-22',
@@ -843,7 +843,7 @@ rg -n "alumni-book-api\.chenyuhao2263\.workers\.dev" deploy
 
 ```powershell
 pnpm --filter site-astro exec vitest run tests/pages-deployment-static.test.ts
-git add wrangler.pages.toml packages/site-astro/public/_redirects packages/site-astro/public/_headers scripts/prepare-pages-deploy.mjs package.json
+git add wrangler.toml packages/site-astro/public/_redirects packages/site-astro/public/_headers scripts/prepare-pages-deploy.mjs package.json
 git commit -m "build: assemble direct Pages deployment"
 ```
 
@@ -867,7 +867,7 @@ it('deploys the unified Pages app and keeps Worker deployment manual', () => {
   const pagesWorkflow = read('.github/workflows/deploy-site.yml')
   expect(pagesWorkflow).toContain('pnpm prepare:pages')
   expect(pagesWorkflow).toContain('pnpm smoke:pages')
-  expect(pagesWorkflow).toContain('wrangler.pages.toml')
+  expect(pagesWorkflow).toContain('wrangler --cwd ../.. pages deploy deploy')
   expect(pagesWorkflow).toContain("VITE_WORKER_URL: 'https://alumni-book.pages.dev'")
 
   const workerWorkflow = read('.github/workflows/deploy-worker.yml')
@@ -970,7 +970,7 @@ console.log(`Pages smoke checks passed for ${baseUrl}`)
 
 修改 `.github/workflows/deploy-site.yml`：
 
-1. `paths` 增加 `workers/api/**`、`wrangler.pages.toml`、`scripts/prepare-pages-deploy.mjs`、`scripts/smoke-pages.mjs`、根 `package.json` 和 `pnpm-lock.yaml`。
+1. `paths` 增加 `workers/api/**`、`wrangler.toml`、`scripts/prepare-pages-deploy.mjs`、`scripts/smoke-pages.mjs`、根 `package.json` 和 `pnpm-lock.yaml`。
 2. 全局 `VITE_WORKER_URL` 改为 `https://alumni-book.pages.dev`。
 3. Site 与 Admin 验证步骤的 `SITE_BASE` 改为 `/`。
 4. 用以下步骤替换手写复制命令：
@@ -983,7 +983,7 @@ console.log(`Pages smoke checks passed for ${baseUrl}`)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter worker exec wrangler --config ../../wrangler.pages.toml pages deploy ../../deploy --project-name alumni-book --branch main --commit-dirty=true
+        run: pnpm --filter worker exec wrangler --cwd ../.. pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
 
       - name: Smoke test production Pages deployment
         env:
@@ -1068,7 +1068,7 @@ pnpm --filter worker exec wrangler pages secret put JWT_SECRET --project-name al
 运行：
 
 ```powershell
-pnpm --filter worker exec wrangler --config ../../wrangler.pages.toml pages deploy ../../deploy --project-name alumni-book --branch main --commit-dirty=true
+pnpm --filter worker exec wrangler --cwd ../.. pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
 ```
 
 预期：Wrangler 返回新的 Pages 部署 URL，现有生产地址切换到新版本。

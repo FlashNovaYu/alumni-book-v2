@@ -24,6 +24,8 @@ import { groupChatRoutes } from './routes/groupChat'
 import { adminGuard } from './lib/adminGuard'
 import { adminCommunityRoutes } from './routes/adminCommunity'
 import { directConversationsRoutes } from './routes/directConversations'
+import { filesRoutes } from './routes/files'
+import { normalizeFileUrl } from './lib/fileUrl'
 
 
 type Bindings = {
@@ -70,6 +72,26 @@ app.use('*', async (c, next) => {
     allowHeaders: ['Content-Type', 'Authorization', 'X-Classmate-Token'],
   })
   return corsMiddleware(c, next)
+})
+
+app.use('/api/*', async (c, next) => {
+  const missingBindings = [
+    !c.env?.DB && 'DB',
+    !c.env?.R2 && 'R2',
+    !c.env?.JWT_SECRET && 'JWT_SECRET',
+  ].filter(Boolean)
+
+  if (missingBindings.length > 0) {
+    const requestId = c.get('requestId') || 'unknown'
+    console.error(`[Request ID: ${requestId}] Cloudflare bindings are incomplete`)
+    return c.json({
+      success: false,
+      message: '服务配置不完整',
+      requestId,
+    }, 503)
+  }
+
+  return next()
 })
 
 const PUBLIC_REVALIDATED_GET_PREFIXES = [
@@ -165,7 +187,7 @@ app.get('/api/classmates', async (c) => {
       name: row.name,
       slug: row.slug,
       hasPage: true,
-      avatarUrl: row.avatar_url,
+      avatarUrl: normalizeFileUrl(row.avatar_url),
       motto: info.motto || '',
       nickname: info.nickname || '',
       school: row.school || info.school || '',
@@ -359,14 +381,14 @@ app.get('/api/rankings', async (c) => {
     const visits = (visitsResults.results || []).map((r: any) => ({
       name: r.name,
       slug: r.slug,
-      avatarUrl: r.avatar_url,
+      avatarUrl: normalizeFileUrl(r.avatar_url),
       value: `${r.visit_count || 0} 次浏览`,
     }))
 
     const messages = (messagesResults.results || []).map((r: any) => ({
       name: r.name,
       slug: r.slug,
-      avatarUrl: r.avatar_url,
+      avatarUrl: normalizeFileUrl(r.avatar_url),
       value: `${r.message_count || 0} 条留言`,
     }))
 
@@ -375,7 +397,7 @@ app.get('/api/rankings', async (c) => {
       return {
         name: r.name,
         slug: r.slug,
-        avatarUrl: r.avatar_url,
+        avatarUrl: normalizeFileUrl(r.avatar_url),
         value: `更新于 ${dateStr}`,
       }
     })
@@ -392,35 +414,7 @@ app.get('/api/rankings', async (c) => {
 })
 
 // R2 文件访问
-app.get('/api/files/*', async (c) => {
-  const key = c.req.path.replace('/api/files/', '')
-  if (!key) {
-    return c.json({ success: false, message: '文件路径无效' }, 400)
-  }
-  if (!c.env.R2) {
-    return c.json({ success: false, message: '文件存储(R2)未启用' }, 503)
-  }
-  
-  const object = await c.env.R2.get(key)
-
-  if (!object) {
-    return c.json({ success: false, message: '文件不存在' }, 404)
-  }
-
-  const clientEtag = c.req.header('If-None-Match')
-  if (object.httpEtag && clientEtag === object.httpEtag) {
-    return new Response(null, { status: 304 })
-  }
-
-  const headers = new Headers()
-  headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream')
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  if (object.httpEtag) {
-    headers.set('ETag', object.httpEtag)
-  }
-
-  return new Response(object.body, { headers })
-})
+app.route('/api', filesRoutes)
 
 // JWT 中间件包装器
 function jwtGuard(secret: string) {
@@ -696,11 +690,11 @@ function formatStudent(row: any) {
     name: row.name,
     slug: row.slug,
     isOwner: !!row.is_owner,
-    avatarUrl: row.avatar_url,
-    musicUrl: row.music_url,
+    avatarUrl: normalizeFileUrl(row.avatar_url),
+    musicUrl: normalizeFileUrl(row.music_url),
     musicTitle: row.music_title,
     musicAutoplay: !!row.music_autoplay,
-    backgroundUrl: row.background_url,
+    backgroundUrl: normalizeFileUrl(row.background_url),
     backgroundColor: row.background_color,
     customHtml: row.custom_html,
     privacyLevel: row.privacy_level || 'classmates',

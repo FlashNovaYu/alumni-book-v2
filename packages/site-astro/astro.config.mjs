@@ -13,9 +13,9 @@ export default defineConfig({
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
         process.env.VITE_API_BASE_URL ?? ''
       ),
-      // SSG 构建时 API 地址（始终走 Worker 域名）
+      // SSG 构建时 API 地址（默认读取正式 Pages 同源 API）
       'import.meta.env.VITE_WORKER_URL': JSON.stringify(
-        process.env.VITE_WORKER_URL ?? 'https://alumni-book-api.chenyuhao2263.workers.dev'
+        process.env.VITE_WORKER_URL ?? 'https://alumni-book.pages.dev'
       ),
     },
     server: {
