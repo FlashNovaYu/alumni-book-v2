@@ -367,6 +367,12 @@ describe('Administrator RBAC schema', () => {
     expect(await env.DB.prepare("SELECT id, sort_order FROM timeline_events WHERE id IN ('tle_operations_a', 'tle_operations_b') ORDER BY sort_order").all())
       .toMatchObject({ results: [{ id: 'tle_operations_b', sort_order: 0 }, { id: 'tle_operations_a', sort_order: 1 }] })
 
+    const incomplete = await worker.fetch(new Request('http://localhost/api/timeline/events/reorder', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ eventDate: '2023-06-20', ids: ['tle_operations_a'] }),
+    }), env, createExecutionContext())
+    expect(incomplete.status).toBe(400)
+
     const crossDay = await worker.fetch(new Request('http://localhost/api/timeline/events/reorder', {
       method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ eventDate: '2023-06-20', ids: ['tle_operations_a', 'tle_operations_c'] }),

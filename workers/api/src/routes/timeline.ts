@@ -66,10 +66,17 @@ timelineRoutes.put('/timeline/events/reorder', async (c) => {
   }
 
   const placeholders = ids.map(() => '?').join(',')
+  const dateCount = await db.prepare(
+    'SELECT COUNT(*) AS count FROM timeline_events WHERE event_date = ?'
+  ).bind(eventDate).first<{ count: number }>()
   const { results } = await db.prepare(
     `SELECT id, event_date, sort_order FROM timeline_events WHERE id IN (${placeholders})`
   ).bind(...ids).all<any>()
-  if ((results || []).length !== ids.length || (results || []).some((row: any) => row.event_date !== eventDate)) {
+  if (
+    Number(dateCount?.count || 0) !== ids.length ||
+    (results || []).length !== ids.length ||
+    (results || []).some((row: any) => row.event_date !== eventDate)
+  ) {
     return c.json({ success: false, message: '只能调整同一日期的完整事件顺序' }, 400)
   }
 
