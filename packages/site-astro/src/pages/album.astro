@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import AlbumGrid from '../components/AlbumGrid.vue'
+import PageHeader from '../components/PageHeader.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
 
 interface Album {
@@ -48,11 +49,7 @@ try {
 <MainLayout>
   <div class="album-page page-shell">
     <div class="container">
-      <header class="page-header fade-in">
-        <p class="page-header__label">IMAGE GALLERY</p>
-        <h1 class="display-lg">影像馆</h1>
-        <p class="page-header__subtitle">每一幅影像，都是一段珍贵的回忆</p>
-      </header>
+      <PageHeader label="IMAGE GALLERY" title="影像馆" subtitle="每一幅影像，都是一段珍贵的回忆" />
       <AlbumGrid client:load albums={albums} apiBase={CLIENT_API_BASE} />
     </div>
   </div>

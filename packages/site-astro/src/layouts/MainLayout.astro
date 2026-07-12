@@ -34,6 +34,18 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{siteConfig.identity.siteName || '同学录'}</title>
     <meta name="description" content={siteConfig.identity.shareDescription || '同学录 · 青春回忆'} />
+    <meta name="theme-color" content="#f4eddf" />
+    <script is:inline>
+      (() => {
+        const storageKey = 'alumni_theme'
+        const stored = localStorage.getItem(storageKey)
+        const theme = stored === 'paper' || stored === 'night'
+          ? stored
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'paper'
+        document.documentElement.dataset.theme = theme
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'night' ? '#20252d' : '#f4eddf')
+      })()
+    </script>
     <ClientRouter />
     <script define:vars={{ apiBase }}>
       (async function () {
@@ -95,16 +107,25 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
       <script>
         import { initGlobalReveal } from '../scripts/globalReveal'
         import { initNavRuntime } from '../scripts/navRuntime'
+        import { initThemeRuntime } from '../scripts/themeRuntime'
 
         initGlobalReveal(true)
         initNavRuntime()
+        initThemeRuntime()
+
+        document.addEventListener('astro:before-swap', () => {
+          window.__alumniThemeRuntime?.destroy()
+        })
+        document.addEventListener('astro:page-load', () => {
+          initThemeRuntime()
+        })
 
         // 导航方向感知滑动逻辑
         document.addEventListener('astro:before-preparation', (ev) => {
           const from = window.location.pathname
           const to = new URL(ev.to).pathname
 
-          const order = ['/', '/preface/', '/roster/', '/album/', '/timeline/', '/mailbox/']
+          const order = ['/', '/preface/', '/roster/', '/class-space/', '/yearbook/', '/more/']
           const getCleanPath = (p: string) => {
             let clean = p.replace(/\/index\.html$/, '/')
             if (!clean.endsWith('/')) clean += '/'

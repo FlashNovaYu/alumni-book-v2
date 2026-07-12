@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import PrefaceWall from '../components/PrefaceWall.vue'
+import PageHeader from '../components/PageHeader.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
@@ -44,11 +45,7 @@ try {
 <MainLayout>
   <div class="preface-page page-shell">
     <div class="container">
-      <header class="page-header fade-in">
-        <p class="page-header__label">PREFACE LETTER</p>
-        <h1 class="display-lg">{config.preface?.title || '致青春岁月'}</h1>
-        <p class="page-header__subtitle">{config.preface?.subtitle || '写在翻开同学录之前'}</p>
-      </header>
+      <PageHeader label="PREFACE LETTER" title={config.preface?.title || '致青春岁月'} subtitle={config.preface?.subtitle || '写在翻开同学录之前'} />
 
       <PrefaceWall client:load initialConfig={config} apiBase={CLIENT_API_BASE} />
 

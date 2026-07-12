@@ -1,5 +1,6 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
+import PageHeader from '../components/PageHeader.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
@@ -39,11 +40,7 @@ try {
 <MainLayout>
   <div class="timeline-page page-shell" data-base-url={base} data-api-base={CLIENT_API_BASE}>
     <div class="container">
-      <header class="page-header fade-in">
-        <p class="page-header__label">CLASS TIMELINE</p>
-        <h1 class="display-lg">时光轴</h1>
-        <p class="page-header__subtitle">把重要瞬间按时间慢慢装订成册</p>
-      </header>
+      <PageHeader label="CLASS TIMELINE" title="时光轴" subtitle="把重要瞬间按时间慢慢装订成册" />
 
       <!-- Tab 筛选栏 -->
       <div class="timeline-tabs fade-in">

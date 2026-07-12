@@ -45,6 +45,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     </div>
 
     <div class="nav-utilities">
+      <button class="nav-theme-button nav-theme-button--desktop" type="button" data-theme-toggle aria-label="切换为夜读模式" aria-pressed="false" title="切换夜读模式">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.64 5.64l1.77 1.77M16.59 16.59l1.77 1.77M18.36 5.64l-1.77 1.77M7.41 16.59l-1.77 1.77" /><circle cx="12" cy="12" r="3.5" /></svg>
+      </button>
       <a href={adminHref} class="nav-admin-button" data-nav-admin-entry>管理</a>
       <a
         href={href('/account')}
@@ -67,6 +70,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5" /><path d="m4 7 8 5 8-5" /></svg>
         <span class="mail-unread-stamp" data-nav-unread hidden></span>
       </a>
+      <button class="nav-theme-button nav-theme-button--mobile" type="button" data-theme-toggle aria-label="切换为夜读模式" aria-pressed="false" title="切换夜读模式">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.64 5.64l1.77 1.77M16.59 16.59l1.77 1.77M18.36 5.64l-1.77 1.77M7.41 16.59l-1.77 1.77" /><circle cx="12" cy="12" r="3.5" /></svg>
+      </button>
     </div>
   </div>
 </nav>
@@ -239,6 +245,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 
   .nav-account-button,
   .nav-mailbox-button,
+  .nav-theme-button,
   .mobile-nav-button,
   .drawer-icon-button {
     display: inline-grid;
@@ -256,6 +263,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-account-button:hover,
   .nav-mailbox-button:hover,
   .nav-mailbox-button.is-active,
+  .nav-theme-button:hover,
   .mobile-nav-button:hover,
   .drawer-icon-button:hover {
     color: var(--color-paper-ink);
@@ -263,6 +271,8 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .nav-mailbox-button { position: relative; }
+  .nav-theme-button { border: 0; font: inherit; }
+  .nav-theme-button--mobile { display: none; }
   .nav-admin-button {
     display: none;
     align-self: center;
@@ -403,11 +413,10 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .top-nav--home:not(.has-session) .nav-directory,
-  .top-nav--home:not(.has-session) .nav-utilities,
   .top-nav--home:not(.has-session) .mobile-nav-button,
   .top-nav--home:not(.has-session) .mobile-page-title { display: none; }
-  .top-nav--home:not(.has-session) .nav-inner { grid-template-columns: 1fr; }
-  .top-nav--home:not(.has-session) .nav-brand { justify-self: center; }
+  .top-nav--home:not(.has-session) .nav-inner { position: relative; grid-template-columns: 1fr auto; }
+  .top-nav--home:not(.has-session) .nav-brand { position: absolute; left: 50%; justify-self: center; transform: translateX(-50%); }
 
   @media (max-width: 980px) {
     .nav-link { min-width: 0; padding: 0 9px; font-size: 13px; }
@@ -418,12 +427,14 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     .top-nav { min-height: 52px; }
     .nav-inner {
       min-height: 52px;
-      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
       padding: 0;
     }
     .nav-brand,
     .nav-directory,
-    .nav-account-button { display: none; }
+    .nav-account-button,
+    .nav-theme-button--desktop { display: none; }
+    .nav-theme-button--mobile { display: inline-grid; }
     .mobile-nav-button { display: inline-grid; }
     .mobile-page-title {
       display: block;
@@ -440,7 +451,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     }
     .nav-utilities { justify-content: flex-end; }
     .nav-mailbox-button { width: 44px; height: 44px; }
-    .top-nav--home:not(.has-session) .nav-inner { grid-template-columns: 1fr; }
+    .top-nav--home:not(.has-session) .nav-inner { grid-template-columns: 1fr auto; }
     .top-nav--home:not(.has-session) .nav-brand { display: inline-flex; }
   }
 

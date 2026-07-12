@@ -1,15 +1,12 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
+import PageHeader from '../components/PageHeader.astro'
 ---
 
 <MainLayout>
   <div class="more-page page-shell">
     <div class="container">
-      <header class="page-header fade-in">
-        <p class="page-header__label">FURTHER CHAPTERS</p>
-        <h1 class="display-lg">更多功能</h1>
-        <p class="page-header__subtitle">新的章节正在整理，敬请期待。</p>
-      </header>
+      <PageHeader label="FURTHER CHAPTERS" title="更多功能" subtitle="新的章节正在整理，敬请期待。" />
 
       <section class="more-placeholder paper-panel" aria-label="更多功能说明">
         <p>ARCHIVE IN PROGRESS</p>

@@ -1,0 +1,20 @@
+---
+interface Props {
+  label: string
+  title: string
+  subtitle?: string
+  shared?: boolean
+}
+
+const { label, title, subtitle, shared = true } = Astro.props
+const transitionStyle = shared ? 'view-transition-name: page-heading' : undefined
+---
+
+<header class="page-header">
+  <p class="page-header__label">{label}</p>
+  <div class="page-header__title-wrap" style={transitionStyle} data-page-heading={shared ? '' : undefined}>
+    <h1 class="display-lg">{title}</h1>
+    <span class="page-header__title-sweep" aria-hidden="true"></span>
+  </div>
+  {subtitle && <p class="page-header__subtitle">{subtitle}</p>}
+</header>

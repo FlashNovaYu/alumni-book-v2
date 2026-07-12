@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import RosterWall from '../components/RosterWall.vue'
+import PageHeader from '../components/PageHeader.astro'
 import RankingsPanel from '../components/RankingsPanel.vue'
 import ClassGraphPreview from '../components/ClassGraphPreview.vue'
 import SeatMapPreview from '../components/SeatMapPreview.vue'
@@ -68,11 +69,7 @@ if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
 <MainLayout>
   <div class="roster-page page-shell">
     <div class="container">
-      <header class="page-header fade-in">
-        <p class="page-header__label">ARCHIVE CORRIDOR</p>
-        <h1 class="display-lg">人物长廊</h1>
-        <p class="page-header__subtitle">用档案检索重新遇见每一位同学</p>
-      </header>
+      <PageHeader label="ARCHIVE CORRIDOR" title="人物长廊" subtitle="用档案检索重新遇见每一位同学" />
 
       <RankingsPanel client:visible apiBase={CLIENT_API_BASE} />
 

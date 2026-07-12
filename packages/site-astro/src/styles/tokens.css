@@ -189,6 +189,40 @@
     linear-gradient(rgba(80, 62, 42, 0.035) 1px, transparent 1px);
 }
 
+html[data-theme='night'] {
+  --color-canvas: #20252d;
+  --color-surface-soft: #252e38;
+  --color-surface-card: #28313c;
+  --color-surface-cream: #222a34;
+  --color-surface-cream-strong: #34404d;
+  --color-ink: #f4ead9;
+  --color-body-strong: #eee2cf;
+  --color-body: #d7cab6;
+  --color-muted: #b4a790;
+  --color-muted-soft: #938876;
+  --color-hairline: #4b5865;
+  --color-hairline-soft: #3c4855;
+  --color-paper-bg: #20252d;
+  --color-paper-bg-soft: #252e38;
+  --color-paper-card: #28313c;
+  --color-paper-card-muted: #303b47;
+  --color-paper-border: #52606c;
+  --color-paper-border-soft: #43505d;
+  --color-paper-ink: #f4ead9;
+  --color-paper-ink-soft: #d2c4af;
+  --color-paper-muted: #ae9f89;
+  --color-paper-brown: #d2a56d;
+  --color-paper-brown-active: #e2bd88;
+  --color-paper-brown-soft: #7c6a55;
+  --color-paper-gold: #ddbd78;
+  --color-paper-stamp-red: #d37a67;
+  --shadow-paper-panel: 0 16px 42px rgba(0, 0, 0, 0.26);
+  --shadow-paper-card: 0 10px 26px rgba(0, 0, 0, 0.2);
+  --texture-paper-fiber:
+    radial-gradient(circle at 20% 20%, rgba(225, 189, 120, 0.05), transparent 24%),
+    linear-gradient(rgba(244, 234, 217, 0.028) 1px, transparent 1px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-instant: 0ms;

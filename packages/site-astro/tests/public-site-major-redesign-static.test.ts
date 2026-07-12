@@ -10,6 +10,7 @@ function read(relativePath: string) {
 
 describe('public site major redesign constraints', () => {
   it('migrates public browsing pages to shared paper page shells', () => {
+    const sharedHeader = read('components/PageHeader.astro')
     const pages = [
       'pages/preface.astro',
       'pages/roster.astro',
@@ -20,9 +21,12 @@ describe('public site major redesign constraints', () => {
     for (const page of pages) {
       const source = read(page)
       expect(source, page).toContain('page-shell')
-      expect(source, page).toContain('page-header')
+      expect(source, page).toContain("import PageHeader from '../components/PageHeader.astro'")
+      expect(source, page).toContain('<PageHeader')
       expect(source, page).not.toMatch(/class="[^"]*-page section"/)
     }
+
+    expect(sharedHeader).toContain('class="page-header"')
   })
 
   it('keeps yearbook screen preview paper styled while preserving print rules', () => {
