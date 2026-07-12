@@ -316,7 +316,7 @@ navRuntime.ts 维护 let previousActiveLeft: number | null = null。首次 updat
 .nav-directory[data-nav-direction='forward'] .nav-active-ink { transform-origin: left center; }
 ~~~
 
-more.astro 使用 MainLayout 和 page-shell，显示“更多功能”“新的章节正在整理，敬请期待。”，并以两张纸本目录链接提供 /album 的“影像馆”和 /timeline 的“时光轴”。不得把它们重新加入顶部导航。
+more.astro 使用 MainLayout 和 page-shell，仅显示“更多功能”“新的章节正在整理，敬请期待。”。不得把影像馆和时光轴重新加入顶部导航或“更多”占位页；它们仍由班级空间访问。
 
 - [ ] **Step 4: 运行导航测试并做交互确认**
 
@@ -419,7 +419,7 @@ git commit -m "docs: record public UI feedback verification"
 
 - 班级空间概览仅显示管理员维护的 6 条大事，独立完整时光轴保留综合记录；`/api/files/...` 时间轴图片不再被重复拼接。
 - 人物长廊恢复每页 9 张卡片的分页；损坏头像即使在 Vue hydration 之前已完成加载失败，也会通过 `naturalWidth === 0` 回退为姓名首字。
-- 顶部目录已收束为前言、同学档案、班级空间、年度册、更多；影像馆和时光轴在“更多”页保留入口。切换时暂存一次书签位置，向左切换会使用正确的反向动画原点。
+- 顶部目录已收束为前言、同学档案、班级空间、年度册、更多；“更多”暂时仅显示敬请期待，影像馆和时光轴仍由班级空间访问。切换时暂存一次书签位置，向左切换会使用正确的反向动画原点。
 - 班级空间目录和时间线已按纸本章节与连续事件线重做；公共界面的装饰性 emoji 已替换为 SVG 或文字层级，互动反应协议未改动。
 
 验证通过：

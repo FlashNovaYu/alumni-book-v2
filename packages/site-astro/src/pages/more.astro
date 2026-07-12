@@ -1,8 +1,5 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
-
-const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
-const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 ---
 
 <MainLayout>
@@ -14,17 +11,10 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
         <p class="page-header__subtitle">新的章节正在整理，敬请期待。</p>
       </header>
 
-      <section class="more-directory paper-panel" aria-label="更多功能目录">
-        <a href={href('/album')} class="more-directory__item">
-          <span class="more-directory__index">01</span>
-          <span><strong>影像馆</strong><small>翻阅班级相册</small></span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM8 15l3-3 2 2 2-2 2 3M9 9h.01" /></svg>
-        </a>
-        <a href={href('/timeline')} class="more-directory__item">
-          <span class="more-directory__index">02</span>
-          <span><strong>时光轴</strong><small>浏览完整班级记录</small></span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14M7 8h.01M16 16h.01" /></svg>
-        </a>
+      <section class="more-placeholder paper-panel" aria-label="更多功能说明">
+        <p>ARCHIVE IN PROGRESS</p>
+        <strong>新的章节正在整理</strong>
+        <span>敬请期待。</span>
       </section>
     </div>
   </div>
@@ -32,13 +22,8 @@ const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 
 <style>
   .more-page { padding-bottom: var(--spacing-xxl); }
-  .more-directory { display: grid; max-width: 760px; margin: 0 auto; padding: var(--spacing-sm); }
-  .more-directory__item { display: grid; grid-template-columns: 42px minmax(0, 1fr) 28px; align-items: center; gap: var(--spacing-md); min-height: 92px; padding: var(--spacing-md); color: var(--color-paper-ink); text-decoration: none; border-bottom: 1px solid var(--color-paper-border); }
-  .more-directory__item:last-child { border-bottom: 0; }
-  .more-directory__item:hover { background: var(--color-paper-bg-soft); }
-  .more-directory__item strong, .more-directory__item small { display: block; }
-  .more-directory__item strong { font-family: var(--font-display); font-size: 22px; }
-  .more-directory__item small { margin-top: 3px; color: var(--color-paper-muted); font-size: 13px; }
-  .more-directory__index { color: var(--color-paper-brown); font-size: 12px; letter-spacing: 0.08em; }
-  .more-directory__item svg { width: 22px; height: 22px; fill: none; stroke: var(--color-paper-brown); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+  .more-placeholder { display: grid; max-width: 620px; min-height: 240px; margin: 0 auto; place-content: center; gap: var(--spacing-sm); text-align: center; }
+  .more-placeholder p { margin: 0; color: var(--color-paper-brown); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; }
+  .more-placeholder strong { font-family: var(--font-display); font-size: 28px; font-weight: 600; }
+  .more-placeholder span { color: var(--color-paper-muted); font-size: 14px; }
 </style>

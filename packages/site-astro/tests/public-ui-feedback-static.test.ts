@@ -49,6 +49,15 @@ describe('公开站点界面反馈回归', () => {
     expect(runtime).toContain('directory.dataset.navRevealing')
   })
 
+  it('keeps the more page as a deliberate coming-soon placeholder', () => {
+    const more = read('pages/more.astro')
+
+    expect(more).toContain('新的章节正在整理')
+    expect(more).toContain('敬请期待。')
+    expect(more).not.toContain("href('/album')")
+    expect(more).not.toContain("href('/timeline')")
+  })
+
   it('does not render hard-coded decorative emoji in public UI controls', () => {
     const files = [
       'pages/yearbook.astro',
