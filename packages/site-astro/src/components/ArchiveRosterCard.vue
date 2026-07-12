@@ -1,16 +1,15 @@
 <template>
-  <a 
-    :href="card.hasPage ? card.href : '#'" 
+  <a
+    :href="card.hasPage ? card.href : '#'"
     class="archive-card"
-    :style="isTransitioning ? 'view-transition-name: active-card' : ''"
     @click="handleTransition"
   >
-    <div class="archive-card__avatar" :class="{ 'vt-fade-out': isTransitioning }">
+    <div class="archive-card__avatar" :style="avatarTransitionStyle">
       <img v-if="card.avatarUrl && !avatarError" ref="avatarImage" :src="avatarSrc" :alt="card.name" width="72" height="72" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="markAvatarError" />
       <span v-else>{{ card.name.charAt(0) }}</span>
     </div>
-    <div class="archive-card__body" :class="{ 'vt-fade-out': isTransitioning }">
-      <div class="archive-card__name">{{ card.name }}</div>
+    <div class="archive-card__body">
+      <div class="archive-card__name" :style="nameTransitionStyle">{{ card.name }}</div>
       <p class="archive-card__motto">{{ card.motto }}</p>
       <div class="archive-card__tags">
         <span v-for="tag in card.tags" :key="tag">{{ tag }}</span>
@@ -29,12 +28,27 @@ const avatarError = ref(false)
 const avatarImage = ref<HTMLImageElement | null>(null)
 const isTransitioning = ref(false)
 
+const avatarTransitionStyle = computed(() => {
+  if (!isTransitioning.value || !props.card.hasPage) return undefined
+  return {
+    viewTransitionName: 'student-avatar-' + props.card.slug,
+    viewTransitionClass: 'student-avatar',
+  }
+})
+
+const nameTransitionStyle = computed(() => {
+  if (!isTransitioning.value || !props.card.hasPage) return undefined
+  return {
+    viewTransitionName: 'student-name-' + props.card.slug,
+    viewTransitionClass: 'student-name',
+  }
+})
+
 function handleTransition() {
   if (props.card.hasPage) {
     isTransitioning.value = true
   }
 }
-
 
 function markAvatarError() {
   avatarError.value = true
@@ -136,15 +150,4 @@ const avatarSrc = computed(() => {
   min-height: 22px;
 }
 
-.vt-fade-out {
-  opacity: 0 !important;
-  transition: opacity 0.08s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vt-fade-out {
-    opacity: 1 !important;
-    transition: none !important;
-  }
-}
 </style>

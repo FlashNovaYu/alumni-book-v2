@@ -24,39 +24,41 @@
       </div>
 
       <!-- 标准个人页模板 -->
-      <div v-else class="student-page page-shell" style="view-transition-name: active-card">
+      <div v-else class="student-page page-shell">
         <!-- Student Hero Section -->
         <section class="student-archive-hero paper-panel">
           <div class="hero-bg" :style="bgStyle"></div>
           <div class="hero-content container">
-            <div class="hero-avatar">
+            <div class="hero-avatar" :style="avatarTransitionStyle">
               <img v-if="avatarSrc && !avatarError" :src="avatarSrc" :alt="student.name" loading="eager" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
               <span v-else class="avatar-char">{{ student.name.charAt(0) }}</span>
             </div>
-            <h1 class="hero-name display-md">{{ student.name }}</h1>
-            <p v-if="student.info?.nickname" class="hero-nickname">「 {{ student.info.nickname }} 」</p>
-            <p class="museum-kicker">档案展柜</p>
-            <ProfileCompleteness
-              :completion="museumSummary.completion"
-              :missing-fields="museumSummary.missingFields"
-            />
-            <p v-if="student.info?.motto" class="hero-motto">「 {{ student.info.motto }} 」</p>
-            <div v-if="museumSummary.tags.length" class="hero-tags">
-              <span v-for="tag in museumSummary.tags" :key="tag">{{ tag }}</span>
+            <h1 class="hero-name display-md" :style="nameTransitionStyle">{{ student.name }}</h1>
+            <div class="hero-support detail-content-enter">
+              <p v-if="student.info?.nickname" class="hero-nickname">「 {{ student.info.nickname }} 」</p>
+              <p class="museum-kicker">档案展柜</p>
+              <ProfileCompleteness
+                :completion="museumSummary.completion"
+                :missing-fields="museumSummary.missingFields"
+              />
+              <p v-if="student.info?.motto" class="hero-motto">「 {{ student.info.motto }} 」</p>
+              <div v-if="museumSummary.tags.length" class="hero-tags">
+                <span v-for="tag in museumSummary.tags" :key="tag">{{ tag }}</span>
+              </div>
+              <div class="profile-mail-actions">
+                <a class="btn-secondary" :href="siteUrl('mailbox/?to=' + encodeURIComponent(studentSlug))">给 TA 写信</a>
+                <a v-if="isCurrentOwner" class="btn-secondary" :href="siteUrl('mailbox/')">查看我的邮箱</a>
+              </div>
+              <span v-if="student.isOwner" class="owner-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                专属页面
+              </span>
             </div>
-            <div class="profile-mail-actions">
-              <a class="btn-secondary" :href="siteUrl(`mailbox/?to=${encodeURIComponent(studentSlug)}`)">给 TA 写信</a>
-              <a v-if="isCurrentOwner" class="btn-secondary" :href="siteUrl('mailbox/')">查看我的邮箱</a>
-            </div>
-            <span v-if="student.isOwner" class="owner-badge">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              专属页面
-            </span>
           </div>
         </section>
 
         <!-- Student Body Content -->
-        <div class="student-body container">
+        <div class="student-body container detail-content-enter">
           <!-- 基础信息 -->
           <section v-if="hasFields(basicFields)" class="profile-section fade-in" data-info-section="身份档案">
             <h2 class="section-title display-sm">身份档案</h2>
@@ -287,6 +289,22 @@ const avatarSrc = computed(() => {
   if (!student.value?.avatarUrl) return null
   if (student.value.avatarUrl.startsWith('http')) return student.value.avatarUrl
   return `${props.apiBase}${student.value.avatarUrl}`
+})
+
+const avatarTransitionStyle = computed(() => {
+  if (!student.value) return undefined
+  return {
+    viewTransitionName: 'student-avatar-' + student.value.slug,
+    viewTransitionClass: 'student-avatar',
+  }
+})
+
+const nameTransitionStyle = computed(() => {
+  if (!student.value) return undefined
+  return {
+    viewTransitionName: 'student-name-' + student.value.slug,
+    viewTransitionClass: 'student-name',
+  }
 })
 
 watch(() => student.value?.avatarUrl, () => { avatarError.value = false })
@@ -549,6 +567,14 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-sm);
+}
+
+.hero-support {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
 }
 
 .hero-avatar {
