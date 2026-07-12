@@ -119,8 +119,10 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           if (fromIdx !== -1 && toIdx !== -1 && cleanFrom !== cleanTo) {
             const dir = toIdx > fromIdx ? 'forward' : 'back'
             document.documentElement.setAttribute('data-nav-dir', dir)
+            sessionStorage.setItem('vt-nav-dir', dir) // 缓存方向防止 swap 时被冲走
           } else {
             document.documentElement.removeAttribute('data-nav-dir')
+            sessionStorage.removeItem('vt-nav-dir')
           }
         })
 
@@ -141,6 +143,18 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
             document.documentElement.classList.add('vt-mailbox')
           } else {
             document.documentElement.classList.remove('vt-mailbox')
+          }
+        })
+
+        // 当页面 DOM 被替换 (swap) 时，重新将滑移方向与信箱状态写回新页面的 html 元素上
+        document.addEventListener('astro:after-swap', () => {
+          const dir = sessionStorage.getItem('vt-nav-dir')
+          if (dir) {
+            document.documentElement.setAttribute('data-nav-dir', dir)
+          }
+          const to = window.location.pathname
+          if (to.includes('/mailbox')) {
+            document.documentElement.classList.add('vt-mailbox')
           }
         })
 
@@ -176,6 +190,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
 
           document.documentElement.removeAttribute('data-nav-dir')
           document.documentElement.classList.remove('vt-mailbox')
+          sessionStorage.removeItem('vt-nav-dir')
         })
       </script>
       <AppFooter initialText={footerText} />
