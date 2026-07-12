@@ -91,6 +91,46 @@ function createHistoryOverview() {
 }
 
 test.describe('班级空间群聊基础流程', () => {
+  test('载入最后一页历史后隐藏入口，避免空请求', async ({ page }) => {
+    const historyCursor = 'history-cursor'
+    const overview = {
+      ...initialChat,
+      data: {
+        ...initialChat.data,
+        chat: { ...initialChat.data.chat, cursor: historyCursor },
+      },
+    }
+    const older = {
+      ...initialChat.data.chat.items[0],
+      id: 'pm-history-final',
+      content: '这是一条最后载入的历史消息。',
+      createdAt: '2026-07-11T07:00:00.000Z',
+      updatedAt: '2026-07-11T07:00:00.000Z',
+    }
+    let historyRequests = 0
+    await mockClassSpace(page, async (route) => {
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: initialChat.data.chat.items[1] }) })
+    }, overview)
+    await page.route((url) => url.pathname === '/api/group-chat/messages' && url.searchParams.get('before') === historyCursor, async (route) => {
+      historyRequests += 1
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { items: [older], nextCursor: null } }),
+      })
+    })
+
+    await seedClassmateSession(page)
+    await page.goto('./class-space/', { waitUntil: 'networkidle' })
+
+    const loadButton = page.getByRole('button', { name: '载入更早消息' })
+    await expect(loadButton).toBeVisible()
+    await loadButton.click()
+
+    await expect.poll(() => historyRequests).toBe(1)
+    await expect(page.locator('[data-message-id="pm-history-final"]')).toContainText('最后载入的历史消息')
+    await expect(loadButton).toBeHidden()
+  })
+
   test('显示左右消息，并以服务端规范消息替换乐观消息', async ({ page }) => {
     let releaseResponse!: () => void
     const responseGate = new Promise<void>((resolve) => { releaseResponse = resolve })

@@ -45,7 +45,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     </div>
 
     <div class="nav-utilities">
-      <a href={adminHref} class="nav-admin-button" data-nav-admin-entry hidden>管理</a>
+      <a href={adminHref} class="nav-admin-button" data-nav-admin-entry>管理</a>
       <a
         href={href('/account')}
         class="nav-account-button"
@@ -99,7 +99,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   </div>
 
   <footer class="drawer-footer" data-nav-session-only hidden>
-    <a href={adminHref} class="drawer-mail-link" data-nav-admin-entry hidden>管理后台</a>
+    <a href={adminHref} class="drawer-mail-link" data-nav-admin-entry>管理后台</a>
     <a href={href('/mailbox')} class="drawer-mail-link">
       <span>班级信箱</span>
       <span class="mail-unread-stamp" data-nav-unread hidden></span>
@@ -263,6 +263,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 
   .nav-mailbox-button { position: relative; }
   .nav-admin-button {
+    display: none;
     align-self: center;
     padding: 5px 8px;
     color: var(--color-paper-brown);
@@ -271,6 +272,10 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     text-decoration: none;
     border: 1px solid var(--color-paper-border);
   }
+
+  :global(html.has-admin-entry) .nav-admin-button { display: inline-flex; }
+  .drawer-footer [data-nav-admin-entry] { display: none; }
+  :global(html.has-admin-entry) .drawer-footer [data-nav-admin-entry] { display: flex; }
 
   .mail-unread-stamp {
     position: absolute;

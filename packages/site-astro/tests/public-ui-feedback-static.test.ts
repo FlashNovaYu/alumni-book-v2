@@ -71,4 +71,20 @@ describe('公开站点界面反馈回归', () => {
       expect(read(file)).not.toMatch(/[\u{1F000}-\u{1FAFF}]/u)
     }
   })
+
+  it('uses a book mark, centers the home scroll prompt, and keeps cached management access stable', () => {
+    const brand = read('components/icons/IconBrand.astro')
+    const hero = read('components/MuseumHero.astro')
+    const nav = read('components/TopNav.astro')
+    const runtime = read('scripts/navRuntime.ts')
+
+    expect(brand).toContain('<path d="M4 5.5')
+    expect(brand).not.toContain('<line x1="12" y1="2"')
+    expect(hero).toContain('home-cover__scroll-slot')
+    expect(hero).toContain('transform: translateX(-50%)')
+    expect(hero).toMatch(/\.home-cover__scroll:hover\s*\{[^}]*transform:\s*translateY\(-2px\);/)
+    expect(nav).not.toContain('data-nav-admin-entry hidden')
+    expect(runtime).toContain("'alumni_nav_admin_entry'")
+    expect(runtime).toContain("document.documentElement.classList.toggle('has-admin-entry', available)")
+  })
 })

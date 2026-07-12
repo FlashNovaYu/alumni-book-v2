@@ -141,6 +141,33 @@ describe('Class space overview API', () => {
     expect(body.data).not.toHaveProperty('messages')
     expect(res.headers.get('Cache-Control')).toBe('private, no-store')
   })
+
+  it('omits the history cursor when the overview already contains every visible message', async () => {
+    await env.DB.prepare("DELETE FROM public_messages WHERE id LIKE 'overview-%'").run()
+    await env.DB.batch(Array.from({ length: 6 }, (_, index) => env.DB.prepare(
+      'INSERT INTO public_messages (id, author_slug, author_name, content, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      `overview-short-${index + 1}`,
+      CLASSMATE_SLUG,
+      CLASSMATE_NAME,
+      `短列表消息 ${index + 1}`,
+      'visible',
+      `2026-06-21T00:0${index}:00.000Z`,
+      `2026-06-21T00:0${index}:00.000Z`,
+    )))
+
+    const classmateToken = await getClassmateToken()
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(new Request('http://localhost/api/class-space/overview', {
+      headers: { 'X-Classmate-Token': classmateToken },
+    }), env, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+
+    expect(res.status).toBe(200)
+    expect(body.data.chat.items).toHaveLength(6)
+    expect(body.data.chat.cursor).toBeNull()
+  })
 })
 
 describe('Combined Inbox Summary APIs', () => {

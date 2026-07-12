@@ -11,7 +11,7 @@
 
     <div class="chat-log-wrap">
       <button v-if="loadingOlder" class="history-load-button" type="button" disabled>正在载入更早消息</button>
-      <button v-else class="history-load-button" type="button" @click="loadOlderMessages">载入更早消息</button>
+      <button v-else-if="canLoadOlder" class="history-load-button" type="button" @click="loadOlderMessages">载入更早消息</button>
       <div ref="log" class="chat-log" role="log" :aria-live="loadingOlder ? 'off' : 'polite'" @scroll="handleScroll">
         <GroupChatMessage
           v-for="message in items"
@@ -48,7 +48,7 @@ import GroupChatMineDrawer from './GroupChatMineDrawer.vue'
 const props = defineProps<{
   apiBase: string
   initialItems: GroupChatPayload[]
-  initialCursor: string
+  initialCursor: string | null
   initialMute: GroupChatMute | null
 }>()
 
@@ -62,6 +62,7 @@ const {
   mine,
   mineLoading,
   loadingOlder,
+  canLoadOlder,
   sending,
   connectionState,
   newMessageCount,
