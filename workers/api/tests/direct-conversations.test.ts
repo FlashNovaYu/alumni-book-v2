@@ -259,6 +259,73 @@ describe('Direct Conversations API', () => {
     expect(historyItems[0]).not.toHaveProperty('read_at')
   })
 
+  it('rejects malformed read request bodies with 400', async () => {
+    const createRes = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 'read validation', clientNonce: 'read-validation-nonce' }),
+    })
+    const convId = (await createRes.json() as any).data.conversation.id
+
+    const invalidBodies = [
+      'null',
+      '[]',
+      JSON.stringify('not an object'),
+      '{ malformed json',
+      JSON.stringify({ throughMessageId: 'message-id', extra: true }),
+      JSON.stringify({ throughMessageId: '' }),
+      JSON.stringify({ throughMessageId: '   ' }),
+    ]
+
+    for (const body of invalidBodies) {
+      const res = await request(`/api/direct-conversations/${convId}/read`, {
+        method: 'PUT',
+        headers: headers(TOKEN_B),
+        body,
+      })
+      expect(res.status).toBe(400)
+    }
+  })
+
+  it('defaults message history to 30, clamps valid high limits, and rejects malformed limits', async () => {
+    const createRes = await request('/api/direct-conversations', {
+      method: 'POST',
+      headers: headers(TOKEN_A),
+      body: JSON.stringify({ recipientSlug: STUDENT_B, body: 'limit validation', clientNonce: 'limit-validation-nonce' }),
+    })
+    const convId = (await createRes.json() as any).data.conversation.id
+
+    for (let i = 1; i <= 30; i++) {
+      await env.DB.prepare(
+        'INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        `limit-msg-${i}`,
+        convId,
+        STUDENT_A,
+        STUDENT_B,
+        `limit body ${i}`,
+        `limit-nonce-${i}`,
+        new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString(),
+      ).run()
+    }
+
+    const defaultRes = await request(`/api/direct-conversations/${convId}/messages`, { headers: headers(TOKEN_A) })
+    expect(defaultRes.status).toBe(200)
+    expect((await defaultRes.json() as any).data.items).toHaveLength(30)
+
+    const clampedRes = await request(`/api/direct-conversations/${convId}/messages?limit=31`, { headers: headers(TOKEN_A) })
+    expect(clampedRes.status).toBe(200)
+    expect((await clampedRes.json() as any).data.items).toHaveLength(30)
+
+    for (const limit of ['1abc', '1.5', '0', '-1', '', '   ']) {
+      const res = await request(
+        `/api/direct-conversations/${convId}/messages?limit=${encodeURIComponent(limit)}`,
+        { headers: headers(TOKEN_A) },
+      )
+      expect(res.status).toBe(400)
+    }
+  })
+
   it('supports pagination with opacity cursor and limits at most 30 messages in chronological order', async () => {
     // 1. 创建会话
     const createRes = await request('/api/direct-conversations', {
