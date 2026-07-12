@@ -15,4 +15,9 @@ test('top navigation records a backward marker transition when moving from roste
   await page.getByRole('link', { name: '前言', exact: true }).click()
   await expect(page).toHaveURL(/\/preface\/?$/)
   await expect(page.locator('[data-nav-directory]')).toHaveAttribute('data-nav-direction', 'backward')
+  const fillOrigin = await page.locator('.nav-active-ink-fill').evaluate((element) => {
+    const { transformOrigin } = getComputedStyle(element)
+    return Number.parseFloat(transformOrigin.split(' ')[0])
+  })
+  expect(fillOrigin).toBeGreaterThan(0)
 })

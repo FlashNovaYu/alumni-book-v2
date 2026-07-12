@@ -31,7 +31,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 
     <div class="nav-directory" data-nav-directory data-nav-ready="false">
       <span class="nav-active-paper" aria-hidden="true"></span>
-      <span class="nav-active-ink ink-line" aria-hidden="true"></span>
+      <span class="nav-active-ink ink-line" aria-hidden="true"><span class="nav-active-ink-fill"></span></span>
       {navItems.map((item) => (
         <a
           href={href(item.href)}
@@ -206,19 +206,29 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
   }
 
-  .nav-directory[data-nav-ready='false'] .nav-active-paper,
-  .nav-directory[data-nav-ready='false'] .nav-active-ink { transition: none; }
-  .nav-directory[data-nav-direction='backward'] .nav-active-ink { transform-origin: right center; }
-  .nav-directory[data-nav-direction='forward'] .nav-active-ink { transform-origin: left center; }
-
   .nav-active-ink {
     bottom: 6px;
     z-index: 2;
     height: 2px;
-    background: var(--color-paper-stamp-red);
-    transform-origin: left center;
+    overflow: hidden;
     transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
   }
+
+  .nav-active-ink-fill {
+    position: absolute;
+    inset: 0;
+    display: block;
+    background: var(--color-paper-stamp-red);
+    transform: scaleX(1);
+    transform-origin: left center;
+    transition: transform var(--duration-normal) var(--ease-out-quart);
+  }
+
+  .nav-directory[data-nav-direction='backward'] .nav-active-ink-fill { transform-origin: right center; }
+  .nav-directory[data-nav-revealing='true'] .nav-active-ink-fill { transform: scaleX(0); }
+  .nav-directory[data-nav-ready='false'] .nav-active-paper,
+  .nav-directory[data-nav-ready='false'] .nav-active-ink,
+  .nav-directory[data-nav-ready='false'] .nav-active-ink-fill { transition: none; }
 
   .nav-utilities {
     display: inline-flex;

@@ -143,14 +143,19 @@ export function initNavRuntime(): void {
     if (!activeInkInitialized) {
       directory.dataset.navReady = 'false'
       if (previousMarker) {
+        directory.dataset.navRevealing = 'true'
         applyMarker(previousMarker)
         directory.getBoundingClientRect()
         directory.dataset.navReady = 'true'
         activeInkFrame = window.requestAnimationFrame(() => {
           activeInkFrame = null
-          if (!destroyed) applyMarker(marker)
+          if (!destroyed) {
+            applyMarker(marker)
+            directory.dataset.navRevealing = 'false'
+          }
         })
       } else {
+        directory.dataset.navRevealing = 'false'
         applyMarker(marker)
         activeInkFrame = window.requestAnimationFrame(() => {
           activeInkFrame = null

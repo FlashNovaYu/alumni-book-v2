@@ -45,6 +45,8 @@ describe('公开站点界面反馈回归', () => {
     expect(nav).not.toContain("{ href: '/timeline', label: '时光轴' }")
     expect(runtime).toContain('directory.dataset.navDirection')
     expect(runtime).toContain('previousActiveLeft')
+    expect(nav).toContain('nav-active-ink-fill')
+    expect(runtime).toContain('directory.dataset.navRevealing')
   })
 
   it('does not render hard-coded decorative emoji in public UI controls', () => {
