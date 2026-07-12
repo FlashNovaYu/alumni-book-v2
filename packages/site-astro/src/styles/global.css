@@ -683,5 +683,74 @@ html[data-theme='night'] .page-shell {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   同学录 v2 · 复古墨水水滴指针与变焦悬停笔尖动效系统 (Custom Stylus Cursor)
+   ────────────────────────────────────────────────────────────────────────── */
+@media (pointer: fine) {
+  /* 仅在激活自定义指针且支持物理光标的桌面设备上隐藏默认光标 */
+  html[data-custom-cursor],
+  html[data-custom-cursor] body,
+  html[data-custom-cursor] a,
+  html[data-custom-cursor] button,
+  html[data-custom-cursor] [role="button"],
+  html[data-custom-cursor] input,
+  html[data-custom-cursor] textarea {
+    cursor: none !important;
+  }
+
+  .custom-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--color-paper-brown, #5c4033);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2147483647; /* 置于绝对顶层 */
+    transform: translate3d(0, 0, 0) translate(-50%, -50%);
+    mix-blend-mode: difference; /* 反色混合：浅色背景上呈深色，深色背景上呈浅色 */
+    transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                height 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                border 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.2s ease;
+  }
+
+  /* 显现状态 */
+  .custom-cursor.is-visible {
+    opacity: 0.9;
+  }
+
+  /* 悬停在可点击元素（a, button, card 等）上时的磁吸膨胀圆圈 */
+  .custom-cursor.is-hovered {
+    width: 46px;
+    height: 46px;
+    background-color: transparent;
+    border: 1.5px solid var(--color-paper-brown, #5c4033);
+    mix-blend-mode: normal; /* 悬停时恢复正常颜色以清晰看清钢笔图标 */
+  }
+
+  /* 复古钢笔笔尖图标容器 */
+  .custom-cursor__icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 22px;
+    height: 22px;
+    color: var(--color-paper-brown, #5c4033);
+    transform: translate(-50%, -50%) scale(0);
+    transform-origin: center;
+    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+
+  /* 悬停时激活笔尖显现 */
+  .custom-cursor.is-hovered .custom-cursor__icon {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 
 
