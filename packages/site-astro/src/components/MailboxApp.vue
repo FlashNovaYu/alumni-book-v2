@@ -1,275 +1,188 @@
 <template>
-  <section class="mailbox-app">
-    <!-- 工具栏/模式切换 -->
-    <div class="mailbox-toolbar">
-      <button :class="{ active: mode === 'inbox' }" @click="switchMode('inbox')">
-        收件箱
-      </button>
-      <button :class="{ active: mode === 'compose' }" @click="switchMode('compose')">
-        写信
-      </button>
-    </div>
-
-    <!-- 写信模式 -->
-    <div v-if="mode === 'compose'" class="compose-container">
-      <MailComposer
-        ref="composerRef"
-        :api-base="apiBase"
-        :sending="sending"
-        :notice="notice"
-        :default-recipient-slug="defaultRecipient"
-        @submit="handleSendMail"
-      />
-    </div>
-
-    <!-- 收件箱模式（左右布局或单栏响应式切换） -->
-    <div v-else class="mailbox-layout" :class="{ 'has-selection': selectedItem }">
-      <!-- 左侧列表栏 -->
-      <div class="mailbox-list-pane">
-        <MailboxList
-          :notifications="notifications"
-          :mails="mails"
-          :loading="loading"
-          :selected-item="selectedItem"
-          @select="handleSelectItem"
-        />
+  <section class="mailbox-app" aria-label="班级信箱">
+    <header class="mailbox-toolbar">
+      <div class="mailbox-tabs" role="tablist" aria-label="班级信箱内容">
+        <button ref="directTab" id="inbox-tab-direct" type="button" role="tab" :tabindex="mode === 'direct' ? 0 : -1" :aria-selected="mode === 'direct'" aria-controls="inbox-panel" @click="mode = 'direct'" @keydown="handleTabKey">私聊<span v-if="unread.directUnread">{{ unread.directUnread }}</span></button>
+        <button ref="notificationTab" id="inbox-tab-notification" type="button" role="tab" :tabindex="mode === 'notifications' ? 0 : -1" :aria-selected="mode === 'notifications'" aria-controls="inbox-panel" @click="mode = 'notifications'" @keydown="handleTabKey">通知<span v-if="unread.notificationUnread">{{ unread.notificationUnread }}</span></button>
       </div>
+    </header>
 
-      <!-- 右侧详情栏 -->
-      <div class="mailbox-detail-pane">
-        <!-- 移动端返回按钮 -->
-        <div v-if="selectedItem" class="mobile-detail-header">
-          <button type="button" class="btn-back-link" @click="selectedItem = null">
-            ← 返回信箱
-          </button>
-        </div>
-        <MailboxDetail
-          :item="selectedItem"
-          :api-base="apiBase"
-          @read="handleItemRead"
-          @replied="handleReplied"
+    <p v-if="error" class="mailbox-error" role="alert">{{ error }}</p>
+    <div id="inbox-panel" class="mailbox-workspace" :class="{ 'has-detail': detailOpen }" role="tabpanel" :aria-labelledby="mode === 'direct' ? 'inbox-tab-direct' : 'inbox-tab-notification'">
+      <aside class="mailbox-sidebar">
+        <DirectConversationList
+          v-if="mode === 'direct'"
+          :items="conversations"
+          :selected-id="selectedConversation?.id"
+          @select="openConversation"
+          @new="newConversationOpen = true"
         />
+        <NotificationList
+          v-else
+          :items="notifications"
+          :selected-id="selectedNotification?.id"
+          @select="openNotification"
+        />
+      </aside>
+
+      <div class="mailbox-detail-pane" :aria-busy="loading">
+        <button v-if="detailOpen" type="button" class="mobile-detail-back" @click="closeDetail">返回信箱</button>
+        <DirectConversationView
+          v-if="mode === 'direct'"
+          :peer="selectedPeer"
+          :messages="messages"
+          :current-slug="currentSlug"
+          :sending="sending"
+          :connection-state="connectionState"
+          @send="send"
+          @retry="retry"
+        />
+        <NotificationDetail v-else :notification="selectedNotification" />
       </div>
     </div>
+
+    <NewConversationDialog :open="newConversationOpen" :api-base="apiBase" @close="newConversationOpen = false" @choose="chooseRecipient" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
-import MailboxList, { type AggregatedInboxItem } from './MailboxList.vue'
-import MailboxDetail from './MailboxDetail.vue'
-import MailComposer from './MailComposer.vue'
-import { fetchMailboxThreads, fetchNotifications, sendMailboxThread } from '../api/postOffice'
-import type { NotificationItem, MailboxThread } from '@alumni/shared'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { getClassmateStudent } from '@alumni/shared'
+import type { DirectConversation, NotificationItem } from '@alumni/shared'
+import { fetchInboxClassmates } from '../api/inbox'
+import { useInbox } from '../composables/useInbox'
+import DirectConversationList from './DirectConversationList.vue'
+import DirectConversationView from './DirectConversationView.vue'
+import NewConversationDialog from './NewConversationDialog.vue'
+import NotificationDetail from './NotificationDetail.vue'
+import NotificationList from './NotificationList.vue'
 
-const props = defineProps<{
-  apiBase: string
-  defaultRecipient?: string
-}>()
+const props = defineProps<{ apiBase: string; defaultRecipient?: string }>()
+const newConversationOpen = ref(false)
+const directTab = ref<HTMLButtonElement | null>(null)
+const notificationTab = ref<HTMLButtonElement | null>(null)
+const currentSlug = getClassmateStudent<{ slug: string }>()?.slug || ''
+const {
+  mode,
+  conversations,
+  notifications,
+  selectedConversation,
+  selectedNotification,
+  selectedPeer,
+  messages,
+  unread,
+  loading,
+  sending,
+  connectionState,
+  error,
+  loadInitial,
+  selectConversation,
+  selectNotification,
+  startConversation,
+  clearSelection,
+  send,
+  retry,
+} = useInbox(props.apiBase)
+const detailOpen = computed(() => Boolean(selectedConversation.value || selectedNotification.value || selectedPeer.value))
 
-const mode = ref<'inbox' | 'compose'>(props.defaultRecipient ? 'compose' : 'inbox')
-const loading = ref(false)
-const sending = ref(false)
-const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null)
-
-const mails = ref<MailboxThread[]>([])
-const notifications = ref<NotificationItem[]>([])
-const selectedItem = ref<AggregatedInboxItem | null>(null)
-const composerRef = ref<InstanceType<typeof MailComposer> | null>(null)
-
-// 广播自定义事件通知更新未读数
-function broadcastInboxChanged() {
-  const event = new CustomEvent('alumni:inbox-changed')
-  window.dispatchEvent(event)
+async function chooseRecipient(recipient: Parameters<typeof startConversation>[0]) {
+  await startConversation(recipient)
 }
 
-// 切换收发件模式
-function switchMode(newMode: 'inbox' | 'compose') {
-  mode.value = newMode
-  notice.value = null
-  if (newMode === 'inbox') {
-    selectedItem.value = null
-    loadData()
+function handleTabKey(event: KeyboardEvent) {
+  const nextMode = event.key === 'ArrowRight' || event.key === 'End'
+    ? 'notifications'
+    : event.key === 'ArrowLeft' || event.key === 'Home'
+      ? 'direct'
+      : null
+  if (!nextMode) return
+  event.preventDefault()
+  mode.value = nextMode
+  void nextTick(() => (nextMode === 'direct' ? directTab.value : notificationTab.value)?.focus())
+}
+
+function writeDetailUrl(key: 'conversation' | 'notification', value: string) {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('conversation')
+  url.searchParams.delete('notification')
+  url.searchParams.set(key, value)
+  window.history.pushState({ alumniInbox: true }, '', url)
+}
+
+async function openConversation(conversation: DirectConversation, updateUrl = true) {
+  await selectConversation(conversation)
+  if (updateUrl) writeDetailUrl('conversation', conversation.id)
+}
+
+async function openNotification(notification: NotificationItem, updateUrl = true) {
+  await selectNotification(notification)
+  if (updateUrl) writeDetailUrl('notification', notification.id)
+}
+
+function closeDetail() {
+  if (window.history.state?.alumniInbox) {
+    window.history.back()
+    return
   }
+
+  const url = new URL(window.location.href)
+  url.searchParams.delete('conversation')
+  url.searchParams.delete('notification')
+  window.history.replaceState(window.history.state, '', url)
+  clearSelection()
 }
 
-// 并行加载通知与邮件列表
-async function loadData() {
-  loading.value = true
+function restoreFromLocation() {
+  const params = new URLSearchParams(window.location.search)
+  const conversation = conversations.value.find(item => item.id === params.get('conversation'))
+  const notification = notifications.value.find(item => item.id === params.get('notification'))
+  if (conversation) return void openConversation(conversation, false)
+  if (notification) return void openNotification(notification, false)
+  clearSelection()
+}
+
+onMounted(async () => {
+  await loadInitial()
+  restoreFromLocation()
+  if (!props.defaultRecipient) return
+
+  const existing = conversations.value.find(item => item.peer.slug === props.defaultRecipient)
+  if (existing) {
+    await selectConversation(existing)
+    return
+  }
+
   try {
-    const [threadsRes, notifRes] = await Promise.all([
-      fetchMailboxThreads(props.apiBase),
-      fetchNotifications(props.apiBase)
-    ])
-    if (threadsRes.success) {
-      mails.value = threadsRes.data?.items || []
-    }
-    notifications.value = notifRes.items || []
-  } catch (err) {
-    console.error('加载信箱数据失败', err)
-  } finally {
-    loading.value = false
+    const classmates = await fetchInboxClassmates(props.apiBase)
+    const recipient = classmates.find(item => item.slug === props.defaultRecipient)
+    if (recipient) await startConversation(recipient)
+  } catch {
+    newConversationOpen.value = true
   }
-}
+})
 
-function handleSelectItem(item: AggregatedInboxItem) {
-  selectedItem.value = item
-}
-
-// 处理已读更新状态
-function handleItemRead(item: AggregatedInboxItem) {
-  if (item.source === 'mail') {
-    const found = mails.value.find(m => m.id === item.id)
-    if (found && found.unread) {
-      found.unread = false
-      broadcastInboxChanged()
-    }
-  } else if (item.source === 'notification') {
-    const found = notifications.value.find(n => n.id === item.id)
-    if (found && !found.readAt) {
-      found.readAt = new Date().toISOString()
-      broadcastInboxChanged()
-    }
-  }
-}
-
-// 回复成功，触发广播
-function handleReplied() {
-  broadcastInboxChanged()
-}
-
-// 新建邮件发送
-async function handleSendMail(payload: { recipientSlug: string; subject: string; body: string }) {
-  sending.value = true
-  notice.value = null
-  try {
-    const data = await sendMailboxThread(props.apiBase, payload)
-    if (data.success) {
-      notice.value = { type: 'success', text: '信件已寄出' }
-      if (composerRef.value) {
-        composerRef.value.reset()
-      }
-      
-      // 发送成功后重新加载数据并广播通知
-      await loadData()
-      broadcastInboxChanged()
-      
-      // 成功寄出后延时切回列表
-      setTimeout(() => {
-        mode.value = 'inbox'
-        selectedItem.value = null
-        notice.value = null
-      }, 1000)
-    } else {
-      notice.value = { type: 'error', text: data.message || '发送失败' }
-    }
-  } catch (err) {
-    notice.value = { type: 'error', text: '网络错误，请稍后重试' }
-  } finally {
-    sending.value = false
-  }
-}
-
-onMounted(loadData)
+onMounted(() => window.addEventListener('popstate', restoreFromLocation))
+onBeforeUnmount(() => window.removeEventListener('popstate', restoreFromLocation))
 </script>
 
 <style scoped>
-.mailbox-app {
-  display: grid;
-  gap: var(--spacing-lg);
-}
-
-.mailbox-toolbar {
-  display: flex;
-  gap: var(--spacing-xs);
-  border-bottom: 1px solid var(--color-paper-border);
-  padding-bottom: var(--spacing-sm);
-}
-
-.mailbox-toolbar button {
-  min-height: 40px;
-  padding: 0 var(--spacing-md);
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-pill);
-  background: var(--color-paper-card);
-  color: var(--color-paper-muted);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.mailbox-toolbar button.active {
-  border-color: var(--color-paper-brown);
-  color: var(--color-paper-brown);
-  background: rgba(139, 94, 60, 0.05);
-}
-
-.compose-container {
-  max-width: 800px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-/* 左右分栏布局 */
-.mailbox-layout {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: var(--spacing-lg);
-  align-items: start;
-}
-
-.mailbox-list-pane {
-  min-width: 0;
-}
-
-.mailbox-detail-pane {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.mobile-detail-header {
-  display: none;
-}
-
-.btn-back-link {
-  background: none;
-  border: none;
-  color: var(--color-paper-brown);
-  font-weight: 600;
-  cursor: pointer;
-  padding: var(--spacing-xs) 0;
-  font-size: var(--type-body-md-size);
-}
-
-@media (max-width: 992px) {
-  .mailbox-layout {
-    grid-template-columns: 320px 1fr;
-  }
-}
-
-/* 移动端响应式布局 */
+.mailbox-app { display: grid; gap: var(--spacing-md); }
+.mailbox-toolbar { display: flex; align-items: center; gap: var(--spacing-md); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-paper-border); }
+.mailbox-tabs { display: inline-flex; align-items: center; gap: 3px; }
+.mailbox-tabs button { position: relative; min-height: 40px; padding: 0 var(--spacing-md); color: var(--color-paper-muted); background: transparent; border: 0; border-bottom: 2px solid transparent; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.mailbox-tabs button[aria-selected="true"] { color: var(--color-paper-ink); border-bottom-color: var(--color-paper-stamp-red); }
+.mailbox-tabs span { display: inline-grid; min-width: 17px; height: 17px; margin-left: 5px; padding: 0 4px; place-items: center; color: #fffaf2; background: var(--color-paper-stamp-red); border-radius: 9px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.mailbox-error { margin: 0; padding: 9px 12px; color: var(--color-paper-stamp-red); background: color-mix(in srgb, var(--color-paper-stamp-red) 7%, var(--color-paper-card)); border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 26%, var(--color-paper-border)); font-size: 13px; }
+.mailbox-workspace { display: grid; grid-template-columns: clamp(320px, 30vw, 360px) minmax(0, 1fr); min-height: 640px; border-top: 1px solid var(--color-paper-border); }
+.mailbox-sidebar { min-width: 0; background: var(--color-paper-card); border-right: 1px solid var(--color-paper-border); }
+.mailbox-detail-pane { min-width: 0; }
+.mobile-detail-back { display: none; }
 @media (max-width: 768px) {
-  .mailbox-layout {
-    grid-template-columns: 1fr;
-  }
-  
-  .mailbox-layout .mailbox-detail-pane {
-    display: none;
-  }
-  
-  .mailbox-layout.has-selection .mailbox-list-pane {
-    display: none;
-  }
-  
-  .mailbox-layout.has-selection .mailbox-detail-pane {
-    display: flex;
-  }
-  
-  .mobile-detail-header {
-    display: block;
-    margin-bottom: var(--spacing-sm);
-  }
+  .mailbox-toolbar { align-items: flex-start; }
+  .mailbox-workspace { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .mailbox-sidebar { border-right: 0; border-bottom: 1px solid var(--color-paper-border); }
+  .mailbox-workspace.has-detail .mailbox-sidebar { display: none; }
+  .mailbox-workspace:not(.has-detail) .mailbox-detail-pane { display: none; }
+  .mobile-detail-back { display: inline-flex; align-items: center; min-height: 40px; padding: 0; color: var(--color-paper-brown); background: transparent; border: 0; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 }
 </style>

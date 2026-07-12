@@ -7,8 +7,17 @@ type Bindings = {
 
 export const mailboxRoutes = new Hono<{ Bindings: Bindings }>()
 
-const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
 const trimText = (val: unknown, max: number) => String(val || '').trim().slice(0, max)
+
+async function legacyMailboxWriteGone(c: any) {
+  const identity = await requireClassmate(c)
+  if (isClassmateResponse(identity)) return identity
+  c.header('Deprecation', 'true')
+  return c.json({
+    success: false,
+    message: '旧信箱写入接口已停用，请升级到同学私聊',
+  }, 410)
+}
 
 mailboxRoutes.get('/mailbox/summary', async (c) => {
   const identity = await requireClassmate(c)
@@ -112,84 +121,6 @@ mailboxRoutes.get('/mailbox/threads/:id', async (c) => {
   })
 })
 
-mailboxRoutes.post('/mailbox/threads', async (c) => {
-  const identity = await requireClassmate(c)
-  if (isClassmateResponse(identity)) return identity
-  if (identity.mustChangePassword) {
-    return c.json({ success: false, message: '首次登录请先修改密码后再写信' }, 403)
-  }
+mailboxRoutes.post('/mailbox/threads', legacyMailboxWriteGone)
 
-  const body = await c.req.json()
-  const recipientSlug = String(body.recipientSlug || '').trim()
-  const subject = trimText(body.subject, 80)
-  const messageBody = trimText(body.body, 2000)
-
-  if (!recipientSlug || !subject || !messageBody) {
-    return c.json({ success: false, message: '收件人、标题和正文必填' }, 400)
-  }
-  if (recipientSlug === identity.slug) {
-    return c.json({ success: false, message: '不能给自己写信' }, 400)
-  }
-
-  const recipient = await c.env.DB.prepare(
-    "SELECT slug FROM students WHERE slug = ? AND account_status != 'locked'"
-  ).bind(recipientSlug).first()
-  if (!recipient) return c.json({ success: false, message: '收件人不存在或账号不可用' }, 404)
-
-  const threadId = id('mail')
-  const messageId = id('mailmsg')
-  const recipientId = id('mailrcp')
-
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      `INSERT INTO mail_threads
-        (id, subject, thread_type, created_by_type, created_by_slug, allow_reply)
-       VALUES (?, ?, 'private', 'student', ?, 1)`
-    ).bind(threadId, subject, identity.slug),
-    c.env.DB.prepare(
-      `INSERT INTO mail_messages
-        (id, thread_id, sender_type, sender_slug, body)
-       VALUES (?, ?, 'student', ?, ?)`
-    ).bind(messageId, threadId, identity.slug, messageBody),
-    c.env.DB.prepare(
-      `INSERT INTO mail_recipients
-        (id, thread_id, recipient_slug)
-       VALUES (?, ?, ?)`
-    ).bind(recipientId, threadId, recipientSlug)
-  ])
-
-  return c.json({ success: true, message: '信件已投递', data: { id: threadId } })
-})
-
-mailboxRoutes.post('/mailbox/threads/:id/messages', async (c) => {
-  const identity = await requireClassmate(c)
-  if (isClassmateResponse(identity)) return identity
-
-  const threadId = c.req.param('id')
-  const body = await c.req.json()
-  const messageBody = trimText(body.body, 2000)
-  if (!messageBody) return c.json({ success: false, message: '正文不能为空' }, 400)
-
-  const thread = await c.env.DB.prepare('SELECT * FROM mail_threads WHERE id = ? AND allow_reply = 1').bind(threadId).first() as any
-  if (!thread) return c.json({ success: false, message: '信件不存在或不允许回复' }, 404)
-
-  const isCreator = thread.created_by_type === 'student' && thread.created_by_slug === identity.slug
-  const isRecipient = await c.env.DB.prepare(
-    'SELECT thread_id FROM mail_recipients WHERE thread_id = ? AND recipient_slug = ? AND deleted_at IS NULL'
-  ).bind(threadId, identity.slug).first()
-  if (!isCreator && !isRecipient) return c.json({ success: false, message: '无权回复这封信' }, 403)
-
-  const messageId = id('mailmsg')
-
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      "INSERT INTO mail_messages (id, thread_id, sender_type, sender_slug, body) VALUES (?, ?, 'student', ?, ?)"
-    ).bind(messageId, threadId, identity.slug, messageBody),
-    c.env.DB.prepare("UPDATE mail_threads SET updated_at = datetime('now') WHERE id = ?").bind(threadId),
-    c.env.DB.prepare(
-      "UPDATE mail_recipients SET read_at = NULL WHERE thread_id = ? AND recipient_slug != ?"
-    ).bind(threadId, identity.slug)
-  ])
-
-  return c.json({ success: true, message: '回复已寄出', data: { id: messageId } })
-})
+mailboxRoutes.post('/mailbox/threads/:id/messages', legacyMailboxWriteGone)

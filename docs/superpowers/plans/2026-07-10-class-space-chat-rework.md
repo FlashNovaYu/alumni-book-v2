@@ -952,7 +952,7 @@ git commit -m "feat: build class space group chat stage"
 - Delete: `packages/site-astro/src/components/MessageCardGrid.vue`
 - Delete: `packages/site-astro/src/composables/usePublicMessages.ts`
 
-- [ ] **Step 1：增加交互失败测试**
+- [x] **Step 1：增加交互失败测试**
 
 覆盖引用预览、四种回应切换、2 分钟撤回、个人记录、5 秒后首次 sync、离开页面后无继续请求、阅读历史时不自动跳底：
 
@@ -963,25 +963,25 @@ await page.getByRole('button', { name: '回应：赞' }).click()
 await expect(page.getByRole('button', { name: /赞，1 人/ })).toHaveAttribute('aria-pressed', 'true')
 ```
 
-- [ ] **Step 2：运行并确认失败**
+- [x] **Step 2：运行并确认失败**
 
 Run: `pnpm --filter site-astro exec tsx scripts/run-playwright-preview.ts tests/chat-rework-flow.spec.ts`
 
 Expected: FAIL，引用或个人记录入口不存在。
 
-- [ ] **Step 3：扩展 useGroupChat**
+- [x] **Step 3：扩展 useGroupChat**
 
 增加 `replyTarget/react/recall/openMine/loadMine`。同步复用 `useVisibilityPolling`，初始 delay 5000ms；新/变更消息按 ID覆盖，hidden 从公开 Map 删除，撤回替换为占位。组件卸载时轮询必须停止。
 
-- [ ] **Step 4：实现可访问交互**
+- [x] **Step 4：实现可访问交互**
 
 Emoji 文本菜单和回应菜单都用按钮，支持 Escape。回应按钮使用 `aria-pressed`。撤回仅在 `canRecall` 时出现。引用目标被撤回时显示“原消息不可用”。
 
-- [ ] **Step 5：实现个人记录抽屉**
+- [x] **Step 5：实现个人记录抽屉**
 
 抽屉调用 `/group-chat/mine`，分组展示历史待审核、未通过、被隐藏和本人撤回；只显示当前账号内容。关闭和路由切换恢复焦点及滚动锁定。
 
-- [ ] **Step 6：切换旧留言路由并清理孤立组件**
+- [x] **Step 6：切换旧留言路由并清理孤立组件**
 
 把 `/messages` 改为基础路径安全重定向到 `/class-space#group-chat`。更新 `class-space-navigation-static.test.ts` 和 `post-office-flow.spec.ts`，把旧公共留言流程替换为重定向与群聊断言；邮件相关用例暂时保留。确认无引用后删除 `PublicMessageBoard.vue`、`MessageComposer.vue`、`MessageCardGrid.vue` 和 `usePublicMessages.ts`。
 
@@ -989,7 +989,7 @@ Run: `rg "PublicMessageBoard|usePublicMessages|MessageComposer|MessageCardGrid" 
 
 Expected: 无输出。
 
-- [ ] **Step 7：验证交互与生命周期并提交**
+- [x] **Step 7：验证交互与生命周期并提交**
 
 Run: `pnpm --filter site-astro exec vitest run tests/chat-rework-static.test.ts tests/animation-ownership.test.ts`
 

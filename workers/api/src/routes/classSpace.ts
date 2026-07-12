@@ -1,4 +1,7 @@
 import { Hono } from 'hono'
+import { encodeCursor, type CursorValue } from '../lib/cursor'
+import { getActiveMute, listGroupMessages } from '../lib/groupChat'
+import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { getTimelineFeed } from '../lib/timelineFeed'
 
 type Bindings = { DB: D1Database }
@@ -9,34 +12,33 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
 }
 
 classSpaceRoutes.get('/class-space/overview', async (c) => {
-  const [messageRows, albumRows, messageCount, albumCount, timeline] = await Promise.all([
-    c.env.DB.prepare(
-      "SELECT id, author_slug, author_name, content, card_style, featured, pinned, reactions, created_at, reviewed_at FROM public_messages WHERE status = 'approved' ORDER BY pinned DESC, featured DESC, created_at DESC LIMIT 8"
-    ).all(),
+  const identity = await requireClassmate(c)
+  if (isClassmateResponse(identity)) return identity
+
+  const chatItems = []
+  let before: CursorValue | undefined
+  while (chatItems.length < 30) {
+    const page = await listGroupMessages(c.env.DB, identity.slug, { before, includeStatusChanges: true, limit: 30 })
+    chatItems.unshift(...page.filter((item) => item.status !== 'hidden'))
+    if (page.length < 30) break
+    const oldest = page[0]
+    before = { timestamp: oldest.createdAt, id: oldest.id }
+  }
+  const chat = chatItems.slice(-30)
+
+  const [albumRows, groupMessageCount, albumCount, timeline, mute] = await Promise.all([
     c.env.DB.prepare(
       `SELECT a.id, a.title, a.tags,
         COALESCE(a.cover_r2_key, (SELECT p.r2_key FROM photos p WHERE p.album_id = a.id ORDER BY p.sort_order, p.created_at LIMIT 1)) AS cover_r2_key,
         (SELECT COUNT(*) FROM photos p WHERE p.album_id = a.id) AS photo_count
        FROM albums a ORDER BY a.featured DESC, a.sort_order, a.created_at DESC LIMIT 4`
     ).all(),
-    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE status = 'approved'").first(),
+    c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE status IN ('visible', 'recalled_by_author', 'recalled_by_admin')").first(),
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM albums').first(),
     getTimelineFeed(c.env.DB, { limit: 8 }),
+    getActiveMute(c.env.DB, identity.slug),
   ])
 
-  const messages = (messageRows.results || []).map((row: any) => ({
-    id: row.id,
-    authorSlug: row.author_slug,
-    authorName: row.author_name,
-    content: row.content,
-    cardStyle: row.card_style || 'paper',
-    status: 'approved',
-    featured: !!row.featured,
-    pinned: !!row.pinned,
-    reactions: parseJson(row.reactions, {}),
-    createdAt: row.created_at,
-    reviewedAt: row.reviewed_at || null,
-  }))
   const albums = (albumRows.results || []).map((row: any) => ({
     id: row.id,
     title: row.title,
@@ -45,15 +47,21 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     tags: parseJson(row.tags, []),
   }))
 
-  c.header('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=300')
+  c.header('Cache-Control', 'private, no-store')
   return c.json({
     success: true,
     data: {
-      messages,
+      chat: {
+        items: chat,
+        cursor: encodeCursor(chat[0]
+          ? { timestamp: chat[0].createdAt, id: chat[0].id }
+          : { timestamp: '1970-01-01T00:00:00.000Z', id: '\uffff' }),
+        mute,
+      },
       albums,
       timeline,
       counts: {
-        approvedMessages: Number((messageCount as any)?.count || 0),
+        groupMessages: Number((groupMessageCount as any)?.count || 0),
         albums: Number((albumCount as any)?.count || 0),
         timelineItems: timeline.length,
       },

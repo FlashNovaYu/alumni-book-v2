@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { createNotification } from '../lib/notificationService'
+import { createGroupChatMessage } from '../lib/groupChatCreate'
+import type { GroupChatCreatorIdentity } from '../lib/groupChatCreate'
 
 type Bindings = {
   DB: D1Database
 }
-
-const ALLOWED_STYLES = ['paper', 'chalkboard', 'photoback', 'letter']
 
 export const publicMessagesRoutes = new Hono<{ Bindings: Bindings }>()
 
@@ -18,6 +18,27 @@ function safeParseJson(str: string, fallback: any = {}) {
   }
 }
 
+function legacyPublicStatus(status: string) {
+  if (status === 'visible') return 'approved'
+  if (status === 'recalled_by_author' || status === 'recalled_by_admin') return 'hidden'
+  return status
+}
+
+function bytesToHex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function legacyClientNonce(identity: GroupChatCreatorIdentity, body: any) {
+  const supplied = typeof body?.clientNonce === 'string' ? body.clientNonce.trim() : ''
+  if (supplied) return supplied
+
+  // Older clients have no nonce. A short time window makes a lost-response retry idempotent.
+  const window = Math.floor(Date.now() / 30_000)
+  const fingerprint = [identity.slug, window, body?.content || '', body?.cardStyle || ''].join('\u0000')
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fingerprint))
+  return `legacy:${window}:${bytesToHex(new Uint8Array(digest).slice(0, 12))}`
+}
+
 function formatPublicMessage(row: any) {
   return {
     id: row.id,
@@ -25,7 +46,7 @@ function formatPublicMessage(row: any) {
     authorName: row.author_name,
     content: row.content,
     cardStyle: row.card_style || 'paper',
-    status: row.status || 'pending',
+    status: legacyPublicStatus(row.status || 'pending'),
     reviewReason: row.review_reason || null,
     featured: !!row.featured,
     pinned: !!row.pinned,
@@ -36,9 +57,12 @@ function formatPublicMessage(row: any) {
 }
 
 publicMessagesRoutes.get('/public-messages', async (c) => {
+  const identity = await requireClassmate(c)
+  if (isClassmateResponse(identity)) return identity
+
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM public_messages
-     WHERE status = 'approved'
+     WHERE status = 'visible'
      ORDER BY pinned DESC, featured DESC, created_at DESC
      LIMIT 20`
   ).all()
@@ -63,29 +87,33 @@ publicMessagesRoutes.get('/public-messages/mine', async (c) => {
 publicMessagesRoutes.post('/public-messages', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
-  if (identity.mustChangePassword) {
-    return c.json({ success: false, message: '首次登录请先修改密码后再提交留言' }, 403)
-  }
 
   const body = await c.req.json().catch(() => ({}))
-  const content = String(body.content || '').trim()
-  if (!content || content.length > 500) {
-    return c.json({ success: false, message: '留言内容必须在 1-500 字之间' }, 400)
+  const creator = identity as GroupChatCreatorIdentity
+
+  const result = await createGroupChatMessage(c.env.DB, creator, {
+    content: body?.content,
+    cardStyle: body?.cardStyle,
+    clientNonce: await legacyClientNonce(creator, body),
+  })
+
+  if (!result.ok) {
+    const res = c.json({ success: false, message: result.message }, result.status)
+    if (result.retryAfter) {
+      res.headers.set('Retry-After', String(result.retryAfter))
+    }
+    return res
   }
-
-  const cardStyle = ALLOWED_STYLES.includes(body.cardStyle) ? body.cardStyle : 'paper'
-  const id = `pm_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
-
-  await c.env.DB.prepare(
-    `INSERT INTO public_messages
-      (id, author_slug, author_name, content, card_style, status)
-     VALUES (?, ?, ?, ?, ?, 'pending')`
-  ).bind(id, identity.slug, identity.name, content, cardStyle).run()
 
   return c.json({
     success: true,
-    message: '留言已提交，等待审核',
-    data: { id, status: 'pending', content, cardStyle },
+    message: '留言已发布',
+    data: {
+      id: result.message.id,
+      status: 'approved',
+      content: result.message.content,
+      cardStyle: result.cardStyle,
+    },
   })
 })
 
@@ -106,10 +134,10 @@ publicMessagesRoutes.put('/public-messages/:id/react', async (c) => {
       COALESCE(reactions, '{}'),
       ?,
       COALESCE(CAST(json_extract(COALESCE(reactions, '{}'), ?) AS INTEGER), 0) + 1
-    ) WHERE id = ? AND status = 'approved'`
+    ) WHERE id = ? AND status = 'visible'`
   ).bind(path, path, id).run()
 
-  const row = await c.env.DB.prepare('SELECT reactions FROM public_messages WHERE id = ? AND status = \'approved\'').bind(id).first() as any
+  const row = await c.env.DB.prepare('SELECT reactions FROM public_messages WHERE id = ? AND status = \'visible\'').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
   return c.json({ success: true, data: { reactions: safeParseJson(row.reactions) } })
 })
@@ -117,10 +145,11 @@ publicMessagesRoutes.put('/public-messages/:id/react', async (c) => {
 publicMessagesRoutes.get('/admin/public-messages', async (c) => {
   const status = c.req.query('status')
   const binds: string[] = []
-  let sql = 'SELECT * FROM public_messages WHERE 1=1'
+  let sql = "SELECT * FROM public_messages WHERE (client_nonce IS NULL OR client_nonce LIKE 'legacy:%')"
   if (status) {
+    const databaseStatus = status === 'approved' ? 'visible' : status
     sql += ' AND status = ?'
-    binds.push(status)
+    binds.push(databaseStatus)
   }
   sql += ' ORDER BY pinned DESC, featured DESC, created_at DESC LIMIT 100'
 
@@ -130,12 +159,18 @@ publicMessagesRoutes.get('/admin/public-messages', async (c) => {
 
 publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
   const id = c.req.param('id')
-  const row = await c.env.DB.prepare('SELECT author_slug FROM public_messages WHERE id = ?').bind(id).first() as any
-  if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
 
-  await c.env.DB.prepare(
-    "UPDATE public_messages SET status = 'approved', reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
+  const result = await c.env.DB.prepare(
+    "UPDATE public_messages SET status = 'visible', reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND status = 'pending'"
   ).bind(id).run()
+
+  if (result.meta.changes !== 1) {
+    const row = await c.env.DB.prepare('SELECT id, status FROM public_messages WHERE id = ?').bind(id).first() as any
+    if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
+    return c.json({ success: false, message: '该留言状态不允许此操作' }, 409)
+  }
+
+  const row = await c.env.DB.prepare('SELECT author_slug FROM public_messages WHERE id = ?').bind(id).first() as any
   await c.env.DB.prepare(
     "INSERT INTO content_reviews (id, content_type, content_id, action) VALUES (?, 'public_message', ?, 'approve')"
   ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id).run()
@@ -183,7 +218,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/hide', async (c) => {
   const { hidden } = await c.req.json().catch(() => ({}))
   await c.env.DB.prepare(
     "UPDATE public_messages SET status = ?, updated_at = datetime('now') WHERE id = ?"
-  ).bind(hidden ? 'hidden' : 'approved', id).run()
+  ).bind(hidden ? 'hidden' : 'visible', id).run()
   return c.json({ success: true, message: hidden ? '已隐藏' : '已取消隐藏' })
 })
 

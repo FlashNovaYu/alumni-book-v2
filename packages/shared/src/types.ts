@@ -255,6 +255,39 @@ export interface PublicMessage {
   reviewedAt?: string | null
 }
 
+export type GroupChatStatus = 'visible' | 'hidden' | 'recalled_by_author' | 'recalled_by_admin' | 'pending' | 'rejected'
+
+export interface GroupChatMessage {
+  id: string
+  author: ClassmateSessionStudent
+  content: string | null
+  status: GroupChatStatus
+  replyTo: { id: string; authorName: string; preview: string } | null
+  reactionCounts: Record<string, number>
+  myReaction: string | null
+  canRecall: boolean
+  moderationReason?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DirectConversation {
+  id: string
+  peer: ClassmateSessionStudent
+  lastMessage: Pick<DirectMessage, 'id' | 'senderSlug' | 'body' | 'createdAt'> | null
+  unreadCount: number
+  updatedAt: string
+}
+
+export interface DirectMessage {
+  id: string
+  conversationId: string
+  senderSlug: string
+  recipientSlug: string
+  body: string
+  createdAt: string
+}
+
 export interface NotificationItem {
   id: string
   type: string
@@ -316,20 +349,25 @@ export interface ClassSpaceTimelinePreview {
 }
 
 export interface ClassSpaceOverview {
-  messages: PublicMessage[]
+  chat: {
+    items: GroupChatMessage[]
+    cursor: string
+    mute: { reason: string; mutedUntil: string | null } | null
+  }
   albums: ClassSpaceAlbumPreview[]
   timeline: ClassSpaceTimelinePreview[]
   counts: {
-    approvedMessages: number
+    groupMessages: number
     albums: number
     timelineItems: number
   }
 }
 
 export interface InboxSummary {
+  directUnread: number
   notificationUnread: number
-  mailUnread: number
   totalUnread: number
+  mailUnread?: number
 }
 
 export interface MailboxThreadDetail {

@@ -1,4 +1,10 @@
-import { apiFetch, type ApiResponse } from '@alumni/shared'
+import {
+  ApiRequestError,
+  requestJson,
+  UPLOAD_REQUEST_TIMEOUT_MS,
+} from './network'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 function getToken(): string | null {
   return sessionStorage.getItem('admin_token')
@@ -9,66 +15,68 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+function redirectToLogin(): void {
+  sessionStorage.removeItem('admin_token')
+  const adminBase = import.meta.env.BASE_URL || '/admin/'
+  window.location.href = `${adminBase}#/login`
+}
+
 export async function adminFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-  const url = `${API_BASE}${path}`
-
-  const { headers: optHeaders, ...restOpts } = options
-
-  const isFormData = options.body instanceof FormData
-
-  const res = await fetch(url, {
-    ...restOpts,
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...authHeaders(),
-      ...optHeaders,
-    },
-  })
-
-  if (res.status === 401) {
-    sessionStorage.removeItem('admin_token')
-    const adminBase = import.meta.env.BASE_URL || '/admin/'
-    window.location.href = `${adminBase}#/login`
-    throw new Error('未授权')
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+  const headers = new Headers(options.headers)
+  if (!isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  for (const [name, value] of Object.entries(authHeaders())) {
+    headers.set(name, value)
   }
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }))
-    throw new Error(error.message || `请求失败: ${res.status}`)
+  try {
+    return await requestJson<T>(path, { ...options, headers }, {
+      apiBase: API_BASE,
+      timeoutMs: isFormData ? UPLOAD_REQUEST_TIMEOUT_MS : undefined,
+    })
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 401) {
+      redirectToLogin()
+      throw new Error('未授权')
+    }
+    throw error
   }
-
-  return res.json()
 }
 
 export async function adminLogin(password: string): Promise<string> {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-  let res: Response
-  try {
-    res = await fetch(`${API_BASE}/api/auth/login`, {
+  const data = await requestJson<{ data?: { token?: string }, message?: string }>(
+    '/api/auth/login',
+    {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
-    })
-  } catch {
-    throw new Error('网络连接失败，请检查网络后重试')
-  }
+    },
+    { apiBase: API_BASE },
+  )
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: '登录失败' }))
-    throw new Error(error.message || `请求失败 (${res.status})`)
-  }
-
-  const data = await res.json()
   const token = data.data?.token
   if (!token) {
     throw new Error(data.message || '登录响应异常，请重试')
   }
   sessionStorage.setItem('admin_token', token)
   return token
+}
+
+export async function verifyAdminToken(token: string): Promise<boolean> {
+  try {
+    await requestJson('/api/auth/verify', {
+      headers: { Authorization: `Bearer ${token}` },
+    }, { apiBase: API_BASE })
+    return true
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status !== undefined) return false
+    throw error
+  }
 }
 
 export async function adminLogout(): Promise<void> {
@@ -80,7 +88,5 @@ export async function adminLogout(): Promise<void> {
       console.error('Logout failed on server:', e)
     }
   }
-  sessionStorage.removeItem('admin_token')
-  const adminBase = import.meta.env.BASE_URL || '/admin/'
-  window.location.href = `${adminBase}#/login`
+  redirectToLogin()
 }

@@ -20,6 +20,10 @@ import { mailboxRoutes } from './routes/mailbox'
 import { adminMailRoutes } from './routes/adminMail'
 import { etag } from 'hono/etag'
 import { classSpaceRoutes } from './routes/classSpace'
+import { groupChatRoutes } from './routes/groupChat'
+import { adminGuard } from './lib/adminGuard'
+import { adminCommunityRoutes } from './routes/adminCommunity'
+import { directConversationsRoutes } from './routes/directConversations'
 
 
 type Bindings = {
@@ -77,7 +81,6 @@ const PUBLIC_REVALIDATED_GET_PREFIXES = [
   '/api/messages',
   '/api/timeline',
   '/api/highlights',
-  '/api/public-messages',
 ]
 
 function isPublicRevalidatedGet(path: string) {
@@ -95,7 +98,7 @@ app.use('/api/*', async (c, next) => {
   if (path.startsWith('/api/files/')) return
 
   if (path === '/api/class-space/overview') {
-    c.res.headers.set('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=300')
+    c.res.headers.set('Cache-Control', 'private, no-store')
     return
   }
 
@@ -131,6 +134,7 @@ app.get('/api/health', (c) => {
 // 认证路由 (不需要 JWT)
 app.route('/api/auth', authRoutes)
 app.route('/api/classmate-auth', classmateAuthRoutes)
+app.route('/api', groupChatRoutes)
 
 // 公开路由 (不需要 JWT)
 app.get('/api/classmates', async (c) => {
@@ -431,102 +435,58 @@ function jwtGuard(secret: string) {
   }
 }
 
-// adminGuard 结合了 JWT 签名校验与数据库 admin_sessions 状态校验，防止注销后的 Token 仍可通过验证。
-function adminGuard(secret: string) {
-  const mw = createJwtMiddleware(secret)
-  return async (c: any, next: any) => {
-    try {
-      let isVerified = false
-      let response: any = null
-
-      await mw(c, async () => {
-        const authHeader = c.req.header('Authorization')
-        const token = authHeader?.replace('Bearer ', '')
-        if (!token) {
-          response = c.json({ success: false, message: '未授权' }, 401)
-          return
-        }
-
-        const session = await c.env.DB.prepare(
-          "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > datetime('now')"
-        ).bind(token).first()
-
-        if (!session) {
-          response = c.json({ success: false, message: '登录已失效' }, 401)
-          return
-        }
-
-        isVerified = true
-      })
-
-      if (isVerified) {
-        return next()
-      }
-
-      if (response) {
-        return response
-      }
-
-      return c.json({ success: false, message: '未授权' }, 401)
-    } catch (e) {
-      if (e instanceof HTTPException) return e.getResponse()
-      throw e
-    }
-  }
-}
-
 // 需要认证的路由
 app.use('/api/admin/*', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/students', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/students/:slug', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/config', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/albums', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/albums/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/photos/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/upload', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/admin/messages', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/admin/messages/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/timeline/events', async (c, next) => {
   if (c.req.method === 'GET') return next()
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 app.use('/api/timeline/events/:id', async (c, next) => {
-  return adminGuard(c.env.JWT_SECRET)(c, next)
+  return adminGuard(c, next)
 })
 
 // 注册路由
@@ -541,8 +501,10 @@ app.route('/api/highlights', highlightsRoutes)
 app.route('/api', publicMessagesRoutes)
 app.route('/api', notificationsRoutes)
 app.route('/api', inboxRoutes)
+app.route('/api', directConversationsRoutes)
 app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
+app.route('/api', adminCommunityRoutes)
 
 // 管理后台统计
 app.get('/api/admin/stats', async (c) => {

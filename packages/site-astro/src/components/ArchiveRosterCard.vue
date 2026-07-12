@@ -1,7 +1,7 @@
 <template>
   <a :href="card.hasPage ? card.href : '#'" class="archive-card">
     <div class="archive-card__avatar">
-      <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" loading="lazy" decoding="async" @error="avatarError = true" />
+      <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
       <span v-else>{{ card.name.charAt(0) }}</span>
     </div>
     <div class="archive-card__body">

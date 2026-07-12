@@ -15,7 +15,7 @@ const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/')
         <p class="page-header__subtitle">汇聚班级温情，留存青春足迹</p>
       </header>
       
-      <ClassSpaceHub client:load apiBase={CLIENT_API_BASE} />
+      <ClassSpaceHub client:load apiBase={CLIENT_API_BASE} siteBase={base} />
     </div>
   </div>
 </MainLayout>

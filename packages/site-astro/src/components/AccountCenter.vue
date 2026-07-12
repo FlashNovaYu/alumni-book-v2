@@ -25,11 +25,11 @@
 
       <!-- 快速导航操作区 -->
       <div class="quick-links">
-        <a :href="`/student/${student.slug}/`" class="link-item btn-secondary">
+        <a :href="studentHref(student.slug)" class="link-item btn-secondary">
           <span class="icon">👤</span>
           <span>查看个人主页</span>
         </a>
-        <a :href="`/student/${student.slug}/?edit=1`" class="link-item btn-secondary">
+        <a :href="`${studentHref(student.slug)}?edit=1`" class="link-item btn-secondary">
           <span class="icon">✏️</span>
           <span>编辑个人资料</span>
         </a>
@@ -104,6 +104,7 @@ import { changeClassmatePassword, logoutClassmate } from '../api/classmateAuth'
 
 const props = defineProps<{
   apiBase: string
+  siteBase: string
 }>()
 
 interface StudentInfo {
@@ -136,8 +137,13 @@ onMounted(() => {
 
 function goToLogin() {
   if (typeof window !== 'undefined') {
-    window.location.href = '/'
+    window.location.href = props.siteBase.endsWith('/') ? props.siteBase : `${props.siteBase}/`
   }
+}
+
+function studentHref(slug: string) {
+  const base = props.siteBase.endsWith('/') ? props.siteBase : `${props.siteBase}/`
+  return `${base}student/${slug}/`
 }
 
 async function handlePasswordChange() {

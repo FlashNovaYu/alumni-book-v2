@@ -25,12 +25,17 @@
 
     <!-- 搜索输入框及下拉列表 -->
     <div v-else class="search-container">
+      <p v-if="loadError" class="picker-error" role="alert">
+        {{ loadError }}
+        <button type="button" @click="loadClassmates">重新加载同学目录</button>
+      </p>
       <div class="input-wrapper">
         <input
           v-model="searchQuery"
           type="text"
           class="picker-input"
           placeholder="搜索收件人姓名或拼音..."
+          :disabled="loading"
           @focus="isDropdownOpen = true"
           @blur="handleBlur"
         />
@@ -48,18 +53,18 @@
           <li
             v-for="classmate in filteredClassmates"
             :key="classmate.slug"
-            class="dropdown-item"
-            @mousedown="selectRecipient(classmate)"
           >
-            <div class="recipient-avatar">
-              <img
-                v-if="classmate.avatarUrl"
-                :src="getAvatarUrl(classmate.avatarUrl)"
-                :alt="classmate.name"
-              />
-              <div v-else class="avatar-fallback">{{ classmate.name[0] }}</div>
-            </div>
-            <span class="dropdown-name">{{ classmate.name }}</span>
+            <button type="button" class="dropdown-item" :aria-label="`选择${classmate.name}`" @click="selectRecipient(classmate)">
+              <div class="recipient-avatar">
+                <img
+                  v-if="classmate.avatarUrl"
+                  :src="getAvatarUrl(classmate.avatarUrl)"
+                  :alt="classmate.name"
+                />
+                <div v-else class="avatar-fallback">{{ classmate.name[0] }}</div>
+              </div>
+              <span class="dropdown-name">{{ classmate.name }}</span>
+            </button>
           </li>
         </ul>
         <ul v-else-if="isDropdownOpen && searchQuery.trim() !== ''" class="recipient-dropdown empty-dropdown">
@@ -72,7 +77,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { fetchRecipientDirectory } from '../api/postOffice'
+import { fetchInboxClassmates } from '../api/inbox'
 import type { ClassmateEntry } from '@alumni/shared'
 
 const props = defineProps<{
@@ -87,6 +92,8 @@ const emit = defineEmits<{
 const classmates = ref<ClassmateEntry[]>([])
 const searchQuery = ref('')
 const isDropdownOpen = ref(false)
+const loading = ref(false)
+const loadError = ref<string | null>(null)
 
 // 从 sessionStorage 获取当前登录同学的 slug 以便进行排除
 const mySlug = computed(() => {
@@ -107,14 +114,21 @@ const selectedRecipient = computed({
   set: (val) => emit('update:modelValue', val)
 })
 
-onMounted(async () => {
+async function loadClassmates() {
+  loading.value = true
+  loadError.value = null
   try {
-    const list = await fetchRecipientDirectory(props.apiBase)
-    classmates.value = list || []
-  } catch (err) {
-    console.error('加载同学名册失败', err)
+    const list = await fetchInboxClassmates(props.apiBase)
+    classmates.value = list
+  } catch {
+    classmates.value = []
+    loadError.value = '同学目录加载失败，请重试。'
+  } finally {
+    loading.value = false
   }
-})
+}
+
+onMounted(loadClassmates)
 
 // 根据搜索关键词过滤同学目录（排除自己，且只保留匹配姓名或拼音 slug 的项）
 const filteredClassmates = computed(() => {
@@ -204,6 +218,11 @@ function handleAvatarError(e: Event) {
   box-shadow: 0 0 0 2px rgba(139, 94, 60, 0.1);
 }
 
+.picker-input:disabled { cursor: wait; opacity: 0.62; }
+
+.picker-error { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin: 0 0 var(--spacing-sm); padding: 8px 10px; color: var(--color-paper-stamp-red); background: color-mix(in srgb, var(--color-paper-stamp-red) 7%, var(--color-paper-card)); border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 26%, var(--color-paper-border)); font-size: 12px; line-height: 1.5; }
+.picker-error button { flex: 0 0 auto; padding: 0; color: inherit; background: transparent; border: 0; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+
 .search-icon {
   position: absolute;
   right: var(--spacing-md);
@@ -231,10 +250,16 @@ function handleAvatarError(e: Event) {
 }
 
 .dropdown-item {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   transition: background 0.2s;
 }

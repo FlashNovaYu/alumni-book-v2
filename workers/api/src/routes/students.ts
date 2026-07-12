@@ -45,10 +45,16 @@ studentsRoutes.post('/students', async (c) => {
     futureSelf: '',
     letterToClassmates: ''
   })
+  const initialPasswordHash = await hashPassword('123456')
 
   await db.prepare(
-    'INSERT INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)'
-  ).bind(id, name, slug, info).run()
+    `INSERT INTO students (
+      id, name, slug, info,
+      account_password_hash,
+      account_initial_password_changed,
+      account_status
+    ) VALUES (?, ?, ?, ?, ?, 0, 'pending')`
+  ).bind(id, name, slug, info, initialPasswordHash).run()
 
   return c.json({ success: true, data: { id, name, slug } })
 })

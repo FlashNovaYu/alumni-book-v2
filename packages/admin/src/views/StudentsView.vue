@@ -2,7 +2,7 @@
   <div class="students-page">
     <div class="page-header">
       <h1 class="page-title">学生管理</h1>
-      <button class="btn-primary" @click="showCreate = true">+ 新建学生</button>
+      <button class="btn-primary" @click="openCreate">+ 新建学生</button>
     </div>
 
     <div class="search-bar">
@@ -37,7 +37,7 @@
     <!-- 新建学生对话框 -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
+        <div v-if="showCreate" class="modal-overlay" @click.self="closeCreate">
           <div class="modal card">
             <h2 class="title-md">新建学生</h2>
             <div class="form-group">
@@ -48,9 +48,10 @@
               <label class="form-label">Slug (URL 标识)</label>
               <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" />
             </div>
+            <p v-if="createSuccess" class="create-success" role="status">{{ createSuccess }}</p>
             <div class="modal-actions">
-              <button class="btn-secondary" @click="showCreate = false">取消</button>
-              <button class="btn-primary" @click="handleCreate" :disabled="creating">
+              <button class="btn-secondary" @click="closeCreate">{{ createSuccess ? '完成' : '取消' }}</button>
+              <button v-if="!createSuccess" class="btn-primary" @click="handleCreate" :disabled="creating">
                 {{ creating ? '创建中...' : '创建' }}
               </button>
             </div>
@@ -71,6 +72,7 @@ const keyword = ref('')
 const showCreate = ref(false)
 const creating = ref(false)
 const newStudent = ref({ name: '', slug: '' })
+const createSuccess = ref('')
 
 const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
@@ -95,14 +97,25 @@ async function handleCreate() {
       method: 'POST',
       body: JSON.stringify(newStudent.value),
     })
-    showCreate.value = false
-    newStudent.value = { name: '', slug: '' }
     await loadStudents()
+    createSuccess.value = '已创建同学账号，初始密码为 123456，请通知同学首次登录后修改。'
   } catch (e: any) {
     alert(e.message || '创建失败')
   } finally {
     creating.value = false
   }
+}
+
+function openCreate() {
+  createSuccess.value = ''
+  newStudent.value = { name: '', slug: '' }
+  showCreate.value = true
+}
+
+function closeCreate() {
+  createSuccess.value = ''
+  newStudent.value = { name: '', slug: '' }
+  showCreate.value = false
 }
 
 async function handleDelete(student: Student) {
@@ -219,6 +232,13 @@ function getStatusClass(status: string | undefined | null) {
 
 .modal h2 {
   margin-bottom: var(--spacing-lg);
+}
+
+.create-success {
+  margin: var(--spacing-md) 0 0;
+  color: var(--color-success, #2e7d32);
+  font-size: var(--type-body-sm-size);
+  line-height: 1.6;
 }
 
 .modal-actions {

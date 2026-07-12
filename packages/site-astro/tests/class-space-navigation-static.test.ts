@@ -8,54 +8,56 @@ const read = (path: string) => readFileSync(resolve(src, path), 'utf-8')
 describe('class space and inbox contracts', () => {
   it('defines focused API clients', () => {
     expect(existsSync(resolve(src, 'api/classSpace.ts'))).toBe(true)
-    expect(read('api/postOffice.ts')).toContain('/api/inbox/summary')
-    expect(read('api/postOffice.ts')).toContain('/api/mailbox/threads/${threadId}')
-    expect(read('api/postOffice.ts')).toContain('/api/notifications')
+    expect(existsSync(resolve(src, 'api/inbox.ts'))).toBe(true)
+    expect(existsSync(resolve(src, 'api/postOffice.ts'))).toBe(false)
     expect(read('api/classmateAuth.ts')).toContain('/api/classmate-auth/me')
   })
 })
 
-describe('class space public message wall refactoring static constraints', () => {
-  it('verifies that the split files exist', () => {
-    expect(existsSync(resolve(src, 'composables/usePublicMessages.ts'))).toBe(true)
-    expect(existsSync(resolve(src, 'components/MessageComposer.vue'))).toBe(true)
-    expect(existsSync(resolve(src, 'components/MessageCardGrid.vue'))).toBe(true)
+describe('class space group chat migration static constraints', () => {
+  it('removes the obsolete public message wall split and redirects its route to group chat', () => {
+    expect(existsSync(resolve(src, 'composables/usePublicMessages.ts'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/PublicMessageBoard.vue'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/MessageComposer.vue'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/MessageCardGrid.vue'))).toBe(false)
+
+    const messagesPage = read('pages/messages.astro')
+    expect(messagesPage).toContain('class-space#group-chat')
+    expect(messagesPage).not.toContain('class-space/#group-chat')
   })
 
-  it('verifies usePublicMessages.ts interface and logic', () => {
-    const source = read('composables/usePublicMessages.ts')
-    expect(source).toContain('approved')
-    expect(source).toContain('mine')
-    expect(source).toContain('loading')
-    expect(source).toContain('submitting')
-    expect(source).toContain('notice')
-    expect(source).toContain('loadApproved')
-    expect(source).toContain('loadMine')
-    expect(source).toContain('submit')
-    expect(source).toContain('react')
+  it('keeps advanced interaction state in the shared group chat composable', () => {
+    const source = read('composables/useGroupChat.ts')
+
+    for (const token of ['replyTarget', 'react', 'recall', 'loadMine', 'useVisibilityPolling']) {
+      expect(source).toContain(token)
+    }
+    expect(source).toContain('reactionWriteQueues')
+    expect(source).toContain('baseDelay: 5_000')
   })
 
-  it('verifies MessageComposer.vue has input, submit triggers and reset exposure', () => {
-    const source = read('components/MessageComposer.vue')
-    expect(source).toContain('textarea')
-    expect(source).toContain('submit')
-    expect(source).toContain('defineExpose')
-    expect(source).toContain('reset')
-  })
+  it('exposes quoted messages, reactions, recall and personal records through chat components', () => {
+    const message = read('components/GroupChatMessage.vue')
+    const composer = read('components/GroupChatComposer.vue')
+    const stage = read('components/GroupChatStage.vue')
 
-  it('verifies MessageCardGrid.vue has reactions and responsive design removing card rotation', () => {
-    const source = read('components/MessageCardGrid.vue')
-    expect(source).toContain('react')
-    expect(source).toContain('❤️')
-    expect(source).toContain('👍')
-    expect(source).toContain('😂')
-    expect(source).toContain('🎉')
-    
-    // 断言移动端样式下去掉了卡片旋转
-    expect(source).toContain('@media')
-    expect(source).toContain('max-width: 768px')
-    expect(source).toContain('transform')
-    expect(source).toContain('none')
+    expect(existsSync(resolve(src, 'components/GroupChatMineDrawer.vue'))).toBe(true)
+    expect(message).toContain('引用这条消息')
+    expect(message).toContain('撤回这条消息')
+    expect(message).toContain('canRecall')
+    expect(message).toContain('reactionTrigger')
+    expect(composer).toContain('composer-reply-preview')
+    expect(stage).toContain('GroupChatMineDrawer')
+    expect(stage).toContain('isRecallAvailable')
+    expect(stage).toContain('onBeforeUnmount')
+    expect(stage).toContain('closeMine')
+
+    const mineDrawer = read('components/GroupChatMineDrawer.vue')
+    expect(mineDrawer).toContain('groupedMessages')
+    expect(mineDrawer).toContain('previousBodyOverflow')
+    expect(mineDrawer).toContain('restoreInteractionState')
+    expect(mineDrawer).toContain('trapFocus')
+    expect(mineDrawer).toContain('onBeforeUnmount')
   })
 })
 
@@ -68,13 +70,25 @@ describe('class space responsive dashboard contracts', () => {
     expect(source).not.toContain('ScrollTrigger')
   })
 
-  it('verifies ClassSpaceHub.vue exists, handles API overview fetching, state orchestration, and sub-components', () => {
+  it('verifies ClassSpaceHub.vue mounts the group chat workbench from the authenticated overview', () => {
     expect(existsSync(resolve(src, 'components/ClassSpaceHub.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'composables/useGroupChat.ts'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/GroupChatStage.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/GroupChatMessage.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/GroupChatComposer.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/ClassSpaceSectionNav.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/ClassSpaceTimelineRail.vue'))).toBe(true)
+    expect(existsSync(resolve(src, 'components/ClassSpaceTimelinePreview.vue'))).toBe(false)
+    expect(existsSync(resolve(src, 'components/ClassSpaceMessageStage.vue'))).toBe(false)
     const source = read('components/ClassSpaceHub.vue')
-    expect(source).toContain('ClassSpaceMessageStage')
+    expect(source).toContain('GroupChatStage')
     expect(source).toContain('ClassSpaceAlbumRail')
-    expect(source).toContain('ClassSpaceTimelinePreview')
+    expect(source).toContain('ClassSpaceSectionNav')
+    expect(source).toContain('ClassSpaceTimelineRail')
     expect(source).toContain('fetchClassSpaceOverview')
+    expect(source).toContain('id="group-chat"')
+    expect(source).not.toContain('ClassSpaceTimelinePreview')
+    expect(source).not.toContain('ClassSpaceMessageStage')
     expect(source).not.toContain('AlbumGrid')
     expect(source).not.toContain('ScrollTrigger')
   })
@@ -82,51 +96,30 @@ describe('class space responsive dashboard contracts', () => {
 
 describe('class mailbox components static constraints', () => {
   it('verifies that the subcomponent files exist', () => {
-    expect(existsSync(resolve(src, 'components/MailboxList.vue'))).toBe(true)
-    expect(existsSync(resolve(src, 'components/MailboxDetail.vue'))).toBe(true)
     expect(existsSync(resolve(src, 'components/RecipientPicker.vue'))).toBe(true)
-    expect(existsSync(resolve(src, 'components/MailComposer.vue'))).toBe(true)
-  })
-
-  it('verifies MailboxList.vue aggregates notifications and mails', () => {
-    const source = read('components/MailboxList.vue')
-    expect(source).toContain('aggregatedItems')
-    expect(source).toContain('notifications')
-    expect(source).toContain('mails')
-    expect(source).toContain('unread')
-  })
-
-  it('verifies MailboxDetail.vue loads detail and shows reply box conditionally', () => {
-    const source = read('components/MailboxDetail.vue')
-    expect(source).toContain('fetchMailboxThread')
-    expect(source).toContain('replyMailboxThread')
-    expect(source).toContain('allowReply')
-    expect(source).toContain('replyText')
+    for (const file of ['MailboxList.vue', 'MailboxDetail.vue', 'MailComposer.vue']) {
+      expect(existsSync(resolve(src, `components/${file}`))).toBe(false)
+    }
   })
 
   it('verifies RecipientPicker.vue supports search and excludes self', () => {
     const source = read('components/RecipientPicker.vue')
-    expect(source).toContain('fetchRecipientDirectory')
+    expect(source).toContain('fetchInboxClassmates')
     expect(source).toContain('mySlug')
     expect(source).toContain('avatarUrl')
   })
 
-  it('verifies MailComposer.vue embeds RecipientPicker and emits submit', () => {
-    const source = read('components/MailComposer.vue')
-    expect(source).toContain('RecipientPicker')
-    expect(source).toContain('submit')
-    expect(source).toContain('recipientSlug')
-    expect(source).toContain('subject')
-    expect(source).toContain('body')
-  })
-
-  it('verifies MailboxApp.vue orchestrates the components and triggers events', () => {
+  it('verifies MailboxApp.vue orchestrates the conversation and notification workbench', () => {
     const source = read('components/MailboxApp.vue')
-    expect(source).toContain('Promise.all')
-    expect(source).toContain('fetchMailboxThreads')
-    expect(source).toContain('fetchNotifications')
-    expect(source).toContain('alumni:inbox-changed')
-    expect(source).toContain('window.dispatchEvent')
+    expect(source).toContain('useInbox')
+    expect(source).toContain('DirectConversationList')
+    expect(source).toContain('DirectConversationView')
+    expect(source).toContain('NotificationList')
+    expect(source).toContain('NotificationDetail')
+    expect(source).toContain('NewConversationDialog')
+    expect(source).toContain('popstate')
+    expect(source).not.toContain('fetchMailboxThreads')
+    expect(source).not.toContain('MailComposer')
   })
 })
 

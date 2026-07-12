@@ -105,7 +105,7 @@ authRoutes.get('/verify', async (c) => {
 
   const db = c.env.DB
   const session = await db.prepare(
-    'SELECT * FROM admin_sessions WHERE token = ? AND expires_at > datetime(\'now\')'
+    "SELECT * FROM admin_sessions WHERE token = ? AND julianday(expires_at) > julianday('now')"
   ).bind(token).first()
 
   if (!session) {
