@@ -283,6 +283,9 @@ describe('Administrator RBAC schema', () => {
       env.DB.prepare(
         "INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_workbench_test', 'test_init', '待审核同学', '需要审核的公共留言', 'pending')"
       ),
+      env.DB.prepare(
+        "INSERT INTO public_messages (id, author_slug, author_name, content, status, client_nonce) VALUES ('pm_workbench_group', 'test_init', '群聊同学', '今天的公共群聊', 'visible', 'chat:workbench')"
+      ),
     ])
 
     const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
@@ -300,9 +303,13 @@ describe('Administrator RBAC schema', () => {
     expect(response.status).toBe(200)
     expect(body.data.todos).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'profile-messages', to: '/messages', count: expect.any(Number) }),
-      expect.objectContaining({ id: 'public-messages', to: '/messages', count: expect.any(Number) }),
     ]))
-    expect(body.data.summary).toEqual([])
+    expect(body.data.todos).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'public-messages' }),
+    ]))
+    expect(body.data.summary).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'group-chat-today', label: '今日公共群聊', to: '/messages?tab=group', value: 1 }),
+    ]))
     expect(body.data).not.toHaveProperty('studentCount')
     expect(body.data).not.toHaveProperty('recentStudents')
     expect(body.data).not.toHaveProperty('topVisited')
