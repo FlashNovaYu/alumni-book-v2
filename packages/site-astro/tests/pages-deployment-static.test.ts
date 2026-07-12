@@ -77,7 +77,7 @@ describe('Pages production deployment contract', () => {
   })
 
   it('deploys the unified Pages app and keeps Worker deployment manual', () => {
-    const pagesWorkflow = read('.github/workflows/deploy-site.yml')
+    const pagesWorkflow = read('.github/workflows/deploy-production.yml')
     expect(pagesWorkflow).toContain('pnpm prepare:pages')
     expect(pagesWorkflow).toContain('pnpm smoke:pages')
     expect(pagesWorkflow).toContain('wrangler --cwd ../.. pages deploy deploy')

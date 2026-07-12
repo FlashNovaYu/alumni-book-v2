@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const repoRoot = resolve(__dirname, '../../..')
@@ -7,7 +7,8 @@ const read = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8')
 
 describe('生产发布单一写入者契约', () => {
   it('生产工作流只允许 main 手动审批发布', () => {
-    const workflow = read('.github/workflows/deploy-site.yml')
+    expect(existsSync(resolve(repoRoot, '.github/workflows/deploy-site.yml'))).toBe(false)
+    const workflow = read('.github/workflows/deploy-production.yml')
 
     expect(workflow).toContain('workflow_dispatch:')
     expect(workflow).not.toMatch(/^\s*schedule:/m)
