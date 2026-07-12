@@ -76,6 +76,18 @@ describe('Pages production deployment contract', () => {
     expect(smokeScript).toContain("'/release.json'")
   })
 
+  it('retries release SHA convergence with bounded incremental backoff', () => {
+    const smokeScript = read('scripts/smoke-pages.mjs')
+
+    expect(smokeScript).toContain('const releaseVerificationAttempts = 8')
+    expect(smokeScript).toContain('async function waitForReleaseSha()')
+    expect(smokeScript).toContain('attempt <= releaseVerificationAttempts')
+    expect(smokeScript).toContain('if (releaseBody.source === expectedSha) return')
+    expect(smokeScript).toContain('await sleep(attempt * 2000)')
+    expect(smokeScript).toContain('线上发布 SHA 为 ${actualSource}，预期 ${expectedSha}')
+    expect(smokeScript).toContain('await waitForReleaseSha()')
+  })
+
   it('deploys the unified Pages app and keeps Worker deployment manual', () => {
     const pagesWorkflow = read('.github/workflows/deploy-production.yml')
     expect(pagesWorkflow).toContain('pnpm prepare:pages')

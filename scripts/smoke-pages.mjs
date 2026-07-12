@@ -1,5 +1,6 @@
 const baseUrl = (process.env.PAGES_BASE_URL || 'https://alumni-book.pages.dev').replace(/\/$/, '')
 const expectedSha = process.env.PAGES_EXPECTED_SHA || ''
+const releaseVerificationAttempts = 8
 
 if (!/^[0-9a-f]{40}$/i.test(expectedSha)) {
   throw new Error('PAGES_EXPECTED_SHA 必须是完整提交 SHA')
@@ -32,11 +33,19 @@ function expectStatus(response, expected, label) {
   }
 }
 
-const release = await request('/release.json')
-const releaseBody = await release.json()
-if (releaseBody.source !== expectedSha) {
-  throw new Error(`线上发布 SHA 为 ${releaseBody.source || '缺失'}，预期 ${expectedSha}`)
+async function waitForReleaseSha() {
+  let actualSource = '缺失'
+  for (let attempt = 1; attempt <= releaseVerificationAttempts; attempt++) {
+    const release = await request('/release.json')
+    const releaseBody = await release.json()
+    actualSource = releaseBody.source || '缺失'
+    if (releaseBody.source === expectedSha) return
+    if (attempt < releaseVerificationAttempts) await sleep(attempt * 2000)
+  }
+  throw new Error(`线上发布 SHA 为 ${actualSource}，预期 ${expectedSha}`)
 }
+
+await waitForReleaseSha()
 
 const home = await request('/')
 expectStatus(home, [200], '首页')
