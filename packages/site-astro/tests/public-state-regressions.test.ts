@@ -19,7 +19,9 @@ describe('public state consistency regressions', () => {
   })
 
   it('reloads avatar elements when their URL changes', () => {
-    expect(source('components/ArchiveRosterCard.vue')).toContain("watch(() => props.card.avatarUrl, () => { avatarError.value = false })")
+    const rosterCard = source('components/ArchiveRosterCard.vue')
+    expect(rosterCard).toContain('watch(() => props.card.avatarUrl, async () => {')
+    expect(rosterCard).toContain('avatarError.value = false')
     expect(source('components/StudentProfile.vue')).toContain("watch(() => student.value?.avatarUrl, () => { avatarError.value = false })")
   })
 

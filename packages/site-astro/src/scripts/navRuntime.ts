@@ -11,10 +11,27 @@ declare global {
   interface Window {
     __alumniNavRuntime?: NavRuntime
     __alumniNavLifecycleBound?: boolean
+    __alumniNavActiveMarker?: { left: number; paperWidth: number; inkLeft: number; inkWidth: number }
   }
 }
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+const navMarkerStorageKey = 'alumni_nav_active_marker'
+
+type NavMarker = { left: number; paperWidth: number; inkLeft: number; inkWidth: number }
+
+function consumeNavMarker(): NavMarker | null {
+  try {
+    const raw = window.sessionStorage.getItem(navMarkerStorageKey)
+    window.sessionStorage.removeItem(navMarkerStorageKey)
+    if (!raw) return null
+    const marker = JSON.parse(raw) as Partial<NavMarker>
+    if (typeof marker.left !== 'number' || typeof marker.paperWidth !== 'number' || typeof marker.inkLeft !== 'number' || typeof marker.inkWidth !== 'number') return null
+    return marker as NavMarker
+  } catch {
+    return null
+  }
+}
 
 function updateUnreadStamps(count: number) {
   document.querySelectorAll<HTMLElement>('[data-nav-unread]').forEach((stamp) => {
@@ -63,6 +80,12 @@ export function initNavRuntime(): void {
   let unreadController: AbortController | null = null
   let adminEntryController: AbortController | null = null
   let resizeObserver: ResizeObserver | null = null
+  let activeInkFrame: number | null = null
+  let activeInkInitialized = false
+  const storedMarker = consumeNavMarker()
+  const incomingMarker = window.__alumniNavActiveMarker || storedMarker
+  let currentMarker: NavMarker | null = null
+  let previousActiveLeft = incomingMarker?.left ?? null
   let destroyed = false
 
   const closeDrawer = () => {
@@ -95,14 +118,58 @@ export function initNavRuntime(): void {
       return
     }
 
-    const left = active.offsetLeft
-    const width = active.offsetWidth
-    paper.style.width = `${width}px`
-    paper.style.transform = `translateX(${left}px)`
-    paper.style.opacity = '1'
-    ink.style.width = `${Math.max(22, width - 22)}px`
-    ink.style.transform = `translateX(${left + 11}px)`
-    ink.style.opacity = '1'
+    const marker = {
+      left: active.offsetLeft,
+      paperWidth: active.offsetWidth,
+      inkLeft: active.offsetLeft + 11,
+      inkWidth: Math.max(22, active.offsetWidth - 22),
+    }
+    const applyMarker = (next: typeof marker) => {
+      paper.style.width = `${next.paperWidth}px`
+      paper.style.transform = `translateX(${next.left}px)`
+      paper.style.opacity = '1'
+      ink.style.width = `${next.inkWidth}px`
+      ink.style.transform = `translateX(${next.inkLeft}px)`
+      ink.style.opacity = '1'
+    }
+    const previousMarker = activeInkInitialized ? null : incomingMarker
+
+    if (!activeInkInitialized || marker.left !== previousActiveLeft) {
+      directory.dataset.navDirection = previousActiveLeft !== null && marker.left < previousActiveLeft
+        ? 'backward'
+        : 'forward'
+    }
+
+    if (!activeInkInitialized) {
+      directory.dataset.navReady = 'false'
+      if (previousMarker) {
+        directory.dataset.navRevealing = 'true'
+        applyMarker(previousMarker)
+        directory.getBoundingClientRect()
+        directory.dataset.navReady = 'true'
+        activeInkFrame = window.requestAnimationFrame(() => {
+          activeInkFrame = null
+          if (!destroyed) {
+            applyMarker(marker)
+            directory.dataset.navRevealing = 'false'
+          }
+        })
+      } else {
+        directory.dataset.navRevealing = 'false'
+        applyMarker(marker)
+        activeInkFrame = window.requestAnimationFrame(() => {
+          activeInkFrame = null
+          if (!destroyed) directory.dataset.navReady = 'true'
+        })
+      }
+      activeInkInitialized = true
+    } else {
+      applyMarker(marker)
+    }
+
+    previousActiveLeft = marker.left
+    currentMarker = marker
+    window.__alumniNavActiveMarker = marker
   }
 
   function syncSession() {
@@ -183,6 +250,7 @@ export function initNavRuntime(): void {
       adminEntryController?.abort()
       adminEntryController = null
       resizeObserver?.disconnect()
+      if (activeInkFrame !== null) window.cancelAnimationFrame(activeInkFrame)
       cleanup.splice(0).forEach((dispose) => dispose())
       closeDrawer()
     },
@@ -223,6 +291,14 @@ export function initNavRuntime(): void {
     }
   })
   document.querySelectorAll<HTMLElement>('.mobile-drawer a').forEach((link) => listen(link, 'click', closeDrawer))
+  document.querySelectorAll<HTMLElement>('[data-nav-item], .drawer-link').forEach((link) => listen(link, 'click', () => {
+    if (!currentMarker) return
+    try {
+      window.sessionStorage.setItem(navMarkerStorageKey, JSON.stringify(currentMarker))
+    } catch {
+      // sessionStorage 不可用时退化为无方向动画。
+    }
+  }))
   listen(logoutButton, 'click', () => {
     clearClassmateSession()
     closeDrawer()

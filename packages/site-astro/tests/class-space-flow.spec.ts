@@ -61,7 +61,8 @@ const mockOverviewData = {
         type: 'event',
         title: '班级空间大事件',
         description: '今日班级空间系统正式上线啦！',
-        date: '2026-07-10'
+        date: '2026-07-10',
+        photoUrl: '/api/files/photos/graduation.jpg',
       }
     ],
     counts: {
@@ -90,6 +91,13 @@ test.describe('Class Space Flow', () => {
         body: JSON.stringify(mockOverviewData),
       })
     })
+    await page.route('**/api/files/photos/graduation.jpg', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+      })
+    })
 
     await seedClassmateSession(page)
     await page.goto('./class-space/', { waitUntil: 'networkidle' })
@@ -101,9 +109,9 @@ test.describe('Class Space Flow', () => {
     // 验证侧边导航
     const directory = page.locator('.class-space-section-nav')
     await expect(directory).toBeVisible()
-    await expect(directory.getByRole('link', { name: /群聊/ })).toBeVisible()
-    await expect(directory.getByRole('link', { name: /影像/ })).toBeVisible()
-    await expect(directory.getByRole('link', { name: /时光/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /班级群聊/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /精选影像/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /班级大事/ })).toBeVisible()
 
     // 验证群聊消息内容
     await expect(page.locator('[data-message-id="msg-1"]')).toContainText('张三的群聊消息')
@@ -120,6 +128,9 @@ test.describe('Class Space Flow', () => {
     await expect(page.getByText('班级空间大事件')).toBeVisible()
     await expect(page.getByText('今日班级空间系统正式上线啦！')).toBeVisible()
     await expect(page.locator('.timeline-rail-card time')).toContainText('2026年7月10日')
+    const timelineImage = page.locator('.timeline-rail-card img')
+    await expect(timelineImage).toHaveAttribute('src', /\/api\/files\/photos\/graduation\.jpg$/)
+    await expect(timelineImage).not.toHaveAttribute('src', /\/api\/files\/api\/files\//)
   })
 
   test('mobile layout displays without horizontal overflow', async ({ page }) => {

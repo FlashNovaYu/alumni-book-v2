@@ -1,7 +1,7 @@
 <template>
   <a :href="card.hasPage ? card.href : '#'" class="archive-card">
     <div class="archive-card__avatar">
-      <img v-if="card.avatarUrl && !avatarError" :src="avatarSrc" :alt="card.name" width="72" height="72" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
+      <img v-if="card.avatarUrl && !avatarError" ref="avatarImage" :src="avatarSrc" :alt="card.name" width="72" height="72" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="markAvatarError" />
       <span v-else>{{ card.name.charAt(0) }}</span>
     </div>
     <div class="archive-card__body">
@@ -16,13 +16,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { ArchiveClassmateCard } from '../utils/museumViewModels'
 
 const props = defineProps<{ card: ArchiveClassmateCard; apiBase: string }>()
 const avatarError = ref(false)
+const avatarImage = ref<HTMLImageElement | null>(null)
 
-watch(() => props.card.avatarUrl, () => { avatarError.value = false })
+function markAvatarError() {
+  avatarError.value = true
+}
+
+function checkAvatarImage() {
+  if (avatarImage.value?.complete && avatarImage.value.naturalWidth === 0) {
+    markAvatarError()
+  }
+}
+
+watch(() => props.card.avatarUrl, async () => {
+  avatarError.value = false
+  await nextTick()
+  checkAvatarImage()
+})
+
+onMounted(() => {
+  checkAvatarImage()
+})
 
 const avatarSrc = computed(() => {
   if (!props.card.avatarUrl) return ''

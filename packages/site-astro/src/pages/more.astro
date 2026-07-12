@@ -1,0 +1,29 @@
+---
+import MainLayout from '../layouts/MainLayout.astro'
+---
+
+<MainLayout>
+  <div class="more-page page-shell">
+    <div class="container">
+      <header class="page-header fade-in">
+        <p class="page-header__label">FURTHER CHAPTERS</p>
+        <h1 class="display-lg">更多功能</h1>
+        <p class="page-header__subtitle">新的章节正在整理，敬请期待。</p>
+      </header>
+
+      <section class="more-placeholder paper-panel" aria-label="更多功能说明">
+        <p>ARCHIVE IN PROGRESS</p>
+        <strong>新的章节正在整理</strong>
+        <span>敬请期待。</span>
+      </section>
+    </div>
+  </div>
+</MainLayout>
+
+<style>
+  .more-page { padding-bottom: var(--spacing-xxl); }
+  .more-placeholder { display: grid; max-width: 620px; min-height: 240px; margin: 0 auto; place-content: center; gap: var(--spacing-sm); text-align: center; }
+  .more-placeholder p { margin: 0; color: var(--color-paper-brown); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; }
+  .more-placeholder strong { font-family: var(--font-display); font-size: 28px; font-weight: 600; }
+  .more-placeholder span { color: var(--color-paper-muted); font-size: 14px; }
+</style>

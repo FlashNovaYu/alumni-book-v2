@@ -26,11 +26,11 @@
       <!-- 快速导航操作区 -->
       <div class="quick-links">
         <a :href="studentHref(student.slug)" class="link-item btn-secondary">
-          <span class="icon">👤</span>
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20c.7-3.4 3-5.1 6.5-5.1s5.8 1.7 6.5 5.1" /></svg></span>
           <span>查看个人主页</span>
         </a>
         <a :href="`${studentHref(student.slug)}?edit=1`" class="link-item btn-secondary">
-          <span class="icon">✏️</span>
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 19 3.5-.8L18 8.7 15.3 6 5.8 15.5zM14.5 6.8l2.7-2.7 2.7 2.7-2.7 2.7" /></svg></span>
           <span>编辑个人资料</span>
         </a>
       </div>
@@ -74,8 +74,8 @@
             />
           </div>
 
-          <div v-if="formError" class="error-msg">⚠️ {{ formError }}</div>
-          <div v-if="formSuccess" class="success-msg">✨ {{ formSuccess }}</div>
+          <div v-if="formError" class="error-msg" role="alert">{{ formError }}</div>
+          <div v-if="formSuccess" class="success-msg" role="status">{{ formSuccess }}</div>
 
           <button 
             type="submit" 
@@ -282,6 +282,9 @@ async function handleLogout() {
   color: var(--color-primary, #cc785c);
 }
 
+.icon { display: inline-grid; width: 18px; height: 18px; place-items: center; }
+.icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+
 .password-change-section {
   margin-bottom: 30px;
   padding-bottom: 24px;
@@ -339,6 +342,8 @@ async function handleLogout() {
 .success-msg {
   color: var(--color-success, #2e7d32);
   font-size: 13px;
+  padding-left: 8px;
+  border-left: 2px solid currentColor;
 }
 
 .btn {

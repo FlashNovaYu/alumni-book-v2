@@ -92,7 +92,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 <MainLayout>
   <div class="yearbook-page page-shell">
     <div class="container no-print text-center py-4">
-      <button class="print-btn btn-primary" onclick="window.print()">🖨️ 打印此纪念册 / 导出 PDF</button>
+      <button class="print-btn btn-primary" onclick="window.print()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V4h12v5M6 18H4V9h16v9h-2M7 14h10v6H7z" /></svg>打印此纪念册 / 导出 PDF</button>
     </div>
 
     <!-- 纪念册封面页 -->
@@ -108,7 +108,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
     <!-- 班级寄语 -->
     <div class="print-section page-break">
-      <h2 class="section-title">✍️ 班级寄语</h2>
+      <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 19 3.5-.8L18 8.7 15.3 6 5.8 15.5zM14.5 6.8l2.7-2.7 2.7 2.7-2.7 2.7" /></svg>班级寄语</h2>
       <div class="preface-box card p-5 mt-4">
         <h3 class="font-display text-xl mb-3">{siteConfig?.preface?.title || '致青春岁月'}</h3>
         <h4 class="text-muted text-sm mb-4">{siteConfig?.preface?.subtitle || '写在翻开同学录之前'}</h4>
@@ -118,7 +118,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
     <!-- 班级年度数据报告 -->
     <div class="print-section page-break">
-      <h2 class="section-title">📊 青春数据报告</h2>
+      <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M11 19V5M17 19v-9" /></svg>青春数据报告</h2>
       <div class="stats-cards-grid mt-4">
         <div class="stat-item card">
           <span class="stat-num">{totalStudents}</span>
@@ -139,7 +139,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
       </div>
       
       <div class="rankings-box mt-5 card p-4">
-        <h3 class="font-display text-lg mb-3">🏆 班级人气王</h3>
+        <h3 class="font-display text-lg mb-3 yearbook-subheading"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 6H4v1a4 4 0 0 0 4 4M17 6h3v1a4 4 0 0 1-4 4M12 13v4M8 20h8" /></svg>班级人气王</h3>
         <div class="rank-list-vertical">
           {topVisited.map((s, idx) => (
             <div class="rank-row">
@@ -154,7 +154,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
     <!-- 同学录名录墙 -->
     <div class="print-section page-break">
-      <h2 class="section-title">👥 同窗好友名录</h2>
+      <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2" /><path d="M3.5 20c.6-3.4 2.4-5.2 5.5-5.2s4.9 1.8 5.5 5.2M15 15c2.8.2 4.5 1.8 5 5" /></svg>同窗好友名录</h2>
       <div class="yearbook-classmate-grid mt-4">
         {students.map(mate => {
           const motto = (mate as any).info?.motto || '这家伙很懒，什么都没留下'
@@ -187,7 +187,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
     <!-- 青春瞬间（精选照片） -->
     <div class="print-section page-break">
-      <h2 class="section-title">🖼️ 青春瞬间</h2>
+      <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1" /><circle cx="9" cy="10" r="1.5" /><path d="m6 17 4-4 3 3 2-2 3 3" /></svg>青春瞬间</h2>
       {totalPhotos === 0 ? (
         <p class="text-muted text-center py-4">暂无照片记录，请在后台上传</p>
       ) : (
@@ -208,7 +208,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
     <!-- 时光足迹（时间轴） -->
     <div class="print-section page-break">
-      <h2 class="section-title">⏳ 时光足迹</h2>
+      <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></svg>时光足迹</h2>
       {timelineEvents.length === 0 ? (
         <p class="text-muted text-center py-4">暂无时光足迹记录</p>
       ) : (
@@ -228,7 +228,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
 
     <!-- 精选留言墙 -->
     <div class="print-section">
-      <h2 class="section-title">💬 寄语留言板</h2>
+      <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14v10H9l-4 3z" /><path d="M8 10h8M8 13h5" /></svg>寄语留言板</h2>
       <div class="yearbook-messages-list mt-4">
         {messages.map(msg => (
           <div class="yearbook-msg-card card p-4 mb-3">
@@ -255,10 +255,24 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     padding-bottom: 80px;
   }
   .print-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     padding: 12px 24px;
     font-size: 15px;
     border-radius: 30px;
   }
+  .print-btn svg, .section-title-icon, .yearbook-subheading svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+  .section-title, .yearbook-subheading { display: flex; align-items: center; gap: 8px; }
   .print-section {
     padding: var(--spacing-xl) 0;
   }
@@ -490,7 +504,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     }
   }
 
-  /* 🖨️ 打印机优化 */
+  /* 打印优化 */
   @media print {
     nav, .no-print, .print-btn {
       display: none !important;
