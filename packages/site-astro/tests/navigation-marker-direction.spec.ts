@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 test('top navigation records a backward marker transition when moving from roster to preface', async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
   await page.goto('./')
   await page.evaluate(() => {
     sessionStorage.setItem('classmate_account_token', 'test-classmate-token')

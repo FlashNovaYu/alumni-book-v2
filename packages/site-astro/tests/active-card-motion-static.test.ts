@@ -48,7 +48,7 @@ describe('档案卡共享元素转场', () => {
     const viewModels = read('utils/museumViewModels.ts')
 
     expect(card).toContain('card.hasStandardProfile')
-    expect(roster).toContain('hasStandardProfile: boolean')
+    expect(roster).toContain('hasStandardProfile?: boolean')
     expect(viewModels).toContain('hasStandardProfile: mate.hasStandardProfile !== false')
   })
 

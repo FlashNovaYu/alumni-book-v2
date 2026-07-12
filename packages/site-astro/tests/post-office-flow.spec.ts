@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry } from './classmate-session-mocks'
 
 async function seedClassmateSession(page: any) {
   await page.goto('./')
@@ -13,6 +14,7 @@ async function seedClassmateSession(page: any) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
   await page.route('**/api/notifications/summary', async (route) => {
     await route.fulfill({
       status: 200,
@@ -26,6 +28,22 @@ test.beforeEach(async ({ page }) => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ success: true, data: { totalUnread: 2 } }),
+    })
+  })
+
+  await page.route('**/api/direct-conversations', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { items: [] } }),
+    })
+  })
+
+  await page.route('**/api/notifications', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { items: [] } }),
     })
   })
 

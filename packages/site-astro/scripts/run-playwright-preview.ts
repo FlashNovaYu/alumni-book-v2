@@ -12,7 +12,7 @@ const rawSiteBase = process.env.SITE_BASE ?? '/'
 const siteBase = rawSiteBase === '/'
   ? '/'
   : `/${rawSiteBase.replace(/^\/+|\/+$/g, '')}/`
-const astroCli = resolve(siteDir, 'node_modules', 'astro', 'astro.js')
+const astroCli = resolve(dirname(require.resolve('astro/package.json')), 'bin', 'astro.mjs')
 const playwrightCli = require.resolve('@playwright/test/cli')
 const testArgs = process.argv.slice(2)
 
@@ -121,8 +121,6 @@ async function run() {
   } finally {
     killProcessTree(preview.pid)
   }
-
-  return 1
 }
 
 run().then(code => {

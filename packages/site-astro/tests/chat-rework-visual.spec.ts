@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 const overview = {
   success: true,
@@ -39,6 +40,11 @@ async function seedClassmateSession(page: any) {
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学', slug: 'test_init', avatarUrl: null }))
   })
 }
+
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
+})
 
 test('班级空间在三种视口保持分区结构、纵向时间线和无页面横向溢出', async ({ page }) => {
   await page.route('**/api/class-space/overview', (route) => route.fulfill({

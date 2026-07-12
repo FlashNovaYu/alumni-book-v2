@@ -33,7 +33,7 @@ export default defineConfig({
     },
   ],
   webServer: useManagedPreview ? undefined : {
-    command: `node ./node_modules/astro/astro.js preview --host ${previewHost}`,
+    command: `pnpm exec astro preview --host ${previewHost}`,
     port: previewPort,
     reuseExistingServer: !process.env.CI,
     cwd: __dirname,

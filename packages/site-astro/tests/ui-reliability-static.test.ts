@@ -320,6 +320,8 @@ describe('默认质量门禁', () => {
 
     expect(root.scripts['verify:all']).toContain('verify:shared')
     expect(admin.scripts.test).toContain('test:static')
+    expect(site.scripts.typecheck).toContain('astro check')
+    expect(site.devDependencies['@astrojs/check']).toBeDefined()
     for (const file of ['museum-viewmodels.test.ts', 'public-ui-feedback-static.test.ts', 'security-hardening-static.test.ts']) {
       expect(site.scripts.test).toContain(file)
     }

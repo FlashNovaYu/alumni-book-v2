@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 async function seedClassmateSession(page: any) {
   // 必须先访问一个页面来初始化 sessionStorage 的 origin 上下文
@@ -12,6 +13,11 @@ async function seedClassmateSession(page: any) {
     }))
   })
 }
+
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
+})
 
 const mockOverviewData = {
   success: true,

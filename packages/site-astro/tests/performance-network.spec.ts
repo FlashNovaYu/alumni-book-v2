@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 test.beforeEach(async ({ page }) => {
   // 拦截并快速响应所有可能发起客户端 SWR 访问的 API 路由，防止测试环境由于真实公网慢网或者本地无端点而挂起
@@ -85,6 +86,11 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify({ success: true, data: [] })
     })
   })
+})
+
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
 })
 
 async function seedClassmateSession(page: any) {

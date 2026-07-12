@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry } from './classmate-session-mocks'
 
 const conversation = {
   id: 'conversation-lisi',
@@ -18,6 +19,8 @@ async function seedClassmateSession(page: any) {
 
 test.beforeEach(async ({ page }) => {
   let messageAttempts = 0
+
+  await mockClassmateAdminEntry(page)
 
   await page.route('**/api/inbox/summary', (route) => route.fulfill({
     contentType: 'application/json',

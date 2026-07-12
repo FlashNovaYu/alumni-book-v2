@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 const classmates = Array.from({ length: 10 }, (_, index) => ({
   name: `分页同学 ${index + 1}`,
@@ -9,6 +10,18 @@ const classmates = Array.from({ length: 10 }, (_, index) => ({
   completion: 50,
   tags: [],
 }))
+
+function createClassmates(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    name: `边界同学 ${index + 1}`,
+    slug: `boundary-mate-${index + 1}`,
+    hasPage: true,
+    avatarUrl: null,
+    motto: `第 ${index + 1} 位同学`,
+    completion: 50,
+    tags: [],
+  }))
+}
 
 async function seedClassmateSession(page: any) {
   await page.goto('./')
@@ -21,6 +34,11 @@ async function seedClassmateSession(page: any) {
     }))
   })
 }
+
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
+})
 
 test('roster paginates nine cards, resets search to the first page, and hides broken avatars', async ({ page }) => {
   await page.route('**/api/classmates', async (route) => {
@@ -50,4 +68,31 @@ test('roster paginates nine cards, resets search to the first page, and hides br
   await page.getByRole('textbox', { name: '档案检索' }).fill('分页')
   await expect(page.locator('.roster-pagination button[aria-current="page"]')).toHaveText('1')
   await expect(page.locator('.archive-card:visible').getByText('分页同学 1', { exact: true })).toBeVisible()
+})
+
+test('roster only renders ellipses when pagination omits page numbers', async ({ page }) => {
+  let responseClassmates = createClassmates(27)
+  await page.route('**/api/classmates', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: responseClassmates }),
+  }))
+
+  await seedClassmateSession(page)
+
+  for (const scenario of [
+    { count: 27, labels: ['1', '2', '3'], ellipses: 0 },
+    { count: 45, labels: ['1', '2', '3', '4', '5'], ellipses: 0 },
+    { count: 54, labels: ['1', '2', '3', '4', '6'], ellipses: 1 },
+  ]) {
+    responseClassmates = createClassmates(scenario.count)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+    const pageButtons = page.locator('.roster-pagination .page-btn:not(.page-btn--arrow)')
+    await expect(pageButtons.last()).toHaveText(scenario.labels.at(-1)!)
+    const labels = await pageButtons.allTextContents()
+    expect(labels.map((label) => label.trim())).toEqual(scenario.labels)
+    expect(new Set(labels).size).toBe(labels.length)
+    await expect(page.locator('.page-ellipsis')).toHaveCount(scenario.ellipses)
+  }
 })

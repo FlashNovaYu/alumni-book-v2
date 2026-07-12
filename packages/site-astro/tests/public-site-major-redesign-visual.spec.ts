@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 const mobilePages = ['./', './preface/', './roster/', './album/', './timeline/', './yearbook/', './student/template/']
 const yearbookSource = readFileSync(resolve(__dirname, '../src/pages/yearbook.astro'), 'utf-8')
@@ -18,6 +19,11 @@ async function seedClassmateSession(page: any) {
     sessionStorage.setItem('classmate_name', '测试同学')
   })
 }
+
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
+})
 
 test.describe('public site major redesign responsive smoke', () => {
   for (const pathname of mobilePages) {

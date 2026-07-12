@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
 async function signInForNavigation(page: import('@playwright/test').Page) {
   await page.goto('./')
@@ -7,6 +8,11 @@ async function signInForNavigation(page: import('@playwright/test').Page) {
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学', slug: 'test_init', avatarUrl: null }))
   })
 }
+
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+  await mockClassmateInboxSummary(page)
+})
 
 test('一级栏目在路由切换中保留唯一共享标题锚点', async ({ page }) => {
   await signInForNavigation(page)

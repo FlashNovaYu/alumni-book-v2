@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry } from './classmate-session-mocks'
 
 const currentTime = new Date().toISOString()
 
@@ -53,6 +54,10 @@ async function seedClassmateSession(page: any) {
   })
 }
 
+test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
+})
+
 async function mockClassSpace(page: any, onSend: (route: any) => Promise<void>, overview = initialChat) {
   await page.route('**/api/inbox/summary', (route: any) => route.fulfill({
     contentType: 'application/json',
@@ -62,7 +67,7 @@ async function mockClassSpace(page: any, onSend: (route: any) => Promise<void>, 
     contentType: 'application/json',
     body: JSON.stringify(overview),
   }))
-  await page.route('**/api/group-chat/messages', async (route: any, request: any) => {
+  await page.route('**/api/group-chat/messages**', async (route: any, request: any) => {
     if (request.method() === 'POST') return onSend(route)
     await route.fulfill({
       contentType: 'application/json',

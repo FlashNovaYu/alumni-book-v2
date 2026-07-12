@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { mockClassmateAdminEntry } from './classmate-session-mocks'
 
 async function seedClassmateSession(page: any) {
   await page.goto('./')
@@ -9,6 +10,7 @@ async function seedClassmateSession(page: any) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await mockClassmateAdminEntry(page)
   await page.route('**/api/inbox/summary', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { directUnread: 1, notificationUnread: 1, totalUnread: 2 } }) }))
   await page.route('**/api/inbox/sync**', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { cursor: 'test-sync', conversations: [], messages: [], notifications: [], unread: { directUnread: 1, notificationUnread: 1, totalUnread: 2 } } }) }))
   await page.route('**/api/direct-conversations', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [{ id: 'conversation-lisi', peer: { name: '李四', slug: 'lisi', avatarUrl: null }, lastMessage: { id: 'direct-1', senderSlug: 'lisi', body: '周末见。', createdAt: '2026-07-11T08:00:00.000Z' }, unreadCount: 1, updatedAt: '2026-07-11T08:00:00.000Z' }] } }) }))

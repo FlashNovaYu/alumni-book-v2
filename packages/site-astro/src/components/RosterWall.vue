@@ -19,23 +19,56 @@
     </div>
 
     <nav v-if="totalPages > 1" class="roster-pagination" aria-label="人物长廊分页">
+      <!-- 上一页 -->
       <button type="button" class="page-btn page-btn--arrow" :disabled="currentPage === 1" aria-label="上一页" @click="goToPage(currentPage - 1)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg>
       </button>
-      <template v-for="(page, index) in pageNumbers" :key="`${page}-${index}`">
-        <span v-if="page === 'ellipsis'" class="page-ellipsis" aria-hidden="true">…</span>
+
+      <!-- 第一页 -->
+      <template v-if="showLeftEllipsis">
         <button
-          v-else
           type="button"
           class="page-btn"
-          :class="{ 'is-active': currentPage === page }"
-          :aria-label="`第 ${page} 页`"
-          :aria-current="currentPage === page ? 'page' : undefined"
-          @click="goToPage(page)"
+          :class="{ 'is-active': currentPage === 1 }"
+          aria-label="第 1 页"
+          :aria-current="currentPage === 1 ? 'page' : undefined"
+          @click="goToPage(1)"
         >
-          {{ page }}
+          1
+        </button>
+        <span class="page-ellipsis" aria-hidden="true">…</span>
+      </template>
+
+      <!-- 中间页码 -->
+      <button
+        v-for="page in pages"
+        :key="page"
+        type="button"
+        class="page-btn"
+        :class="{ 'is-active': currentPage === page }"
+        :aria-label="`第 ${page} 页`"
+        :aria-current="currentPage === page ? 'page' : undefined"
+        @click="goToPage(page)"
+      >
+        {{ page }}
+      </button>
+
+      <!-- 最后一页 -->
+      <template v-if="showRightEllipsis">
+        <span class="page-ellipsis" aria-hidden="true">…</span>
+        <button
+          type="button"
+          class="page-btn"
+          :class="{ 'is-active': currentPage === totalPages }"
+          :aria-label="`第 ${totalPages} 页`"
+          :aria-current="currentPage === totalPages ? 'page' : undefined"
+          @click="goToPage(totalPages)"
+        >
+          {{ totalPages }}
         </button>
       </template>
+
+      <!-- 下一页 -->
       <button type="button" class="page-btn page-btn--arrow" :disabled="currentPage === totalPages" aria-label="下一页" @click="goToPage(currentPage + 1)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 5 7 7-7 7" /></svg>
       </button>
@@ -58,7 +91,7 @@ interface Classmate {
   name: string
   slug: string
   hasPage: boolean
-  hasStandardProfile: boolean
+  hasStandardProfile?: boolean
   avatarUrl: string | null
   motto: string
   nickname?: string
@@ -142,13 +175,44 @@ function isCardVisible(mate: Classmate) {
   return visibleClassmateSlugs.value.has(mate.slug)
 }
 
-const pageNumbers = computed<Array<number | 'ellipsis'>>(() => {
+const paginationItemsToDisplay = 5
+
+const showLeftEllipsis = computed(() => totalPages.value > paginationItemsToDisplay && currentPage.value - 1 > paginationItemsToDisplay / 2)
+const showRightEllipsis = computed(() => totalPages.value > paginationItemsToDisplay && totalPages.value - currentPage.value + 1 > paginationItemsToDisplay / 2)
+
+const pages = computed<number[]>(() => {
   const total = totalPages.value
   const current = currentPage.value
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
-  if (current <= 4) return [1, 2, 3, 4, 5, 'ellipsis', total]
-  if (current >= total - 3) return [1, 'ellipsis', total - 4, total - 3, total - 2, total - 1, total]
-  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total]
+  const displayCount = paginationItemsToDisplay
+
+  if (total <= displayCount) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+
+  const halfDisplay = Math.floor(displayCount / 2)
+  const startVal = current - halfDisplay
+  const endVal = current + halfDisplay
+
+  const adjustedStart = Math.max(1, startVal)
+  const adjustedEnd = Math.min(total, endVal)
+
+  let start = adjustedStart
+  let end = adjustedEnd
+
+  if (adjustedStart === 1) {
+    end = displayCount
+  }
+  if (adjustedEnd === total) {
+    start = total - displayCount + 1
+  }
+
+  if (showLeftEllipsis.value) start++
+  if (showRightEllipsis.value) end--
+
+  return Array.from(
+    { length: end - start + 1 },
+    (_, i) => start + i
+  )
 })
 
 watch(keyword, () => {
