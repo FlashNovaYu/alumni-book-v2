@@ -35,7 +35,7 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     ).all(),
     c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE status IN ('visible', 'recalled_by_author', 'recalled_by_admin')").first(),
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM albums').first(),
-    getTimelineFeed(c.env.DB, { limit: 8 }),
+    getTimelineFeed(c.env.DB, { curatedOnly: true, limit: 6 }),
     getActiveMute(c.env.DB, identity.slug),
   ])
 

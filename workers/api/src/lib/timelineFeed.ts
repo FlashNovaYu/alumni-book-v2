@@ -4,9 +4,9 @@ export type TimelineFeedType = 'event' | 'message' | 'photo' | 'join'
 
 export async function getTimelineFeed(
   db: D1Database,
-  options: { type?: TimelineFeedType; limit?: number } = {},
+  options: { type?: TimelineFeedType; limit?: number; curatedOnly?: boolean } = {},
 ): Promise<any[]> {
-  const { type, limit = 100 } = options
+  const { type, limit = 100, curatedOnly = false } = options
   const timeline: any[] = []
   const queries: Promise<unknown>[] = []
 
@@ -30,7 +30,7 @@ export async function getTimelineFeed(
     )
   }
 
-  if (!type || type === 'message') {
+  if (!curatedOnly && (!type || type === 'message')) {
     queries.push(
       db.prepare("SELECT id, student_slug, author_name, content, created_at FROM messages WHERE is_approved = 1 AND is_hidden = 0 ORDER BY created_at DESC LIMIT 30").all()
         .then(({ results }) => {
@@ -48,7 +48,7 @@ export async function getTimelineFeed(
     )
   }
 
-  if (!type || type === 'photo') {
+  if (!curatedOnly && (!type || type === 'photo')) {
     queries.push(
       db.prepare("SELECT p.*, a.title as album_title FROM photos p JOIN albums a ON p.album_id = a.id ORDER BY p.created_at DESC LIMIT 30").all()
         .then(({ results }) => {
@@ -66,7 +66,7 @@ export async function getTimelineFeed(
     )
   }
 
-  if (!type || type === 'join') {
+  if (!curatedOnly && (!type || type === 'join')) {
     queries.push(
       db.prepare("SELECT name, slug, avatar_url, created_at FROM students ORDER BY created_at DESC LIMIT 30").all()
         .then(({ results }) => {
