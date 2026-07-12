@@ -13,7 +13,7 @@ import { useVisibilityPolling } from './useVisibilityPolling'
 
 export type GroupChatDeliveryState = 'sent' | 'sending' | 'failed'
 export interface GroupChatUiMessage extends GroupChatMessage { clientNonce?: string; deliveryState: GroupChatDeliveryState }
-export interface UseGroupChatOptions { apiBase: string; initialItems: GroupChatMessage[]; initialCursor: string; initialMute: GroupChatMute | null }
+export interface UseGroupChatOptions { apiBase: string; initialItems: GroupChatMessage[]; initialCursor: string | null; initialMute: GroupChatMute | null }
 
 const createClientNonce = () => globalThis.crypto?.randomUUID?.() || `chat_${Date.now()}_${Math.random().toString(36).slice(2)}`
 const orderMessages = (a: GroupChatUiMessage, b: GroupChatUiMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.id.localeCompare(b.id)
@@ -33,6 +33,7 @@ export function useGroupChat(options: UseGroupChatOptions) {
   const newMessageCount = ref(0)
   const nearBottom = ref(true)
   const items = computed(() => Array.from(store.value.values()).sort(orderMessages))
+  const canLoadOlder = computed(() => Boolean(historyCursor.value))
 
   const replaceStore = (mutator: (next: Map<string, GroupChatUiMessage>) => void) => {
     const next = new Map(store.value); mutator(next); store.value = next
@@ -73,7 +74,7 @@ export function useGroupChat(options: UseGroupChatOptions) {
   async function loadOlder() {
     if (loadingOlder.value || !historyCursor.value) return
     loadingOlder.value = true
-    try { const page = await fetchGroupChatMessages(options.apiBase, { before: historyCursor.value }); page.items.forEach(mergeServerMessage); historyCursor.value = page.items.length ? page.nextCursor : null }
+    try { const page = await fetchGroupChatMessages(options.apiBase, { before: historyCursor.value }); page.items.forEach(mergeServerMessage); historyCursor.value = page.nextCursor }
     finally { loadingOlder.value = false }
   }
   async function syncNow(signal?: AbortSignal) {
@@ -121,5 +122,5 @@ export function useGroupChat(options: UseGroupChatOptions) {
   options.initialItems.forEach(mergeServerMessage)
   useVisibilityPolling({ run: syncNow, initialDelay: 5_000, baseDelay: 5_000, maxDelay: 30_000 })
 
-  return { items, mute, replyTarget, mine, mineLoading, loadingOlder, sending, connectionState, newMessageCount, send, retry, loadOlder, syncNow, react, recall, loadMine, setReplyTarget, clearReplyTarget, setNearBottom, consumeNewMessages }
+  return { items, mute, replyTarget, mine, mineLoading, loadingOlder, canLoadOlder, sending, connectionState, newMessageCount, send, retry, loadOlder, syncNow, react, recall, loadMine, setReplyTarget, clearReplyTarget, setNearBottom, consumeNewMessages }
 }

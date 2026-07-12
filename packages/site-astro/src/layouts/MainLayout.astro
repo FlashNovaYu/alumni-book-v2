@@ -16,6 +16,13 @@ import '../styles/global.css'
       (function() {
         document.documentElement.classList.add('js');
         const token = sessionStorage.getItem('classmate_account_token');
+        try {
+          const student = JSON.parse(sessionStorage.getItem('classmate_account_student') || 'null');
+          const adminEntry = JSON.parse(sessionStorage.getItem('alumni_nav_admin_entry') || 'null');
+          if (token && student?.slug && adminEntry?.studentSlug === student.slug && adminEntry.available === true) {
+            document.documentElement.classList.add('has-admin-entry');
+          }
+        } catch {}
         const path = window.location.pathname;
         const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/');
         const isAdmin = path.includes('/admin/');

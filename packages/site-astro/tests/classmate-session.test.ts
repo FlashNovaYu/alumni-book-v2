@@ -9,7 +9,7 @@ vi.mock('@alumni/shared', async () => {
 })
 
 import { requestClassmateApi } from '../src/api/classmateRequest'
-import { changeClassmatePassword, fetchClassmateMe, logoutClassmate } from '../src/api/classmateAuth'
+import { changeClassmatePassword, fetchClassmateAdminEntry, fetchClassmateMe, logoutClassmate } from '../src/api/classmateAuth'
 import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../src/api/classmateSession'
 import { fetchJsonIfChanged } from '../src/utils/deferredFetch'
 import fs from 'fs'
@@ -81,15 +81,18 @@ describe('同学会话失效处理', () => {
     ['修改密码', () => changeClassmatePassword('https://api.example.test', '旧密码', '新密码')],
     ['退出登录', () => logoutClassmate('https://api.example.test')],
     ['读取账号信息', () => fetchClassmateMe('https://api.example.test')],
+    ['读取管理入口', () => fetchClassmateAdminEntry('https://api.example.test')],
   ])('%s 接口收到真实 401 时统一清理会话并跳转', async (_name, request) => {
     sessionStorage.setItem('classmate_account_token', 'expired-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学' }))
     sessionStorage.setItem('classmate_name', '测试同学')
+    sessionStorage.setItem('alumni_nav_admin_entry', JSON.stringify({ studentSlug: 'test', available: true }))
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: false, message: '令牌已过期' }), { status: 401 }))
 
     await expect(request()).rejects.toThrow(SESSION_EXPIRED_MESSAGE)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(sessionStorage.getItem('classmate_account_token')).toBeNull()
+    expect(sessionStorage.getItem('alumni_nav_admin_entry')).toBeNull()
     expect(sessionStorage.getItem('classmate_account_student')).toBeNull()
     expect(sessionStorage.getItem('classmate_name')).toBeNull()
     expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')

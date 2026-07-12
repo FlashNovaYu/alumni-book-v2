@@ -39,6 +39,7 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     getActiveMute(c.env.DB, identity.slug),
   ])
 
+  const groupMessages = Number((groupMessageCount as any)?.count || 0)
   const albums = (albumRows.results || []).map((row: any) => ({
     id: row.id,
     title: row.title,
@@ -53,15 +54,15 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     data: {
       chat: {
         items: chat,
-        cursor: encodeCursor(chat[0]
-          ? { timestamp: chat[0].createdAt, id: chat[0].id }
-          : { timestamp: '1970-01-01T00:00:00.000Z', id: '\uffff' }),
+        cursor: groupMessages > chat.length && chat[0]
+          ? encodeCursor({ timestamp: chat[0].createdAt, id: chat[0].id })
+          : null,
         mute,
       },
       albums,
       timeline,
       counts: {
-        groupMessages: Number((groupMessageCount as any)?.count || 0),
+        groupMessages,
         albums: Number((albumCount as any)?.count || 0),
         timelineItems: timeline.length,
       },

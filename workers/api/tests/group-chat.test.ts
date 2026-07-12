@@ -84,6 +84,21 @@ describe('Group chat API', () => {
     expect(sync.status).toBe(400)
   })
 
+  it('does not emit a next history cursor after the final message page', async () => {
+    await seedHistory(3)
+
+    const latest = await request('/api/group-chat/messages?limit=2', { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const latestPayload = await latest.json() as any
+    const older = await request(`/api/group-chat/messages?limit=2&before=${encodeURIComponent(latestPayload.data.nextCursor)}`, { headers: classmateHeaders(PRIMARY_TOKEN) })
+    const olderPayload = await older.json() as any
+
+    expect(latest.status).toBe(200)
+    expect(latestPayload.data.nextCursor).toEqual(expect.any(String))
+    expect(older.status).toBe(200)
+    expect(olderPayload.data.items.map((item: any) => item.id)).toEqual(['group-chat-history-00'])
+    expect(olderPayload.data.nextCursor).toBeNull()
+  })
+
   it('creates a visible message and retries the same client nonce idempotently', async () => {
     const body = { content: '  第一条群聊消息  ', clientNonce: 'group-chat-create-1' }
     const first = await request('/api/group-chat/messages', {

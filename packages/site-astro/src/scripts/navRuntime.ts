@@ -17,6 +17,7 @@ declare global {
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || ''
 const navMarkerStorageKey = 'alumni_nav_active_marker'
+const adminEntryCacheKey = 'alumni_nav_admin_entry'
 
 type NavMarker = { left: number; paperWidth: number; inkLeft: number; inkWidth: number }
 
@@ -41,9 +42,29 @@ function updateUnreadStamps(count: number) {
 }
 
 function updateAdminEntry(available: boolean) {
-  document.querySelectorAll<HTMLElement>('[data-nav-admin-entry]').forEach((entry) => {
-    entry.hidden = !available
-  })
+  document.documentElement.classList.toggle('has-admin-entry', available)
+}
+
+function readCachedAdminEntry(studentSlug?: string): boolean | null {
+  if (!studentSlug) return null
+  try {
+    const cached = JSON.parse(window.sessionStorage.getItem(adminEntryCacheKey) || 'null') as { studentSlug?: string; available?: boolean } | null
+    return cached?.studentSlug === studentSlug && typeof cached.available === 'boolean' ? cached.available : null
+  } catch {
+    return null
+  }
+}
+
+function cacheAdminEntry(studentSlug: string, available: boolean) {
+  try {
+    window.sessionStorage.setItem(adminEntryCacheKey, JSON.stringify({ studentSlug, available }))
+  } catch {}
+}
+
+function clearAdminEntryCache() {
+  try {
+    window.sessionStorage.removeItem(adminEntryCacheKey)
+  } catch {}
 }
 
 function bindGlobalLifecycle() {
@@ -174,7 +195,7 @@ export function initNavRuntime(): void {
 
   function syncSession() {
     const token = getClassmateToken()
-    const student = getClassmateStudent<{ name?: string }>()
+    const student = getClassmateStudent<{ name?: string; slug?: string }>()
     const signedIn = Boolean(token && student)
     nav?.classList.toggle('has-session', signedIn)
     document.querySelectorAll<HTMLElement>('[data-nav-session-only]').forEach((element) => {
@@ -183,14 +204,20 @@ export function initNavRuntime(): void {
     document.querySelectorAll<HTMLElement>('[data-nav-student-name]').forEach((element) => {
       element.textContent = student?.name || '同学'
     })
-    if (!signedIn) updateUnreadStamps(0)
-    if (!signedIn) updateAdminEntry(false)
+    if (!signedIn) {
+      updateUnreadStamps(0)
+      clearAdminEntryCache()
+      updateAdminEntry(false)
+    } else {
+      updateAdminEntry(readCachedAdminEntry(student?.slug) ?? false)
+    }
     return signedIn
   }
 
   async function refreshAdminEntry() {
     adminEntryController?.abort()
-    if (destroyed || !getClassmateToken()) {
+    const student = getClassmateStudent<{ slug?: string }>()
+    if (destroyed || !getClassmateToken() || !student?.slug) {
       updateAdminEntry(false)
       return
     }
@@ -198,9 +225,12 @@ export function initNavRuntime(): void {
     adminEntryController = controller
     try {
       const entry = await fetchClassmateAdminEntry(apiBase)
-      if (!controller.signal.aborted) updateAdminEntry(entry.available)
+      if (!controller.signal.aborted) {
+        cacheAdminEntry(student.slug, entry.available)
+        updateAdminEntry(entry.available)
+      }
     } catch {
-      if (!controller.signal.aborted) updateAdminEntry(false)
+      if (!controller.signal.aborted) updateAdminEntry(readCachedAdminEntry(student.slug) ?? false)
     } finally {
       if (adminEntryController === controller) adminEntryController = null
     }
@@ -301,6 +331,8 @@ export function initNavRuntime(): void {
   }))
   listen(logoutButton, 'click', () => {
     clearClassmateSession()
+    clearAdminEntryCache()
+    updateAdminEntry(false)
     closeDrawer()
     const home = document.querySelector<HTMLAnchorElement>('[data-nav-home]')?.href || '/'
     window.location.assign(home)

@@ -29,9 +29,13 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     <p class="home-cover__subtitle home-cover__copy-reveal" style="--reveal-delay: 0.84s">{heroSubtitle}</p>
   </div>
 
-  <a href="#login" class="home-cover__scroll home-cover__copy-reveal" style="--reveal-delay: 1.08s" data-home-login-scroll aria-label="向下滑动到登录入口">
-    <span>向下滑动</span>
-  </a>
+  <div class="home-cover__scroll-slot">
+    <div class="home-cover__scroll-reveal home-cover__copy-reveal" style="--reveal-delay: 1.08s">
+      <a href="#login" class="home-cover__scroll" data-home-login-scroll aria-label="向下滑动到登录入口">
+        <span>向下滑动</span>
+      </a>
+    </div>
+  </div>
 </section>
 
 <section class="home-login-cta" aria-label="进入登录">
@@ -204,12 +208,17 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   line-height: 1.85;
 }
 
-.home-cover__scroll {
+.home-cover__scroll-slot {
   position: absolute;
   left: 50%;
   bottom: var(--spacing-xl);
   z-index: 2;
   transform: translateX(-50%);
+}
+
+.home-cover__scroll-reveal { display: inline-block; }
+
+.home-cover__scroll {
   display: inline-flex;
   min-height: 38px;
   align-items: center;
@@ -229,7 +238,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 .home-cover__scroll:hover {
   color: #fffaf2;
   border-color: rgba(255, 250, 242, 0.46);
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .home-login-cta {
