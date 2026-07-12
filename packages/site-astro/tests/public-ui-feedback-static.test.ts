@@ -21,4 +21,43 @@ describe('公开站点界面反馈回归', () => {
     expect(directory).toContain('section-index')
     expect(directory).toContain('section-description')
   })
+
+  it('keeps the roster at nine cards per page with accessible page buttons', () => {
+    const roster = read('components/RosterWall.vue')
+
+    expect(roster).toContain('const PAGE_SIZE = 9')
+    expect(roster).toContain(':aria-label="`第 ${page} 页`"')
+    expect(roster).toContain("aria-current=\"currentPage === page ? 'page' : undefined\"")
+  })
+
+  it('falls back from an avatar that finished failing before Vue hydration', () => {
+    const card = read('components/ArchiveRosterCard.vue')
+
+    expect(card).toContain('avatarImage.value?.complete && avatarImage.value.naturalWidth === 0')
+  })
+
+  it('keeps media pages under more and records the active-marker direction', () => {
+    const nav = read('components/TopNav.astro')
+    const runtime = read('scripts/navRuntime.ts')
+
+    expect(nav).toContain("{ href: '/more', label: '更多' }")
+    expect(nav).not.toContain("{ href: '/album', label: '影像馆' }")
+    expect(nav).not.toContain("{ href: '/timeline', label: '时光轴' }")
+    expect(runtime).toContain('directory.dataset.navDirection')
+    expect(runtime).toContain('previousActiveLeft')
+  })
+
+  it('does not render hard-coded decorative emoji in public UI controls', () => {
+    const files = [
+      'pages/yearbook.astro',
+      'components/AccountCenter.vue',
+      'components/RankingsPanel.vue',
+      'components/StudentMusicPlayer.vue',
+      'components/StudentShareCard.vue',
+    ]
+
+    for (const file of files) {
+      expect(read(file)).not.toMatch(/[\u{1F000}-\u{1FAFF}]/u)
+    }
+  })
 })

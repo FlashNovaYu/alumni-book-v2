@@ -1,7 +1,10 @@
 <template>
   <div v-if="hasData" class="rankings-card paper-panel">
     <div class="card-header-row">
-      <h3 class="rankings-title">🌟 班级风云榜</h3>
+      <div class="rankings-title-group">
+        <p>RANKING</p>
+        <h3 class="rankings-title">班级风云榜</h3>
+      </div>
       <div class="rankings-tabs">
         <button
           v-for="tab in tabs"
@@ -130,6 +133,8 @@ onMounted(async () => {
   color: var(--color-primary);
   margin: 0;
 }
+
+.rankings-title-group p { margin: 0 0 2px; color: var(--color-paper-brown); font-size: 9px; font-weight: 700; letter-spacing: 0.12em; }
 
 .rankings-tabs {
   display: flex;

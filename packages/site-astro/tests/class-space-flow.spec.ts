@@ -109,9 +109,9 @@ test.describe('Class Space Flow', () => {
     // 验证侧边导航
     const directory = page.locator('.class-space-section-nav')
     await expect(directory).toBeVisible()
-    await expect(directory.getByRole('link', { name: /群聊/ })).toBeVisible()
-    await expect(directory.getByRole('link', { name: /影像/ })).toBeVisible()
-    await expect(directory.getByRole('link', { name: /时光/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /班级群聊/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /精选影像/ })).toBeVisible()
+    await expect(directory.getByRole('link', { name: /班级大事/ })).toBeVisible()
 
     // 验证群聊消息内容
     await expect(page.locator('[data-message-id="msg-1"]')).toContainText('张三的群聊消息')

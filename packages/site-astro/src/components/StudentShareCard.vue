@@ -2,7 +2,7 @@
   <div class="share-modal">
     <div class="share-modal-overlay" @click="$emit('close')"></div>
     <div class="share-card card">
-      <button class="share-close-btn" @click="$emit('close')">✕</button>
+      <button class="share-close-btn" type="button" aria-label="关闭分享窗口" @click="$emit('close')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
       <div class="share-card-content">
         <div class="share-avatar-wrapper">
           <img v-if="avatarSrc" :src="avatarSrc" class="share-avatar" :alt="studentName" />
@@ -18,7 +18,9 @@
       <div class="share-actions-grid mt-4">
         <button class="btn-primary" @click="printPage">打印 / 存为 PDF</button>
         <button class="btn-secondary" @click="copyShareLink">
-          {{ copySuccess ? '✓ 已复制' : '🔗 复制链接' }}
+          <svg v-if="copySuccess" class="share-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10" /></svg>
+          <svg v-else class="share-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14 8 16a3 3 0 0 1-4-4l3-3a3 3 0 0 1 4 0M14 10l2-2a3 3 0 0 1 4 4l-3 3a3 3 0 0 1-4 0M8 12h8" /></svg>
+          {{ copySuccess ? '已复制' : '复制链接' }}
         </button>
       </div>
     </div>
@@ -99,6 +101,7 @@ function copyShareLink() {
   cursor: pointer;
   color: var(--color-muted);
 }
+.share-close-btn svg, .share-action-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .share-card-content {
   display: flex;
   flex-direction: column;
@@ -163,5 +166,6 @@ function copyShareLink() {
   gap: var(--spacing-md);
   width: 100%;
 }
+.share-actions-grid button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .mt-4 { margin-top: var(--spacing-lg); }
 </style>

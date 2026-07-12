@@ -413,3 +413,23 @@ git add docs/superpowers/specs/2026-07-12-public-ui-feedback-design.md docs/supe
 git commit -m "docs: record public UI feedback verification"
 ~~~
 
+## Execution record
+
+已于 2026-07-12 在 `codex/ui-feedback-refinements` 隔离工作区完成全部功能任务。
+
+- 班级空间概览仅显示管理员维护的 6 条大事，独立完整时光轴保留综合记录；`/api/files/...` 时间轴图片不再被重复拼接。
+- 人物长廊恢复每页 9 张卡片的分页；损坏头像即使在 Vue hydration 之前已完成加载失败，也会通过 `naturalWidth === 0` 回退为姓名首字。
+- 顶部目录已收束为前言、同学档案、班级空间、年度册、更多；影像馆和时光轴在“更多”页保留入口。切换时暂存一次书签位置，向左切换会使用正确的反向动画原点。
+- 班级空间目录和时间线已按纸本章节与连续事件线重做；公共界面的装饰性 emoji 已替换为 SVG 或文字层级，互动反应协议未改动。
+
+验证通过：
+
+~~~text
+pnpm --filter worker exec vitest run tests/timeline-feed.test.ts tests/class-space-inbox.test.ts  # 5 passed
+pnpm --filter worker exec tsc --noEmit
+pnpm --filter site-astro typecheck
+pnpm build:admin
+pnpm --filter site-astro build
+pnpm --filter site-astro exec vitest run tests/public-ui-feedback-static.test.ts tests/public-state-regressions.test.ts tests/ui-reliability-static.test.ts tests/navigation.test.ts  # 33 passed
+PLAYWRIGHT_PORT=4324 pnpm --filter site-astro exec playwright test tests/class-space-flow.spec.ts tests/roster-pagination.spec.ts tests/navigation-marker-direction.spec.ts --workers=1  # 6 passed
+~~~

@@ -6,7 +6,7 @@
       @click="toggleMusic"
       :title="musicTitle || '背景音乐'"
     >
-      <span class="music-icon">🎵</span>
+      <span class="music-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="1.5" /><path d="M12 5v2M19 12h-2M12 19v-2M5 12h2" /></svg></span>
     </button>
     <transition name="fade">
       <span v-if="showMusicTip" class="music-tip">点击播放背景音乐</span>
@@ -114,6 +114,8 @@ onMounted(() => {
   color: var(--color-on-primary);
   border-color: var(--color-primary);
 }
+.music-icon { display: inline-grid; width: 20px; height: 20px; place-items: center; }
+.music-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .music-tip {
   background: var(--color-surface-card);
   border: 1px solid var(--color-hairline);

@@ -48,7 +48,7 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
     }
 
     // 匹配如 href="/preface"、href="/roster" 等，但忽略包含 base 前缀的链接
-    const hardcodedLinkRegex = /href="\/(preface|roster|album|timeline|student)(?:\/|\?|#|")/g
+    const hardcodedLinkRegex = /href="\/(preface|roster|album|timeline|more|student)(?:\/|\?|#|")/g
 
     const violations: string[] = []
 
@@ -73,7 +73,7 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
       const rosterContent = readFileSync(rosterHtmlPath, 'utf-8')
       const expectedPrefix = basePath.replace(/\/$/, '')
       expect(rosterContent).toContain(`href="${expectedPrefix}/preface`)
-      expect(rosterContent).toContain(`href="${expectedPrefix}/timeline`)
+      expect(rosterContent).toContain(`href="${expectedPrefix}/more`)
     }
   })
 

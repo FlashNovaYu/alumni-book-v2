@@ -10,9 +10,8 @@ const navItems = [
   { href: '/preface', label: '前言' },
   { href: '/roster', label: '同学档案' },
   { href: '/class-space', label: '班级空间' },
-  { href: '/album', label: '影像馆' },
-  { href: '/timeline', label: '时光轴' },
   { href: '/yearbook', label: '年度册' },
+  { href: '/more', label: '更多' },
 ]
 const isActive = (path: string) => currentPath === href(path) || currentPath.startsWith(`${href(path)}/`)
 const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学录'
@@ -30,7 +29,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     </button>
     <p class="mobile-page-title" aria-live="polite">{pageTitle}</p>
 
-    <div class="nav-directory" data-nav-directory>
+    <div class="nav-directory" data-nav-directory data-nav-ready="false">
       <span class="nav-active-paper" aria-hidden="true"></span>
       <span class="nav-active-ink ink-line" aria-hidden="true"></span>
       {navItems.map((item) => (
@@ -206,6 +205,11 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
     transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
   }
+
+  .nav-directory[data-nav-ready='false'] .nav-active-paper,
+  .nav-directory[data-nav-ready='false'] .nav-active-ink { transition: none; }
+  .nav-directory[data-nav-direction='backward'] .nav-active-ink { transform-origin: right center; }
+  .nav-directory[data-nav-direction='forward'] .nav-active-ink { transform-origin: left center; }
 
   .nav-active-ink {
     bottom: 6px;
