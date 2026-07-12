@@ -13,6 +13,7 @@
       <button v-if="loadingOlder" class="history-load-button" type="button" disabled>正在载入更早消息</button>
       <button v-else-if="canLoadOlder" class="history-load-button" type="button" @click="loadOlderMessages">载入更早消息</button>
       <div ref="log" class="chat-log" role="log" :aria-live="loadingOlder ? 'off' : 'polite'" @scroll="handleScroll">
+        <div class="chat-log-spacer"></div>
         <GroupChatMessage
           v-for="message in items"
           :key="message.id"
@@ -164,7 +165,8 @@ watch(() => items.value.length, async () => {
 .chat-connection[data-state="error"] { color: var(--color-paper-stamp-red); border-color: color-mix(in srgb, var(--color-paper-stamp-red) 35%, var(--color-paper-border)); }
 .chat-log-wrap { position: relative; }
 .history-load-button { display: block; min-height: 36px; margin: 0 auto var(--spacing-xs); padding: 0 10px; color: var(--color-paper-brown); background: transparent; border: 0; font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
-.chat-log { display: grid; align-content: end; gap: var(--spacing-md); height: clamp(360px, 52vh, 540px); overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; padding: var(--spacing-sm) 2px var(--spacing-sm) 0; scrollbar-color: var(--color-paper-border) transparent; }
+.chat-log { display: flex; flex-direction: column; gap: var(--spacing-md); height: clamp(360px, 52vh, 540px); overflow-y: auto; overscroll-behavior-y: auto; touch-action: pan-y; padding: var(--spacing-sm) 2px var(--spacing-sm) 0; scrollbar-color: var(--color-paper-border) transparent; }
+.chat-log-spacer { margin-top: auto; }
 .chat-empty { align-self: center; margin: auto; color: var(--color-paper-muted); font-size: 14px; }
 .new-message-button { position: absolute; right: var(--spacing-sm); bottom: var(--spacing-sm); min-height: 36px; padding: 0 10px; color: #fffaf2; background: var(--color-paper-stamp-red); border: 0; border-radius: var(--rounded-sm); font: inherit; font-size: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(99, 46, 36, 0.2); }
 

@@ -47,8 +47,11 @@ describe('班级群聊历史浏览', () => {
     const stage = read('components/GroupChatStage.vue')
 
     expect(stage).toContain('if (element.scrollTop <= 16 && canLoadOlder.value && !loadingOlder.value)')
-    expect(stage).toMatch(/\.chat-log\s*\{[^}]*overscroll-behavior-y:\s*contain;/)
+    expect(stage).toMatch(/\.chat-log\s*\{[^}]*overscroll-behavior-y:\s*auto;/)
     expect(stage).toMatch(/\.chat-log\s*\{[^}]*touch-action:\s*pan-y;/)
+    expect(stage).not.toContain("addEventListener('wheel'")
+    expect(stage).not.toContain("addEventListener('touchmove'")
+    expect(stage).not.toContain('window.scrollBy')
   })
 })
 

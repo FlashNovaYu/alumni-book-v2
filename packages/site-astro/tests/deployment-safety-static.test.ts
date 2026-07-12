@@ -38,4 +38,14 @@ describe('生产发布单一写入者契约', () => {
       expect(read(file), file).not.toContain('--branch main')
     }
   })
+
+  it('Pages 准备脚本只准备产物且发现旧 Worker 域名立即失败', () => {
+    const prepare = read('scripts/prepare-pages-deploy.mjs')
+
+    expect(prepare).toContain('throw new Error(`生产产物仍包含公开 Worker 地址：${file}`)')
+    expect(prepare).not.toContain('replaceAll(')
+    expect(prepare).not.toContain("'pages', 'deploy'")
+    expect(prepare).not.toContain("'--branch', 'main'")
+    expect(prepare).not.toContain("'--commit-dirty=true'")
+  })
 })
