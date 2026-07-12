@@ -284,11 +284,10 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
   const limitRaw = c.req.query('limit')
   let limitVal = 30
   if (limitRaw !== undefined) {
-    const parsed = parseInt(limitRaw, 10)
-    if (isNaN(parsed) || parsed <= 0) {
+    if (!/^[1-9]\d*$/.test(limitRaw)) {
       return c.json({ success: false, message: '无效的 limit 参数' }, 400)
     }
-    limitVal = Math.min(parsed, 30)
+    limitVal = Math.min(Number(limitRaw), 30)
   }
 
   const beforeRaw = c.req.query('before')
@@ -446,8 +445,12 @@ directConversationsRoutes.put('/direct-conversations/:id/read', async (c) => {
     return c.json({ success: false, message: '请求体格式错误' }, 400)
   }
 
+  if (bodyObj === null || typeof bodyObj !== 'object' || Array.isArray(bodyObj)) {
+    return c.json({ success: false, message: '请求体格式错误' }, 400)
+  }
+
   const keys = Object.keys(bodyObj)
-  if (keys.length !== 1 || keys[0] !== 'throughMessageId' || typeof bodyObj.throughMessageId !== 'string') {
+  if (keys.length !== 1 || keys[0] !== 'throughMessageId' || typeof bodyObj.throughMessageId !== 'string' || !bodyObj.throughMessageId.trim()) {
     return c.json({ success: false, message: '请求体格式错误' }, 400)
   }
 
