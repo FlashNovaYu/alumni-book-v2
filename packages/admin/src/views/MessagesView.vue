@@ -85,6 +85,7 @@
               <span v-else-if="msg.status === 'approved'" class="badge badge-approved" style="background: var(--color-success); color: white;">已通过</span>
               <span v-else-if="msg.status === 'rejected'" class="badge badge-rejected" style="background: var(--color-error); color: white;">已退回</span>
               <span v-else-if="msg.status === 'hidden'" class="badge badge-hidden">已隐藏</span>
+              <span v-if="msg.reviewedBy" class="msg-style">审核人：{{ msg.reviewedBy }}</span>
             </div>
             <p class="msg-content">{{ msg.content }}</p>
             <div v-if="msg.status === 'rejected' && msg.reviewReason" class="msg-reply-inline" style="border-left-color: var(--color-error); background: color-mix(in srgb, var(--color-error) 8%, transparent);">
@@ -93,6 +94,11 @@
             <div class="msg-actions">
               <button v-if="canManage && msg.status === 'pending'" class="btn-primary btn-sm" @click="approvePublic(msg.id)" :disabled="processing">审核通过</button>
               <button v-if="canManage && msg.status === 'pending'" class="btn-danger btn-sm" @click="rejectPublic(msg.id)" :disabled="processing">退回</button>
+              <button v-if="canManage" class="btn-secondary btn-sm" @click="togglePublicPin(msg.id, !msg.pinned)" :disabled="processing">{{ msg.pinned ? '取消置顶' : '置顶' }}</button>
+              <button v-if="canManage" class="btn-secondary btn-sm" @click="togglePublicFeature(msg.id, !msg.featured)" :disabled="processing">{{ msg.featured ? '取消精选' : '设为精选' }}</button>
+              <button v-if="canManage && msg.status !== 'hidden'" class="btn-secondary btn-sm" @click="togglePublicHide(msg.id, true)" :disabled="processing">隐藏</button>
+              <button v-else-if="canManage" class="btn-secondary btn-sm" @click="togglePublicHide(msg.id, false)" :disabled="processing">取消隐藏</button>
+              <button v-if="canManage" class="btn-danger btn-sm" @click="removePublic(msg.id)" :disabled="processing">删除</button>
             </div>
           </div>
         </div>
@@ -230,6 +236,62 @@ async function rejectPublic(id: string) {
   } finally {
     processing.value = false
   }
+}
+
+function findPublicMessage(id: string) {
+  return publicMessages.value.find(message => message.id === id)
+}
+
+async function togglePublicHide(id: string, hidden: boolean) {
+  const reason = hidden ? prompt('请输入隐藏原因：') : ''
+  if (hidden && reason === null) return
+  if (hidden && !reason?.trim()) { showToast('error', '隐藏原因不能为空'); return }
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/hide`, {
+      method: 'PUT', body: JSON.stringify({ hidden, reason: reason?.trim() }),
+    })
+    const message = findPublicMessage(id)
+    if (message) message.status = hidden ? 'hidden' : 'approved'
+    showToast('success', hidden ? '已隐藏' : '已取消隐藏')
+  } catch (error: any) { showToast('error', error.message) }
+  finally { processing.value = false }
+}
+
+async function togglePublicPin(id: string, pinned: boolean) {
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pinned }) })
+    const message = findPublicMessage(id)
+    if (message) message.pinned = pinned
+    showToast('success', pinned ? '已置顶' : '已取消置顶')
+  } catch (error: any) { showToast('error', error.message) }
+  finally { processing.value = false }
+}
+
+async function togglePublicFeature(id: string, featured: boolean) {
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/feature`, { method: 'PUT', body: JSON.stringify({ featured }) })
+    const message = findPublicMessage(id)
+    if (message) message.featured = featured
+    showToast('success', featured ? '已设为精选' : '已取消精选')
+  } catch (error: any) { showToast('error', error.message) }
+  finally { processing.value = false }
+}
+
+async function removePublic(id: string) {
+  if (!confirm('确定删除这条公共留言？')) return
+  const reason = prompt('请输入删除原因：')
+  if (reason === null) return
+  if (!reason.trim()) { showToast('error', '删除原因不能为空'); return }
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}`, { method: 'DELETE', body: JSON.stringify({ reason: reason.trim() }) })
+    publicMessages.value = publicMessages.value.filter(message => message.id !== id)
+    showToast('success', '已删除')
+  } catch (error: any) { showToast('error', error.message) }
+  finally { processing.value = false }
 }
 
 async function approve(id: string) {

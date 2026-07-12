@@ -375,6 +375,88 @@ describe('Administrator RBAC schema', () => {
     ).bind(accountId).first()).toBeTruthy()
   })
 
+  it('requires and audits reasons for destructive administrator account actions', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+         VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+      ).bind('adm_reason_reset', 'reason-reset', '重置原因测试', await hashPassword('before-reset')),
+      env.DB.prepare(
+        `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+         VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+      ).bind('adm_reason_disable', 'reason-disable', '停用原因测试', await hashPassword('disable-pass')),
+      env.DB.prepare(
+        `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
+         VALUES (?, 'standalone', ?, ?, ?, 'moderator')`
+      ).bind('adm_reason_revoke', 'reason-revoke', '撤销原因测试', await hashPassword('revoke-pass')),
+    ])
+    const ownerLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const ownerToken = (await ownerLogin.json() as any).data.token
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` }
+
+    const resetWithoutReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_reset/reset-password', {
+      method: 'POST', headers, body: JSON.stringify({ initialPassword: 'after-reset' }),
+    }), env, createExecutionContext())
+    expect(resetWithoutReason.status).toBe(400)
+
+    const resetObjectReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_reset/reset-password', {
+      method: 'POST', headers, body: JSON.stringify({ initialPassword: 'after-reset', reason: {} }),
+    }), env, createExecutionContext())
+    expect(resetObjectReason.status).toBe(400)
+
+    const disableWithoutReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_disable/disable', {
+      method: 'POST', headers,
+    }), env, createExecutionContext())
+    expect(disableWithoutReason.status).toBe(400)
+
+    const disableWhitespaceReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_disable/disable', {
+      method: 'POST', headers, body: JSON.stringify({ reason: '   ' }),
+    }), env, createExecutionContext())
+    expect(disableWhitespaceReason.status).toBe(400)
+
+    const disableLongReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_disable/disable', {
+      method: 'POST', headers, body: JSON.stringify({ reason: 'a'.repeat(501) }),
+    }), env, createExecutionContext())
+    expect(disableLongReason.status).toBe(400)
+
+    const revokeWithoutReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_revoke/revoke-sessions', {
+      method: 'POST', headers,
+    }), env, createExecutionContext())
+    expect(revokeWithoutReason.status).toBe(400)
+
+    const revokeArrayReason = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_revoke/revoke-sessions', {
+      method: 'POST', headers, body: JSON.stringify({ reason: ['异常登录'] }),
+    }), env, createExecutionContext())
+    expect(revokeArrayReason.status).toBe(400)
+
+    const reset = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_reset/reset-password', {
+      method: 'POST', headers, body: JSON.stringify({ initialPassword: 'after-reset', reason: '安全轮换' }),
+    }), env, createExecutionContext())
+    expect(reset.status).toBe(200)
+
+    const disable = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_disable/disable', {
+      method: 'POST', headers, body: JSON.stringify({ reason: '岗位调整' }),
+    }), env, createExecutionContext())
+    expect(disable.status).toBe(200)
+
+    const revoke = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reason_revoke/revoke-sessions', {
+      method: 'POST', headers, body: JSON.stringify({ reason: '发现异常登录' }),
+    }), env, createExecutionContext())
+    expect(revoke.status).toBe(200)
+
+    const { results } = await env.DB.prepare(
+      "SELECT action, reason FROM admin_audit_logs WHERE resource_id IN ('adm_reason_reset', 'adm_reason_disable', 'adm_reason_revoke') ORDER BY action"
+    ).all()
+    expect(results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'admin_account.disable', reason: '岗位调整' }),
+      expect.objectContaining({ action: 'admin_account.reset_password', reason: '安全轮换' }),
+      expect.objectContaining({ action: 'admin_account.revoke_sessions', reason: '发现异常登录' }),
+    ]))
+  })
+
   it('requires a reset standalone administrator to change password before using the workbench', async () => {
     await env.DB.prepare(
       `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id)
@@ -395,7 +477,7 @@ describe('Administrator RBAC schema', () => {
     const reset = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_reset_test/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
-      body: JSON.stringify({ initialPassword: 'after-reset' }),
+      body: JSON.stringify({ initialPassword: 'after-reset', reason: '账号安全轮换' }),
     }), env, createExecutionContext())
     expect(reset.status).toBe(200)
 
@@ -432,7 +514,7 @@ describe('Administrator RBAC schema', () => {
     const ownerToken = (await ownerLogin.json() as any).data.token
 
     const revoke = await worker.fetch(new Request('http://localhost/api/admin/accounts/adm_revoke_test/revoke-sessions', {
-      method: 'POST', headers: { Authorization: `Bearer ${ownerToken}` },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` }, body: JSON.stringify({ reason: '主动退出所有设备' }),
     }), env, createExecutionContext())
     expect(revoke.status).toBe(200)
 
@@ -518,5 +600,95 @@ describe('Administrator RBAC schema', () => {
     expect(remove.status).toBe(200)
     expect(await env.DB.prepare("SELECT reason FROM admin_audit_logs WHERE action = 'public_message.delete' AND resource_id = 'pm_reason_test'").first())
       .toMatchObject({ reason: '重复发布' })
+  })
+
+  it('records the named administrator when approving a public message', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_reviewer_test', 'test_init', '测试同学', '请审核我', 'pending')"),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_reviewer_reject', 'test_init', '测试同学', '请退回我', 'pending')"),
+    ])
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+    const approval = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_reviewer_test/approve', {
+      method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    expect(approval.status).toBe(200)
+    expect(await env.DB.prepare("SELECT status, reviewed_by FROM public_messages WHERE id = 'pm_reviewer_test'").first())
+      .toMatchObject({ status: 'approved', reviewed_by: '陈老师' })
+    expect(await env.DB.prepare("SELECT admin_id FROM content_reviews WHERE content_id = 'pm_reviewer_test'").first())
+      .toMatchObject({ admin_id: expect.any(String) })
+    const rejection = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_reviewer_reject/reject', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason: '请调整内容后再提交' }),
+    }), env, createExecutionContext())
+    expect(rejection.status).toBe(200)
+    const listed = await worker.fetch(new Request('http://localhost/api/admin/public-messages', {
+      headers: { Authorization: `Bearer ${token}` },
+    }), env, createExecutionContext())
+    const listedBody = await listed.json() as any
+    expect(listed.status).toBe(200)
+    expect(listedBody.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'pm_reviewer_test', reviewedBy: '陈老师' }),
+      expect.objectContaining({ id: 'pm_reviewer_reject', reviewedBy: '陈老师' }),
+    ]))
+    const publicList = await worker.fetch(new Request('http://localhost/api/public-messages'), env, createExecutionContext())
+    const publicBody = await publicList.json() as any
+    expect(publicList.status).toBe(200)
+    expect(publicBody.data.items.find((message: any) => message.id === 'pm_reviewer_test')).not.toHaveProperty('reviewedBy')
+    await env.DB.prepare(
+      "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES ('reviewer-privacy-token', 'test_init', datetime('now', '+1 day'))"
+    ).run()
+    const mine = await worker.fetch(new Request('http://localhost/api/public-messages/mine', {
+      headers: { 'X-Classmate-Token': 'reviewer-privacy-token' },
+    }), env, createExecutionContext())
+    const mineBody = await mine.json() as any
+    expect(mine.status).toBe(200)
+    expect(mineBody.data.items.find((message: any) => message.id === 'pm_reviewer_test')).not.toHaveProperty('reviewedBy')
+  })
+
+  it('accepts each pending public message review only once', async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_approve_once', 'test_init', '测试同学', '只能通过一次', 'pending')"),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_reject_once', 'test_init', '测试同学', '只能退回一次', 'pending')"),
+      env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, status) VALUES ('pm_concurrent_once', 'test_init', '测试同学', '并发只审核一次', 'pending')"),
+    ])
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+
+    const approve = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_approve_once/approve', {
+      method: 'PUT', headers,
+    }), env, createExecutionContext())
+    expect(approve.status).toBe(200)
+    const repeatedApproval = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_approve_once/approve', {
+      method: 'PUT', headers,
+    }), env, createExecutionContext())
+    expect(repeatedApproval.status).toBe(409)
+
+    const reject = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_reject_once/reject', {
+      method: 'PUT', headers, body: JSON.stringify({ reason: '内容不适合公开' }),
+    }), env, createExecutionContext())
+    expect(reject.status).toBe(200)
+    const repeatedRejection = await worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_reject_once/reject', {
+      method: 'PUT', headers, body: JSON.stringify({ reason: '再次退回' }),
+    }), env, createExecutionContext())
+    expect(repeatedRejection.status).toBe(409)
+
+    const [concurrentA, concurrentB] = await Promise.all([
+      worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_concurrent_once/approve', { method: 'PUT', headers }), env, createExecutionContext()),
+      worker.fetch(new Request('http://localhost/api/admin/public-messages/pm_concurrent_once/approve', { method: 'PUT', headers }), env, createExecutionContext()),
+    ])
+    expect([concurrentA.status, concurrentB.status].sort()).toEqual([200, 409])
+
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM content_reviews WHERE content_id IN ('pm_approve_once', 'pm_reject_once', 'pm_concurrent_once')").first())
+      .toMatchObject({ count: 3 })
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM notifications WHERE related_id IN ('pm_approve_once', 'pm_reject_once', 'pm_concurrent_once')").first())
+      .toMatchObject({ count: 3 })
   })
 })

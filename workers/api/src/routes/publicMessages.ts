@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
-import { buildNotificationStatement } from '../lib/notificationService'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 
@@ -20,8 +19,8 @@ function safeParseJson(str: string, fallback: any = {}) {
   }
 }
 
-function formatPublicMessage(row: any) {
-  return {
+function formatPublicMessage(row: any, includeReviewer = false) {
+  const message = {
     id: row.id,
     authorSlug: row.author_slug,
     authorName: row.author_name,
@@ -35,6 +34,47 @@ function formatPublicMessage(row: any) {
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at || null,
   }
+  return includeReviewer ? { ...message, reviewedBy: row.reviewed_by || null } : message
+}
+
+type PendingReviewInput = {
+  id: string
+  authorSlug: string
+  adminId: string
+  adminName: string
+  action: 'approve' | 'reject'
+  status: 'approved' | 'rejected'
+  reason: string | null
+  notificationType: string
+  notificationTitle: string
+  notificationBody: string
+}
+
+function buildPendingReviewBatch(db: D1Database, input: PendingReviewInput): D1PreparedStatement[] {
+  const guard = "EXISTS (SELECT 1 FROM public_messages WHERE id = ? AND status = 'pending')"
+  return [
+    db.prepare(
+      `INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id)
+       SELECT ?, 'public_message', ?, ?, ?, ? WHERE ${guard}`
+    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, input.id, input.action, input.reason, input.adminId, input.id),
+    db.prepare(
+      `INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id)
+       SELECT ?, ?, ?, ?, ?, 'public_message', ? WHERE ${guard}`
+    ).bind(`ntf_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, input.authorSlug, input.notificationType, input.notificationTitle, input.notificationBody, input.id, input.id),
+    db.prepare(
+      `INSERT INTO admin_audit_logs
+        (id, admin_account_id, action, resource_type, resource_id, reason, before_summary, after_summary, metadata)
+       SELECT ?, ?, ?, 'public_message', ?, ?, ?, ?, '{}' WHERE ${guard}`
+    ).bind(
+      `audit_${crypto.randomUUID()}`, input.adminId, `public_message.${input.action}`, input.id, input.reason,
+      JSON.stringify({ status: 'pending' }), JSON.stringify({ status: input.status }), input.id,
+    ),
+    db.prepare(
+      `UPDATE public_messages
+       SET status = ?, review_reason = ?, reviewed_by = ?, reviewed_at = datetime('now'), updated_at = datetime('now')
+       WHERE id = ? AND status = 'pending'`
+    ).bind(input.status, input.reason, input.adminName, input.id),
+  ]
 }
 
 publicMessagesRoutes.get('/public-messages', async (c) => {
@@ -127,7 +167,7 @@ publicMessagesRoutes.get('/admin/public-messages', async (c) => {
   sql += ' ORDER BY pinned DESC, featured DESC, created_at DESC LIMIT 100'
 
   const { results } = await c.env.DB.prepare(sql).bind(...binds).all()
-  return c.json({ success: true, data: (results || []).map(formatPublicMessage) })
+  return c.json({ success: true, data: (results || []).map(row => formatPublicMessage(row, true)) })
 })
 
 publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
@@ -136,19 +176,14 @@ publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const row = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
-
-  const notification = buildNotificationStatement(c.env.DB, {
-    recipientSlug: row.author_slug, type: 'public_message_approved', title: '公共留言已通过审核',
-    body: '你提交的公共留言已经展示在班级留言墙。', relatedType: 'public_message', relatedId: id,
-  })
-  await runAuditedBatch(c.env.DB, admin.id, [
-    c.env.DB.prepare(
-      "UPDATE public_messages SET status = 'approved', reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
-    ).bind(id),
-    c.env.DB.prepare(
-      "INSERT INTO content_reviews (id, content_type, content_id, action, admin_id) VALUES (?, 'public_message', ?, 'approve', ?)"
-    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, admin.id), notification.statement,
-  ], { action: 'public_message.approve', resourceType: 'public_message', resourceId: id, before: { status: row.status }, after: { status: 'approved' } })
+  if (row.status !== 'pending') return c.json({ success: false, message: '该留言已完成审核' }, 409)
+  const results = await c.env.DB.batch(buildPendingReviewBatch(c.env.DB, {
+    id, authorSlug: row.author_slug, adminId: admin.id, adminName: admin.displayName,
+    action: 'approve', status: 'approved', reason: null,
+    notificationType: 'public_message_approved', notificationTitle: '公共留言已通过审核',
+    notificationBody: '你提交的公共留言已经展示在班级留言墙。',
+  }))
+  if (Number(results[results.length - 1]?.meta.changes || 0) !== 1) return c.json({ success: false, message: '该留言已完成审核' }, 409)
 
   return c.json({ success: true, message: '已审核通过' })
 })
@@ -163,19 +198,13 @@ publicMessagesRoutes.put('/admin/public-messages/:id/reject', async (c) => {
 
   const row = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first() as any
   if (!row) return c.json({ success: false, message: '留言不存在' }, 404)
-
-  const notification = buildNotificationStatement(c.env.DB, {
-    recipientSlug: row.author_slug, type: 'public_message_rejected', title: '公共留言未通过审核',
-    body: reviewReason, relatedType: 'public_message', relatedId: id,
-  })
-  await runAuditedBatch(c.env.DB, admin.id, [
-    c.env.DB.prepare(
-      "UPDATE public_messages SET status = 'rejected', review_reason = ?, reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?"
-    ).bind(reviewReason, id),
-    c.env.DB.prepare(
-      "INSERT INTO content_reviews (id, content_type, content_id, action, reason, admin_id) VALUES (?, 'public_message', ?, 'reject', ?, ?)"
-    ).bind(`cr_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, id, reviewReason, admin.id), notification.statement,
-  ], { action: 'public_message.reject', resourceType: 'public_message', resourceId: id, reason: reviewReason, before: { status: row.status }, after: { status: 'rejected' } })
+  if (row.status !== 'pending') return c.json({ success: false, message: '该留言已完成审核' }, 409)
+  const results = await c.env.DB.batch(buildPendingReviewBatch(c.env.DB, {
+    id, authorSlug: row.author_slug, adminId: admin.id, adminName: admin.displayName,
+    action: 'reject', status: 'rejected', reason: reviewReason,
+    notificationType: 'public_message_rejected', notificationTitle: '公共留言未通过审核', notificationBody: reviewReason,
+  }))
+  if (Number(results[results.length - 1]?.meta.changes || 0) !== 1) return c.json({ success: false, message: '该留言已完成审核' }, 409)
 
   return c.json({ success: true, message: '已退回留言' })
 })

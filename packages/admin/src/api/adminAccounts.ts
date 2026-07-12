@@ -35,22 +35,22 @@ export async function createAdminAccount(payload: CreateAdminAccountPayload) {
   return adminFetch<ApiResponse<{ id: string }>>('/api/admin/accounts', { method: 'POST', body: JSON.stringify(payload) })
 }
 
-export async function disableAdminAccount(id: string) {
-  return adminFetch<ApiResponse>(`/api/admin/accounts/${id}/disable`, { method: 'POST' })
+export async function disableAdminAccount(id: string, reason: string) {
+  return adminFetch<ApiResponse>(`/api/admin/accounts/${id}/disable`, { method: 'POST', body: JSON.stringify({ reason }) })
 }
 
 export async function updateAdminAccount(id: string, payload: UpdateAdminAccountPayload) {
   return adminFetch<ApiResponse>(`/api/admin/accounts/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
 }
 
-export async function resetAdminPassword(id: string, initialPassword: string) {
+export async function resetAdminPassword(id: string, initialPassword: string, reason: string) {
   return adminFetch<ApiResponse>(`/api/admin/accounts/${id}/reset-password`, {
-    method: 'POST', body: JSON.stringify({ initialPassword }),
+    method: 'POST', body: JSON.stringify({ initialPassword, reason }),
   })
 }
 
-export async function revokeAdminSessions(id: string) {
-  return adminFetch<ApiResponse>(`/api/admin/accounts/${id}/revoke-sessions`, { method: 'POST' })
+export async function revokeAdminSessions(id: string, reason: string) {
+  return adminFetch<ApiResponse>(`/api/admin/accounts/${id}/revoke-sessions`, { method: 'POST', body: JSON.stringify({ reason }) })
 }
 
 export async function listAuditLogs(filters: AuditLogFilters = {}) {

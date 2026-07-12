@@ -175,15 +175,24 @@ async function resetPassword(account: AdminAccountSummary) {
   const password = prompt(`请为“${account.displayName}”设置不少于 8 位的新初始密码：`)
   if (password === null) return
   if (password.length < 8) { window.alert('初始密码至少 8 位'); return }
-  await resetAdminPassword(account.id, password); await load()
+  const reason = prompt('请填写重置密码的原因：')
+  if (reason === null) return
+  if (!reason.trim()) { window.alert('请填写重置密码的原因'); return }
+  await resetAdminPassword(account.id, password, reason.trim()); await load()
 }
 async function revokeSessions(account: AdminAccountSummary) {
   if (!confirm(`确定撤销“${account.displayName}”的全部管理会话吗？`)) return
-  await revokeAdminSessions(account.id); await load()
+  const reason = prompt('请填写撤销会话的原因：')
+  if (reason === null) return
+  if (!reason.trim()) { window.alert('请填写撤销会话的原因'); return }
+  await revokeAdminSessions(account.id, reason.trim()); await load()
 }
 async function disable(account: AdminAccountSummary) {
   if (!confirm(`确定停用“${account.displayName}”吗？其所有管理会话将立即失效。`)) return
-  await disableAdminAccount(account.id); await load()
+  const reason = prompt('请填写停用管理员的原因：')
+  if (reason === null) return
+  if (!reason.trim()) { window.alert('请填写停用管理员的原因'); return }
+  await disableAdminAccount(account.id, reason.trim()); await load()
 }
 
 onMounted(load)

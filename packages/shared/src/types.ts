@@ -252,6 +252,7 @@ export interface PublicMessage {
   pinned: boolean
   reactions: Record<string, number>
   createdAt: string
+  reviewedBy?: string | null
   reviewedAt?: string | null
 }
 

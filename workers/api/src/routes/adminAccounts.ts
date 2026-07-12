@@ -9,6 +9,12 @@ type Override = { permission: AdminPermission; effect: 'allow' | 'deny' }
 const SECONDARY_ROLES = new Set(['content_admin', 'moderator', 'operator'])
 export const adminAccountsRoutes = new Hono<{ Bindings: Bindings }>()
 
+function cleanDestructiveReason(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const reason = value.trim()
+  return reason && reason.length <= 500 ? reason : null
+}
+
 function validOverrides(value: unknown): Override[] | null {
   if (!Array.isArray(value)) return []
   const overrides: Override[] = []
@@ -158,13 +164,16 @@ adminAccountsRoutes.post('/admin/accounts/:id/disable', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
+  const { reason } = await c.req.json().catch(() => ({})) as { reason?: unknown }
+  const cleanReason = cleanDestructiveReason(reason)
+  if (!cleanReason) return c.json({ success: false, message: '停用管理员时请填写原因' }, 400)
   const account = await c.env.DB.prepare('SELECT is_owner, status FROM admin_accounts WHERE id = ?').bind(id).first<any>()
   if (!account) return c.json({ success: false, message: '管理员不存在' }, 404)
   if (account.is_owner) return c.json({ success: false, message: '唯一主管理员不可停用' }, 400)
   await runAuditedBatch(c.env.DB, principal.id, [
     c.env.DB.prepare("UPDATE admin_accounts SET status = 'disabled', updated_at = datetime('now') WHERE id = ?").bind(id),
     c.env.DB.prepare("UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_account_id = ? AND revoked_at IS NULL").bind(id),
-  ], { action: 'admin_account.disable', resourceType: 'admin_account', resourceId: id, before: { status: account.status }, after: { status: 'disabled' } })
+  ], { action: 'admin_account.disable', resourceType: 'admin_account', resourceId: id, reason: cleanReason, before: { status: account.status }, after: { status: 'disabled' } })
   return c.json({ success: true })
 })
 
@@ -172,9 +181,11 @@ adminAccountsRoutes.post('/admin/accounts/:id/reset-password', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
-  const { initialPassword } = await c.req.json().catch(() => ({})) as { initialPassword?: string }
+  const { initialPassword, reason } = await c.req.json().catch(() => ({})) as { initialPassword?: string; reason?: unknown }
   const password = String(initialPassword || '')
+  const cleanReason = cleanDestructiveReason(reason)
   if (password.length < 8) return c.json({ success: false, message: '初始密码至少 8 位' }, 400)
+  if (!cleanReason) return c.json({ success: false, message: '重置管理员密码时请填写原因' }, 400)
   const account = await c.env.DB.prepare(
     'SELECT account_type, is_owner, must_change_password FROM admin_accounts WHERE id = ?'
   ).bind(id).first<{ account_type: string; is_owner: number; must_change_password: number }>()
@@ -189,6 +200,7 @@ adminAccountsRoutes.post('/admin/accounts/:id/reset-password', async (c) => {
     c.env.DB.prepare("UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_account_id = ? AND revoked_at IS NULL").bind(id),
   ], {
     action: 'admin_account.reset_password', resourceType: 'admin_account', resourceId: id,
+    reason: cleanReason,
     before: { mustChangePassword: !!account.must_change_password },
     after: { mustChangePassword: true, sessionsRevoked: true },
   })
@@ -199,12 +211,16 @@ adminAccountsRoutes.post('/admin/accounts/:id/revoke-sessions', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
+  const { reason } = await c.req.json().catch(() => ({})) as { reason?: unknown }
+  const cleanReason = cleanDestructiveReason(reason)
+  if (!cleanReason) return c.json({ success: false, message: '撤销管理员会话时请填写原因' }, 400)
   const account = await c.env.DB.prepare('SELECT id FROM admin_accounts WHERE id = ?').bind(id).first()
   if (!account) return c.json({ success: false, message: '管理员不存在' }, 404)
   await runAuditedBatch(c.env.DB, principal.id, [
     c.env.DB.prepare("UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_account_id = ? AND revoked_at IS NULL").bind(id),
   ], {
     action: 'admin_account.revoke_sessions', resourceType: 'admin_account', resourceId: id,
+    reason: cleanReason,
     after: { sessionsRevoked: true },
   })
   return c.json({ success: true })

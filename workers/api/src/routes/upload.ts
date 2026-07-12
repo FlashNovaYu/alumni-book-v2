@@ -97,36 +97,36 @@ uploadRoutes.post('/upload', async (c) => {
   let mutation: D1PreparedStatement | null = null
   let resourceType = 'upload'
   let resourceId = r2Key
-  if (type === 'avatar' && slug) {
-    const previous = await db.prepare('SELECT avatar_url FROM students WHERE slug = ?').bind(slug).first<any>()
-    previousKey = fileKeyFromUrl(previous?.avatar_url)
-    mutation = db.prepare('UPDATE students SET avatar_url = ? WHERE slug = ?').bind(relativeUrl, slug)
-    resourceType = 'student'; resourceId = slug
-  }
-
-  if (type === 'music' && slug) {
-    const previous = await db.prepare('SELECT music_url FROM students WHERE slug = ?').bind(slug).first<any>()
-    previousKey = fileKeyFromUrl(previous?.music_url)
-    mutation = db.prepare('UPDATE students SET music_url = ? WHERE slug = ?').bind(relativeUrl, slug)
-    resourceType = 'student'; resourceId = slug
-  }
-
-  if (type === 'background' && slug) {
-    const previous = await db.prepare('SELECT background_url FROM students WHERE slug = ?').bind(slug).first<any>()
-    previousKey = fileKeyFromUrl(previous?.background_url)
-    mutation = db.prepare('UPDATE students SET background_url = ? WHERE slug = ?').bind(relativeUrl, slug)
-    resourceType = 'student'; resourceId = slug
-  }
-
-  if (type === 'photo' && albumId) {
-    const photoId = `photo_${timestamp}_${Math.random().toString(36).slice(2, 6)}`
-    mutation = db.prepare(
-      'INSERT INTO photos (id, album_id, filename, r2_key) VALUES (?, ?, ?, ?)'
-    ).bind(photoId, albumId, file.name, r2Key)
-    resourceType = 'photo'; resourceId = photoId
-  }
-
   try {
+    if (type === 'avatar' && slug) {
+      const previous = await db.prepare('SELECT avatar_url FROM students WHERE slug = ?').bind(slug).first<any>()
+      previousKey = fileKeyFromUrl(previous?.avatar_url)
+      mutation = db.prepare('UPDATE students SET avatar_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+      resourceType = 'student'; resourceId = slug
+    }
+
+    if (type === 'music' && slug) {
+      const previous = await db.prepare('SELECT music_url FROM students WHERE slug = ?').bind(slug).first<any>()
+      previousKey = fileKeyFromUrl(previous?.music_url)
+      mutation = db.prepare('UPDATE students SET music_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+      resourceType = 'student'; resourceId = slug
+    }
+
+    if (type === 'background' && slug) {
+      const previous = await db.prepare('SELECT background_url FROM students WHERE slug = ?').bind(slug).first<any>()
+      previousKey = fileKeyFromUrl(previous?.background_url)
+      mutation = db.prepare('UPDATE students SET background_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+      resourceType = 'student'; resourceId = slug
+    }
+
+    if (type === 'photo' && albumId) {
+      const photoId = `photo_${timestamp}_${Math.random().toString(36).slice(2, 6)}`
+      mutation = db.prepare(
+        'INSERT INTO photos (id, album_id, filename, r2_key) VALUES (?, ?, ?, ?)'
+      ).bind(photoId, albumId, file.name, r2Key)
+      resourceType = 'photo'; resourceId = photoId
+    }
+
     await runAuditedBatch(db, admin.id, mutation ? [mutation] : [], {
       action: 'file.upload', resourceType, resourceId, after: { type, filename: file.name, r2Key },
     })
