@@ -79,6 +79,7 @@
           <div class="msg-actions">
             <button v-if="canManage && message.status === 'pending'" class="btn-primary btn-sm" :disabled="processing" @click="approveLegacy(message.id)">审核通过</button>
             <button v-if="canManage && message.status === 'pending'" class="btn-danger btn-sm" :disabled="processing" @click="rejectLegacy(message.id)">退回</button>
+            <button v-if="canManage" class="btn-danger btn-sm" :disabled="processing" @click="removeLegacy(message.id)">删除</button>
           </div>
         </div>
       </article>
@@ -100,7 +101,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { adminFetch, getCurrentAdmin } from '@/api/client'
 import {
   fetchGroupChatMessages,
@@ -120,7 +122,8 @@ type ModerationKind = 'hide' | 'restore' | 'recall' | 'mute'
 const messages = ref<ProfileMessage[]>([])
 const legacyMessages = ref<LegacyMessage[]>([])
 const groupMessages = ref<AdminGroupChatMessage[]>([])
-const messageType = ref<MessageType>('profile')
+const route = useRoute()
+const messageType = ref<MessageType>(route.query.tab === 'group' ? 'group' : 'profile')
 const profileFilter = ref<'all' | 'pending' | 'approved'>('pending')
 const groupFilter = ref<'all' | AdminGroupChatStatus>('all')
 const loading = ref(true)
@@ -221,6 +224,20 @@ async function rejectLegacy(id: string) {
   processing.value = true
   try { await adminFetch(`/api/admin/public-messages/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }); const item = legacyMessages.value.find((message) => message.id === id); if (item) { item.status = 'rejected'; item.reviewReason = reason }; showToast('success', '已退回投稿') } catch (error) { showToast('error', error instanceof Error ? error.message : '退回失败') } finally { processing.value = false }
 }
+async function removeLegacy(id: string) {
+  const reason = window.prompt('请输入删除原因：')?.trim()
+  if (!reason) return
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) })
+    legacyMessages.value = legacyMessages.value.filter((message) => message.id !== id)
+    showToast('success', '历史投稿已删除')
+  } catch (error) {
+    showToast('error', error instanceof Error ? error.message : '删除失败')
+  } finally {
+    processing.value = false
+  }
+}
 async function approve(id: string) { processing.value = true; try { await adminFetch(`/api/admin/messages/${id}/approve`, { method: 'PUT' }); const item = messages.value.find((message) => message.id === id); if (item) item.isApproved = true; showToast('success', '已审核通过') } catch (error) { showToast('error', error instanceof Error ? error.message : '审核失败') } finally { processing.value = false } }
 async function togglePin(id: string, pinned: boolean) { processing.value = true; try { await adminFetch(`/api/admin/messages/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pinned }) }); const item = messages.value.find((message) => message.id === id); if (item) item.pinned = pinned; showToast('success', pinned ? '已置顶' : '已取消置顶') } catch (error) { showToast('error', error instanceof Error ? error.message : '置顶失败') } finally { processing.value = false } }
 async function toggleHide(id: string, hidden: boolean) {
@@ -241,6 +258,11 @@ async function batchAction(action: string, hidden?: boolean) {
   processing.value = true
   try { await adminFetch('/api/admin/messages/batch', { method: 'POST', body: JSON.stringify({ ids: selectedIds.value, action, hidden, reason }) }); if (action === 'approve') messages.value.forEach((message) => { if (selectedIds.value.includes(message.id)) message.isApproved = true }); if (action === 'hide') messages.value.forEach((message) => { if (selectedIds.value.includes(message.id)) message.isHidden = Boolean(hidden) }); if (action === 'delete') messages.value = messages.value.filter((message) => !selectedIds.value.includes(message.id)); selectedIds.value = []; showToast('success', '操作成功') } catch (error) { showToast('error', error instanceof Error ? error.message : '批量操作失败') } finally { processing.value = false }
 }
+
+watch(() => route.query.tab, (tab) => {
+  const type: MessageType = tab === 'group' ? 'group' : 'profile'
+  if (type !== messageType.value) changeMessageType(type)
+})
 
 onMounted(load)
 onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })

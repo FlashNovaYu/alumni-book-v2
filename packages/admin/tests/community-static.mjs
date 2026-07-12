@@ -26,6 +26,26 @@ for (const action of ['fetchGroupChatMessages', 'setGroupChatHidden', 'recallGro
   assert.match(messages, new RegExp(action))
 }
 assert.match(messages, /loadVersion/)
+assert.match(messages, /removeLegacy/)
+assert.match(messages, /route\.query\.tab/)
+
+const albums = read('views/AlbumsView.vue')
+assert.match(albums, /upload-dropzone/)
+assert.match(albums, /handleFileDrop/)
+
+const timeline = read('views/TimelineEventsView.vue')
+assert.match(timeline, /\/api\/admin\/timeline\/events/)
+assert.match(timeline, /\/api\/timeline\/events\/reorder/)
+assert.match(timeline, /draggable="true"/)
+
+const auditLog = read('views/AuditLogView.vue')
+assert.match(auditLog, /summarizeAuditLog/)
+assert.doesNotMatch(auditLog, /<pre/)
+
+const settings = read('views/SettingsView.vue')
+for (const field of ['config.identity.siteName', 'config.identity.className', 'config.identity.classYear', 'config.identity.shareDescription']) {
+  assert.match(settings, new RegExp(field.replaceAll('.', '\\.'), 'g'))
+}
 
 const mail = read('views/MailView.vue')
 const layout = read('views/AdminLayout.vue')
