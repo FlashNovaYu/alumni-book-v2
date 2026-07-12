@@ -48,6 +48,13 @@ describe('classmate account login frontend', () => {
     expect(footer).toContain('data-site-footer')
   })
 
+  it('opens administrator previews in the current browsing context to preserve the verified session', () => {
+    const students = fs.readFileSync(path.resolve(__dirname, '../../admin/src/views/StudentsView.vue'), 'utf-8')
+
+    expect(students).toContain(':href="getFrontUrl(student.slug)"')
+    expect(students).not.toContain('target="_blank"')
+  })
+
   it('gives student creation and profile inputs Chinese accessible names', () => {
     const studentsPath = path.resolve(__dirname, '../../admin/src/views/StudentsView.vue')
     const selfEditPath = path.resolve(__dirname, '../src/components/SelfEditPanel.vue')
