@@ -19,7 +19,7 @@
           :srcdoc="processedHtml"
           class="owner-iframe"
           frameborder="0"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
         ></iframe>
       </div>
 

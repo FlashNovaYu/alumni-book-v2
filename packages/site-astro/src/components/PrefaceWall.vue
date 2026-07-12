@@ -1,7 +1,7 @@
 <template>
   <section class="preface-wall paper-page fade-in">
     <div class="preface-body fade-in">
-      <p class="preface-content" v-html="formattedContent"></p>
+      <p class="preface-content">{{ prefaceContent }}</p>
     </div>
 
     <hr v-if="hasAcknowledgments" class="hairline" style="margin: var(--spacing-xxl) 0;" />
@@ -38,10 +38,7 @@ const props = defineProps<{
 
 const config = ref<PrefaceConfig>({ ...props.initialConfig })
 
-const formattedContent = computed(() => {
-  const content = config.value.preface?.content || ''
-  return content.replace(/\n/g, '<br>')
-})
+const prefaceContent = computed(() => config.value.preface?.content || '')
 
 const hasAcknowledgments = computed(() => {
   return config.value.acknowledgments && config.value.acknowledgments.length > 0
@@ -85,6 +82,7 @@ onMounted(() => {
   line-height: 2.15;
   text-indent: 2em;
   text-align: justify;
+  white-space: pre-line;
 }
 
 .hairline {
