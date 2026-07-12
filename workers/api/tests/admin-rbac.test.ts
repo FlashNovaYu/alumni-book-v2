@@ -316,6 +316,29 @@ describe('Administrator RBAC schema', () => {
     expect(body.data).not.toHaveProperty('auditAlerts')
   })
 
+  it('returns and persists site identity settings', async () => {
+    const initial = await worker.fetch(new Request('http://localhost/api/config'), env, createExecutionContext())
+    expect((await initial.json() as any).data.identity).toEqual({
+      siteName: '同学录', className: '', classYear: '', shareDescription: '',
+    })
+
+    const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'owner', password: 'new-pass-123' }),
+    }), env, createExecutionContext())
+    const token = (await login.json() as any).data.token
+    const update = await worker.fetch(new Request('http://localhost/api/config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ identity: { siteName: '高三一班同学录', className: '高三一班', classYear: '2026 届', shareDescription: '记录青春回忆' } }),
+    }), env, createExecutionContext())
+    expect(update.status).toBe(200)
+
+    const saved = await worker.fetch(new Request('http://localhost/api/config'), env, createExecutionContext())
+    expect((await saved.json() as any).data.identity).toEqual({
+      siteName: '高三一班同学录', className: '高三一班', classYear: '2026 届', shareDescription: '记录青春回忆',
+    })
+  })
+
   it('allows the owner to create a standalone secondary administrator', async () => {
     const login = await worker.fetch(new Request('http://localhost/api/auth/login', {
       method: 'POST',

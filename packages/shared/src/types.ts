@@ -124,6 +124,13 @@ export interface MuseumConfig {
 
 export type MuseumThemeConfig = MuseumConfig
 
+export interface SiteIdentityConfig {
+  siteName: string
+  className: string
+  classYear: string
+  shareDescription: string
+}
+
 /** 站点配置 */
 export interface SiteConfig {
   particles: Record<string, { enabled: boolean; preset: string }>
@@ -142,6 +149,7 @@ export interface SiteConfig {
     fontFamily: string
     fontSize: number
   }
+  identity: SiteIdentityConfig
   museum?: MuseumThemeConfig
 }
 

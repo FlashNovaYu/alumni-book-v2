@@ -264,6 +264,7 @@ app.get('/api/config', async (c) => {
       preface: config.preface || { title: '致青春岁月', subtitle: '写在翻开同学录之前', content: '' },
       acknowledgments: config.acknowledgments || [],
       typography: config.typography || { fontFamily: 'default', fontSize: 15 },
+      identity: config.identity || { siteName: '同学录', className: '', classYear: '', shareDescription: '' },
       museum: config.museum || {
         enabled: true,
         heroEyebrow: 'CLASS MEMORY MUSEUM',
@@ -299,6 +300,7 @@ app.get('/api/admin/config', async (c) => {
       preface: config.preface || { title: '致青春岁月', subtitle: '写在翻开同学录之前', content: '' },
       acknowledgments: config.acknowledgments || [],
       typography: config.typography || { fontFamily: 'default', fontSize: 15 },
+      identity: config.identity || { siteName: '同学录', className: '', classYear: '', shareDescription: '' },
       museum: config.museum || {
         enabled: true,
         heroEyebrow: 'CLASS MEMORY MUSEUM',
@@ -483,14 +485,14 @@ app.get('/api/admin/workbench', async (c) => {
   const summary: Array<{ id: string; label: string; value: number; to: string }> = []
 
   if (hasPermission(admin, 'moderation.view')) {
-    const [profileMessages, publicMessages] = await Promise.all([
+    const [profileMessages, groupChatToday] = await Promise.all([
       c.env.DB.prepare('SELECT COUNT(*) AS count FROM messages WHERE is_approved = 0').first<{ count: number }>(),
-      c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE status = 'pending'").first<{ count: number }>(),
+      c.env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM public_messages WHERE client_nonce IS NOT NULL AND client_nonce NOT LIKE 'legacy:%' AND date(created_at, '+8 hours') = date('now', '+8 hours')"
+      ).first<{ count: number }>(),
     ])
-    todos.push(
-      { id: 'profile-messages', label: '个人留言待审核', count: profileMessages?.count || 0, to: '/messages' },
-      { id: 'public-messages', label: '公共留言待审核', count: publicMessages?.count || 0, to: '/messages' },
-    )
+    todos.push({ id: 'profile-messages', label: '个人留言待审核', count: profileMessages?.count || 0, to: '/messages' })
+    summary.push({ id: 'group-chat-today', label: '今日公共群聊', value: groupChatToday?.count || 0, to: '/messages?tab=group' })
   }
 
   if (hasPermission(admin, 'content.manage')) {
