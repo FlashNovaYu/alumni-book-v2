@@ -1,39 +1,89 @@
 ---
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
-import { ClientRouter } from 'astro:transitions' // 引入 Astro 5 视图过渡引擎
-// 全局样式与轻量 reveal 动效；页面级重动画必须按需加载
+import { ClientRouter } from 'astro:transitions'
 import '../styles/global.css'
+
+const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+const buildApiBase = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
+const defaultIdentity = { siteName: '同学录', className: '', classYear: '', shareDescription: '同学录 · 青春回忆' }
+let siteConfig = { identity: defaultIdentity, footer: { copyright: '同学录 · 青春回忆' } }
+
+try {
+  const response = await fetch(buildApiBase + '/api/config')
+  if (response.ok) {
+    const payload = await response.json()
+    if (payload?.data) {
+      siteConfig = {
+        ...siteConfig,
+        ...payload.data,
+        identity: { ...defaultIdentity, ...payload.data.identity },
+        footer: { ...siteConfig.footer, ...payload.data.footer },
+      }
+    }
+  }
+} catch {}
+
+const classLabel = [siteConfig.identity.className, siteConfig.identity.classYear].filter(Boolean).join(' · ')
+const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).join(' · ') || '同学录 · 青春回忆'
 ---
 
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>同学录</title>
-    <ClientRouter /> <!-- 挂载视图过渡，接管 SPA 式局部渲染 -->
-    <script is:inline>
-      (function() {
-        document.documentElement.classList.add('js');
-        const token = sessionStorage.getItem('classmate_account_token');
-        const path = window.location.pathname;
-        const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/');
-        const isAdmin = path.includes('/admin/');
-        const is404 = path.includes('/404');
-        if (!token && !isHome && !isAdmin && !is404) {
-          const base = path.includes('/alumni-book-v2/') ? '/alumni-book-v2/' : '/';
-          window.location.href = base;
+    <title>{siteConfig.identity.siteName || '同学录'}</title>
+    <meta name="description" content={siteConfig.identity.shareDescription || '同学录 · 青春回忆'} />
+    <ClientRouter />
+    <script define:vars={{ apiBase }}>
+      (async function () {
+        document.documentElement.classList.add('js')
+        const path = window.location.pathname
+        const isHome = path === '/' || path.endsWith('/index.html') || path.endsWith('/alumni-book-v2/')
+        const isExempt = isHome || path.includes('/admin/') || path.includes('/404')
+        const classmateToken = sessionStorage.getItem('classmate_account_token')
+
+        if (!isExempt && !classmateToken) {
+          const adminToken = sessionStorage.getItem('admin_token')
+          if (adminToken) {
+            try {
+              const response = await fetch(apiBase + '/api/auth/verify', {
+                headers: { Authorization: 'Bearer ' + adminToken },
+              })
+              if (response.ok) return
+            } catch {}
+          }
+          window.location.replace(path.includes('/alumni-book-v2/') ? '/alumni-book-v2/' : '/')
         }
-      })();
+      })()
+
+      function syncSiteIdentity() {
+        fetch(apiBase + '/api/config')
+          .then((response) => response.ok ? response.json() : null)
+          .then((payload) => {
+            const config = payload?.data
+            const identity = config?.identity
+            if (!identity) return
+            if (identity.siteName) document.title = identity.siteName
+            const description = document.querySelector('meta[name="description"]')
+            if (description && identity.shareDescription) description.setAttribute('content', identity.shareDescription)
+            const footer = document.querySelector('[data-site-footer]')
+            if (footer) {
+              const classLabel = [identity.className, identity.classYear].filter(Boolean).join(' · ')
+              footer.textContent = [classLabel, config.footer?.copyright].filter(Boolean).join(' · ') || '同学录 · 青春回忆'
+            }
+          })
+          .catch(() => undefined)
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncSiteIdentity, { once: true })
+      else syncSiteIdentity()
     </script>
-    <!-- 采用本地/系统默认字体 Fallback，消除远程字体阻塞 -->
   </head>
   <body>
     <div class="app">
       <TopNav />
-      <main class="main-content">
-        <slot />
-      </main>
+      <main class="main-content"><slot /></main>
       <script>
         import { initGlobalReveal } from '../scripts/globalReveal'
         import { initNavRuntime } from '../scripts/navRuntime'
@@ -41,7 +91,7 @@ import '../styles/global.css'
         initGlobalReveal(true)
         initNavRuntime()
       </script>
-      <AppFooter />
+      <AppFooter initialText={footerText} />
     </div>
   </body>
 </html>

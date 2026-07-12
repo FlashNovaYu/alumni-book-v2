@@ -1,6 +1,11 @@
+---
+interface Props { initialText?: string }
+const { initialText = '同学录 · 青春回忆' } = Astro.props
+---
+
 <footer class="app-footer">
   <div class="container footer-inner">
-    <p class="footer-text">&copy; 同学录 · 青春回忆</p>
+    <p class="footer-text" data-site-footer>{initialText}</p>
   </div>
 </footer>
 
