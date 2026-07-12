@@ -262,7 +262,19 @@ try {
   }
   .tl-date { font-size: var(--type-caption-size); color: var(--color-paper-muted); margin-bottom: var(--spacing-xs); }
   .tl-title { font-size: var(--type-title-sm-size); margin-bottom: var(--spacing-xs); overflow-wrap: anywhere; word-break: break-word; }
-  .tl-desc { font-size: var(--type-body-sm-size); color: var(--color-paper-muted); line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; }
+  .tl-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
+    max-height: 9.6em;
+    overflow: hidden;
+    font-size: var(--type-body-sm-size);
+    color: var(--color-paper-muted);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
   .tl-photo { width: 100%; border-radius: var(--rounded-sm); margin-top: var(--spacing-sm); }
   .tl-link { display: inline-block; margin-top: var(--spacing-sm); font-size: var(--type-body-sm-size); color: var(--color-paper-brown); text-decoration: none; }
   .tl-link:hover { text-decoration: underline; }

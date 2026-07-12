@@ -53,31 +53,31 @@
                 <div class="field-grid">
                   <div class="form-group">
                     <label class="form-label">昵称</label>
-                    <input v-model="form.info.nickname" class="text-input" maxlength="20" />
+                    <input v-model="form.info.nickname" class="text-input" maxlength="20" aria-label="昵称" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">性别</label>
-                    <input v-model="form.info.gender" class="text-input" maxlength="10" />
+                    <input v-model="form.info.gender" class="text-input" maxlength="10" aria-label="性别" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">生日</label>
-                    <input v-model="form.info.birthday" type="date" class="text-input" />
+                    <input v-model="form.info.birthday" type="date" class="text-input" aria-label="生日" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">学校</label>
-                    <input v-model="form.info.school" class="text-input" />
+                    <input v-model="form.info.school" class="text-input" aria-label="学校" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">班级</label>
-                    <input v-model="form.info.class" class="text-input" />
+                    <input v-model="form.info.class" class="text-input" aria-label="班级" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">毕业年份</label>
-                    <input v-model="form.info.graduationYear" class="text-input" maxlength="10" />
+                    <input v-model="form.info.graduationYear" class="text-input" maxlength="10" aria-label="毕业年份" />
                   </div>
                   <div class="form-group full-width">
                     <label class="form-label">座右铭</label>
-                    <input v-model="form.info.motto" class="text-input" maxlength="100" placeholder="一句话概括自己…" />
+                    <input v-model="form.info.motto" class="text-input" maxlength="100" placeholder="一句话概括自己…" aria-label="座右铭" />
                   </div>
                 </div>
               </section>
@@ -88,31 +88,31 @@
                 <div class="field-grid">
                   <div class="form-group">
                     <label class="form-label">MBTI</label>
-                    <input v-model="form.info.mbti" class="text-input" maxlength="10" placeholder="如 INTJ" />
+                    <input v-model="form.info.mbti" class="text-input" maxlength="10" placeholder="如 INTJ" aria-label="MBTI 类型" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">星座</label>
-                    <input v-model="form.info.astro" class="text-input" maxlength="10" />
+                    <input v-model="form.info.astro" class="text-input" maxlength="10" aria-label="星座" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">血型</label>
-                    <input v-model="form.info.bloodType" class="text-input" maxlength="5" />
+                    <input v-model="form.info.bloodType" class="text-input" maxlength="5" aria-label="血型" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">擅长的事</label>
-                    <input v-model="form.info.strengths" class="text-input" />
+                    <input v-model="form.info.strengths" class="text-input" aria-label="擅长的事" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">不擅长的事</label>
-                    <input v-model="form.info.weaknesses" class="text-input" />
+                    <input v-model="form.info.weaknesses" class="text-input" aria-label="不擅长的事" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">最喜欢科目</label>
-                    <input v-model="form.info.bestSubject" class="text-input" />
+                    <input v-model="form.info.bestSubject" class="text-input" aria-label="最喜欢科目" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">最讨厌科目</label>
-                    <input v-model="form.info.worstSubject" class="text-input" />
+                    <input v-model="form.info.worstSubject" class="text-input" aria-label="最讨厌科目" />
                   </div>
                 </div>
               </section>
@@ -124,14 +124,14 @@
                   <div class="form-group" v-for="f in contactFields" :key="f.key">
                     <div class="label-row">
                       <label class="form-label">{{ f.label }}</label>
-                      <select v-model="form.info.visibility[f.key]" class="privacy-select">
+                      <select v-model="form.info.visibility[f.key]" class="privacy-select" :aria-label="`${f.label}可见范围`">
                         <option value="public">公开</option>
                         <option value="classmates">同学</option>
                         <option value="owner">本人</option>
                         <option value="hidden">隐藏</option>
                       </select>
                     </div>
-                    <input v-model="form.info[f.key]" class="text-input" />
+                    <input v-model="form.info[f.key]" class="text-input" :aria-label="f.label" />
                   </div>
                 </div>
               </section>
@@ -142,7 +142,7 @@
                 <div class="field-grid">
                   <div class="form-group" v-for="f in interestFields" :key="f.key">
                     <label class="form-label">{{ f.label }}</label>
-                    <input v-model="form.info[f.key]" class="text-input" />
+                    <input v-model="form.info[f.key]" class="text-input" :aria-label="f.label" />
                   </div>
                 </div>
               </section>
@@ -152,7 +152,7 @@
                 <h3 class="section-label">校园回忆</h3>
                 <div v-for="f in memoryFields" :key="f.key" class="form-group">
                   <label class="form-label">{{ f.label }}</label>
-                  <textarea v-model="form.info[f.key]" class="textarea" rows="2" maxlength="500" />
+                  <textarea v-model="form.info[f.key]" class="textarea" rows="2" maxlength="500" :aria-label="f.label" />
                 </div>
               </section>
 
@@ -161,7 +161,7 @@
                 <h3 class="section-label">时间胶囊</h3>
                 <div v-for="f in futureFields" :key="f.key" class="form-group">
                   <label class="form-label">{{ f.label }}</label>
-                  <textarea v-model="form.info[f.key]" class="textarea" rows="2" maxlength="500" />
+                  <textarea v-model="form.info[f.key]" class="textarea" rows="2" maxlength="500" :aria-label="f.label" />
                 </div>
               </section>
 
@@ -171,14 +171,14 @@
                 <div class="modules-list">
                   <div v-for="(mod, idx) in form.info.profileModules" :key="idx" class="module-item card p-3 mb-3">
                     <div class="module-item-header">
-                      <input v-model="mod.title" class="text-input module-title-input" placeholder="模块标题（例如：现在的我）" maxlength="50" />
+                      <input v-model="mod.title" class="text-input module-title-input" placeholder="模块标题（例如：现在的我）" maxlength="50" :aria-label="`第 ${idx + 1} 个小传标题`" />
                       <div class="module-actions">
                         <button class="btn-sm btn-icon" @click="moveModule(idx, -1)" :disabled="idx === 0" title="上移">▲</button>
                         <button class="btn-sm btn-icon" @click="moveModule(idx, 1)" :disabled="idx === form.info.profileModules.length - 1" title="下移">▼</button>
                         <button class="btn-sm btn-danger btn-icon" @click="removeModule(idx)" title="删除">✕</button>
                       </div>
                     </div>
-                    <textarea v-model="mod.content" class="textarea module-content-input mt-2" rows="3" placeholder="小传内容…" maxlength="1000"></textarea>
+                    <textarea v-model="mod.content" class="textarea module-content-input mt-2" rows="3" placeholder="小传内容…" maxlength="1000" :aria-label="`第 ${idx + 1} 个小传内容`"></textarea>
                   </div>
                   <button class="btn-sm btn-secondary w-full" @click="addModule">+ 添加小传模块</button>
                 </div>
@@ -204,6 +204,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../api/classmateSession'
 
 const props = defineProps<{
   studentSlug: string
@@ -343,6 +344,7 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
       headers: authHeaders(),
       body: fd,
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       if (type === 'avatar') form.avatarUrl = data.data.url
@@ -351,7 +353,11 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
     } else {
       saveMsg.value = { type: 'error', text: data.message || '上传失败' }
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === SESSION_EXPIRED_MESSAGE) {
+      saveMsg.value = { type: 'error', text: SESSION_EXPIRED_MESSAGE }
+      return
+    }
     saveMsg.value = { type: 'error', text: '上传失败' }
   } finally {
     uploading.value = false
@@ -381,6 +387,7 @@ async function save() {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       saveMsg.value = { type: 'success', text: '保存成功' }
@@ -390,18 +397,14 @@ async function save() {
         needSetup.value = false
       }
       setTimeout(() => closeEditor(), 1500)
-    } else if (res.status === 401) {
-      token.value = ''
-      sessionStorage.removeItem(`classmate_token_${props.studentSlug}`)
-      if (await ensureToken()) {
-        saving.value = false
-        return save()
-      }
-      saveMsg.value = { type: 'error', text: '身份验证失败，请关闭后重新打开编辑' }
     } else {
       saveMsg.value = { type: 'error', text: data.message || '保存失败' }
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === SESSION_EXPIRED_MESSAGE) {
+      saveMsg.value = { type: 'error', text: SESSION_EXPIRED_MESSAGE }
+      return
+    }
     saveMsg.value = { type: 'error', text: '网络错误' }
   } finally {
     saving.value = false

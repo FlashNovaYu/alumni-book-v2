@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { validateImageUpload } from '../lib/imageValidation'
 
 type Bindings = {
   DB: D1Database
@@ -73,7 +74,13 @@ uploadRoutes.post('/upload', async (c) => {
     return c.json({ success: false, message: '不支持的文件格式' }, 400)
   }
 
-  const ext = file.name.split('.').pop() || 'bin'
+  const imageContents = file.type.startsWith('image/') ? await file.arrayBuffer() : null
+  const imageFormat = imageContents ? validateImageUpload(file.type, imageContents) : null
+  if (imageContents && !imageFormat) {
+    return c.json({ success: false, message: '图片内容与文件格式不一致' }, 400)
+  }
+
+  const ext = imageFormat?.extension || file.name.split('.').pop() || 'bin'
   const timestamp = Date.now()
   let r2Key = ''
 
@@ -85,13 +92,15 @@ uploadRoutes.post('/upload', async (c) => {
     r2Key = `photos/${albumId}_${timestamp}_${Math.random().toString(36).slice(2, 6)}.${ext}`
   } else if (type === 'background' && slug) {
     r2Key = `backgrounds/${slug}_${timestamp}.${ext}`
+  } else if (imageFormat) {
+    r2Key = `misc/${timestamp}.${imageFormat.extension}`
   } else {
-    r2Key = `misc/${timestamp}_${file.name}`
+    r2Key = `misc/${timestamp}_${file.name}_${crypto.randomUUID()}`
   }
 
   // 3. 上传新文件
-  await r2.put(r2Key, file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await r2.put(r2Key, imageContents || file.stream(), {
+    httpMetadata: { contentType: imageFormat?.mime || file.type },
   })
 
   // 统一存为相对路径，有利于环境迁移与解耦

@@ -1,5 +1,6 @@
 import { getClassmateToken, type ApiResponse } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import { handleClassmateUnauthorized } from './classmateSession'
 
 export class ApiRequestError extends Error {
   constructor(
@@ -39,6 +40,8 @@ export async function requestClassmateApi<T>(
     headers: requestHeaders,
   })
   const payload = await res.json().catch(() => null) as ApiResponse<T> | null
+
+  if (res.status === 401) handleClassmateUnauthorized()
 
   if (!res.ok || !payload?.success || (expectData && payload.data === undefined)) {
     throw new ApiRequestError(

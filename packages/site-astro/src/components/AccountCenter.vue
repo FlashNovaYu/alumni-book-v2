@@ -14,7 +14,7 @@
       <!-- 身份展示区 -->
       <div class="profile-summary">
         <div class="avatar-container">
-          <img v-if="student.avatarUrl" :src="student.avatarUrl" class="user-avatar" alt="头像" />
+          <img v-if="student.avatarUrl && !avatarError" :src="student.avatarUrl" class="user-avatar" alt="头像" @error="avatarError = true" />
           <div v-else class="avatar-fallback">{{ student.name.charAt(0) }}</div>
         </div>
         <div class="profile-info">
@@ -118,6 +118,7 @@ const loading = ref(true)
 const submitting = ref(false)
 const formError = ref('')
 const formSuccess = ref('')
+const avatarError = ref(false)
 
 const passwordForm = reactive({
   oldPassword: '',

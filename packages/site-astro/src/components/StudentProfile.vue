@@ -281,10 +281,7 @@ const museumSummary = computed(() => {
   return toStudentMuseumSummary(student.value)
 })
 
-const isCurrentOwner = computed(() => {
-  const current = getClassmateStudent<{ slug: string }>()
-  return current?.slug === props.studentSlug
-})
+const isCurrentOwner = ref(false)
 
 const avatarSrc = computed(() => {
   if (!student.value?.avatarUrl) return null
@@ -374,6 +371,9 @@ function closeShareModal() { shareOpen.value = false }
 
 onMounted(() => {
   disposed = false
+  const current = getClassmateStudent<{ slug: string }>()
+  isCurrentOwner.value = current?.slug === props.studentSlug
+
   if (!slugVal.value) {
     loading.value = false
     return

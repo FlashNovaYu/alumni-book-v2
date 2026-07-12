@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { verifyClassmateSession } from '../lib/classmateSession'
+import { validateImageUpload } from '../lib/imageValidation'
 
 type Bindings = {
   DB: D1Database
@@ -247,15 +248,20 @@ classmateRoutes.post('/classmate/upload', async (c) => {
     return c.json({ success: false, message: '不支持的文件格式' }, 400)
   }
 
-  const ext = file.name.split('.').pop() || 'bin'
+  const imageContents = await file.arrayBuffer()
+  const imageFormat = validateImageUpload(file.type, imageContents)
+  if (!imageFormat) {
+    return c.json({ success: false, message: '图片内容与文件格式不一致' }, 400)
+  }
+
   const timestamp = Date.now()
   const r2Key = type === 'avatar'
-    ? `avatars/${slug}_${timestamp}.${ext}`
-    : `backgrounds/${slug}_${timestamp}.${ext}`
+    ? `avatars/${slug}_${timestamp}.${imageFormat.extension}`
+    : `backgrounds/${slug}_${timestamp}.${imageFormat.extension}`
 
   // 3. 上传新文件到 R2
-  await r2.put(r2Key, file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await r2.put(r2Key, imageContents, {
+    httpMetadata: { contentType: imageFormat.mime },
   })
 
   // 统一存为相对路径，有利于环境迁移与解耦

@@ -6,14 +6,14 @@
     </div>
 
     <div class="search-bar">
-      <input v-model="keyword" type="text" class="text-input" placeholder="搜索学生姓名…" />
+      <input v-model="keyword" type="text" class="text-input" placeholder="搜索学生姓名…" aria-label="搜索学生" />
     </div>
 
     <div class="student-list">
       <div v-for="student in filtered" :key="student.id" class="student-row card">
         <div class="student-info">
           <div class="student-avatar">
-            <img v-if="student.avatarUrl" :src="student.avatarUrl" :alt="student.name" />
+            <img v-if="student.avatarUrl && !failedAvatarIds.has(student.id)" :src="student.avatarUrl" :alt="student.name" @error="failedAvatarIds.add(student.id)" />
             <span v-else>{{ student.name.charAt(0) }}</span>
           </div>
             <div>
@@ -42,11 +42,11 @@
             <h2 class="title-md">新建学生</h2>
             <div class="form-group">
               <label class="form-label">姓名</label>
-              <input v-model="newStudent.name" type="text" class="text-input" placeholder="学生姓名" />
+              <input v-model="newStudent.name" type="text" class="text-input" placeholder="学生姓名" aria-label="新建学生姓名" />
             </div>
             <div class="form-group">
               <label class="form-label">Slug (URL 标识)</label>
-              <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" />
+              <input v-model="newStudent.slug" type="text" class="text-input" placeholder="例如 zhangsan" aria-label="新建学生链接标识" />
             </div>
             <p v-if="createSuccess" class="create-success" role="status">{{ createSuccess }}</p>
             <div class="modal-actions">
@@ -73,6 +73,7 @@ const showCreate = ref(false)
 const creating = ref(false)
 const newStudent = ref({ name: '', slug: '' })
 const createSuccess = ref('')
+const failedAvatarIds = ref(new Set<string>())
 
 const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
