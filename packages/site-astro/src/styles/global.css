@@ -493,4 +493,95 @@ html {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   同学录 v2 · 全局高品质视图过渡（View Transitions）动效系统
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1. 水平滑动导航过渡 (Direction-Aware Navigation) */
+.page-shell {
+  view-transition-name: page-main;
+}
+
+/* 前进方向切换：旧页左退，新页右进 */
+html[data-nav-dir=forward]::view-transition-old(page-main) {
+  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-left;
+}
+html[data-nav-dir=forward]::view-transition-new(page-main) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-right;
+}
+
+/* 后退方向切换：旧页右退，新页左进 */
+html[data-nav-dir=back]::view-transition-old(page-main) {
+  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-right;
+}
+html[data-nav-dir=back]::view-transition-new(page-main) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-left;
+}
+
+@keyframes page-exit-left {
+  to { transform: translateX(-40px); opacity: 0; }
+}
+@keyframes page-enter-right {
+  from { transform: translateX(40px); opacity: 0; }
+}
+@keyframes page-exit-right {
+  to { transform: translateX(40px); opacity: 0; }
+}
+@keyframes page-enter-left {
+  from { transform: translateX(-40px); opacity: 0; }
+}
+
+/* 2. 信箱入口圆形水波扩散过渡辅助样式 (Circular Post Office) */
+html.vt-mailbox::view-transition-old(root) {
+  mix-blend-mode: normal;
+  animation: none !important;
+  z-index: 1;
+}
+html.vt-mailbox::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation: none !important;
+  z-index: 2147483646; /* 置于顶层 */
+}
+
+/* 3. 卡片点击四周延展与差时淡入动效 (Active-Card Magic) */
+::view-transition-group(active-card) {
+  animation-duration: 0.58s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); /* 阻尼指数拉伸 */
+}
+
+/* 过渡期间，旧卡片在向四周拉伸的同时平滑淡出 */
+::view-transition-old(active-card) {
+  animation: activeCardFadeOut 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 过渡期间，新详情页的内容在卡片拉伸接近完成时延迟淡出/淡入，防止拉伸失真 */
+::view-transition-new(active-card) {
+  animation: activeCardFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both; /* 0.22s 延迟 */
+}
+
+@keyframes activeCardFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes activeCardFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 4. A11y 无障碍支持：尊重 prefers-reduced-motion 系统动画设置 */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .page-shell {
+    view-transition-name: none !important;
+  }
+  [style*="view-transition-name"] {
+    view-transition-name: none !important;
+  }
+}
+
+
 

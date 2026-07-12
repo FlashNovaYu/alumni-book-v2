@@ -24,7 +24,7 @@
       </div>
 
       <!-- 标准个人页模板 -->
-      <div v-else class="student-page page-shell">
+      <div v-else class="student-page page-shell" style="view-transition-name: active-card">
         <!-- Student Hero Section -->
         <section class="student-archive-hero paper-panel">
           <div class="hero-bg" :style="bgStyle"></div>

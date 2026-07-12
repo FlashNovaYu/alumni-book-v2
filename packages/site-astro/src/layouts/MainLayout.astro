@@ -98,6 +98,85 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
 
         initGlobalReveal(true)
         initNavRuntime()
+
+        // 导航方向感知滑动逻辑
+        document.addEventListener('astro:before-preparation', (ev) => {
+          const from = window.location.pathname
+          const to = new URL(ev.to).pathname
+
+          const order = ['/', '/preface/', '/roster/', '/album/', '/timeline/', '/mailbox/']
+          const getCleanPath = (p: string) => {
+            let clean = p.replace(/\/index\.html$/, '/')
+            if (!clean.endsWith('/')) clean += '/'
+            return clean
+          }
+          const cleanFrom = getCleanPath(from)
+          const cleanTo = getCleanPath(to)
+
+          const fromIdx = order.indexOf(cleanFrom)
+          const toIdx = order.indexOf(cleanTo)
+
+          if (fromIdx !== -1 && toIdx !== -1 && cleanFrom !== cleanTo) {
+            const dir = toIdx > fromIdx ? 'forward' : 'back'
+            document.documentElement.setAttribute('data-nav-dir', dir)
+          } else {
+            document.documentElement.removeAttribute('data-nav-dir')
+          }
+        })
+
+        // 监听信箱跳转点击坐标
+        document.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement
+          const trigger = target.closest('[data-mailbox-trigger]') || target.closest('a[href*="/mailbox"]')
+          if (trigger) {
+            sessionStorage.setItem('vt-click-x', e.clientX.toString())
+            sessionStorage.setItem('vt-click-y', e.clientY.toString())
+          }
+        })
+
+        // 在路由准备阶段，如果目的地是信箱，则标记 html.vt-mailbox
+        document.addEventListener('astro:before-preparation', (ev) => {
+          const to = new URL(ev.to).pathname
+          if (to.includes('/mailbox/')) {
+            document.documentElement.classList.add('vt-mailbox')
+          } else {
+            document.documentElement.classList.remove('vt-mailbox')
+          }
+        })
+
+        // 页面渲染加载后执行圆形水波剪裁扩散动画，并清理标记
+        document.addEventListener('astro:page-load', () => {
+          const xStr = sessionStorage.getItem('vt-click-x')
+          const yStr = sessionStorage.getItem('vt-click-y')
+          
+          if (xStr && yStr && document.documentElement.classList.contains('vt-mailbox')) {
+            const x = parseInt(xStr, 10)
+            const y = parseInt(yStr, 10)
+            const radius = Math.hypot(
+              Math.max(x, window.innerWidth - x),
+              Math.max(y, window.innerHeight - y)
+            )
+
+            document.documentElement.animate(
+              {
+                clipPath: [
+                  `circle(0px at ${x}px ${y}px)`,
+                  `circle(${radius}px at ${x}px ${y}px)`
+                ]
+              },
+              {
+                duration: 580,
+                easing: 'cubic-bezier(0.86, 0, 0.07, 1)',
+                pseudoElement: '::view-transition-new(root)'
+              }
+            )
+            sessionStorage.removeItem('vt-click-x')
+            sessionStorage.removeItem('vt-click-y')
+          }
+
+          document.documentElement.removeAttribute('data-nav-dir')
+          document.documentElement.classList.remove('vt-mailbox')
+        })
       </script>
       <AppFooter initialText={footerText} />
     </div>

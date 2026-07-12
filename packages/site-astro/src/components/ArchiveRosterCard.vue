@@ -1,5 +1,10 @@
 <template>
-  <a :href="card.hasPage ? card.href : '#'" class="archive-card">
+  <a 
+    :href="card.hasPage ? card.href : '#'" 
+    class="archive-card"
+    :style="isTransitioning ? 'view-transition-name: active-card' : ''"
+    @click="handleTransition"
+  >
     <div class="archive-card__avatar">
       <img v-if="card.avatarUrl && !avatarError" ref="avatarImage" :src="avatarSrc" :alt="card.name" width="72" height="72" loading="lazy" decoding="async" style="aspect-ratio: 1" @error="markAvatarError" />
       <span v-else>{{ card.name.charAt(0) }}</span>
@@ -22,6 +27,14 @@ import type { ArchiveClassmateCard } from '../utils/museumViewModels'
 const props = defineProps<{ card: ArchiveClassmateCard; apiBase: string }>()
 const avatarError = ref(false)
 const avatarImage = ref<HTMLImageElement | null>(null)
+const isTransitioning = ref(false)
+
+function handleTransition() {
+  if (props.card.hasPage) {
+    isTransitioning.value = true
+  }
+}
+
 
 function markAvatarError() {
   avatarError.value = true
