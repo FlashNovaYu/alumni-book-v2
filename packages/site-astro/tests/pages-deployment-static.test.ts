@@ -66,6 +66,16 @@ describe('Pages production deployment contract', () => {
     expect(prepareScript).not.toContain("'--outfile', workerOut")
   })
 
+  it('embeds and verifies the exact release commit', () => {
+    const prepareScript = read('scripts/prepare-pages-deploy.mjs')
+    const smokeScript = read('scripts/smoke-pages.mjs')
+
+    expect(prepareScript).toContain("'release.json'")
+    expect(prepareScript).toContain('RELEASE_SHA')
+    expect(smokeScript).toContain('PAGES_EXPECTED_SHA')
+    expect(smokeScript).toContain("'/release.json'")
+  })
+
   it('deploys the unified Pages app and keeps Worker deployment manual', () => {
     const pagesWorkflow = read('.github/workflows/deploy-site.yml')
     expect(pagesWorkflow).toContain('pnpm prepare:pages')
