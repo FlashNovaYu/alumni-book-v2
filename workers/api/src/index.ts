@@ -26,6 +26,7 @@ import { adminCommunityRoutes } from './routes/adminCommunity'
 import { directConversationsRoutes } from './routes/directConversations'
 import { filesRoutes } from './routes/files'
 import { normalizeFileUrl } from './lib/fileUrl'
+import { audienceForStudent, filterStudentForAudience, type StudentViewer } from './lib/studentAudience'
 
 
 type Bindings = {
@@ -220,11 +221,10 @@ app.get('/api/students', async (c) => {
     'SELECT * FROM students ORDER BY name'
   ).all()
 
-  const formatted = (results || []).map(formatStudent)
-  const students = await Promise.all(formatted.map(async (s) => {
-    const audience = await determineAudience(c, s.slug)
-    return filterStudentForAudience(s, audience)
-  }))
+  const viewer = await resolveStudentViewer(c)
+  const students = (results || [])
+    .map(formatStudent)
+    .map(student => filterStudentForAudience(student, audienceForStudent(viewer, student.slug)))
   return c.json({ success: true, data: students })
 })
 
@@ -238,8 +238,8 @@ app.get('/api/students/:slug', async (c) => {
   }
 
   const student = formatStudent(row)
-  const audience = await determineAudience(c, slug)
-  const filtered = filterStudentForAudience(student, audience)
+  const viewer = await resolveStudentViewer(c)
+  const filtered = filterStudentForAudience(student, audienceForStudent(viewer, slug))
   return c.json({ success: true, data: filtered })
 })
 
@@ -595,48 +595,9 @@ app.get('/api/admin/stats', async (c) => {
 })
 
 // base64url 解码和编码辅助函数
-function fromBase64url(str: string): string {
-  try {
-    return atob(str.replace(/-/g, '+').replace(/_/g, '/'))
-  } catch {
-    return ''
-  }
-}
-
-function base64url(str: string): string {
-  return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-}
-
-async function hmacSign(data: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(data))
-  return base64url(String.fromCharCode(...new Uint8Array(sig)))
-}
-
-async function verifyClassmateToken(token: string, secret: string): Promise<string | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const slug = fromBase64url(parts[0])
-    const ts = parseInt(fromBase64url(parts[1]))
-    if (Date.now() - ts > 30 * 60 * 1000) return null
-    const derived = await hmacSign('classmate-auth', secret)
-    const expectedSig = await hmacSign(`${slug}:${ts}`, derived)
-    if (expectedSig !== parts[2]) return null
-    return slug
-  } catch {
-    return null
-  }
-}
-
-async function determineAudience(c: any, studentSlug: string): Promise<'public' | 'classmates' | 'owner' | 'admin'> {
+async function resolveStudentViewer(c: any): Promise<StudentViewer> {
   const authHeader = c.req.header('Authorization')
-  const adminToken = authHeader?.replace('Bearer ', '')
+  const adminToken = authHeader?.replace(/^Bearer\s+/i, '')
   if (adminToken) {
     try {
       const session = await c.env.DB.prepare(
@@ -644,48 +605,17 @@ async function determineAudience(c: any, studentSlug: string): Promise<'public' 
          WHERE token = ? AND revoked_at IS NULL AND julianday(expires_at) > julianday('now')`
       ).bind(adminToken).first() as { admin_account_id: string } | null
       const admin = session ? await loadActiveAdmin(c.env.DB, session.admin_account_id) : null
-      if (admin && !admin.mustChangePassword && hasPermission(admin, 'students.manage')) return 'admin'
+      if (admin && !admin.mustChangePassword && hasPermission(admin, 'students.manage')) return { kind: 'admin' }
     } catch {}
   }
 
   const classmateToken = c.req.header('X-Classmate-Token')
   if (classmateToken) {
     const authedSlug = await verifyClassmateSession(c.env.DB, classmateToken)
-    if (authedSlug) {
-      if (authedSlug === studentSlug) return 'owner'
-      return 'classmates'
-    }
+    if (authedSlug) return { kind: 'classmate', slug: authedSlug }
   }
 
-  const url = new URL(c.req.url)
-  const requestedAudience = url.searchParams.get('audience')
-  if (requestedAudience === 'public') {
-    return 'public'
-  }
-
-  return 'public'
-}
-
-function filterStudentForAudience(student: any, audience: 'public' | 'classmates' | 'owner' | 'admin') {
-  const info = { ...student.info }
-  const visibility = info.visibility || {}
-  
-  const sensitiveFields = ['qq', 'wechat', 'phone', 'email', 'address', 'weibo']
-  
-  for (const key of sensitiveFields) {
-    const level = visibility[key] || 'classmates'
-    
-    if (level === 'owner' && audience !== 'owner' && audience !== 'admin') {
-      delete info[key]
-    }
-    if (level === 'hidden' && audience !== 'admin') {
-      delete info[key]
-    }
-    if (level === 'classmates' && audience === 'public') {
-      delete info[key]
-    }
-  }
-  return { ...student, info }
+  return { kind: 'public' }
 }
 
 // 错误处理

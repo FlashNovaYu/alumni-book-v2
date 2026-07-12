@@ -214,6 +214,8 @@ describe('Security and Session Revocation', () => {
     const pubData = await pubRes.json() as any
     expect(pubData.data.info.phone).toBeUndefined()
     expect(pubData.data.info.wechat).toBeUndefined()
+    expect(pubData.data.accountStatus).toBeUndefined()
+    expect(pubData.data.accountLastLoginAt).toBeUndefined()
 
     // 2. 默认无 token 访问（默认是 public 视角）
     const classmateReq = new Request('http://localhost/api/students/zhangsan')
@@ -230,6 +232,8 @@ describe('Security and Session Revocation', () => {
     const lisiData = await lisiRes.json() as any
     expect(lisiData.data.info.phone).toBeUndefined()
     expect(lisiData.data.info.wechat).toBe('zs123')
+    expect(lisiData.data.accountStatus).toBeUndefined()
+    expect(lisiData.data.accountLastLoginAt).toBeUndefined()
 
     // 4. 张三 (本人 token) 访问自己
     const ownerReq = new Request('http://localhost/api/students/zhangsan', {
@@ -239,6 +243,7 @@ describe('Security and Session Revocation', () => {
     const ownerData = await ownerRes.json() as any
     expect(ownerData.data.info.phone).toBe('13888888888') // owner 级可见
     expect(ownerData.data.info.wechat).toBe('zs123')
+    expect(ownerData.data.accountStatus).toBeDefined()
   })
 
   it('Anonymous student detail defaults to public audience and hides classmate-only fields', async () => {
