@@ -37,6 +37,9 @@ describe('档案卡共享元素转场', () => {
     expect(layout).toContain("const studentIdentityTransitionKey = 'vt-student-identity-state'")
     expect(layout).toContain('newDocument?: Document')
     expect(layout).toContain('[data-student-identity-card]')
+    expect(roster).toContain('const isRestoringIdentityState = ref(false)')
+    expect(roster).toContain('if (!isRestoringIdentityState.value) currentPage.value = 1')
+    expect(roster).toContain('await nextTick()')
   })
 
   it('只让拥有标准 Hero 目标的同学卡片参与身份共享转场', () => {

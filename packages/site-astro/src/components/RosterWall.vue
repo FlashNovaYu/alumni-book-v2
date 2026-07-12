@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 import ArchiveRosterCard from './ArchiveRosterCard.vue'
 import { toArchiveClassmateCard } from '../utils/museumViewModels'
@@ -109,6 +109,7 @@ const props = defineProps<{
 const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
 const currentPage = ref(1)
+const isRestoringIdentityState = ref(false)
 const PAGE_SIZE = 9
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -151,7 +152,7 @@ const pageNumbers = computed<Array<number | 'ellipsis'>>(() => {
 })
 
 watch(keyword, () => {
-  currentPage.value = 1
+  if (!isRestoringIdentityState.value) currentPage.value = 1
 })
 
 watch(totalPages, () => {
@@ -175,11 +176,14 @@ function rememberIdentityTransition(slug: string) {
   } catch {}
 }
 
-onMounted(() => {
+onMounted(async () => {
   const identityReturnState = consumeIdentityTransitionState()
   if (identityReturnState) {
+    isRestoringIdentityState.value = true
     keyword.value = identityReturnState.keyword
     currentPage.value = identityReturnState.page
+    await nextTick()
+    isRestoringIdentityState.value = false
   }
 
   // 避免首屏高并发阻塞，改为 idle 空闲时静默刷新 SWR 数据
