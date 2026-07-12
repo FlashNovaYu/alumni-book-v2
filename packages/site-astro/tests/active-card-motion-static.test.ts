@@ -5,10 +5,35 @@ import { resolve } from 'path'
 const read = (file: string) => readFileSync(resolve(__dirname, '../src', file), 'utf-8')
 
 describe('档案卡共享元素转场', () => {
-  it('在减少动态偏好下保留 Gemini 添加的卡片内容可见', () => {
+  it('仅在被点击卡片和标准详情 Hero 间共享同一学生的头像与姓名', () => {
     const card = read('components/ArchiveRosterCard.vue')
+    const profile = read('components/StudentProfile.vue')
 
-    expect(card).toContain('.vt-fade-out')
-    expect(card).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.vt-fade-out\s*\{[\s\S]*?opacity:\s*1\s*!important;[\s\S]*?transition:\s*none\s*!important;/)
+    expect(card).toContain(':style="avatarTransitionStyle"')
+    expect(card).toContain(':style="nameTransitionStyle"')
+    expect(card).toContain("'student-avatar-' + props.card.slug")
+    expect(card).toContain("'student-name-' + props.card.slug")
+    expect(card).not.toContain('active-card')
+    expect(card).not.toContain('vt-fade-out')
+
+    expect(profile).toContain(':style="avatarTransitionStyle"')
+    expect(profile).toContain(':style="nameTransitionStyle"')
+    expect(profile).toContain("'student-avatar-' + student.value.slug")
+    expect(profile).toContain("'student-name-' + student.value.slug")
+    expect(profile).not.toContain('view-transition-name: active-card')
+  })
+
+  it('将详情辅助内容与共享身份元素分离，并保留减少动态回退', () => {
+    const profile = read('components/StudentProfile.vue')
+    const global = read('styles/global.css')
+
+    expect(profile).toContain('class="hero-support detail-content-enter"')
+    expect(profile).toContain('class="student-body container detail-content-enter"')
+    expect(global).toContain('::view-transition-group(.student-avatar)')
+    expect(global).toContain('::view-transition-group(.student-name)')
+    expect(global).toContain('.student-page .detail-content-enter')
+    expect(global).toContain('view-transition-name: none !important')
+    expect(global).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.student-page \.detail-content-enter\s*\{[\s\S]*?animation:\s*none\s*!important;/)
+    expect(global).not.toContain('::view-transition-group(active-card)')
   })
 })
