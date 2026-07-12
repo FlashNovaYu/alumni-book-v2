@@ -140,4 +140,10 @@ const avatarSrc = computed(() => {
   opacity: 0 !important;
   transition: opacity 0.08s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-fade-out {
+    transition: none !important;
+  }
+}
 </style>
