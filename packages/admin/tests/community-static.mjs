@@ -26,7 +26,7 @@ for (const action of ['fetchGroupChatMessages', 'setGroupChatHidden', 'recallGro
   assert.match(messages, new RegExp(action))
 }
 assert.match(messages, /loadVersion/)
-assert.match(messages, /removeLegacy/)
+assert.match(messages, /removePublic/)
 assert.match(messages, /route\.query\.tab/)
 
 const albums = read('views/AlbumsView.vue')

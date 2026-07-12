@@ -73,13 +73,16 @@
     <div v-else class="msg-list">
       <article v-for="message in legacyMessages" :key="message.id" class="msg-card card">
         <div class="msg-content-col">
-          <div class="msg-meta"><span>投稿者：{{ message.authorName }}</span><span>{{ message.authorSlug }}</span><time>{{ message.createdAt }}</time><span class="badge" :class="`badge-${message.status}`">{{ message.status }}</span></div>
+          <div class="msg-meta"><span>投稿者：{{ message.authorName }}</span><span>{{ message.authorSlug }}</span><time>{{ message.createdAt }}</time><span class="badge" :class="`badge-${message.status}`">{{ message.status }}</span><span v-if="message.pinned" class="badge">已置顶</span><span v-if="message.featured" class="badge">已精选</span><span v-if="message.reviewedBy">审核人：{{ message.reviewedBy }}</span></div>
           <p class="msg-content">{{ message.content }}</p>
           <p v-if="message.reviewReason" class="msg-reply-inline">审核说明：{{ message.reviewReason }}</p>
           <div class="msg-actions">
             <button v-if="canManage && message.status === 'pending'" class="btn-primary btn-sm" :disabled="processing" @click="approveLegacy(message.id)">审核通过</button>
             <button v-if="canManage && message.status === 'pending'" class="btn-danger btn-sm" :disabled="processing" @click="rejectLegacy(message.id)">退回</button>
-            <button v-if="canManage" class="btn-danger btn-sm" :disabled="processing" @click="removeLegacy(message.id)">删除</button>
+            <button v-if="canManage" class="btn-secondary btn-sm" :disabled="processing" @click="togglePublicPin(message.id, !message.pinned)">{{ message.pinned ? '取消置顶' : '置顶' }}</button>
+            <button v-if="canManage" class="btn-secondary btn-sm" :disabled="processing" @click="togglePublicFeature(message.id, !message.featured)">{{ message.featured ? '取消精选' : '精选' }}</button>
+            <button v-if="canManage && (message.status === 'approved' || message.status === 'hidden')" class="btn-secondary btn-sm" :disabled="processing" @click="togglePublicHide(message.id, message.status !== 'hidden')">{{ message.status === 'hidden' ? '恢复' : '隐藏' }}</button>
+            <button v-if="canManage" class="btn-danger btn-sm" :disabled="processing" @click="removePublic(message.id)">删除</button>
           </div>
         </div>
       </article>
@@ -115,7 +118,7 @@ import {
 } from '@/api/community'
 
 interface ProfileMessage { id: string; studentSlug: string; authorName: string; content: string; isApproved: boolean; isHidden: boolean; createdAt: string; pinned: boolean; reply?: string | null }
-interface LegacyMessage { id: string; authorSlug: string; authorName: string; content: string; status: 'pending' | 'approved' | 'rejected' | 'hidden'; reviewReason?: string | null; createdAt: string }
+interface LegacyMessage { id: string; authorSlug: string; authorName: string; content: string; status: 'pending' | 'approved' | 'rejected' | 'hidden'; reviewReason?: string | null; reviewedBy?: string | null; reviewedAt?: string | null; featured: boolean; pinned: boolean; createdAt: string }
 type MessageType = 'profile' | 'group' | 'legacy'
 type ModerationKind = 'hide' | 'restore' | 'recall' | 'mute'
 
@@ -224,7 +227,51 @@ async function rejectLegacy(id: string) {
   processing.value = true
   try { await adminFetch(`/api/admin/public-messages/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }); const item = legacyMessages.value.find((message) => message.id === id); if (item) { item.status = 'rejected'; item.reviewReason = reason }; showToast('success', '已退回投稿') } catch (error) { showToast('error', error instanceof Error ? error.message : '退回失败') } finally { processing.value = false }
 }
-async function removeLegacy(id: string) {
+async function togglePublicHide(id: string, hidden: boolean) {
+  const reason = hidden ? window.prompt('请输入隐藏原因：')?.trim() : ''
+  if (hidden && !reason) return
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/hide`, { method: 'PUT', body: JSON.stringify({ hidden, reason }) })
+    const item = legacyMessages.value.find(message => message.id === id)
+    if (item) item.status = hidden ? 'hidden' : 'approved'
+    showToast('success', hidden ? '已隐藏' : '已恢复')
+  } catch (error) {
+    showToast('error', error instanceof Error ? error.message : '操作失败')
+  } finally {
+    processing.value = false
+  }
+}
+
+async function togglePublicPin(id: string, pinned: boolean) {
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pinned }) })
+    const item = legacyMessages.value.find(message => message.id === id)
+    if (item) item.pinned = pinned
+    showToast('success', pinned ? '已置顶' : '已取消置顶')
+  } catch (error) {
+    showToast('error', error instanceof Error ? error.message : '操作失败')
+  } finally {
+    processing.value = false
+  }
+}
+
+async function togglePublicFeature(id: string, featured: boolean) {
+  processing.value = true
+  try {
+    await adminFetch(`/api/admin/public-messages/${id}/feature`, { method: 'PUT', body: JSON.stringify({ featured }) })
+    const item = legacyMessages.value.find(message => message.id === id)
+    if (item) item.featured = featured
+    showToast('success', featured ? '已精选' : '已取消精选')
+  } catch (error) {
+    showToast('error', error instanceof Error ? error.message : '操作失败')
+  } finally {
+    processing.value = false
+  }
+}
+
+async function removePublic(id: string) {
   const reason = window.prompt('请输入删除原因：')?.trim()
   if (!reason) return
   processing.value = true
