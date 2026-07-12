@@ -113,8 +113,37 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         initNavRuntime()
         initThemeRuntime()
 
-        document.addEventListener('astro:before-swap', () => {
+        const studentIdentityTransitionKey = 'vt-student-identity-slug'
+
+        function restoreStudentIdentityTarget(event: Event) {
+          try {
+            const slug = sessionStorage.getItem(studentIdentityTransitionKey)
+            const targetDocument = (event as Event & { newDocument?: Document }).newDocument
+            if (!slug || !targetDocument) return
+
+            const card = Array.from(targetDocument.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
+              .find((element) => element.dataset.studentIdentityCard === slug)
+            if (!card) {
+              const fromPath = (event as Event & { from?: URL }).from?.pathname || ''
+              if (fromPath.includes('/student/')) sessionStorage.removeItem(studentIdentityTransitionKey)
+              return
+            }
+
+            const avatar = card.querySelector<HTMLElement>('.archive-card__avatar')
+            const name = card.querySelector<HTMLElement>('.archive-card__name')
+            if (!avatar || !name) return
+
+            avatar.style.viewTransitionName = 'student-avatar-' + slug
+            avatar.style.setProperty('view-transition-class', 'student-avatar')
+            name.style.viewTransitionName = 'student-name-' + slug
+            name.style.setProperty('view-transition-class', 'student-name')
+            sessionStorage.removeItem(studentIdentityTransitionKey)
+          } catch {}
+        }
+
+        document.addEventListener('astro:before-swap', (event) => {
           window.__alumniThemeRuntime?.destroy()
+          restoreStudentIdentityTarget(event)
         })
         document.addEventListener('astro:page-load', () => {
           initThemeRuntime()

@@ -4,7 +4,7 @@
 
 **目标：** 让人物长廊卡片中的头像和姓名以同一位学生的共享元素连续移动至标准个人页 Hero，并在返回时反向恢复。
 
-**架构：** 保留 Astro ClientRouter 和跨文档 View Transitions。被点击卡片仅为头像、姓名写入由 slug 派生的稳定名称；标准个人页以同一 slug 生成目标。view-transition-class 分别控制头像和姓名的动画时长；浏览器不支持该属性时，view-transition-name 仍会使用默认几何插值。详情页将身份元素与延迟进入的辅助内容分离，避免整体淡入遮挡共享快照。
+**架构：** 保留 Astro ClientRouter 和跨文档 View Transitions。被点击卡片仅为头像、姓名写入由 slug 派生的稳定名称；标准个人页以同一 slug 生成目标。返回时，MainLayout 在 astro:before-swap 的 newDocument 中用一次性 session slug 为原卡片补回目标名称。view-transition-class 分别控制头像和姓名的动画时长；浏览器不支持该属性时，view-transition-name 仍会使用默认几何插值。详情页将身份元素与延迟进入的辅助内容分离，避免整体淡入遮挡共享快照。
 
 **技术栈：** Astro 5、Vue 3、原生 View Transitions API、CSS、Vitest、Playwright。
 
@@ -14,6 +14,7 @@
 
 - 修改：packages/site-astro/src/components/ArchiveRosterCard.vue — 仅为被点击的可访问卡片提供头像、姓名共享名称，移除整卡与预淡出。
 - 修改：packages/site-astro/src/components/StudentProfile.vue — 为标准详情 Hero 提供同名目标，并分离非身份 Hero 内容。
+- 修改：packages/site-astro/src/layouts/MainLayout.astro — 在返回人物长廊的目标文档交换前恢复被点击卡片的共享目标。
 - 修改：packages/site-astro/src/styles/global.css — 用身份共享类替换无调用方的 active-card 规则。
 - 修改：packages/site-astro/tests/active-card-motion-static.test.ts — 锁定共享边界与减少动态回退。
 - 新建：packages/site-astro/tests/student-identity-transition-flow.spec.ts — 验证进入、后退、减少动态。
@@ -54,6 +55,17 @@ describe('同学身份共享元素转场', () => {
     expect(profile).toContain("'student-avatar-' + student.value.slug")
     expect(profile).toContain("'student-name-' + student.value.slug")
     expect(profile).not.toContain('view-transition-name: active-card')
+  })
+
+  it('在返回人物长廊的文档交换前恢复被点击卡片的共享目标', () => {
+    const card = read('components/ArchiveRosterCard.vue')
+    const layout = read('layouts/MainLayout.astro')
+
+    expect(card).toContain('data-student-identity-card')
+    expect(card).toContain("sessionStorage.setItem('vt-student-identity-slug', props.card.slug)")
+    expect(layout).toContain("const studentIdentityTransitionKey = 'vt-student-identity-slug'")
+    expect(layout).toContain('newDocument?: Document')
+    expect(layout).toContain('[data-student-identity-card]')
   })
 
   it('将详情辅助内容与共享身份元素分离，并保留减少动态回退', () => {
@@ -117,6 +129,7 @@ git commit -m "test(site): define student identity transition contract"
   <a
     :href="card.hasPage ? card.href : '#'"
     class="archive-card"
+    :data-student-identity-card="card.slug"
     @click="handleTransition"
   >
     <div class="archive-card__avatar" :style="avatarTransitionStyle">
@@ -147,7 +160,7 @@ const nameTransitionStyle = computed(() => {
 })
 ~~~
 
-删除组件样式中的 .vt-fade-out 和其减少动态媒体查询。保留 handleTransition、图片错误处理、nextTick 检查和 avatarSrc。
+删除组件样式中的 .vt-fade-out 和其减少动态媒体查询。将 handleTransition 保留为点击入口，并在 hasPage 分支设置 vt-student-identity-slug 为 props.card.slug；保留图片错误处理、nextTick 检查和 avatarSrc。
 
 - [ ] **步骤 2：在标准详情页建立同名 Hero 目标。**
 
@@ -245,6 +258,47 @@ pnpm --filter site-astro exec vitest run tests/active-card-motion-static.test.ts
 git add packages/site-astro/src/components/ArchiveRosterCard.vue packages/site-astro/src/components/StudentProfile.vue packages/site-astro/tests/active-card-motion-static.test.ts
 git commit -m "feat(site): share student avatar and name across profile routes"
 ~~~
+
+- [ ] **步骤 5：为返回目标接入一次性 slug 恢复。**
+
+在 MainLayout.astro 的现有初始化代码后加入，并把现有 astro:before-swap 监听器替换为以下版本：
+
+~~~ts
+const studentIdentityTransitionKey = 'vt-student-identity-slug'
+
+function restoreStudentIdentityTarget(event: Event) {
+  try {
+    const slug = sessionStorage.getItem(studentIdentityTransitionKey)
+    const targetDocument = (event as Event & { newDocument?: Document }).newDocument
+    if (!slug || !targetDocument) return
+
+    const card = Array.from(targetDocument.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
+      .find((element) => element.dataset.studentIdentityCard === slug)
+    if (!card) {
+      const fromPath = (event as Event & { from?: URL }).from?.pathname || ''
+      if (fromPath.includes('/student/')) sessionStorage.removeItem(studentIdentityTransitionKey)
+      return
+    }
+
+    const avatar = card.querySelector<HTMLElement>('.archive-card__avatar')
+    const name = card.querySelector<HTMLElement>('.archive-card__name')
+    if (!avatar || !name) return
+
+    avatar.style.viewTransitionName = 'student-avatar-' + slug
+    avatar.style.setProperty('view-transition-class', 'student-avatar')
+    name.style.viewTransitionName = 'student-name-' + slug
+    name.style.setProperty('view-transition-class', 'student-name')
+    sessionStorage.removeItem(studentIdentityTransitionKey)
+  } catch {}
+}
+
+document.addEventListener('astro:before-swap', (event) => {
+  window.__alumniThemeRuntime?.destroy()
+  restoreStudentIdentityTarget(event)
+})
+~~~
+
+该写入发生在 Astro 调用 event.swap() 前，因此新文档的卡片会进入返回方向的目标快照。
 
 ### Task 3：替换整卡 CSS 并完成降级
 
@@ -350,8 +404,6 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
 
   const card = page.locator('.archive-card[href]:not([href="#"])').first()
   const href = await card.getAttribute('href')
-  const cardAvatar = card.locator('.archive-card__avatar')
-  const cardName = card.locator('.archive-card__name')
   expect(href).not.toBeNull()
   const slug = href!.split('/').filter(Boolean).at(-1)!
   const avatarName = 'student-avatar-' + slug
@@ -362,10 +414,28 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
   await expect(page.locator('.hero-avatar')).toHaveCSS('view-transition-name', avatarName)
   await expect(page.locator('.hero-name')).toHaveCSS('view-transition-name', nameName)
 
+  await page.evaluate(() => {
+    document.addEventListener('astro:before-swap', (event) => {
+      const targetDocument = (event as Event & { newDocument?: Document }).newDocument
+      const targetCard = targetDocument?.querySelector<HTMLElement>('[data-student-identity-card]')
+      const targetAvatar = targetCard?.querySelector<HTMLElement>('.archive-card__avatar')
+      const targetName = targetCard?.querySelector<HTMLElement>('.archive-card__name')
+      ;(window as Window & {
+        __studentIdentityReturnTarget?: { avatar: string; name: string }
+      }).__studentIdentityReturnTarget = {
+        avatar: targetAvatar?.style.viewTransitionName || '',
+        name: targetName?.style.viewTransitionName || '',
+      }
+    }, { once: true })
+  })
   await page.goBack({ waitUntil: 'networkidle' })
   await expect(card).toBeVisible()
-  await expect(cardAvatar).toHaveCSS('view-transition-name', avatarName)
-  await expect(cardName).toHaveCSS('view-transition-name', nameName)
+  await expect.poll(() => page.evaluate(() => (window as Window & {
+    __studentIdentityReturnTarget?: { avatar: string; name: string }
+  }).__studentIdentityReturnTarget)).toEqual({
+    avatar: avatarName,
+    name: nameName,
+  })
 })
 
 test.describe('减少动态偏好', () => {

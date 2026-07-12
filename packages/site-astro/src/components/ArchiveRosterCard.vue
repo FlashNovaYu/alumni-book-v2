@@ -2,6 +2,7 @@
   <a
     :href="card.hasPage ? card.href : '#'"
     class="archive-card"
+    :data-student-identity-card="card.slug"
     @click="handleTransition"
   >
     <div class="archive-card__avatar" :style="avatarTransitionStyle">
@@ -47,6 +48,9 @@ const nameTransitionStyle = computed(() => {
 function handleTransition() {
   if (props.card.hasPage) {
     isTransitioning.value = true
+    try {
+      sessionStorage.setItem('vt-student-identity-slug', props.card.slug)
+    } catch {}
   }
 }
 

@@ -23,6 +23,17 @@ describe('档案卡共享元素转场', () => {
     expect(profile).not.toContain('view-transition-name: active-card')
   })
 
+  it('在返回人物长廊的文档交换前恢复被点击卡片的共享目标', () => {
+    const card = read('components/ArchiveRosterCard.vue')
+    const layout = read('layouts/MainLayout.astro')
+
+    expect(card).toContain('data-student-identity-card')
+    expect(card).toContain("sessionStorage.setItem('vt-student-identity-slug', props.card.slug)")
+    expect(layout).toContain("const studentIdentityTransitionKey = 'vt-student-identity-slug'")
+    expect(layout).toContain('newDocument?: Document')
+    expect(layout).toContain('[data-student-identity-card]')
+  })
+
   it('将详情辅助内容与共享身份元素分离，并保留减少动态回退', () => {
     const profile = read('components/StudentProfile.vue')
     const global = read('styles/global.css')
