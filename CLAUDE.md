@@ -206,24 +206,9 @@ Site 的 base path 为 `/alumni-book-v2/`。所有前端路由和 Vite 构建均
                                              上传文件 → POST /api/upload → R2
 ```
 
-## 本地手动热部署 (备用/跳过 CI)
+## 发布控制
 
-如果遇到 Git 权限报错 403 或 CI/CD 暂不可用时，可直接在本地使用 Wrangler 命令行热部署。
-
-**Worker 部署**：
-```bash
-pnpm --filter worker run deploy
-```
-
-**Pages 前端部署**（同时发布 Astro 站点与 Admin 后台）：
-```powershell
-pnpm --filter site-astro build
-pnpm --filter admin build
-if (Test-Path deploy) { Remove-Item -Recurse -Force deploy }
-New-Item -ItemType Directory -Path deploy
-New-Item -ItemType Directory -Path deploy/admin
-Copy-Item -Path packages/site-astro/dist/* -Destination deploy -Recurse
-Copy-Item -Path packages/admin/dist/* -Destination deploy/admin -Recurse
-Copy-Item -Path packages/site-astro/_worker.js -Destination deploy/
-npx wrangler pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
-```
+- `main` push 和 pull request 只运行验证 CI，不自动部署。
+- 生产发布只能在 GitHub Actions 手动运行 `Deploy Site & Admin`，输入 `DEPLOY_PRODUCTION` 并通过 `production` Environment 审批。
+- 本机 Wrangler 只允许发布非生产预览分支，禁止把 Pages branch 设为 `main`。
+- 生产回滚使用 Cloudflare 已有部署记录，不从旧工作树重新构建。详见 `docs/deployment-runbook.md`。

@@ -80,31 +80,10 @@ Schema 定义在 `workers/api/src/db/schema.sql`，迁移文件在 `workers/api/
 
 ### 部署与发布流程
 
-1. **自动 CI/CD 部署**
-   - **Site + Admin** (`deploy-site.yml`)：向 `master` 分支 push 更改后，会自动触发 GitHub Actions 编译并将 site 部署到 Cloudflare Pages（同时把 admin SPA 部署在 `deploy/admin/` 子目录下）。
-   - **Worker**：通过 GitHub Actions 或本地命令推送至 Cloudflare Workers。
-
-2. **本地手动热部署 (备用/跳过 CI)**
-   如果遇到 Git 权限报错 403 或 CI/CD 暂不可用时，可直接在本地使用 Wrangler 命令行热部署。
-   - **Worker 部署**：
-     ```bash
-     pnpm --filter worker run deploy
-     ```
-   - **Pages 前端部署**（同时发布 Astro 站点与 Admin 后台）：
-     ```powershell
-     # 1. 编译前后台
-     pnpm --filter site-astro build
-     # 2. 编译后台 SPA
-     pnpm --filter admin build
-     # 3. 本地打包发布
-     if (Test-Path deploy) { Remove-Item -Recurse -Force deploy }
-     New-Item -ItemType Directory -Path deploy
-     New-Item -ItemType Directory -Path deploy/admin
-     Copy-Item -Path packages/site-astro/dist/* -Destination deploy -Recurse
-     Copy-Item -Path packages/admin/dist/* -Destination deploy/admin -Recurse
-     Copy-Item -Path packages/site-astro/_worker.js -Destination deploy/
-     npx wrangler pages deploy deploy --project-name alumni-book --branch main --commit-dirty=true
-     ```
+1. **验证 CI**：`main` push 和 pull request 只运行 `.github/workflows/verify.yml`，不会部署。
+2. **生产发布**：只能从 GitHub Actions 手动运行 `Deploy Site & Admin`，选择 `main`，输入 `DEPLOY_PRODUCTION` 并通过 `production` Environment 审批。
+3. **本地预览发布**：本机不得使用 `main` 作为 Pages branch；需要远程预览时使用唯一的非生产分支名。详见 `docs/deployment-runbook.md`。
+4. **Worker 发布**：保持 `.github/workflows/deploy-worker.yml` 手动触发，不从本机直接更新生产。
 
 ### 专属模板系统
 

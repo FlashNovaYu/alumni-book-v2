@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,17 +12,27 @@ const deployDir = join(rootDir, 'deploy')
 const workerOut = join(deployDir, '_worker.js')
 const routesOut = join(deployDir, '_routes.json')
 const pnpmCli = process.env.npm_execpath
+const releaseSha = (process.env.RELEASE_SHA || execFileSync('git', ['rev-parse', 'HEAD'], {
+  cwd: rootDir,
+  encoding: 'utf8',
+})).trim()
 
 if (!existsSync(siteDist) || !existsSync(adminDist)) {
   throw new Error('缺少 Site 或 Admin 构建产物，请先完成两个构建')
 }
 if (!pnpmCli) throw new Error('无法定位 pnpm CLI，请通过 pnpm prepare:pages 运行')
+if (!/^[0-9a-f]{40}$/i.test(releaseSha)) throw new Error('RELEASE_SHA 必须是完整提交 SHA')
 
 rmSync(deployDir, { recursive: true, force: true })
 mkdirSync(deployDir, { recursive: true })
 cpSync(siteDist, deployDir, { recursive: true })
 mkdirSync(join(deployDir, 'admin'), { recursive: true })
 cpSync(adminDist, join(deployDir, 'admin'), { recursive: true })
+writeFileSync(
+  join(deployDir, 'release.json'),
+  `${JSON.stringify({ source: releaseSha })}\n`,
+  'utf8',
+)
 
 execFileSync(process.execPath, [
   pnpmCli,
