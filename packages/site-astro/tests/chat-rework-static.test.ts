@@ -42,6 +42,16 @@ describe('班级空间会话客户端契约', () => {
   })
 })
 
+describe('班级群聊历史浏览', () => {
+  it('在记录区滚动到顶部时加载更早消息，并保留触控纵向滚动', () => {
+    const stage = read('components/GroupChatStage.vue')
+
+    expect(stage).toContain('if (element.scrollTop <= 16 && canLoadOlder.value && !loadingOlder.value)')
+    expect(stage).toMatch(/\.chat-log\s*\{[^}]*overscroll-behavior-y:\s*contain;/)
+    expect(stage).toMatch(/\.chat-log\s*\{[^}]*touch-action:\s*pan-y;/)
+  })
+})
+
 describe('可见性轮询生命周期契约', () => {
   it('使用一个可取消的递归计时器同步，并在页面生命周期中释放资源', () => {
     expect(existsSync(resolve(src, 'composables/useVisibilityPolling.ts'))).toBe(true)

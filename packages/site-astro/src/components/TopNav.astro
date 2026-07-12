@@ -20,7 +20,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 <nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
   <div class="nav-inner container">
     <a href={href('/')} class="nav-brand" data-nav-home aria-label="同学录首页">
-      <span class="brand-mark"><IconBrand size={19} /></span>
+      <span class="brand-mark"><IconBrand size={22} /></span>
       <span class="brand-text">同学录</span>
     </a>
 
@@ -145,13 +145,14 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .brand-mark {
-    display: grid;
-    width: 28px;
-    height: 28px;
-    place-items: center;
+    display: inline-flex;
+    width: auto;
+    height: auto;
+    align-items: center;
+    justify-content: center;
     color: var(--color-paper-stamp-red);
-    border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 38%, var(--color-paper-border));
-    background: var(--color-paper-bg-soft);
+    border: 0;
+    background: transparent;
   }
 
   .brand-text {

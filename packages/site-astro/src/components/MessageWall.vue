@@ -360,12 +360,6 @@ onMounted(async () => {
   border-radius: var(--rounded-md);
   transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
-.msg-item:nth-child(even) {
-  transform: rotate(-1deg);
-}
-.msg-item:nth-child(odd) {
-  transform: rotate(1.2deg);
-}
 .msg-item:hover {
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 8px 16px rgba(0,0,0,0.1);

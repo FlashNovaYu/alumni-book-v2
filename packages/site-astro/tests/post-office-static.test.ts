@@ -62,4 +62,15 @@ describe('class post office static constraints', () => {
     expect(source).toContain('给 TA 写信')
     expect(source).toContain('MessageWall')
   })
+
+  it('resolves relative conversation avatar URLs and falls back on image errors', () => {
+    const conversations = read('components/DirectConversationList.vue')
+    const mailbox = read('components/MailboxApp.vue')
+
+    expect(conversations).toContain("import { joinApiUrl } from '../utils/apiBase'")
+    expect(conversations).toContain(':src="avatarUrl(conversation.peer.avatarUrl)"')
+    expect(conversations).toContain('@error="failedAvatarIds.add(conversation.id)"')
+    expect(conversations).toContain('!failedAvatarIds.has(conversation.id)')
+    expect(mailbox).toContain(':api-base="apiBase"')
+  })
 })

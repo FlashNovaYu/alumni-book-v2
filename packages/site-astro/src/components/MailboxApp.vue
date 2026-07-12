@@ -14,6 +14,7 @@
           v-if="mode === 'direct'"
           :items="conversations"
           :selected-id="selectedConversation?.id"
+          :api-base="apiBase"
           @select="openConversation"
           @new="newConversationOpen = true"
         />

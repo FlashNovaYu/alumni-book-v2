@@ -21,7 +21,12 @@
         @click="$emit('select', conversation)"
       >
         <span class="conversation-avatar" aria-hidden="true">
-          <img v-if="conversation.peer.avatarUrl" :src="conversation.peer.avatarUrl" alt="" />
+          <img
+            v-if="conversation.peer.avatarUrl && !failedAvatarIds.has(conversation.id)"
+            :src="avatarUrl(conversation.peer.avatarUrl)"
+            alt=""
+            @error="failedAvatarIds.add(conversation.id)"
+          />
           <span v-else>{{ conversation.peer.name.slice(0, 1) }}</span>
         </span>
         <span class="conversation-copy">
@@ -35,10 +40,18 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { DirectConversation } from '@alumni/shared'
+import { joinApiUrl } from '../utils/apiBase'
 
-defineProps<{ items: DirectConversation[]; selectedId?: string | null }>()
+const props = defineProps<{ items: DirectConversation[]; selectedId?: string | null; apiBase: string }>()
 defineEmits<{ select: [conversation: DirectConversation]; new: [] }>()
+
+const failedAvatarIds = ref(new Set<string>())
+
+function avatarUrl(value: string) {
+  return value.startsWith('http') ? value : joinApiUrl(props.apiBase, value)
+}
 
 function formatTime(value: string) {
   return new Date(value).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })

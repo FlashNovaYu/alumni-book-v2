@@ -33,6 +33,9 @@ describe('public site major redesign constraints', () => {
     expect(source).toContain('.print-section')
     expect(source).toContain('var(--color-paper-card)')
     expect(source).toContain('@media print')
+    expect(source).toContain('class="yearbook-paper"')
+    expect(source).toMatch(/\.yearbook-paper\s*\{[^}]*width:\s*min\(960px,\s*100%\);/)
+    expect(source).toMatch(/\.yearbook-summary-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/)
   })
 
   it('removes legacy museum paper styling from migrated public components', () => {

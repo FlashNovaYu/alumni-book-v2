@@ -87,4 +87,18 @@ describe('公开站点界面反馈回归', () => {
     expect(runtime).toContain("'alumni_nav_admin_entry'")
     expect(runtime).toContain("document.documentElement.classList.toggle('has-admin-entry', available)")
   })
+
+  it('keeps the archive corridor aligned, uses a pure book icon, and overlays class-space album titles', () => {
+    const roster = read('components/RosterWall.vue')
+    const nav = read('components/TopNav.astro')
+    const albums = read('components/ClassSpaceAlbumRail.vue')
+    const timeline = read('components/ClassSpaceTimelineRail.vue')
+
+    expect(roster).toMatch(/\.archive-grid\s*\{[^}]*grid-auto-rows:\s*1fr;[^}]*align-items:\s*stretch;/)
+    expect(nav).toContain('<IconBrand size={22} />')
+    expect(nav).toMatch(/\.brand-mark\s*\{[^}]*width:\s*auto;[^}]*height:\s*auto;[^}]*border:\s*0;/)
+    expect(albums).toContain('class="album-cover-overlay"')
+    expect(albums).toMatch(/\.album-rail-card\s*\{[^}]*aspect-ratio:\s*3\s*\/\s*2;/)
+    expect(timeline).toContain('new Date(b.date).getTime() - new Date(a.date).getTime()')
+  })
 })

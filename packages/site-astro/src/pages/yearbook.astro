@@ -95,6 +95,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
       <button class="print-btn btn-primary" onclick="window.print()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V4h12v5M6 18H4V9h16v9h-2M7 14h10v6H7z" /></svg>打印此纪念册 / 导出 PDF</button>
     </div>
 
+    <main class="yearbook-paper">
     <!-- 纪念册封面页 -->
     <div class="print-section page-break text-center">
       <div class="cover-wrapper">
@@ -119,7 +120,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     <!-- 班级年度数据报告 -->
     <div class="print-section page-break">
       <h2 class="section-title"><svg class="section-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M11 19V5M17 19v-9" /></svg>青春数据报告</h2>
-      <div class="stats-cards-grid mt-4">
+      <div class="yearbook-summary-grid mt-4">
         <div class="stat-item card">
           <span class="stat-num">{totalStudents}</span>
           <span class="stat-lbl">同窗好友</span>
@@ -244,15 +245,18 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
         )}
       </div>
     </div>
+    </main>
   </div>
 </MainLayout>
 
 <style>
   .yearbook-page {
     padding-top: calc(var(--nav-height) + var(--spacing-xl));
-    max-width: 900px;
-    margin: 0 auto;
     padding-bottom: 80px;
+  }
+  .yearbook-paper {
+    width: min(960px, 100%);
+    margin: 0 auto;
   }
   .print-btn {
     display: inline-flex;
@@ -320,9 +324,9 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .stats-cards-grid {
+  .yearbook-summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
   }
   .stat-item {
@@ -488,15 +492,23 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
       color: var(--color-paper-ink);
     }
 
-    .print-section {
-      width: min(980px, calc(100% - 2 * var(--spacing-lg)));
-      margin: var(--spacing-xl) auto;
-      padding: var(--spacing-xl);
-      background: var(--color-paper-card);
+    .yearbook-paper {
+      padding: clamp(20px, 5vw, 56px);
+      background:
+        linear-gradient(90deg, rgba(143, 101, 60, 0.035) 1px, transparent 1px),
+        var(--color-paper-card);
+      background-size: 28px 100%, 100% 100%;
       border: 1px solid var(--color-paper-border);
-      border-radius: var(--rounded-lg);
-      box-shadow: var(--shadow-paper-card);
+      box-shadow: var(--shadow-paper-panel);
     }
+
+    .print-section {
+      width: 100%;
+      margin: 0;
+      padding: clamp(24px, 4vw, 40px) 0;
+      border-bottom: 1px solid var(--color-paper-border);
+    }
+    .print-section:last-child { border-bottom: 0; }
 
     .section-title {
       color: var(--color-paper-ink);
@@ -533,7 +545,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
       background: #fdfdfd !important;
       border: 1px solid #ccc !important;
     }
-    .stats-cards-grid {
+    .yearbook-summary-grid {
       grid-template-columns: repeat(4, 1fr) !important;
     }
     .yearbook-classmate-grid {
@@ -542,7 +554,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
   }
 
   @media (max-width: 768px) {
-    .stats-cards-grid {
+    .yearbook-summary-grid {
       grid-template-columns: repeat(2, 1fr);
     }
     .yearbook-classmate-grid {

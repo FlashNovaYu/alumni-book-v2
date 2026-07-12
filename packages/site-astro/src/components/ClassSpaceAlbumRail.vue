@@ -17,14 +17,11 @@
               class="album-cover"
             />
             <div v-else class="album-cover-placeholder">暂无封面</div>
+            <div class="album-cover-overlay">
+              <h3 class="album-title">{{ album.title }}</h3>
+            </div>
             <div class="photo-count-badge">
               {{ album.photoCount }} 张
-            </div>
-          </div>
-          <div class="album-info">
-            <h3 class="album-title">{{ album.title }}</h3>
-            <div class="album-tags" v-if="album.tags && album.tags.length > 0">
-              <span v-for="tag in album.tags" :key="tag" class="tag-badge">{{ tag }}</span>
             </div>
           </div>
         </a>
@@ -96,7 +93,9 @@ function albumHref(albumId: string) {
 }
 
 .album-rail-card {
+  position: relative;
   flex: 0 0 clamp(220px, 25vw, 292px);
+  aspect-ratio: 3 / 2;
   background: var(--color-paper-card, #fcfaf2);
   border: 1px solid var(--color-paper-border, #eedec4);
   border-radius: var(--rounded-md);
@@ -115,9 +114,8 @@ function albumHref(albumId: string) {
 }
 
 .album-cover-wrapper {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 2;
+  position: absolute;
+  inset: 0;
   background: var(--color-surface-soft, #f7f6f2);
   overflow: hidden;
 }
@@ -154,35 +152,26 @@ function albumHref(albumId: string) {
   font-weight: 500;
 }
 
-.album-info {
-  padding: var(--spacing-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+.album-cover-overlay {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-md);
+  right: var(--spacing-md);
+  pointer-events: none;
 }
 
 .album-title {
   margin: 0;
+  display: inline;
+  padding: 4px 7px;
+  color: #fffaf2;
+  background: rgba(47, 35, 24, 0.68);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-paper-ink, #4a3e3d);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.album-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tag-badge {
-  font-size: 10px;
-  background: var(--color-surface-cream-strong, #eedec4);
-  color: var(--color-primary, #8b785f);
-  padding: 1px var(--spacing-xxs);
-  border-radius: var(--rounded-pill);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .empty-albums {

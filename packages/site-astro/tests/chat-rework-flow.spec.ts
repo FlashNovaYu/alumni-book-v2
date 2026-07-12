@@ -91,6 +91,52 @@ function createHistoryOverview() {
 }
 
 test.describe('班级空间群聊基础流程', () => {
+  test('向上滚动到记录区顶部时自动载入更早消息', async ({ page }) => {
+    const cursor = 'auto-history-cursor'
+    const overview = createHistoryOverview()
+    overview.data.chat.cursor = cursor
+    let historyRequests = 0
+
+    await mockClassSpace(page, async (route) => {
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: initialChat.data.chat.items[1] }) })
+    }, overview)
+    await page.route((url) => url.pathname === '/api/group-chat/messages' && url.searchParams.get('before') === cursor, async (route) => {
+      historyRequests += 1
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            items: [{
+              ...initialChat.data.chat.items[0],
+              id: 'auto-history-message',
+              content: '通过向上滚动自动载入的历史消息。',
+              createdAt: '2026-07-11T06:00:00.000Z',
+              updatedAt: '2026-07-11T06:00:00.000Z',
+            }],
+            nextCursor: null,
+          },
+        }),
+      })
+    })
+
+    await seedClassmateSession(page)
+    await page.goto('./class-space/', { waitUntil: 'networkidle' })
+    const log = page.locator('.chat-log')
+    await log.locator('.group-chat-message').evaluateAll((messages: HTMLElement[]) => {
+      messages.forEach(message => { message.style.minHeight = '80px' })
+    })
+    await log.evaluate((element: HTMLElement) => {
+      element.style.display = 'block'
+      element.style.height = '120px'
+      element.scrollTop = 0
+      element.dispatchEvent(new Event('scroll'))
+    })
+
+    await expect.poll(() => historyRequests).toBe(1)
+    await expect(page.locator('[data-message-id="auto-history-message"]')).toContainText('自动载入的历史消息')
+  })
+
   test('载入最后一页历史后隐藏入口，避免空请求', async ({ page }) => {
     const historyCursor = 'history-cursor'
     const overview = {

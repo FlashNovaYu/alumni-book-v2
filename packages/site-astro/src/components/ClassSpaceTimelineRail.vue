@@ -26,7 +26,7 @@ type TimelineItem = ClassSpaceOverview['timeline'][number]
 const props = defineProps<{ timeline: TimelineItem[]; apiBase: string }>()
 
 const sortedTimeline = computed(() => [...props.timeline].sort((a, b) => {
-  const timeDifference = new Date(a.date).getTime() - new Date(b.date).getTime()
+  const timeDifference = new Date(b.date).getTime() - new Date(a.date).getTime()
   return timeDifference || a.id.localeCompare(b.id)
 }))
 
