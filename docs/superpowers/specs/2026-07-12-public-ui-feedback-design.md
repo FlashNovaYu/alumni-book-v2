@@ -23,7 +23,7 @@
 - 人物长廊按 9 张卡片分页，搜索条件变化时回到第 1 页，页码按钮可键盘访问并带当前页语义。
 - 所有由本仓库代码提供的装饰性 emoji 改成已有或新增的简约 SVG 图标；用户输入、表情反应数据不改写。
 - 班级空间章节导航改为具有章节编号、名称、说明与计数的“目录卡”；窄屏保持横向可滚动而非挤压。
-- “班级大事”只读取管理员手工维护的 `timeline_events`。照片应由“精选影像”展示；需要在时间轴展示的照片由管理员作为事件配图选择。
+- 班级空间的“班级大事”只读取管理员手工维护的 `timeline_events`。独立的完整时光轴继续保留既有综合浏览能力；照片应由“精选影像”展示，需要在班级大事展示的照片由管理员作为事件配图选择。
 - 班级空间时间轴最多显示最新 6 条手工事件，正确解析相对和绝对文件 URL，并以连续时间线而非宽大的横向空卡片呈现。
 
 ### 非目标
@@ -71,7 +71,7 @@
 
 章节导航通过 `sections` 传入 `index`、`label`、`description` 和 `count`，桌面显示为窄书页目录，活动条固定在左侧。移动端显示为横向目录卡片，仍使用 `IntersectionObserver` 反映阅读位置。
 
-Worker 的 `getTimelineFeed` 新增显式 `includeAutomatic` 选项，默认 `false`，仅查询手工 `timeline_events`。独立 `/api/timeline` 和班级空间概览均获得策展事件；不会再自动加入消息、相册照片、学生注册。班级空间概览把预览数从 8 减至 6，`counts.timelineItems` 反映实际预览数量。
+Worker 的 `getTimelineFeed` 新增显式 `curatedOnly` 选项。班级空间概览传入 `curatedOnly: true`，仅查询手工 `timeline_events`；独立 `/api/timeline` 保持既有综合浏览能力。这样普通留言、相册照片、学生注册不会再自动出现在“班级大事”，但不会移除完整时光轴已有数据。班级空间概览把预览数从 8 减至 6，`counts.timelineItems` 反映实际预览数量。
 
 `ClassSpaceTimelineRail.vue` 使用纵向连续时间线：日期、类型、标题、简短说明和可选配图放在收紧的纸卡中。其图片解析器接受以下三种格式：完整 HTTPS URL、`/api/files/<key>` 相对 API URL、裸 R2 key；第二种不会重复附加 `/api/files/`。
 
@@ -80,6 +80,6 @@ Worker 的 `getTimelineFeed` 新增显式 `includeAutomatic` 选项，默认 `fa
 1. 档案页在 10 名以上数据时首屏仅有 9 张 `archive-card`，页码切换后显示下一批；关键词搜索始终从第 1 页开始。
 2. 顶部与移动导航都不再将影像馆、时光轴列作一级项目，并都有“更多”；`/more` 可直接打开。
 3. 所有仓库硬编码的装饰 emoji 均改为 SVG 或文字；反应协议不变。
-4. 班级空间概览只返回手工时间轴事件，预览含 `/api/files/...` 图片时请求路径恰为一个 `/api/files/` 前缀。
+4. 班级空间概览只返回手工时间轴事件，独立时光轴仍可获得其既有综合数据；预览含 `/api/files/...` 图片时请求路径恰为一个 `/api/files/` 前缀。
 5. 班级空间在 1433px 和 390px 宽度均不横向溢出，目录和时间线的可读性符合纸本主题。
 6. `pnpm --filter site-astro typecheck`、针对性的 Vitest、Worker Vitest 与 Playwright 用例通过；全量验证若受已有 `JWT_SECRET` 或线上构建数据依赖阻断，必须在结果中单独报告。
