@@ -2,7 +2,11 @@
   "name": "alumni-book-v2",
   "private": true,
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "workerd", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "sharp"
+    ]
   },
   "scripts": {
     "dev:site": "pnpm --filter site-astro dev",
@@ -17,9 +21,10 @@
     "migrate:chat-data": "tsx scripts/migrate-chat-data.ts",
     "audit:content": "tsx scripts/audit-content.ts",
     "verify:worker": "pnpm --filter worker exec vitest run",
+    "verify:shared": "pnpm --filter @alumni/shared typecheck",
     "verify:admin": "pnpm --filter admin test && pnpm --filter admin typecheck && pnpm --filter admin build && pnpm --filter admin verify:dist-network",
     "verify:site": "pnpm build:admin && pnpm --filter site-astro typecheck && pnpm --filter site-astro test:with-build && pnpm --filter site-astro test:perf-network",
-    "verify:all": "pnpm verify:worker && pnpm verify:admin && pnpm verify:site",
+    "verify:all": "pnpm verify:worker && pnpm verify:shared && pnpm verify:admin && pnpm verify:site",
     "prepare:pages": "node scripts/prepare-pages-deploy.mjs",
     "verify:pages": "pnpm verify:all && pnpm prepare:pages",
     "smoke:pages": "node scripts/smoke-pages.mjs"

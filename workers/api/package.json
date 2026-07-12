@@ -10,7 +10,7 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
-    "hono": "^4.6.0"
+    "hono": "^4.12.29"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.16.6",

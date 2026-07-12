@@ -59,4 +59,19 @@ describe('animation ownership', () => {
     expect(polling).toContain('onScopeDispose(stop)')
     expect(polling).toContain("removeEventListener('visibilitychange'")
   })
+
+  it('全仓站点运行时不再依赖 GSAP 或闲置 React 导航示例', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(siteRoot, '../package.json'), 'utf8'))
+    const dependencies = { ...pkg.dependencies, ...pkg.devDependencies }
+    for (const name of ['gsap', 'framer-motion', 'lucide-react', 'lucide-vue-next', 'react', 'react-dom', '@types/react', '@types/react-dom', 'clsx', 'tailwind-merge']) {
+      expect(dependencies[name]).toBeUndefined()
+    }
+    expect(fs.existsSync(path.join(siteRoot, 'components/ui/tubelight-navbar.tsx'))).toBe(false)
+    expect(fs.existsSync(path.join(siteRoot, 'components/ui/demo.tsx'))).toBe(false)
+    expect(fs.existsSync(path.join(siteRoot, 'utils/cn.ts'))).toBe(false)
+    const photoWall = read('components/PhotoWall.vue')
+    expect(photoWall).not.toContain("import('gsap')")
+    expect(photoWall).toContain('@keyframes photo-item-enter')
+    expect(photoWall).toContain('prefers-reduced-motion: reduce')
+  })
 })

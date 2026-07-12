@@ -1,6 +1,12 @@
 <template>
-  <div ref="photoWallRoot" class="photo-wall">
-    <div v-for="(photo, idx) in photos" :key="photo" class="photo-item" @click="openLightbox(idx)">
+  <div class="photo-wall">
+    <div
+      v-for="(photo, idx) in photos"
+      :key="photo"
+      class="photo-item"
+      :style="{ '--photo-index': idx }"
+      @click="openLightbox(idx)"
+    >
       <img
         v-if="!photoErrors[photo]"
         :src="photoUrl(photo)"
@@ -59,11 +65,8 @@ import { joinApiUrl } from '../utils/apiBase'
 const props = defineProps<{ photos: string[]; apiBase: string }>()
 
 const isMounted = ref(false)
-const photoWallRoot = ref<HTMLElement | null>(null)
 const photoErrors = ref<Record<string, boolean>>({})
 const lightboxErrors = ref<Record<number, boolean>>({})
-let gsapCtx: any = null
-let disposed = false
 
 const lightbox = reactive({
   open: false,
@@ -119,27 +122,9 @@ function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'ArrowRight') nextPhoto()
 }
 
-onMounted(() => {
-  disposed = false
-  isMounted.value = true
-  import('gsap').then(({ default: gsap }) => {
-    if (disposed || !photoWallRoot.value) return
-    gsapCtx = gsap.context(() => {
-      gsap.fromTo('.photo-item', { autoAlpha: 0, y: 24 },
-        {
-          autoAlpha: 1, y: 0, stagger: 0.08, duration: 0.45, ease: 'back.out(1.4)',
-        }
-      )
-    }, photoWallRoot.value)
-  })
-})
+onMounted(() => { isMounted.value = true })
 
 onUnmounted(() => {
-  disposed = true
-  if (gsapCtx) {
-    gsapCtx.revert()
-    gsapCtx = null
-  }
   document.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
 })
@@ -162,6 +147,17 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart);
   position: relative;
+  animation: photo-item-enter 450ms var(--ease-out-quart) both;
+  animation-delay: min(calc(var(--photo-index) * 80ms), 480ms);
+}
+
+@keyframes photo-item-enter {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-item { animation: none; }
 }
 
 .photo-item:hover {

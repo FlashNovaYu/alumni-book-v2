@@ -308,3 +308,20 @@ describe('只读日期选择器', () => {
     }
   })
 })
+
+describe('默认质量门禁', () => {
+  it('包含共享类型检查和所有现有站点测试', () => {
+    const root = JSON.parse(readFileSync(resolve(__dirname, '../../../package.json'), 'utf8'))
+    const site = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'))
+    const admin = JSON.parse(readFileSync(resolve(__dirname, '../../admin/package.json'), 'utf8'))
+
+    expect(root.scripts['verify:all']).toContain('verify:shared')
+    expect(admin.scripts.test).toContain('test:static')
+    for (const file of ['museum-viewmodels.test.ts', 'public-ui-feedback-static.test.ts', 'security-hardening-static.test.ts']) {
+      expect(site.scripts.test).toContain(file)
+    }
+    for (const file of ['navigation-marker-direction.spec.ts', 'roster-pagination.spec.ts']) {
+      expect(site.scripts['test:perf-network']).toContain(file)
+    }
+  })
+})
