@@ -1,5 +1,6 @@
 import { clearClassmateSession, getClassmateStudent, getClassmateToken } from '@alumni/shared'
 import { fetchInboxSummary } from '../api/inbox'
+import { fetchClassmateAdminEntry } from '../api/classmateAuth'
 
 interface NavRuntime {
   destroy(): void
@@ -19,6 +20,12 @@ function updateUnreadStamps(count: number) {
   document.querySelectorAll<HTMLElement>('[data-nav-unread]').forEach((stamp) => {
     stamp.hidden = count <= 0
     stamp.textContent = count > 99 ? '99+' : String(count)
+  })
+}
+
+function updateAdminEntry(available: boolean) {
+  document.querySelectorAll<HTMLElement>('[data-nav-admin-entry]').forEach((entry) => {
+    entry.hidden = !available
   })
 }
 
@@ -54,16 +61,22 @@ export function initNavRuntime(): void {
   const cleanup: Array<() => void> = []
   let unreadTimer: ReturnType<typeof setTimeout> | null = null
   let unreadController: AbortController | null = null
+  let adminEntryController: AbortController | null = null
   let resizeObserver: ResizeObserver | null = null
   let destroyed = false
 
   const closeDrawer = () => {
+    const wasOpen = document.documentElement.classList.contains('nav-open')
     document.documentElement.classList.remove('nav-open')
     drawer?.setAttribute('aria-hidden', 'true')
+    if (drawer) drawer.inert = true
+    if (wasOpen) openButton?.focus()
   }
   const openDrawer = () => {
     document.documentElement.classList.add('nav-open')
     drawer?.setAttribute('aria-hidden', 'false')
+    if (drawer) drawer.inert = false
+    closeButton?.focus()
   }
   const listen = (target: EventTarget | null, event: string, listener: EventListenerOrEventListenerObject) => {
     if (!target) return
@@ -104,7 +117,26 @@ export function initNavRuntime(): void {
       element.textContent = student?.name || '同学'
     })
     if (!signedIn) updateUnreadStamps(0)
+    if (!signedIn) updateAdminEntry(false)
     return signedIn
+  }
+
+  async function refreshAdminEntry() {
+    adminEntryController?.abort()
+    if (destroyed || !getClassmateToken()) {
+      updateAdminEntry(false)
+      return
+    }
+    const controller = new AbortController()
+    adminEntryController = controller
+    try {
+      const entry = await fetchClassmateAdminEntry(apiBase)
+      if (!controller.signal.aborted) updateAdminEntry(entry.available)
+    } catch {
+      if (!controller.signal.aborted) updateAdminEntry(false)
+    } finally {
+      if (adminEntryController === controller) adminEntryController = null
+    }
   }
 
   function clearUnreadTimer() {
@@ -148,6 +180,8 @@ export function initNavRuntime(): void {
       clearUnreadTimer()
       unreadController?.abort()
       unreadController = null
+      adminEntryController?.abort()
+      adminEntryController = null
       resizeObserver?.disconnect()
       cleanup.splice(0).forEach((dispose) => dispose())
       closeDrawer()
@@ -156,13 +190,38 @@ export function initNavRuntime(): void {
       if (destroyed) return
       const signedIn = syncSession()
       updateActiveInk()
-      if (signedIn) void refreshUnread()
+      if (signedIn) {
+        void refreshUnread()
+        void refreshAdminEntry()
+      }
     },
   }
 
   listen(openButton, 'click', openDrawer)
   listen(closeButton, 'click', closeDrawer)
   listen(overlay, 'click', closeDrawer)
+  listen(document, 'keydown', (event) => {
+    const keyboardEvent = event as KeyboardEvent
+    if (!document.documentElement.classList.contains('nav-open')) return
+    if (keyboardEvent.key === 'Escape') {
+      keyboardEvent.preventDefault()
+      closeDrawer()
+      return
+    }
+    if (keyboardEvent.key !== 'Tab' || !drawer) return
+    const focusableElements = Array.from(drawer.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      .filter((element) => element.getClientRects().length > 0)
+    if (!focusableElements.length) return
+    const first = focusableElements[0]
+    const last = focusableElements[focusableElements.length - 1]
+    if (keyboardEvent.shiftKey && document.activeElement === first) {
+      keyboardEvent.preventDefault()
+      last.focus()
+    } else if (!keyboardEvent.shiftKey && document.activeElement === last) {
+      keyboardEvent.preventDefault()
+      first.focus()
+    }
+  })
   document.querySelectorAll<HTMLElement>('.mobile-drawer a').forEach((link) => listen(link, 'click', closeDrawer))
   listen(logoutButton, 'click', () => {
     clearClassmateSession()

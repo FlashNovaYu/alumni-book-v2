@@ -338,9 +338,11 @@ async function movePhoto(album: any, idx: number, direction: number) {
 
 async function deletePhoto(album: any, photoId: string) {
   if (!confirm('确定要删除这张照片吗？')) return
+  const reason = prompt('请输入删除原因：')
+  if (reason === null || !reason.trim()) return
   try {
     await adminFetch(`/api/photos/${photoId}`, {
-      method: 'DELETE'
+      method: 'DELETE', body: JSON.stringify({ reason: reason.trim() })
     })
     album.photos = album.photos.filter((p: any) => p.id !== photoId)
     // 如果被删除照片是封面，则清空封面

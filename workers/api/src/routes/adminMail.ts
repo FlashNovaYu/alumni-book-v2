@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import { adminGuard } from '../lib/adminGuard'
-import { readLimitedJson } from '../lib/jsonBodyLimit'
-import { createAdminBroadcast, createAdminNotice } from '../lib/notificationService'
+import { jwt } from 'hono/jwt'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { buildAuditStatement, runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -10,55 +10,114 @@ type Bindings = {
 
 export const adminMailRoutes = new Hono<{ Bindings: Bindings }>()
 
-const MAX_RECIPIENT_SLUG_LENGTH = 160
+// 内部安全防线：adminGuard 局部中间件，结合 JWT 校验与数据库 admin_sessions 校验
+async function adminGuard(c: any, next: any) {
+  const secret = c.env.JWT_SECRET
+  const mw = jwt({ secret, alg: 'HS256' })
+  try {
+    let isVerified = false
+    let response: any = null
 
-adminMailRoutes.use('*', adminGuard)
+    await mw(c, async () => {
+      const authHeader = c.req.header('Authorization')
+      const token = authHeader?.replace('Bearer ', '')
+      if (!token) {
+        response = c.json({ success: false, message: '未授权' }, 401)
+        return
+      }
 
-async function readLegacyNoticePayload(c: any, includeRecipient: boolean) {
-  const result = await readLimitedJson(c.req.raw)
-  if (result.status === 'too-large') return result
-  if (result.status !== 'ok') return null
-  const value = result.value as any
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
-  const title = typeof value.subject === 'string' ? value.subject.trim() : ''
-  const body = typeof value.body === 'string' ? value.body.trim() : ''
-  const recipientSlug = typeof value.recipientSlug === 'string' ? value.recipientSlug.trim() : ''
-  if (!title || title.length > 80 || !body || body.length > 2000 || recipientSlug.length > MAX_RECIPIENT_SLUG_LENGTH || (includeRecipient && !recipientSlug)) return null
-  return { title, body, recipientSlug }
+      const session = await c.env.DB.prepare(
+        "SELECT token FROM admin_sessions WHERE token = ? AND julianday(expires_at) > julianday('now')"
+      ).bind(token).first()
+
+      if (!session) {
+        response = c.json({ success: false, message: '登录已失效' }, 401)
+        return
+      }
+
+      isVerified = true
+    })
+
+    if (isVerified) {
+      return next()
+    }
+    if (response) {
+      return response
+    }
+    return c.json({ success: false, message: '未授权' }, 401)
+  } catch (e) {
+    return c.json({ success: false, message: '未授权' }, 401)
+  }
 }
 
+// 针对所有管理员发信接口启用身份校验
+adminMailRoutes.use('*', adminGuard)
+
+const id = (prefix: string) => `${prefix}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
+const normalizeBody = (val: unknown, max: number) => String(val || '').trim().slice(0, max)
+
 adminMailRoutes.post('/admin/mail/send', async (c) => {
-  const payload = await readLegacyNoticePayload(c, true)
-  if (payload && 'status' in payload) return c.json({ success: false, message: '请求体过大' }, 413)
-  if (!payload) return c.json({ success: false, message: '收件人、标题和正文必填' }, 400)
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { recipientSlug, subject, body, allowReply } = await c.req.json()
+  const cleanSubject = normalizeBody(subject, 80)
+  const cleanBody = normalizeBody(body, 2000)
+  const cleanRecipient = String(recipientSlug || '').trim()
 
-  const recipient = await c.env.DB.prepare(
-    "SELECT slug FROM students WHERE slug = ? AND COALESCE(account_status, 'active') != 'locked'"
-  ).bind(payload.recipientSlug).first()
-  if (!recipient) return c.json({ success: false, message: '收件人不存在或已锁定' }, 404)
+  if (!cleanRecipient || !cleanSubject || !cleanBody) {
+    return c.json({ success: false, message: '收件人、标题和正文必填' }, 400)
+  }
 
-  const result = await createAdminNotice(c.env.DB, {
-    recipientSlugs: [payload.recipientSlug],
-    title: payload.title,
-    body: payload.body,
+  const recipient = await c.env.DB.prepare('SELECT slug FROM students WHERE slug = ?').bind(cleanRecipient).first()
+  if (!recipient) return c.json({ success: false, message: '收件人不存在' }, 404)
+
+  const relatedId = id('admin_notice')
+  await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare(
+    `INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id)
+     VALUES (?, ?, 'admin_notice', ?, ?, 'admin_notice', ?)`
+  ).bind(id('ntf'), cleanRecipient, cleanSubject, cleanBody, relatedId)], {
+    action: 'notification.send', resourceType: 'admin_notice', resourceId: relatedId,
+    after: { recipientSlug: cleanRecipient, subject: cleanSubject, allowReply: !!allowReply },
   })
-  return c.json({ success: true, message: '通知已发送', data: { id: result.relatedId, ...result } }, 201)
+
+  c.header('Deprecation', 'true')
+  return c.json({ success: true, message: '通知已发送', data: { id: relatedId, relatedId, sentCount: 1 } }, 201)
 })
 
 adminMailRoutes.post('/admin/mail/broadcast', async (c) => {
-  const payload = await readLegacyNoticePayload(c, false)
-  if (payload && 'status' in payload) return c.json({ success: false, message: '请求体过大' }, 413)
-  if (!payload) return c.json({ success: false, message: '标题和正文必填' }, 400)
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { subject, body, allowReply } = await c.req.json()
+  const cleanSubject = normalizeBody(subject, 80)
+  const cleanBody = normalizeBody(body, 2000)
 
-  const result = await createAdminBroadcast(c.env.DB, {
-    title: payload.title,
-    body: payload.body,
-  })
-  return c.json({ success: true, message: '群发完成', data: result }, 201)
+  if (!cleanSubject || !cleanBody) {
+    return c.json({ success: false, message: '标题和正文必填' }, 400)
+  }
+
+  const relatedId = id('admin_notice')
+  const results = await c.env.DB.batch([
+    c.env.DB.prepare(`
+      INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id)
+      SELECT 'ntf_' || ? || '_' || lower(hex(randomblob(8))), slug, 'admin_notice', ?, ?, 'admin_notice', ?
+      FROM students WHERE COALESCE(account_status, 'active') != 'locked'
+      RETURNING recipient_slug
+    `).bind(relatedId, cleanSubject, cleanBody, relatedId),
+    buildAuditStatement(c.env.DB, admin.id, {
+      action: 'notification.broadcast', resourceType: 'admin_notice', resourceId: relatedId,
+      after: { subject: cleanSubject, allowReply: !!allowReply },
+    }),
+  ])
+
+  c.header('Deprecation', 'true')
+  return c.json({
+    success: true,
+    message: '群发完成',
+    data: { id: relatedId, relatedId, sentCount: results[0]?.results?.length || 0 },
+  }, 201)
 })
 
 adminMailRoutes.get('/admin/mail/threads', async (c) => {
-  c.header('Deprecation', 'true')
   const { results } = await c.env.DB.prepare(
     `SELECT
       t.id, t.subject, t.thread_type, t.allow_reply, t.updated_at,
@@ -72,5 +131,6 @@ adminMailRoutes.get('/admin/mail/threads', async (c) => {
      LIMIT 100`
   ).all()
 
+  c.header('Deprecation', 'true')
   return c.json({ success: true, data: results || [] })
 })

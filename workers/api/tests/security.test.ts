@@ -2,6 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { describe, it, expect, beforeAll } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
+import { hashPassword } from '../src/lib/password'
 
 beforeAll(async () => {
   await initTestDb(env.DB)
@@ -13,6 +14,10 @@ beforeAll(async () => {
     INSERT INTO students (id, name, slug, info)
     VALUES ('test_lisi', '李四', 'lisi', '{}')
   `).run()
+  await env.DB.prepare(
+    `INSERT INTO admin_accounts (id, account_type, username, display_name, password_hash, role_id, is_owner)
+     VALUES (?, 'standalone', ?, ?, ?, 'owner', 1)`
+  ).bind('adm_security_owner', 'security-owner', '安全测试主管理员', await hashPassword('security-owner-pass')).run()
 })
 
 describe('Security and Session Revocation', () => {
@@ -36,7 +41,7 @@ describe('Security and Session Revocation', () => {
     const loginReq = new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'admin888' }),
+      body: JSON.stringify({ username: 'security-owner', password: 'security-owner-pass' }),
     })
     const ctx1 = createExecutionContext()
     const loginRes = await worker.fetch(loginReq, env, ctx1)
@@ -75,7 +80,7 @@ describe('Security and Session Revocation', () => {
     expect(statsRes2.status).toBe(401)
     const errBody = await statsRes2.json() as any
     expect(errBody.success).toBe(false)
-    expect(errBody.message).toContain('登录已失效')
+    expect(errBody.message).toContain('管理会话已失效')
   })
 
   it('classmate session token stops working after logout', async () => {

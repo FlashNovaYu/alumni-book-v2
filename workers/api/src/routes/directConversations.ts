@@ -287,7 +287,11 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
     if (!/^[1-9]\d*$/.test(limitRaw)) {
       return c.json({ success: false, message: '无效的 limit 参数' }, 400)
     }
-    limitVal = Math.min(Number(limitRaw), 30)
+    const parsed = Number(limitRaw)
+    if (parsed > 30) {
+      return c.json({ success: false, message: '无效的 limit 参数' }, 400)
+    }
+    limitVal = parsed
   }
 
   const beforeRaw = c.req.query('before')

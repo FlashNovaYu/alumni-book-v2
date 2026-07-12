@@ -2,6 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
+import { loginTestAdmin } from './admin-test-auth'
 
 const AUTHOR_SLUG = 'admin-community-author'
 const OTHER_SLUG = 'admin-community-other'
@@ -14,10 +15,7 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 async function login() {
-  const response = await request('/api/auth/login', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'admin888' }),
-  })
-  return ((await response.json()) as any).data.token as string
+  return loginTestAdmin(request)
 }
 
 function adminHeaders(token: string) {

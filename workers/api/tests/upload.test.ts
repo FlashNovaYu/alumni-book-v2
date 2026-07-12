@@ -1,7 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test'
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 import worker from '../src/index'
-import { uploadRoutes } from '../src/routes/upload'
+import { buildUploadKey } from '../src/routes/upload'
 import { initTestDb } from './db-helper'
 
 beforeAll(async () => {
@@ -17,17 +17,6 @@ beforeAll(async () => {
 })
 
 describe('Classmate Self-Service Upload', () => {
-  function createMiscImageUploadRequest() {
-    const formData = new FormData()
-    formData.append('file', new File([new Uint8Array([1, 2, 3])], 'same-image.png', { type: 'image/png' }))
-    formData.append('type', 'misc')
-
-    return new Request('http://localhost/upload', {
-      method: 'POST',
-      body: formData,
-    })
-  }
-
   async function getTokens() {
     const tReqZs = new Request('http://localhost/api/classmate/token', {
       method: 'POST',
@@ -128,16 +117,13 @@ describe('Classmate Self-Service Upload', () => {
     const dateNow = vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
 
     try {
-      const [firstRes, secondRes] = await Promise.all([
-        uploadRoutes.fetch(createMiscImageUploadRequest(), env),
-        uploadRoutes.fetch(createMiscImageUploadRequest(), env),
-      ])
-      const first = await firstRes.json() as any
-      const second = await secondRes.json() as any
+      const file = new File([new Uint8Array([1, 2, 3])], 'same-image.png', { type: 'image/png' })
+      const firstKey = buildUploadKey('misc', file, '', '')
+      const secondKey = buildUploadKey('misc', file, '', '')
 
-      expect(first.data.r2Key).toContain(`misc/${fixedNow}_same-image.png_`)
-      expect(second.data.r2Key).toContain(`misc/${fixedNow}_same-image.png_`)
-      expect(first.data.r2Key).not.toBe(second.data.r2Key)
+      expect(firstKey).toContain(`misc/${fixedNow}_same-image.png_`)
+      expect(secondKey).toContain(`misc/${fixedNow}_same-image.png_`)
+      expect(firstKey).not.toBe(secondKey)
     } finally {
       dateNow.mockRestore()
     }

@@ -8,7 +8,7 @@ vi.mock('@alumni/shared', async () => {
   }
 })
 
-import { fetchRecipientDirectory } from '../src/api/postOffice'
+import { requestClassmateApi } from '../src/api/classmateRequest'
 import { changeClassmatePassword, fetchClassmateMe, logoutClassmate } from '../src/api/classmateAuth'
 import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../src/api/classmateSession'
 import { fetchJsonIfChanged } from '../src/utils/deferredFetch'
@@ -67,13 +67,14 @@ describe('同学会话失效处理', () => {
     expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')
   })
 
-  it('不会把公开同学目录的 401 误判为会话失效', async () => {
+  it('统一请求客户端收到真实 401 时清理会话', async () => {
     sessionStorage.setItem('classmate_account_token', 'active-token')
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ message: '同学目录暂不可用' }), { status: 401 }))
+    sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学' }))
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ success: false, message: '令牌已过期' }), { status: 401 }))
 
-    await expect(fetchRecipientDirectory('https://api.example.test')).rejects.toThrow('同学目录暂不可用')
-    expect(sessionStorage.getItem('classmate_account_token')).toBe('active-token')
-    expect(redirect).not.toHaveBeenCalled()
+    await expect(requestClassmateApi('https://api.example.test', '/api/inbox/summary')).rejects.toThrow(SESSION_EXPIRED_MESSAGE)
+    expect(sessionStorage.getItem('classmate_account_token')).toBeNull()
+    expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')
   })
 
   it.each([
@@ -126,11 +127,13 @@ describe('同学会话失效处理', () => {
     const selfEdit = fs.readFileSync(componentPath('SelfEditPanel.vue'), 'utf-8')
     const messageWall = fs.readFileSync(componentPath('MessageWall.vue'), 'utf-8')
     const topNav = fs.readFileSync(componentPath('TopNav.astro'), 'utf-8')
+    const classmateRequest = fs.readFileSync(path.resolve(__dirname, '../src/api/classmateRequest.ts'), 'utf-8')
+    const navRuntime = fs.readFileSync(path.resolve(__dirname, '../src/scripts/navRuntime.ts'), 'utf-8')
     const accountCenter = fs.readFileSync(componentPath('AccountCenter.vue'), 'utf-8')
     const topNavSession = fs.readFileSync(componentPath('TopNavSession.vue'), 'utf-8')
     const unauthorizedBranch = /if\s*\(\s*res\.status\s*===\s*401\s*\)\s*\{?\s*(?:alert\(\s*SESSION_EXPIRED_MESSAGE\s*\);?\s*)?handleClassmateUnauthorized\(\)/
 
-    for (const source of [selfEdit, messageWall, topNav]) {
+    for (const source of [selfEdit, messageWall, classmateRequest]) {
       expect(source).toMatch(/import\s*\{(?=[^}]*\bhandleClassmateUnauthorized\b)[^}]*\}\s*from\s*['"][^'"]*classmateSession['"]/)
       expect(source).toMatch(unauthorizedBranch)
     }
@@ -138,10 +141,11 @@ describe('同学会话失效处理', () => {
     expect(selfEdit).not.toMatch(/return\s+save\s*\(/)
     expect(selfEdit).not.toMatch(/classmate_token_\$\{props\.studentSlug\}/)
     expect(messageWall).not.toMatch(/classmate_token_\$\{props\.studentSlug\}/)
-    expect(topNav).toMatch(/alert\(\s*SESSION_EXPIRED_MESSAGE\s*\)/)
-    for (const source of [accountCenter, topNavSession]) {
-      expect(source).toMatch(/import\.meta\.env\.BASE_URL\s*\|\|\s*'\/'/)
-      expect(source).not.toMatch(/window\.location\.href\s*=\s*'\/'/)
-    }
+    expect(navRuntime).toContain('fetchInboxSummary')
+    expect(navRuntime).toContain('fetchClassmateAdminEntry')
+    expect(topNav).toContain('data-nav-admin-entry')
+    expect(accountCenter).toContain('props.siteBase')
+    expect(topNavSession).toMatch(/import\.meta\.env\.BASE_URL\s*\|\|\s*'\/'/)
+    for (const source of [accountCenter, topNavSession]) expect(source).not.toMatch(/window\.location\.href\s*=\s*'\/'/)
   })
 })

@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { hashPassword } from '../lib/password'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -13,6 +15,8 @@ export const studentsRoutes = new Hono<{ Bindings: Bindings }>()
 // 创建学生
 studentsRoutes.post('/students', async (c) => {
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const body = await c.req.json()
   const { name, slug } = body
 
@@ -47,14 +51,19 @@ studentsRoutes.post('/students', async (c) => {
   })
   const initialPasswordHash = await hashPassword('123456')
 
-  await db.prepare(
+  await runAuditedBatch(db, admin.id, [db.prepare(
     `INSERT INTO students (
       id, name, slug, info,
       account_password_hash,
       account_initial_password_changed,
       account_status
     ) VALUES (?, ?, ?, ?, ?, 0, 'pending')`
-  ).bind(id, name, slug, info, initialPasswordHash).run()
+  ).bind(id, name, slug, info, initialPasswordHash)], {
+    action: 'student.create',
+    resourceType: 'student',
+    resourceId: slug,
+    after: { name, slug },
+  })
 
   return c.json({ success: true, data: { id, name, slug } })
 })
@@ -63,9 +72,11 @@ studentsRoutes.post('/students', async (c) => {
 studentsRoutes.put('/students/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const body = await c.req.json()
 
-  const existing = await db.prepare('SELECT id FROM students WHERE slug = ?').bind(slug).first()
+  const existing = await db.prepare('SELECT * FROM students WHERE slug = ?').bind(slug).first()
   if (!existing) {
     return c.json({ success: false, message: '学生不存在' }, 404)
   }
@@ -117,7 +128,18 @@ studentsRoutes.put('/students/:slug', async (c) => {
   fields.push("updated_at = datetime('now')")
   values.push(slug)
 
-  await db.prepare(`UPDATE students SET ${fields.join(', ')} WHERE slug = ?`).bind(...values).run()
+  const mutations: D1PreparedStatement[] = [db.prepare(`UPDATE students SET ${fields.join(', ')} WHERE slug = ?`).bind(...values)]
+  if (body.accountInitialPassword !== undefined && body.accountInitialPassword !== null && body.accountInitialPassword !== '') {
+    mutations.push(
+      db.prepare('DELETE FROM classmate_sessions WHERE student_slug = ?').bind(slug),
+      db.prepare(
+        `UPDATE admin_sessions SET revoked_at = datetime('now')
+         WHERE admin_account_id IN (SELECT id FROM admin_accounts WHERE account_type = 'classmate_linked' AND student_slug = ?)
+           AND revoked_at IS NULL`
+      ).bind(slug),
+    )
+  }
+  await runAuditedBatch(db, admin.id, mutations, { action: 'student.update', resourceType: 'student', resourceId: slug, before: { name: (existing as any).name }, after: { changedFields: Object.keys(body).filter(key => !key.toLowerCase().includes('password') && key !== 'editSecret'), sessionsRevoked: mutations.length > 1 } })
 
   return c.json({ success: true, message: '更新成功' })
 })
@@ -126,13 +148,18 @@ studentsRoutes.put('/students/:slug', async (c) => {
 studentsRoutes.delete('/students/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
+  const { reason } = await c.req.json().catch(() => ({}))
+  const cleanReason = String(reason || '').trim()
+  if (!cleanReason) return c.json({ success: false, message: '删除学生档案时请填写原因' }, 400)
 
   const existing = await db.prepare('SELECT id FROM students WHERE slug = ?').bind(slug).first()
   if (!existing) {
     return c.json({ success: false, message: '学生不存在' }, 404)
   }
 
-  await db.prepare('DELETE FROM students WHERE slug = ?').bind(slug).run()
+  await runAuditedBatch(db, admin.id, [db.prepare('DELETE FROM students WHERE slug = ?').bind(slug)], { action: 'student.delete', resourceType: 'student', resourceId: slug, reason: cleanReason, before: existing })
 
   return c.json({ success: true, message: '删除成功' })
 })

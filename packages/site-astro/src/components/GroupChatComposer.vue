@@ -10,6 +10,7 @@
     <div v-else class="composer-row">
       <textarea
         v-model="draft"
+        aria-label="群聊消息内容"
         rows="1"
         placeholder="写下消息……"
         :disabled="sending"

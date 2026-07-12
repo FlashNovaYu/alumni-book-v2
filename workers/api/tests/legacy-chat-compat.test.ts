@@ -2,6 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
+import { loginTestAdmin } from './admin-test-auth'
 
 const A = { id: 'legacy-compat-a-id', slug: 'legacy-compat-a', name: '兼容同学甲' }
 const B = { id: 'legacy-compat-b-id', slug: 'legacy-compat-b', name: '兼容同学乙' }
@@ -43,13 +44,7 @@ async function loginClassmate(slug: string): Promise<string> {
 }
 
 async function loginAdmin(): Promise<string> {
-  const res = await request('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: 'admin888' }),
-  })
-  const body = await res.json() as any
-  return body.data.token as string
+  return loginTestAdmin(request)
 }
 
 async function insertStudents() {

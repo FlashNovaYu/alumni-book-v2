@@ -11,11 +11,23 @@ const heicHeader = new Uint8Array([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x7
 const student = { id: 'image_validation_student', name: '图片校验同学', slug: 'image-validation-user' }
 const classmateToken = 'image-validation-session'
 const bindings = { DB: env.DB, R2: env.R2, JWT_SECRET: 'test-secret' }
-const adminApi = new Hono<{ Bindings: typeof bindings }>()
+const adminApi = new Hono<{ Bindings: typeof bindings; Variables: { admin: any } }>()
+adminApi.use('*', async (c, next) => {
+  c.set('admin', {
+    id: 'adm_image_test', displayName: '图片测试管理员', accountType: 'standalone', studentSlug: null,
+    isOwner: true, mustChangePassword: false, permissions: [],
+  })
+  await next()
+})
 adminApi.route('/api', uploadRoutes)
 
 beforeAll(async () => {
   await initTestDb(env.DB)
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO admin_accounts
+      (id, account_type, username, display_name, password_hash, role_id, is_owner)
+     VALUES ('adm_image_test', 'standalone', 'image-test-admin', '图片测试管理员', 'test-only', 'owner', 1)`,
+  ).run()
   await env.DB.prepare(
     'INSERT OR REPLACE INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)',
   ).bind(student.id, student.name, student.slug, '{}').run()
@@ -80,6 +92,26 @@ describe('image validation', () => {
     ).bind(student.slug).first() as any)?.avatar_url
     expect(adminAvatarAfter).toBe(adminAvatarBefore)
     expect((await env.R2.list({ prefix: `avatars/${student.slug}_` })).objects).toHaveLength(0)
+  })
+
+  it('rejects invalid upload targets before writing files', async () => {
+    const missingSlug = uploadForm(pngHeader, 'avatar.png')
+    missingSlug.delete('slug')
+    expect((await adminApi.fetch(new Request('http://localhost/api/upload', {
+      method: 'POST', body: missingSlug,
+    }), bindings)).status).toBe(400)
+
+    const unknownStudent = uploadForm(pngHeader, 'avatar.png')
+    unknownStudent.set('slug', 'missing-student')
+    expect((await adminApi.fetch(new Request('http://localhost/api/upload', {
+      method: 'POST', body: unknownStudent,
+    }), bindings)).status).toBe(404)
+
+    const unknownType = uploadForm(pngHeader, 'avatar.png')
+    unknownType.set('type', 'unknown')
+    expect((await adminApi.fetch(new Request('http://localhost/api/upload', {
+      method: 'POST', body: unknownType,
+    }), bindings)).status).toBe(400)
   })
 
   it('uses a canonical extension for a valid PNG upload', async () => {

@@ -5,7 +5,7 @@
       <p>向指定同学或全班发送站内通知。</p>
     </header>
 
-    <section class="card notification-composer">
+    <section v-if="canPublish" class="card notification-composer">
       <div class="notice-mode-tabs" role="tablist" aria-label="通知范围">
         <button type="button" role="tab" :aria-selected="audience === 'single'" :tabindex="audience === 'single' ? 0 : -1" @click="audience = 'single'">单人通知</button>
         <button type="button" role="tab" :aria-selected="audience === 'all'" :tabindex="audience === 'all' ? 0 : -1" @click="audience = 'all'">全班通知</button>
@@ -33,6 +33,7 @@
       </form>
       <p v-if="toast" :class="['toast-inline', toast.type]">{{ toast.message }}</p>
     </section>
+    <section v-else class="card permission-notice">当前账号可以查看通知记录，但没有发布通知的权限。</section>
 
     <section class="card notification-history" aria-labelledby="notice-history-title">
       <header>
@@ -72,6 +73,7 @@ import {
   type NotificationHistoryItem,
   type NotificationRecipient,
 } from '@/api/community'
+import { getCurrentAdmin } from '@/api/client'
 
 const audience = ref<'single' | 'all'>('single')
 const sending = ref(false)
@@ -82,7 +84,11 @@ const recipients = ref<NotificationRecipient[]>([])
 const history = ref<NotificationHistoryItem[]>([])
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 const form = reactive({ recipientSlug: '', title: '', body: '' })
-const canSend = computed(() => Boolean(form.title.trim() && form.body.trim() && (audience.value === 'all' || form.recipientSlug)))
+const canPublish = computed(() => {
+  const admin = getCurrentAdmin()
+  return !!admin && (admin.isOwner || admin.permissions.includes('notifications.publish'))
+})
+const canSend = computed(() => canPublish.value && Boolean(form.title.trim() && form.body.trim() && (audience.value === 'all' || form.recipientSlug)))
 
 let toastTimeout: ReturnType<typeof setTimeout> | null = null
 let historyRequest = 0
@@ -145,7 +151,7 @@ function formatDate(value: string) {
 }
 
 onMounted(() => {
-  void loadRecipients()
+  if (canPublish.value) void loadRecipients()
   void loadHistory()
 })
 </script>

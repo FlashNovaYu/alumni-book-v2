@@ -28,7 +28,7 @@ export async function createClassmateSession(db: D1Database, slug: string, secre
 export async function verifyClassmateSession(db: D1Database, token: string | null | undefined): Promise<string | null> {
   if (!token) return null
   const row = await db.prepare(
-    "SELECT student_slug FROM classmate_sessions WHERE token = ? AND expires_at > datetime('now')"
+    "SELECT student_slug FROM classmate_sessions WHERE token = ? AND julianday(expires_at) > julianday('now')"
   ).bind(token).first() as any
   return row?.student_slug || null
 }

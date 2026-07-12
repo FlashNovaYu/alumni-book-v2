@@ -18,9 +18,9 @@ export type CreateAdminBroadcastInput = Pick<CreateAdminNoticeInput, 'title' | '
 
 const ADMIN_NOTICE_BATCH_SIZE = 50
 
-export async function createNotification(db: D1Database, input: CreateNotificationInput) {
+export function buildNotificationStatement(db: D1Database, input: CreateNotificationInput) {
   const id = input.id || `ntf_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
-  await db.prepare(
+  const statement = db.prepare(
     `INSERT ${input.id ? 'OR IGNORE ' : ''}INTO notifications
       (id, recipient_slug, type, title, body, related_type, related_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -32,7 +32,13 @@ export async function createNotification(db: D1Database, input: CreateNotificati
     input.body,
     input.relatedType || null,
     input.relatedId || null,
-  ).run()
+  )
+  return { id, statement }
+}
+
+export async function createNotification(db: D1Database, input: CreateNotificationInput) {
+  const { id, statement } = buildNotificationStatement(db, input)
+  await statement.run()
   return id
 }
 

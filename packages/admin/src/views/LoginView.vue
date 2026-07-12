@@ -7,6 +7,10 @@
       </div>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
+          <label class="form-label">管理员用户名</label>
+          <input v-model="username" type="text" class="text-input" autocomplete="username" />
+        </div>
+        <div class="form-group">
           <label class="form-label">管理密码</label>
           <input
             v-model="password"
@@ -31,21 +35,22 @@ import { useRouter } from 'vue-router'
 import { adminLogin } from '@/api/client'
 
 const router = useRouter()
+const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
 async function handleLogin() {
-  if (!password.value.trim()) {
-    error.value = '请输入密码'
+  if (!username.value.trim() || !password.value.trim()) {
+    error.value = '请输入用户名和密码'
     return
   }
 
   loading.value = true
   error.value = ''
   try {
-    await adminLogin(password.value)
-    router.push('/dashboard')
+    const result = await adminLogin(username.value, password.value)
+    router.push(result.needsSetup ? '/setup' : '/dashboard')
   } catch (e: any) {
     error.value = e.message || '登录失败'
   } finally {

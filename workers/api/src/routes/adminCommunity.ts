@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { adminGuard } from '../lib/adminGuard'
 import { readLimitedJson } from '../lib/jsonBodyLimit'
-import { createAdminBroadcast, createAdminNotice } from '../lib/notificationService'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { buildAuditStatement } from '../lib/adminAudit'
 
 type Bindings = { DB: D1Database; JWT_SECRET: string }
 export const adminCommunityRoutes = new Hono<{ Bindings: Bindings }>()
@@ -26,8 +27,29 @@ async function readNoticePayload(c: any) {
 }
 
 function adminId(c: any) {
-  const payload = c.get('jwtPayload') as any
-  return String(payload?.sub || payload?.role || 'admin')
+  return getAdminPrincipal(c)?.id || 'admin'
+}
+
+function conditionalAuditStatement(
+  db: D1Database,
+  actorId: string,
+  action: string,
+  resourceType: string,
+  resourceId: string,
+  reason: string | null,
+  before: unknown,
+  after: unknown,
+  condition: string,
+  conditionBinds: unknown[],
+) {
+  return db.prepare(
+    `INSERT INTO admin_audit_logs
+      (id, admin_account_id, action, resource_type, resource_id, reason, before_summary, after_summary, metadata)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, '{}' WHERE ${condition}`
+  ).bind(
+    `audit_${crypto.randomUUID()}`, actorId, action, resourceType, resourceId, reason,
+    JSON.stringify(before), JSON.stringify(after), ...conditionBinds,
+  )
 }
 
 function messageData(row: any) {
@@ -63,12 +85,18 @@ adminCommunityRoutes.post('/admin/notifications/send', async (c) => {
   ).bind(payload.recipientSlug).first()
   if (!recipient) return c.json({ success: false, message: '收件人不存在或已锁定' }, 404)
 
-  const result = await createAdminNotice(c.env.DB, {
-    recipientSlugs: [payload.recipientSlug],
-    title: payload.title,
-    body: payload.body,
-  })
-  return c.json({ success: true, data: result }, 201)
+  const relatedId = id('admin_notice')
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id)
+       VALUES (?, ?, 'admin_notice', ?, ?, 'admin_notice', ?)`
+    ).bind(id('ntf'), payload.recipientSlug, payload.title, payload.body, relatedId),
+    buildAuditStatement(c.env.DB, adminId(c), {
+      action: 'notification.send', resourceType: 'admin_notice', resourceId: relatedId,
+      after: { recipientSlug: payload.recipientSlug, title: payload.title },
+    }),
+  ])
+  return c.json({ success: true, data: { relatedId, sentCount: 1 } }, 201)
 })
 
 adminCommunityRoutes.post('/admin/notifications/broadcast', async (c) => {
@@ -77,11 +105,20 @@ adminCommunityRoutes.post('/admin/notifications/broadcast', async (c) => {
   if (!payload) {
     return c.json({ success: false, message: '标题和正文必填，标题最多 80 字，正文最多 2000 字' }, 400)
   }
-  const result = await createAdminBroadcast(c.env.DB, {
-    title: payload.title,
-    body: payload.body,
-  })
-  return c.json({ success: true, data: result }, 201)
+  const relatedId = id('admin_notice')
+  const results = await c.env.DB.batch([
+    c.env.DB.prepare(`
+      INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id)
+      SELECT 'ntf_' || ? || '_' || lower(hex(randomblob(8))), slug, 'admin_notice', ?, ?, 'admin_notice', ?
+      FROM students WHERE COALESCE(account_status, 'active') != 'locked'
+      RETURNING recipient_slug
+    `).bind(relatedId, payload.title, payload.body, relatedId),
+    buildAuditStatement(c.env.DB, adminId(c), {
+      action: 'notification.broadcast', resourceType: 'admin_notice', resourceId: relatedId,
+      after: { title: payload.title },
+    }),
+  ])
+  return c.json({ success: true, data: { relatedId, sentCount: results[0]?.results?.length || 0 } }, 201)
 })
 
 adminCommunityRoutes.get('/admin/notifications/history', async (c) => {
@@ -137,10 +174,15 @@ adminCommunityRoutes.put('/admin/group-chat/messages/:id/hide', async (c) => {
   const results = await c.env.DB.batch([
     messageReview(c.env.DB, messageId, previous, body.hidden ? 'hide' : 'restore', reason, adminId(c)),
     messageNotification(c.env.DB, messageId, previous, body.hidden ? 'group_chat_hidden' : 'group_chat_restored', body.hidden ? '群聊消息已隐藏' : '群聊消息已恢复', reason),
+    conditionalAuditStatement(
+      c.env.DB, adminId(c), body.hidden ? 'group_chat.hide' : 'group_chat.restore', 'group_chat_message', messageId, reason,
+      { status: previous }, { status: next },
+      'EXISTS (SELECT 1 FROM public_messages WHERE id = ? AND status = ?)', [messageId, previous],
+    ),
     c.env.DB.prepare("UPDATE public_messages SET status = ?, moderation_reason = ?, updated_at = datetime('now') WHERE id = ? AND status = ?").bind(next, reason, messageId, previous),
   ])
   const updated = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
-  if (!Number((results[2] as any)?.meta?.changes || 0)) {
+  if (!Number((results[3] as any)?.meta?.changes || 0)) {
     if (!updated) return c.json({ success: false, message: '消息不存在' }, 404)
     if (updated.status === 'recalled_by_admin' || updated.status === 'recalled_by_author') {
       return c.json({ success: false, message: '已撤回消息不可恢复' }, 409)
@@ -164,6 +206,11 @@ adminCommunityRoutes.post('/admin/group-chat/messages/:id/recall', async (c) => 
     c.env.DB.prepare(
       `INSERT OR IGNORE INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, author_slug, 'group_chat_recalled', '群聊消息已被管理员撤回', ?, 'group_chat_message', id FROM public_messages WHERE id = ? AND ${allowed}`
     ).bind(`ntf_group_recall_${messageId}`, `治理原因：${reason}`, messageId),
+    conditionalAuditStatement(
+      c.env.DB, adminId(c), 'group_chat.recall', 'group_chat_message', messageId, reason,
+      { status: existing.status }, { status: 'recalled_by_admin' },
+      `EXISTS (SELECT 1 FROM public_messages WHERE id = ? AND ${allowed})`, [messageId],
+    ),
     c.env.DB.prepare(
       `UPDATE public_messages SET status = 'recalled_by_admin', recalled_by_type = 'admin', recalled_at = datetime('now'), moderation_reason = ?, updated_at = datetime('now') WHERE id = ? AND ${allowed}`
     ).bind(reason, messageId),
@@ -207,6 +254,10 @@ adminCommunityRoutes.put('/admin/group-chat/mutes/:slug', async (c) => {
     c.env.DB.prepare(
       `INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, ?, 'group_chat_muted', '你已被禁言', ?, 'group_chat_mute', ? WHERE ${condition}`
     ).bind(id('ntf'), slug, `治理原因：${reason}；解除时间：${mutedUntil || '永久禁言'}`, slug, ...conditionBinds),
+    conditionalAuditStatement(
+      c.env.DB, adminId(c), 'group_chat.mute', 'group_chat_mute', slug, reason,
+      null, { mutedUntil }, condition, conditionBinds,
+    ),
     c.env.DB.prepare(
       `INSERT INTO group_chat_mutes (student_slug, muted_until, reason, created_by, created_at, updated_at) SELECT ?, ?, ?, ?, datetime('now'), datetime('now') WHERE ${condition} ON CONFLICT(student_slug) DO UPDATE SET muted_until = excluded.muted_until, reason = excluded.reason, created_by = excluded.created_by, updated_at = datetime('now')`
     ).bind(slug, mutedUntil, reason, adminId(c), ...conditionBinds),
@@ -223,6 +274,10 @@ adminCommunityRoutes.delete('/admin/group-chat/mutes/:slug', async (c) => {
     c.env.DB.prepare(
       "INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) SELECT ?, student_slug, 'group_chat_unmuted', '群聊禁言已解除', '原治理原因：' || reason, 'group_chat_mute', student_slug FROM group_chat_mutes WHERE student_slug = ?"
     ).bind(id('ntf'), slug),
+    conditionalAuditStatement(
+      c.env.DB, adminId(c), 'group_chat.unmute', 'group_chat_mute', slug, null,
+      { muted: true }, { muted: false }, 'EXISTS (SELECT 1 FROM group_chat_mutes WHERE student_slug = ?)', [slug],
+    ),
     c.env.DB.prepare('DELETE FROM group_chat_mutes WHERE student_slug = ?').bind(slug),
   ])
   return c.json({ success: true, data: null })

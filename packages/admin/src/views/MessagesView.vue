@@ -19,7 +19,7 @@
       </div>
     </header>
 
-    <div v-if="messageType === 'profile' && selectedIds.length" class="batch-actions-panel card">
+    <div v-if="canManage && messageType === 'profile' && selectedIds.length" class="batch-actions-panel card">
       <span class="batch-count">已选中 <strong>{{ selectedIds.length }}</strong> 条：</span>
       <div class="batch-buttons">
         <button class="btn-primary btn-sm" :disabled="processing" @click="batchAction('approve')">批量通过</button>
@@ -35,16 +35,16 @@
     <div v-else-if="messageType === 'profile'" class="msg-list">
       <article v-for="message in filteredMessages" :key="message.id" class="msg-card card" :class="{ 'msg-pinned': message.pinned }">
         <div class="msg-card-inner">
-          <input v-model="selectedIds" :value="message.id" class="msg-checkbox" type="checkbox" :aria-label="`选择 ${message.authorName} 的留言`" />
+          <input v-if="canManage" v-model="selectedIds" :value="message.id" class="msg-checkbox" type="checkbox" :aria-label="`选择 ${message.authorName} 的留言`" />
           <div class="msg-content-col">
             <div class="msg-meta"><span>学生：{{ message.studentSlug }}</span><span>留言者：{{ message.authorName }}</span><time>{{ message.createdAt }}</time><span v-if="!message.isApproved" class="badge badge-pending">待审核</span><span v-if="message.isHidden" class="badge badge-hidden">已隐藏</span></div>
             <p class="msg-content">{{ message.content }}</p>
             <p v-if="message.reply" class="msg-reply-inline">回复：{{ message.reply }}</p>
             <div class="msg-actions">
-              <button v-if="!message.isApproved" class="btn-primary btn-sm" :disabled="processing" @click="approve(message.id)">审核通过</button>
-              <button class="btn-secondary btn-sm" :disabled="processing" @click="togglePin(message.id, !message.pinned)">{{ message.pinned ? '取消置顶' : '置顶' }}</button>
-              <button class="btn-secondary btn-sm" :disabled="processing" @click="toggleHide(message.id, !message.isHidden)">{{ message.isHidden ? '取消隐藏' : '隐藏' }}</button>
-              <button class="btn-danger btn-sm" :disabled="processing" @click="remove(message.id)">删除</button>
+              <button v-if="canManage && !message.isApproved" class="btn-primary btn-sm" :disabled="processing" @click="approve(message.id)">审核通过</button>
+              <button v-if="canManage" class="btn-secondary btn-sm" :disabled="processing" @click="togglePin(message.id, !message.pinned)">{{ message.pinned ? '取消置顶' : '置顶' }}</button>
+              <button v-if="canManage" class="btn-secondary btn-sm" :disabled="processing" @click="toggleHide(message.id, !message.isHidden)">{{ message.isHidden ? '取消隐藏' : '隐藏' }}</button>
+              <button v-if="canManage" class="btn-danger btn-sm" :disabled="processing" @click="remove(message.id)">删除</button>
             </div>
           </div>
         </div>
@@ -59,11 +59,11 @@
           <p class="msg-content">{{ message.content || '这条消息已撤回。' }}</p>
           <p v-if="message.moderationReason" class="msg-reply-inline">治理原因：{{ message.moderationReason }}</p>
           <div class="msg-actions">
-            <button v-if="message.status === 'visible'" class="btn-secondary btn-sm" :disabled="processing" @click="openModeration('hide', message)">隐藏</button>
-            <button v-if="message.status === 'hidden'" class="btn-secondary btn-sm" :disabled="processing" @click="openModeration('restore', message)">恢复</button>
-            <button v-if="message.status === 'visible' || message.status === 'hidden'" class="btn-danger btn-sm" :disabled="processing" @click="openModeration('recall', message)">管理员撤回</button>
-            <button class="btn-secondary btn-sm" :disabled="processing" @click="openModeration('mute', message)">禁言</button>
-            <button class="btn-secondary btn-sm" :disabled="processing" @click="unmute(message)">解除禁言</button>
+            <button v-if="canManage && message.status === 'visible'" class="btn-secondary btn-sm" :disabled="processing" @click="openModeration('hide', message)">隐藏</button>
+            <button v-if="canManage && message.status === 'hidden'" class="btn-secondary btn-sm" :disabled="processing" @click="openModeration('restore', message)">恢复</button>
+            <button v-if="canManage && (message.status === 'visible' || message.status === 'hidden')" class="btn-danger btn-sm" :disabled="processing" @click="openModeration('recall', message)">管理员撤回</button>
+            <button v-if="canManage" class="btn-secondary btn-sm" :disabled="processing" @click="openModeration('mute', message)">禁言</button>
+            <button v-if="canManage" class="btn-secondary btn-sm" :disabled="processing" @click="unmute(message)">解除禁言</button>
           </div>
         </div>
       </article>
@@ -77,8 +77,8 @@
           <p class="msg-content">{{ message.content }}</p>
           <p v-if="message.reviewReason" class="msg-reply-inline">审核说明：{{ message.reviewReason }}</p>
           <div class="msg-actions">
-            <button v-if="message.status === 'pending'" class="btn-primary btn-sm" :disabled="processing" @click="approveLegacy(message.id)">审核通过</button>
-            <button v-if="message.status === 'pending'" class="btn-danger btn-sm" :disabled="processing" @click="rejectLegacy(message.id)">退回</button>
+            <button v-if="canManage && message.status === 'pending'" class="btn-primary btn-sm" :disabled="processing" @click="approveLegacy(message.id)">审核通过</button>
+            <button v-if="canManage && message.status === 'pending'" class="btn-danger btn-sm" :disabled="processing" @click="rejectLegacy(message.id)">退回</button>
           </div>
         </div>
       </article>
@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { adminFetch } from '@/api/client'
+import { adminFetch, getCurrentAdmin } from '@/api/client'
 import {
   fetchGroupChatMessages,
   muteClassmate,
@@ -133,6 +133,10 @@ const muteDuration = ref<'permanent' | 'day' | 'week'>('permanent')
 const groupFilters: Array<{ value: 'all' | AdminGroupChatStatus; label: string }> = [
   { value: 'all', label: '全部' }, { value: 'visible', label: '最新' }, { value: 'hidden', label: '已隐藏' }, { value: 'recalled_by_admin', label: '管理员撤回' }, { value: 'recalled_by_author', label: '同学撤回' },
 ]
+const canManage = computed(() => {
+  const admin = getCurrentAdmin()
+  return !!admin && (admin.isOwner || admin.permissions.includes('moderation.manage'))
+})
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 let loadVersion = 0
@@ -219,9 +223,24 @@ async function rejectLegacy(id: string) {
 }
 async function approve(id: string) { processing.value = true; try { await adminFetch(`/api/admin/messages/${id}/approve`, { method: 'PUT' }); const item = messages.value.find((message) => message.id === id); if (item) item.isApproved = true; showToast('success', '已审核通过') } catch (error) { showToast('error', error instanceof Error ? error.message : '审核失败') } finally { processing.value = false } }
 async function togglePin(id: string, pinned: boolean) { processing.value = true; try { await adminFetch(`/api/admin/messages/${id}/pin`, { method: 'PUT', body: JSON.stringify({ pinned }) }); const item = messages.value.find((message) => message.id === id); if (item) item.pinned = pinned; showToast('success', pinned ? '已置顶' : '已取消置顶') } catch (error) { showToast('error', error instanceof Error ? error.message : '置顶失败') } finally { processing.value = false } }
-async function toggleHide(id: string, hidden: boolean) { processing.value = true; try { await adminFetch(`/api/admin/messages/${id}/hide`, { method: 'PUT', body: JSON.stringify({ hidden }) }); const item = messages.value.find((message) => message.id === id); if (item) item.isHidden = hidden; showToast('success', hidden ? '已隐藏' : '已取消隐藏') } catch (error) { showToast('error', error instanceof Error ? error.message : '隐藏失败') } finally { processing.value = false } }
-async function remove(id: string) { if (!window.confirm('确定删除？')) return; processing.value = true; try { await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE' }); messages.value = messages.value.filter((message) => message.id !== id); showToast('success', '已删除') } catch (error) { showToast('error', error instanceof Error ? error.message : '删除失败') } finally { processing.value = false } }
-async function batchAction(action: string, hidden?: boolean) { if (action === 'delete' && !window.confirm(`确定删除选中的 ${selectedIds.value.length} 条留言？`)) return; processing.value = true; try { await adminFetch('/api/admin/messages/batch', { method: 'POST', body: JSON.stringify({ ids: selectedIds.value, action, hidden }) }); if (action === 'approve') messages.value.forEach((message) => { if (selectedIds.value.includes(message.id)) message.isApproved = true }); if (action === 'hide') messages.value.forEach((message) => { if (selectedIds.value.includes(message.id)) message.isHidden = Boolean(hidden) }); if (action === 'delete') messages.value = messages.value.filter((message) => !selectedIds.value.includes(message.id)); selectedIds.value = []; showToast('success', '操作成功') } catch (error) { showToast('error', error instanceof Error ? error.message : '批量操作失败') } finally { processing.value = false } }
+async function toggleHide(id: string, hidden: boolean) {
+  const reason = window.prompt(`请输入${hidden ? '隐藏' : '恢复'}原因：`)?.trim()
+  if (!reason) return
+  processing.value = true
+  try { await adminFetch(`/api/admin/messages/${id}/hide`, { method: 'PUT', body: JSON.stringify({ hidden, reason }) }); const item = messages.value.find((message) => message.id === id); if (item) item.isHidden = hidden; showToast('success', hidden ? '已隐藏' : '已取消隐藏') } catch (error) { showToast('error', error instanceof Error ? error.message : '隐藏失败') } finally { processing.value = false }
+}
+async function remove(id: string) {
+  const reason = window.prompt('请输入删除原因：')?.trim()
+  if (!reason) return
+  processing.value = true
+  try { await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }); messages.value = messages.value.filter((message) => message.id !== id); showToast('success', '已删除') } catch (error) { showToast('error', error instanceof Error ? error.message : '删除失败') } finally { processing.value = false }
+}
+async function batchAction(action: string, hidden?: boolean) {
+  const reason = action === 'approve' ? undefined : window.prompt('请输入批量操作原因：')?.trim()
+  if (action !== 'approve' && !reason) return
+  processing.value = true
+  try { await adminFetch('/api/admin/messages/batch', { method: 'POST', body: JSON.stringify({ ids: selectedIds.value, action, hidden, reason }) }); if (action === 'approve') messages.value.forEach((message) => { if (selectedIds.value.includes(message.id)) message.isApproved = true }); if (action === 'hide') messages.value.forEach((message) => { if (selectedIds.value.includes(message.id)) message.isHidden = Boolean(hidden) }); if (action === 'delete') messages.value = messages.value.filter((message) => !selectedIds.value.includes(message.id)); selectedIds.value = []; showToast('success', '操作成功') } catch (error) { showToast('error', error instanceof Error ? error.message : '批量操作失败') } finally { processing.value = false }
+}
 
 onMounted(load)
 onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })

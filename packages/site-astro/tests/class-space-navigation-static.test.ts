@@ -111,16 +111,16 @@ describe('class space responsive dashboard contracts', () => {
 
   it('keeps the class space preview aligned with the group-chat overview contract', () => {
     const hub = read('components/ClassSpaceHub.vue')
-    const stage = read('components/ClassSpaceMessageStage.vue')
+    const stage = read('components/GroupChatStage.vue')
     const albumRail = read('components/ClassSpaceAlbumRail.vue')
 
-    expect(hub).toContain('overviewData.counts?.groupMessages')
-    expect(hub).toContain(':messages="overviewData.chat.items"')
-    expect(hub).toContain("siteUrl('messages/')")
+    expect(hub).toContain('overviewData.value.counts.groupMessages')
+    expect(hub).toContain(':initial-items="overviewData.chat.items"')
+    expect(hub).toContain('id="group-chat"')
     expect(stage).toContain('GroupChatMessage')
-    expect(stage).toContain('msg.author.name')
-    expect(stage).toContain("m.status === 'visible'")
-    expect(albumRail).toContain('siteUrl(`album#album-${album.id}`)')
+    expect(stage).toContain('useGroupChat')
+    expect(albumRail).toContain('albumHref(album.id)')
+    expect(albumRail).toContain('album#album-${albumId}')
   })
 })
 

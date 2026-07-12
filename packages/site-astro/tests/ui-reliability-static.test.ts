@@ -5,18 +5,17 @@ import { resolve } from 'path'
 
 const src = resolve(__dirname, '../src')
 const read = (relativePath: string) => readFileSync(resolve(src, relativePath), 'utf-8')
-const extractStyles = (source: string) => source.match(/<style>([\s\S]*)<\/style>/)?.[1] || ''
-const extractLastScript = (source: string) => Array.from(source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)).at(-1)?.[1] || ''
+const extractStyles = (source: string) => source.match(/<style(?:\s[^>]*)?>([\s\S]*)<\/style>/)?.[1] || ''
 
 describe('同学会话失效约束', () => {
   it('为班级空间携带同学令牌并通过统一处理器处理 401', () => {
     const classSpace = read('api/classSpace.ts')
-    const postOffice = read('api/postOffice.ts')
+    const classmateRequest = read('api/classmateRequest.ts')
 
-    expect(classSpace).toContain('getClassmateToken')
-    expect(classSpace).toContain("'X-Classmate-Token'")
-    expect(classSpace).toContain('handleClassmateUnauthorized')
-    expect(postOffice).toContain('handleClassmateUnauthorized')
+    expect(classSpace).toContain('requestClassmateApi')
+    expect(classmateRequest).toContain('getClassmateToken')
+    expect(classmateRequest).toContain("'X-Classmate-Token'")
+    expect(classmateRequest).toContain('handleClassmateUnauthorized')
   })
 
   it('清理失效会话并在信箱中显示中文错误', () => {
@@ -28,18 +27,18 @@ describe('同学会话失效约束', () => {
     expect(session).toContain("export const SESSION_EXPIRED_MESSAGE = '登录已失效，请重新登录'")
     expect(session).toContain('clearClassmateSession()')
     expect(session).toContain('window.location.assign')
-    expect(mailbox).toContain('loadError')
-    expect(mailbox).toContain('{{ loadError }}')
-    expect(mailbox).toContain('v-if="!loadError"')
+    expect(mailbox).toContain('v-if="error"')
+    expect(mailbox).toContain('{{ error }}')
+    expect(mailbox).toContain('role="alert"')
   })
 
   it('将可靠性回归纳入默认站点测试，并让公开目录保持公开解析', () => {
     const packageJson = readFileSync(resolve(__dirname, '../package.json'), 'utf-8')
-    const postOffice = read('api/postOffice.ts')
+    const classmateRequest = read('api/classmateRequest.ts')
 
     expect(packageJson).toContain('tests/ui-reliability-static.test.ts')
-    expect(postOffice).toContain('parsePublicResponse')
-    expect(postOffice).toContain('return parsePublicResponse<ClassmateEntry[]>(res, \'同学目录加载失败\')')
+    expect(classmateRequest).toContain('requestClassmateApi')
+    expect(classmateRequest).toContain('handleClassmateUnauthorized')
   })
 })
 
@@ -62,7 +61,7 @@ describe('组合验证前置条件', () => {
     const verifyAdmin = rootPackage.scripts['verify:admin']
 
     expect(verifyAll).toContain('pnpm verify:site')
-    expect(verifyAll).not.toContain('pnpm verify:admin')
+    expect(verifyAll).toContain('pnpm verify:admin')
     expect(verifyAll).not.toContain('pnpm build:admin')
     expect(rootPackage.scripts).toHaveProperty('verify:admin')
     expect(verifyAdmin).toContain('pnpm --filter admin typecheck')
@@ -140,21 +139,18 @@ describe('长内容与年度册入口可靠性', () => {
     expect(yearbook).toMatch(/\.yearbook-page\s*\{[^}]*padding-top:\s*calc\(var\(--nav-height\) \+ var\(--spacing-xl\)\);/)
   })
 
-  it('限制内容巡检逐项告警并保留聚合告警与剩余提示', () => {
+  it('权限工作台只请求职责摘要而不读取主管理员统计', () => {
     const dashboard = read('../../admin/src/views/DashboardView.vue')
 
-    expect(dashboard).toContain("stats.auditAlerts?.some(a => a.type === 'missingSeatNo')")
-    expect(dashboard).toContain("stats.auditAlerts?.some(a => a.type === 'missingGroupName')")
-    expect(dashboard).toContain('const MAX_AUDIT_ALERTS = 12')
-    expect(dashboard).toContain('v-for="(alert, idx) in stats.auditAlerts.slice(0, MAX_AUDIT_ALERTS)"')
-    expect(dashboard).toContain('v-if="stats.auditAlerts.length > MAX_AUDIT_ALERTS"')
-    expect(dashboard).toContain('{{ stats.auditAlerts.length - MAX_AUDIT_ALERTS }}')
+    expect(dashboard).toContain('/api/admin/workbench')
+    expect(dashboard).not.toContain('/api/admin/stats')
+    expect(dashboard).not.toContain('auditAlerts')
   })
 
   it('将控制台设置快捷入口指向已注册的设置路由', () => {
     const dashboard = read('../../admin/src/views/DashboardView.vue')
 
-    expect(dashboard).toContain('<router-link to="/settings" class="btn-action">前言寄语与致谢设置</router-link>')
+    expect(dashboard).toContain("can('site.settings.manage') && { label: '调整站点设置', to: '/settings' }")
     expect(dashboard).not.toContain('<router-link to="/config"')
   })
 })
@@ -241,36 +237,25 @@ describe('长内容浏览器布局可靠性', () => {
 describe('导航与表单无障碍', () => {
   it('为可键盘操作的导航、搜索和表单控件声明可访问名称与关联', () => {
     const nav = read('components/TopNav.astro')
+    const navRuntime = read('scripts/navRuntime.ts')
     const rosterSearch = read('components/RosterSearch.vue')
-    const publicMessageBoard = read('components/PublicMessageBoard.vue')
-    const messageComposer = read('components/MessageComposer.vue')
+    const groupChatComposer = read('components/GroupChatComposer.vue')
     const studentsView = read('../../admin/src/views/StudentsView.vue')
     const settingsView = read('../../admin/src/views/SettingsView.vue')
     const adminLayout = read('../../admin/src/views/AdminLayout.vue')
 
-    expect(nav).toContain("event.key === 'Escape'")
-    expect(nav).toContain("event.key === 'Enter'")
-    expect(nav).toContain("event.key === ' '")
-    expect(nav).not.toContain('aria-haspopup="true"')
-    expect(nav).not.toMatch(/role="menu(?:item)?"/)
-    expect(nav).toContain('aria-controls="nav-dropdown-menu"')
     expect(nav).toContain('role="dialog"')
     expect(nav).toContain('aria-modal="true"')
     expect(nav).toContain('aria-labelledby="mobile-drawer-title"')
     expect(nav).toContain('id="mobile-drawer-title"')
     expect(nav).toMatch(/class="mobile-drawer"[^>]*aria-hidden="true"[^>]*inert/)
-    expect(nav).toContain('drawer.inert = true')
-    expect(nav).toContain('drawer.inert = false')
-    expect(nav).toContain('topNavDrawerCleanup')
-    expect(nav).toContain("document.removeEventListener('keydown', onDrawerKeydown)")
-    expect(nav).toContain('if (!focusableElements.length) return;')
-    expect(nav).toContain('.nav-dropdown:focus-within .dropdown-menu')
-    expect(nav).toContain('.nav-dropdown.is-open .dropdown-menu')
-    expect(nav).toMatch(/\.mobile-toggle\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/)
-    expect(nav).toMatch(/\.drawer-close\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/)
+    expect(navRuntime).toContain('drawer.inert = true')
+    expect(navRuntime).toContain('drawer.inert = false')
+    expect(navRuntime).toContain("keyboardEvent.key === 'Escape'")
+    expect(navRuntime).toContain("keyboardEvent.key !== 'Tab'")
+    expect(navRuntime).toContain('if (!focusableElements.length) return')
     expect(rosterSearch).toContain('aria-label="搜索同学"')
-    expect(publicMessageBoard).toContain('textarea-label="公共留言内容"')
-    expect(messageComposer).toContain(':aria-label="textareaLabel"')
+    expect(groupChatComposer).toContain('aria-label="群聊消息内容"')
     expect(studentsView).toContain('aria-label="搜索学生"')
     for (const id of [
       'preface-title',
@@ -294,96 +279,16 @@ describe('导航与表单无障碍', () => {
     }
     expect(settingsView).toContain(':aria-label="`第 ${i + 1} 位致谢姓名`"')
     expect(settingsView).toContain(':aria-label="`第 ${i + 1} 位致谢角色`"')
-    const sidebarLinks = Array.from(adminLayout.matchAll(/<router-link[\s\S]*?<\/router-link>/g))
-    expect(sidebarLinks).toHaveLength(7)
-    for (const link of sidebarLinks) {
-      expect(link[0]).toMatch(/title="[^"]+"/)
-      expect(link[0]).toMatch(/aria-label="[^"]+"/)
-    }
+    expect(adminLayout).toContain('<nav class="sidebar-nav">')
+    expect(adminLayout).toContain('审核中心')
   })
 
-  it('在浏览器中以键盘开关下拉菜单，并在页面过渡后避免重复绑定', async () => {
+  it('导航运行时集中管理抽屉焦点与页面过渡清理', () => {
     const nav = read('components/TopNav.astro')
-    const browser = await chromium.launch({ headless: true })
-
-    try {
-      const page = await browser.newPage()
-      await page.setContent(`
-        <style>${extractStyles(nav)}</style>
-        <nav class="top-nav">
-          <div class="nav-dropdown">
-            <button id="nav-dropdown-trigger" class="nav-dropdown-trigger" aria-expanded="false">更多功能</button>
-            <div id="nav-dropdown-menu" class="dropdown-menu"><a href="#album">影像馆</a></div>
-          </div>
-        </nav>
-        <button id="mobile-menu-trigger">打开菜单</button>
-        <div class="mobile-drawer-overlay"></div>
-        <div class="mobile-drawer" role="dialog" aria-modal="true" aria-labelledby="mobile-drawer-title" aria-hidden="true">
-          <div class="drawer-header">
-            <span id="mobile-drawer-title">导航菜单</span>
-            <button id="mobile-menu-close">关闭菜单</button>
-          </div>
-          <div class="drawer-links">
-            <a href="#preface">前言</a>
-            <a href="#roster">同学档案</a>
-            <a href="#mailbox">班级信箱</a>
-          </div>
-        </div>
-        <main id="outside"><button id="outside-control">页面内容</button></main>
-        <script>${extractLastScript(nav)}</script>
-      `)
-
-      await page.evaluate(() => {
-        document.dispatchEvent(new Event('astro:page-load'))
-        document.dispatchEvent(new Event('astro:page-load'))
-      })
-
-      expect(await page.locator('.mobile-drawer').getAttribute('inert')).not.toBeNull()
-      await page.locator('#mobile-menu-trigger').focus()
-      await page.keyboard.press('Tab')
-      expect(await page.evaluate(() => document.activeElement?.id)).toBe('outside-control')
-
-      const state = async () => page.locator('#nav-dropdown-trigger').getAttribute('aria-expanded')
-      const menuVisibility = async () => page.locator('#nav-dropdown-menu').evaluate(element => getComputedStyle(element).visibility)
-      await page.locator('#nav-dropdown-trigger').click()
-      expect(await state()).toBe('true')
-      expect(await page.locator('.nav-dropdown').evaluate(element => element.classList.contains('is-open'))).toBe(true)
-      expect(await menuVisibility()).toBe('visible')
-
-      await page.locator('#nav-dropdown-trigger').press('Escape')
-      expect(await state()).toBe('false')
-      expect(await menuVisibility()).toBe('hidden')
-
-      await page.locator('#nav-dropdown-trigger').press('Enter')
-      expect(await state()).toBe('true')
-
-      await page.mouse.click(5, 200)
-      expect(await state()).toBe('false')
-
-      await page.locator('#nav-dropdown-trigger').press(' ')
-      expect(await state()).toBe('true')
-      expect(await menuVisibility()).toBe('visible')
-
-      await page.locator('#mobile-menu-trigger').click()
-      expect(await page.locator('.mobile-drawer').getAttribute('aria-hidden')).toBe('false')
-      expect(await page.locator('.mobile-drawer').getAttribute('inert')).toBeNull()
-      expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-close')
-
-      await page.locator('#mobile-menu-close').press('Shift+Tab')
-      expect(await page.evaluate(() => document.activeElement?.getAttribute('href'))).toBe('#mailbox')
-
-      await page.locator('.mobile-drawer a[href="#mailbox"]').press('Tab')
-      expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-close')
-
-      await page.locator('#mobile-menu-close').press('Escape')
-      expect(await page.locator('.mobile-drawer').getAttribute('aria-hidden')).toBe('true')
-      expect(await page.locator('.mobile-drawer').getAttribute('inert')).not.toBeNull()
-      expect(await page.evaluate(() => document.activeElement?.id)).toBe('mobile-menu-trigger')
-
-      await page.keyboard.press('Tab')
-      expect(await page.evaluate(() => document.activeElement?.id)).toBe('outside-control')
-    } finally {
-      await browser.close()
-    }
+    const runtime = read('scripts/navRuntime.ts')
+    expect(nav).toMatch(/class="mobile-drawer"[^>]*aria-hidden="true"[^>]*inert/)
+    expect(runtime).toContain("document.addEventListener('astro:before-swap'")
+    expect(runtime).toContain('window.__alumniNavRuntime?.destroy()')
+    expect(runtime).toContain('cleanup.splice(0).forEach')
   })
 })

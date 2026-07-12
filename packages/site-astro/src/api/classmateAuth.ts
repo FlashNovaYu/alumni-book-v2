@@ -51,3 +51,13 @@ export async function fetchClassmateMe(apiBase: string) {
   if (!res.ok || !data.success || !data.data) throw new Error(data.message || '账号信息加载失败')
   return data.data
 }
+
+export async function fetchClassmateAdminEntry(apiBase: string) {
+  const token = getClassmateToken()
+  const res = await fetch(joinApiUrl(apiBase, '/api/classmate-auth/admin-entry'), {
+    headers: token ? { 'X-Classmate-Token': token } : {},
+  })
+  const data = await res.json() as ApiResponse<{ available: boolean; displayName?: string; permissions?: string[] }>
+  if (!res.ok || !data.success || !data.data) throw new Error(data.message || '管理入口加载失败')
+  return data.data
+}

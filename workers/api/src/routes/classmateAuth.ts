@@ -5,6 +5,7 @@ import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createClassmateSession, deleteClassmateSession, verifyClassmateSession } from '../lib/classmateSession'
 import { normalizeFileUrl } from '../lib/fileUrl'
+import { loadActiveAdmin } from '../lib/adminAuth'
 
 type Bindings = {
   DB: D1Database
@@ -62,6 +63,21 @@ classmateAuthRoutes.get('/me', async (c) => {
   })
 })
 
+classmateAuthRoutes.get('/admin-entry', async (c) => {
+  const slug = await verifyClassmateSession(c.env.DB, c.req.header('X-Classmate-Token'))
+  if (!slug) return c.json({ success: false, message: '登录已失效' }, 401)
+  const account = await c.env.DB.prepare(
+    `SELECT a.id FROM admin_accounts a
+     INNER JOIN students s ON s.slug = a.student_slug
+     WHERE a.account_type = 'classmate_linked' AND a.student_slug = ? AND a.status = 'active' AND a.is_owner = 0
+       AND s.account_status != 'locked' AND s.account_initial_password_changed = 1 AND s.account_password_hash IS NOT NULL`
+  ).bind(slug).first<{ id: string }>()
+  if (!account) return c.json({ success: true, data: { available: false } })
+  const admin = await loadActiveAdmin(c.env.DB, account.id)
+  if (!admin) return c.json({ success: true, data: { available: false } })
+  return c.json({ success: true, data: { available: true, displayName: admin.displayName, permissions: admin.permissions } })
+})
+
 classmateAuthRoutes.post('/change-password', async (c) => {
   const token = c.req.header('X-Classmate-Token')
   const slug = await verifyClassmateSession(c.env.DB, token)
@@ -76,9 +92,17 @@ classmateAuthRoutes.post('/change-password', async (c) => {
   if (!valid) return c.json({ success: false, message: '原密码错误' }, 403)
 
   const nextHash = await hashPassword(newPassword)
-  await c.env.DB.prepare(
-    "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active', updated_at = datetime('now') WHERE slug = ?"
-  ).bind(nextHash, slug).run()
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE students SET account_password_hash = ?, account_initial_password_changed = 1, account_status = 'active', updated_at = datetime('now') WHERE slug = ?"
+    ).bind(nextHash, slug),
+    c.env.DB.prepare('DELETE FROM classmate_sessions WHERE student_slug = ? AND token != ?').bind(slug, token || ''),
+    c.env.DB.prepare(
+      `UPDATE admin_sessions SET revoked_at = datetime('now')
+       WHERE admin_account_id IN (SELECT id FROM admin_accounts WHERE account_type = 'classmate_linked' AND student_slug = ?)
+         AND revoked_at IS NULL`
+    ).bind(slug),
+  ])
 
   return c.json({ success: true, message: '密码已更新' })
 })

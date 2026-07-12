@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import { getAdminPrincipal } from '../lib/adminAuth'
+import { runAuditedBatch } from '../lib/adminAudit'
 
 type Bindings = {
   DB: D1Database
@@ -10,6 +12,8 @@ export const configRoutes = new Hono<{ Bindings: Bindings }>()
 // 更新配置
 configRoutes.put('/config', async (c) => {
   const db = c.env.DB
+  const admin = getAdminPrincipal(c)
+  if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const body = await c.req.json()
 
   if (body.museum) {
@@ -31,12 +35,17 @@ configRoutes.put('/config', async (c) => {
   }
 
   const entries = Object.entries(body)
+  const previous: Record<string, unknown> = {}
+  const statements: D1PreparedStatement[] = []
   for (const [key, value] of entries) {
+    const old = await db.prepare('SELECT value FROM site_config WHERE key = ?').bind(key).first<{ value: string }>()
+    previous[key] = old?.value || null
     const serialized = typeof value === 'string' ? value : JSON.stringify(value)
-    await db.prepare(
+    statements.push(db.prepare(
       'INSERT OR REPLACE INTO site_config (key, value) VALUES (?, ?)'
-    ).bind(key, serialized).run()
+    ).bind(key, serialized))
   }
+  await runAuditedBatch(db, admin.id, statements, { action: 'site_config.update', resourceType: 'site_config', resourceId: entries.map(([key]) => key).join(','), before: previous, after: body })
 
   return c.json({ success: true, message: '配置已更新' })
 })

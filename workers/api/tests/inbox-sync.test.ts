@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { createAdminNotice } from '../src/lib/notificationService'
 import { initTestDb } from './db-helper'
+import { loginTestAdmin } from './admin-test-auth'
 
 const STUDENT_A = { slug: 'inbox-sync-a', name: '同步同学甲' }
 const STUDENT_B = { slug: 'inbox-sync-b', name: '同步同学乙' }
@@ -58,13 +59,7 @@ async function classmateToken(student: typeof STUDENT_A) {
 }
 
 async function adminToken() {
-  const response = await request('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: 'admin888' }),
-  })
-  expect(response.status).toBe(200)
-  return ((await response.json()) as any).data.token as string
+  return loginTestAdmin(request)
 }
 
 function classmateHeaders(token: string) {

@@ -153,8 +153,10 @@ function getEventTypeName(type: string) {
 
 async function deleteEvent(id: string) {
   if (!confirm('确定删除？')) return
+  const reason = prompt('请输入删除原因：')
+  if (reason === null || !reason.trim()) return
   try {
-    await adminFetch(`/api/timeline/events/${id}`, { method: 'DELETE' })
+    await adminFetch(`/api/timeline/events/${id}`, { method: 'DELETE', body: JSON.stringify({ reason: reason.trim() }) })
     events.value = events.value.filter(e => e.id !== id)
     toast.value = { type: 'success', message: '已删除' }
   } catch (e: any) {

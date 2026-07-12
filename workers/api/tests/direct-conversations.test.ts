@@ -287,7 +287,7 @@ describe('Direct Conversations API', () => {
     }
   })
 
-  it('defaults message history to 30, clamps valid high limits, and rejects malformed limits', async () => {
+  it('defaults message history to 30 and rejects out-of-range or malformed limits', async () => {
     const createRes = await request('/api/direct-conversations', {
       method: 'POST',
       headers: headers(TOKEN_A),
@@ -313,9 +313,8 @@ describe('Direct Conversations API', () => {
     expect(defaultRes.status).toBe(200)
     expect((await defaultRes.json() as any).data.items).toHaveLength(30)
 
-    const clampedRes = await request(`/api/direct-conversations/${convId}/messages?limit=31`, { headers: headers(TOKEN_A) })
-    expect(clampedRes.status).toBe(200)
-    expect((await clampedRes.json() as any).data.items).toHaveLength(30)
+    const overLimitRes = await request(`/api/direct-conversations/${convId}/messages?limit=31`, { headers: headers(TOKEN_A) })
+    expect(overLimitRes.status).toBe(400)
 
     for (const limit of ['1abc', '1.5', '0', '-1', '', '   ']) {
       const res = await request(
