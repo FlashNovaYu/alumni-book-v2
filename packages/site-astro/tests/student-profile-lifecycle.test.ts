@@ -42,4 +42,11 @@ describe('StudentProfile lazy observer lifecycle', () => {
     expect(photoWall).not.toContain("import('gsap/ScrollTrigger')")
     expect(photoWall).not.toContain('scrollTrigger:')
   })
+
+  it('resolves existing file URLs without duplicating the API file prefix', () => {
+    const profile = fs.readFileSync(sourcePath, 'utf-8')
+
+    expect(profile).toContain("if (value.startsWith('/api/files/')) return joinApiUrl(props.apiBase, value)")
+    expect(profile).toContain("return joinApiUrl(props.apiBase, `/api/files/${value.replace(/^\\/+/, '')}`)")
+  })
 })

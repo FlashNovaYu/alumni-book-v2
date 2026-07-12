@@ -292,3 +292,19 @@ describe('导航与表单无障碍', () => {
     expect(runtime).toContain('cleanup.splice(0).forEach')
   })
 })
+
+describe('只读日期选择器', () => {
+  it('不保留浏览器无法触发的手动输入处理', () => {
+    for (const relativePath of [
+      'components/CalendarDatePicker.vue',
+      '../../admin/src/components/CalendarDatePicker.vue',
+    ]) {
+      const source = read(relativePath)
+      expect(source).toContain('readonly')
+      expect(source).not.toContain('@input="handleInput"')
+      expect(source).not.toContain('@blur="handleBlur"')
+      expect(source).not.toContain('@keyup.enter="handleEnter"')
+      expect(source).not.toContain('function validateAndCommitInput')
+    }
+  })
+})

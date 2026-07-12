@@ -202,6 +202,7 @@ import StudentMusicPlayer from './StudentMusicPlayer.vue'
 import ProfileCompleteness from './ProfileCompleteness.vue'
 import { toStudentMuseumSummary } from '../utils/museumViewModels'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
+import { joinApiUrl } from '../utils/apiBase'
 import { getClassmateToken, getClassmateStudent } from '@alumni/shared'
 
 // 异步载入较重组件以剔除首屏打包体积与减少 hydration 开销
@@ -326,16 +327,17 @@ const processedHtml = computed(() => {
   return student.value.customHtml
     .replace(/\{\{\s*student\.name\s*\}\}/g, student.value.name)
     .replace(/\{\{\s*student\.avatarUrl\s*\}\}/g, avatarSrc.value || '')
-    .replace(/\{\{\s*student\.musicUrl\s*\}\}/g, student.value.musicUrl ? getPhotoUrl(student.value.musicUrl) : '')
-    .replace(/\{\{\s*student\.backgroundUrl\s*\}\}/g, student.value.backgroundUrl ? getPhotoUrl(student.value.backgroundUrl) : '')
+    .replace(/\{\{\s*student\.musicUrl\s*\}\}/g, student.value.musicUrl ? resolveFileUrl(student.value.musicUrl) : '')
+    .replace(/\{\{\s*student\.backgroundUrl\s*\}\}/g, student.value.backgroundUrl ? resolveFileUrl(student.value.backgroundUrl) : '')
     .replace(/\{\{\s*student\.info\.nickname\s*\}\}/g, student.value.info?.nickname || '')
     .replace(/\{\{\s*student\.info\.motto\s*\}\}/g, student.value.info?.motto || '')
 })
 
-function getPhotoUrl(r2Key: string) {
-  if (!r2Key) return ''
-  if (r2Key.startsWith('http')) return r2Key
-  return `${props.apiBase}/api/files/${r2Key}`
+function resolveFileUrl(value: string) {
+  if (!value) return ''
+  if (/^https?:\/\//.test(value)) return value
+  if (value.startsWith('/api/files/')) return joinApiUrl(props.apiBase, value)
+  return joinApiUrl(props.apiBase, `/api/files/${value.replace(/^\/+/, '')}`)
 }
 
 function hasFields(fields: any[]) {

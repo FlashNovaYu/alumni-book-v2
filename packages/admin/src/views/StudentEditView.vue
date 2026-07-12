@@ -72,7 +72,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">出生日期</label>
-            <input v-model="student.info.birthday" type="date" class="text-input" />
+            <CalendarDatePicker v-model="student.info.birthday" />
           </div>
         </div>
         <div class="form-row">
@@ -258,6 +258,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { adminFetch } from '@/api/client'
 import { compressImage } from '@/utils/image'
 import type { Student, StudentInfo, ApiResponse } from '@alumni/shared'
+import CalendarDatePicker from '@/components/CalendarDatePicker.vue'
 
 const route = useRoute()
 const router = useRouter()
