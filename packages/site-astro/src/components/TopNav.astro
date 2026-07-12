@@ -437,6 +437,11 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     .nav-theme-button--mobile { display: inline-grid; }
     .mobile-nav-button { display: inline-grid; }
     .mobile-page-title {
+      position: absolute;
+      left: 50%;
+      max-width: calc(100% - 132px);
+      pointer-events: none;
+      transform: translateX(-50%);
       display: block;
       overflow: hidden;
       margin: 0;

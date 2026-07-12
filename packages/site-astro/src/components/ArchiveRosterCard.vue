@@ -143,6 +143,7 @@ const avatarSrc = computed(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .vt-fade-out {
+    opacity: 1 !important;
     transition: none !important;
   }
 }

@@ -616,6 +616,11 @@ html.theme-transition::view-transition-new(root) {
   z-index: 2147483646;
 }
 
+html.theme-transition .page-shell,
+html.theme-transition [data-page-heading] {
+  view-transition-name: none !important;
+}
+
 html[data-theme='night'] .page-shell {
   background-color: var(--color-paper-bg);
 }

@@ -55,4 +55,34 @@ test.describe('减少动态偏好', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'night')
     await expect(page.locator('html')).not.toHaveClass(/theme-transition/)
   })
+
+  test('档案卡进入详情时不隐藏头像和正文', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+    const card = page.locator('.archive-card[href]:not([href="#"])').first()
+    await card.evaluate((element) => element.addEventListener('click', (event) => event.preventDefault(), { once: true }))
+    await card.click()
+
+    await expect(card.locator('.archive-card__avatar')).toHaveCSS('opacity', '1')
+    await expect(card.locator('.archive-card__body')).toHaveCSS('opacity', '1')
+  })
+})
+
+test.describe('移动导航', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('登录后页面标题保持在导航正中', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+    const centers = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>('.top-nav')?.getBoundingClientRect()
+      const title = document.querySelector<HTMLElement>('.mobile-page-title')?.getBoundingClientRect()
+      return nav && title ? { nav: nav.left + nav.width / 2, title: title.left + title.width / 2 } : null
+    })
+
+    expect(centers).not.toBeNull()
+    expect(Math.abs(centers!.nav - centers!.title)).toBeLessThanOrEqual(1)
+  })
 })
