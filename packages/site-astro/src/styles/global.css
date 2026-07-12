@@ -625,41 +625,25 @@ html[data-theme='night'] .page-shell {
   background-color: var(--color-paper-bg);
 }
 
-/* 3. 卡片点击四周延展与差时淡入动效 (Active-Card Magic) */
-::view-transition-group(active-card) {
-  animation-duration: 0.58s;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); /* 阻尼指数拉伸 */
+/* 3. 人物档案：只让头像与姓名作为跨页共享身份移动 */
+::view-transition-group(.student-avatar) {
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 过渡期间，旧卡片底板以柔和的 ease-out 平滑淡出 */
-::view-transition-old(active-card) {
-  animation: activeCardFadeOut 0.18s ease-out both;
+::view-transition-group(.student-name) {
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 过渡期间，新详情页的底板快照在缩放的同时平滑淡入 */
-::view-transition-new(active-card) {
-  animation: activeCardFadeIn 0.22s ease-in both;
+.student-page .detail-content-enter {
+  animation: detail-content-enter 0.52s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
 }
 
-@keyframes activeCardFadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-@keyframes activeCardFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* 详情页载入时，正文子元素以延迟滑入呈现，保证底板拉伸时的零割裂感 */
-.student-page .hero-content,
-.student-page .student-body {
-  animation: detailContentFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both;
-}
-
-@keyframes detailContentFadeUp {
+@keyframes detail-content-enter {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -684,6 +668,9 @@ html[data-theme='night'] .page-shell {
   ::view-transition-old(page-heading),
   ::view-transition-new(page-heading),
   .page-header__title-sweep {
+    animation: none !important;
+  }
+  .student-page .detail-content-enter {
     animation: none !important;
   }
 }
