@@ -68,7 +68,7 @@ function clearAdminEntryCache() {
   } catch {}
 }
 
-function inferNavigationDirection(): 'back' | 'forward' {
+function inferNavigationDirection(): 'back' | 'forward' | null {
   try {
     const normalize = (path: string) => {
       const clean = path.replace(/\/index\.html$/, '/')
@@ -78,9 +78,10 @@ function inferNavigationDirection(): 'back' | 'forward' {
     const previous = document.referrer ? normalize(new URL(document.referrer, window.location.href).pathname) : ''
     const currentIndex = navOrder.indexOf(current)
     const previousIndex = navOrder.indexOf(previous)
-    return currentIndex >= 0 && previousIndex >= 0 && currentIndex < previousIndex ? 'back' : 'forward'
+    if (currentIndex < 0 || previousIndex < 0) return null
+    return currentIndex < previousIndex ? 'back' : 'forward'
   } catch {
-    return 'forward'
+    return null
   }
 }
 
@@ -150,7 +151,8 @@ export function initNavRuntime(): void {
     // 活跃背景和下划线由 CSS 伪元素绘制，运行时不读取布局几何，避免强制回流。
     paper.style.opacity = '0'
     ink.style.opacity = '0'
-    const direction = window.sessionStorage.getItem('vt-nav-dir') || document.documentElement.dataset.navDir || inferNavigationDirection()
+    const inferredDirection = inferNavigationDirection()
+    const direction = window.sessionStorage.getItem('vt-nav-dir') || inferredDirection || document.documentElement.dataset.navDir
     directory.dataset.navDirection = direction === 'back' ? 'backward' : 'forward'
     directory.dataset.navReady = 'true'
     directory.dataset.navRevealing = 'false'
