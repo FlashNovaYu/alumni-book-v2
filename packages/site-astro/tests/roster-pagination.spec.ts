@@ -56,18 +56,19 @@ test('roster paginates nine cards, resets search to the first page, and hides br
   await page.goto('./roster/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('button', { name: '第 2 页' })).toBeVisible()
-  await expect(page.locator('.archive-card:visible')).toHaveCount(9)
-  const firstAvatar = page.locator('.archive-card:visible').first().locator('.archive-card__avatar')
+  await expect(page.locator('.roster-card:visible')).toHaveCount(9)
+  const firstAvatar = page.locator('.roster-card:visible').first().locator('.roster-card__avatar')
   await expect(firstAvatar.locator('img')).toHaveCount(0)
   await expect(firstAvatar).toHaveText('分')
 
   await page.getByRole('button', { name: '第 2 页' }).click()
-  await expect(page.locator('.archive-card:visible')).toHaveCount(1)
+  await expect(page.locator('.roster-card:visible')).toHaveCount(1)
   await expect(page.getByText('分页同学 10')).toBeVisible()
 
   await page.getByRole('textbox', { name: '档案检索' }).fill('分页')
-  await expect(page.locator('.roster-pagination button[aria-current="page"]')).toHaveText('1')
-  await expect(page.locator('.archive-card:visible').getByText('分页同学 1', { exact: true })).toBeVisible()
+  const pagination = page.getByRole('navigation', { name: '人物长廊分页' })
+  await expect(pagination.locator('.ui-pagination__page[aria-current="page"]')).toHaveText('1')
+  await expect(page.locator('.roster-card:visible').getByText('分页同学 1', { exact: true })).toBeVisible()
 })
 
 test('roster only renders ellipses when pagination omits page numbers', async ({ page }) => {
@@ -83,16 +84,17 @@ test('roster only renders ellipses when pagination omits page numbers', async ({
   for (const scenario of [
     { count: 27, labels: ['1', '2', '3'], ellipses: 0 },
     { count: 45, labels: ['1', '2', '3', '4', '5'], ellipses: 0 },
-    { count: 54, labels: ['1', '2', '3', '4', '6'], ellipses: 1 },
+    { count: 54, labels: ['1', '2', '6'], ellipses: 1 },
   ]) {
     responseClassmates = createClassmates(scenario.count)
     await page.goto('./roster/', { waitUntil: 'networkidle' })
 
-    const pageButtons = page.locator('.roster-pagination .page-btn:not(.page-btn--arrow)')
+    const pagination = page.getByRole('navigation', { name: '人物长廊分页' })
+    const pageButtons = pagination.locator('.ui-pagination__page')
     await expect(pageButtons.last()).toHaveText(scenario.labels.at(-1)!)
     const labels = await pageButtons.allTextContents()
     expect(labels.map((label) => label.trim())).toEqual(scenario.labels)
     expect(new Set(labels).size).toBe(labels.length)
-    await expect(page.locator('.page-ellipsis')).toHaveCount(scenario.ellipses)
+    await expect(pagination.locator('.ui-pagination__ellipsis')).toHaveCount(scenario.ellipses)
   }
 })

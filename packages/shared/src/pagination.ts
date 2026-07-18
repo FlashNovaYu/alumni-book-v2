@@ -5,11 +5,22 @@ export function buildPaginationItems(
   totalPages: number,
   siblingCount = 1,
 ): PaginationItem[] {
-  const total = Number.isFinite(totalPages) ? Math.floor(totalPages) : 1
+  const total = Number.isFinite(totalPages) && totalPages > 1
+    ? Math.floor(totalPages)
+    : 1
   if (total <= 1) return [1]
 
-  const current = Math.min(Math.max(Math.floor(currentPage) || 1, 1), total)
-  const sibling = Math.max(0, Math.floor(siblingCount) || 0)
+  const current = Number.isFinite(currentPage)
+    ? Math.min(Math.max(Math.floor(currentPage), 1), total)
+    : 1
+  const sibling = Number.isFinite(siblingCount)
+    ? Math.max(0, Math.floor(siblingCount))
+    : 1
+
+  if (total <= sibling * 2 + 3) {
+    return Array.from({ length: total }, (_, index) => index + 1)
+  }
+
   const pages = new Set<number>([1, total])
 
   for (

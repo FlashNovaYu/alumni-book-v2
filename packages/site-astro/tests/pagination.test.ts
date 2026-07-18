@@ -10,6 +10,13 @@ describe('buildPaginationItems', () => {
   it('renders every page for two and three pages', () => {
     expect(buildPaginationItems(1, 2, 1)).toEqual([1, 2])
     expect(buildPaginationItems(2, 3, 1)).toEqual([1, 2, 3])
+    expect(buildPaginationItems(1, 5, 1)).toEqual([1, 2, 3, 4, 5])
+  })
+
+  it('normalizes non-finite and negative pagination inputs', () => {
+    expect(buildPaginationItems(1, Infinity, 1)).toEqual([1])
+    expect(buildPaginationItems(Infinity, 10, Infinity)).toEqual([1, 2, 'ellipsis', 10])
+    expect(buildPaginationItems(4, 10, -1)).toEqual([1, 'ellipsis', 4, 'ellipsis', 10])
   })
 
   it('condenses a ten-page range around the current page', () => {
