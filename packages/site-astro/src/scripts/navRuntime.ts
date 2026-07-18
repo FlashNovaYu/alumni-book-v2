@@ -18,6 +18,7 @@ declare global {
 const apiBase = import.meta.env.VITE_API_BASE_URL || ''
 const navMarkerStorageKey = 'alumni_nav_active_marker'
 const adminEntryCacheKey = 'alumni_nav_admin_entry'
+const navOrder = ['/', '/preface/', '/roster/', '/class-space/', '/yearbook/', '/more/']
 
 type NavMarker = { left: number; paperWidth: number; inkLeft: number; inkWidth: number }
 
@@ -65,6 +66,22 @@ function clearAdminEntryCache() {
   try {
     window.sessionStorage.removeItem(adminEntryCacheKey)
   } catch {}
+}
+
+function inferNavigationDirection(): 'back' | 'forward' {
+  try {
+    const normalize = (path: string) => {
+      const clean = path.replace(/\/index\.html$/, '/')
+      return clean.endsWith('/') ? clean : `${clean}/`
+    }
+    const current = normalize(window.location.pathname)
+    const previous = document.referrer ? normalize(new URL(document.referrer, window.location.href).pathname) : ''
+    const currentIndex = navOrder.indexOf(current)
+    const previousIndex = navOrder.indexOf(previous)
+    return currentIndex >= 0 && previousIndex >= 0 && currentIndex < previousIndex ? 'back' : 'forward'
+  } catch {
+    return 'forward'
+  }
 }
 
 function bindGlobalLifecycle() {
@@ -133,7 +150,7 @@ export function initNavRuntime(): void {
     // 活跃背景和下划线由 CSS 伪元素绘制，运行时不读取布局几何，避免强制回流。
     paper.style.opacity = '0'
     ink.style.opacity = '0'
-    const direction = window.sessionStorage.getItem('vt-nav-dir') || document.documentElement.dataset.navDir
+    const direction = window.sessionStorage.getItem('vt-nav-dir') || document.documentElement.dataset.navDir || inferNavigationDirection()
     directory.dataset.navDirection = direction === 'back' ? 'backward' : 'forward'
     directory.dataset.navReady = 'true'
     directory.dataset.navRevealing = 'false'
