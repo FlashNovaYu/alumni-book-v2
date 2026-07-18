@@ -48,7 +48,7 @@
               </div>
             </div>
 
-            <div class="student-hero__info">
+            <div class="hero-support detail-content-enter">
               <h1 class="student-hero__name" :style="nameTransitionStyle">{{ student.name }}</h1>
               <p v-if="student.info?.nickname" class="student-hero__nickname">{{ student.info.nickname }}</p>
               <p v-if="student.info?.motto" class="student-hero__motto">「 {{ student.info.motto }} 」</p>
@@ -87,7 +87,7 @@
         </section>
 
         <!-- Body Content -->
-        <div class="student-body container">
+        <div class="student-body container detail-content-enter">
           <!-- 身份档案 -->
           <section v-if="hasFields(basicFields)" class="profile-section profile-section--identity" data-info-section="身份档案">
             <div class="profile-section__header">
@@ -691,7 +691,7 @@ onUnmounted(() => {
   box-shadow: var(--shadow-sm);
 }
 
-.student-hero__info {
+.hero-support {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

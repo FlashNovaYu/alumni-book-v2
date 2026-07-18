@@ -43,8 +43,9 @@
     <!-- 同学列表网格 -->
     <div v-else-if="filteredClassmates.length > 0" class="roster-grid">
       <ArchiveRosterCard
-        v-for="mate in paginatedClassmates"
+        v-for="mate in classmates"
         :key="mate.slug"
+        v-show="isCardVisible(mate)"
         :card="toArchiveClassmateCard(mate, siteBase)"
         :api-base="apiBase"
         @identity-transition="rememberIdentityTransition"
@@ -160,6 +161,12 @@ const paginatedClassmates = computed(() => {
   const start = (currentPage.value - 1) * PAGE_SIZE
   return filteredClassmates.value.slice(start, start + PAGE_SIZE)
 })
+
+const visibleClassmateSlugs = computed(() => new Set(paginatedClassmates.value.map((mate) => mate.slug)))
+
+function isCardVisible(mate: Classmate) {
+  return visibleClassmateSlugs.value.has(mate.slug)
+}
 
 const searchCountText = computed(() => {
   if (keyword.value.trim()) {
