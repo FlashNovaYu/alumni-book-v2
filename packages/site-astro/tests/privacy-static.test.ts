@@ -15,6 +15,46 @@ function getAllHtmlFiles(dir: string, filesList: string[] = []): string[] {
 }
 
 describe('Static privacy smoke test', () => {
+  it('does not publish seat or dorm values in the generated classmate directory', () => {
+    const classmates = JSON.parse(readFileSync(resolve(__dirname, '../public/data/classmates.json'), 'utf-8'))
+    const students = JSON.parse(readFileSync(resolve(__dirname, '../public/data/students.json'), 'utf-8'))
+
+    expect(classmates.length).toBeGreaterThan(0)
+    for (const classmate of classmates) {
+      expect(classmate).not.toHaveProperty('seatNo')
+      expect(classmate).not.toHaveProperty('dormNo')
+    }
+    for (const student of students) {
+      expect(student.info).not.toHaveProperty('seatNo')
+      expect(student.info).not.toHaveProperty('dormNo')
+    }
+  })
+
+  it('loads the protected seat map from its dedicated API instead of public roster data', () => {
+    const roster = readFileSync(resolve(__dirname, '../src/pages/roster.astro'), 'utf-8')
+    const seatMap = readFileSync(resolve(__dirname, '../src/components/SeatMapPreview.vue'), 'utf-8')
+
+    expect(roster).toContain('<SeatMapPreview client:visible apiBase={CLIENT_API_BASE} />')
+    expect(roster).not.toContain('classmates.map((c: any) => c.seatNo)')
+    expect(seatMap).toContain('/api/highlights/seat-map')
+    expect(seatMap).toContain('X-Classmate-Token')
+    expect(seatMap).toContain('seatMap.totalSeatCount')
+    expect(seatMap).not.toContain('seatMap.seats.length')
+    expect(seatMap).toContain('seatMap.value?.seats?.map')
+  })
+
+  it('sets security headers without relaxing the owner page iframe sandbox', () => {
+    const headers = readFileSync(resolve(__dirname, '../public/_headers'), 'utf-8')
+    const profile = readFileSync(resolve(__dirname, '../src/components/StudentProfile.vue'), 'utf-8')
+
+    expect(headers).toContain('X-Content-Type-Options: nosniff')
+    expect(headers).toContain('Referrer-Policy: strict-origin-when-cross-origin')
+    expect(headers).toContain('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()')
+    expect(headers).toContain("Content-Security-Policy: base-uri 'self'; object-src 'none'; frame-ancestors 'self'")
+    expect(profile).toContain('sandbox="allow-scripts"')
+    expect(profile).not.toContain('allow-same-origin')
+  })
+
   it('does not render obvious private contact labels with values in generated student pages', () => {
     const htmlFiles = getAllHtmlFiles(join(distDir, 'student'))
     expect(htmlFiles.length).toBeGreaterThan(0)

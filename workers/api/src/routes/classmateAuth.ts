@@ -6,6 +6,14 @@ import { hashPassword, verifyPassword } from '../lib/password'
 import { createClassmateSession, deleteClassmateSession, verifyClassmateSession } from '../lib/classmateSession'
 import { normalizeFileUrl } from '../lib/fileUrl'
 import { loadActiveAdmin } from '../lib/adminAuth'
+import {
+  checkAuthRateLimit,
+  clearAuthFailures,
+  clientIp,
+  normalizeAccount,
+  rateLimitResponse,
+  recordAuthFailure,
+} from '../lib/authRateLimit'
 
 type Bindings = {
   DB: D1Database
@@ -15,23 +23,39 @@ type Bindings = {
 export const classmateAuthRoutes = new Hono<{ Bindings: Bindings }>()
 
 classmateAuthRoutes.post('/login', async (c) => {
-  const { slug, password } = await c.req.json()
+  const body = await c.req.json().catch(() => ({})) as { slug?: string; password?: string }
+  const slug = String(body.slug || '').trim()
+  const password = String(body.password || '')
   if (!slug || !password) return c.json({ success: false, message: '账号和密码必填' }, 400)
 
   const student = await c.env.DB.prepare(
     'SELECT name, slug, avatar_url, account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ? OR name = ?'
   ).bind(slug, slug).first() as any
 
-  if (!student || student.account_status === 'locked') {
+  const rateLimitKey = {
+    route: 'classmate-login',
+    ip: clientIp(c.req.raw),
+    account: normalizeAccount(student?.slug || slug),
+  }
+  const currentLimit = await checkAuthRateLimit(c.env.DB, rateLimitKey)
+  if (currentLimit.limited) return rateLimitResponse(c, currentLimit)
+  const failedLogin = async () => {
+    const nextLimit = await recordAuthFailure(c.env.DB, rateLimitKey)
+    if (nextLimit.limited) return rateLimitResponse(c, nextLimit)
     return c.json({ success: false, message: '账号或密码错误' }, 401)
+  }
+
+  if (!student || student.account_status === 'locked') {
+    return failedLogin()
   }
   if (!student.account_password_hash) {
     return c.json({ success: false, message: '账号尚未初始化，请联系管理员' }, 403)
   }
 
   const valid = await verifyPassword(password, student.account_password_hash)
-  if (!valid) return c.json({ success: false, message: '账号或密码错误' }, 401)
+  if (!valid) return failedLogin()
 
+  await clearAuthFailures(c.env.DB, rateLimitKey)
   const token = await createClassmateSession(c.env.DB, student.slug, c.env.JWT_SECRET)
   await c.env.DB.prepare(
     "UPDATE students SET account_last_login_at = datetime('now'), account_status = CASE WHEN account_status = 'pending' THEN 'active' ELSE account_status END WHERE slug = ?"

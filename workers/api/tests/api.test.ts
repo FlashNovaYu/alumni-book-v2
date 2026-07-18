@@ -93,8 +93,8 @@ describe('Public API', () => {
     expect(body.data.status).toBe('ok')
   })
 
-  it('GET /api/health — 缺少生产绑定时返回安全的 503', async () => {
-    const req = new Request('http://localhost/api/health')
+  it('GET /api/readiness — 缺少生产绑定时返回安全的 503', async () => {
+    const req = new Request('http://localhost/api/readiness')
     const ctx = createExecutionContext()
     const res = await worker.fetch(req, { CORS_ORIGIN: '*' } as any, ctx)
     await waitOnExecutionContext(ctx)
@@ -102,7 +102,8 @@ describe('Public API', () => {
     expect(res.status).toBe(503)
     const body = await res.json() as any
     expect(body.success).toBe(false)
-    expect(body.message).toBe('服务配置不完整')
+    expect(body.data.ready).toBe(false)
+    expect(body.message).toBe('服务依赖尚未就绪')
     expect(body.requestId).toBeTruthy()
     expect(JSON.stringify(body)).not.toContain('JWT_SECRET')
     expect(JSON.stringify(body)).not.toContain('DB')
@@ -125,6 +126,26 @@ describe('Public API', () => {
     expect(body.data[0]).toHaveProperty('completion')
     expect(body.data[0]).toHaveProperty('tags')
     expect(Array.isArray(body.data[0].tags)).toBe(true)
+  })
+
+  it('GET /api/classmates — 不公开座位号和宿舍号', async () => {
+    await env.DB.prepare(
+      "INSERT INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)"
+    ).bind('test-private-directory', '隐私测试同学', 'private-directory', JSON.stringify({
+      seatNo: '3-2',
+      dormNo: 'A302',
+      groupName: '第一组',
+    })).run()
+
+    const res = await worker.fetch(new Request('http://localhost/api/classmates'), env, createExecutionContext())
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    const classmate = body.data.find((item: any) => item.slug === 'private-directory')
+
+    expect(classmate).toBeDefined()
+    expect(classmate).not.toHaveProperty('seatNo')
+    expect(classmate).not.toHaveProperty('dormNo')
+    expect(classmate.groupName).toBe('第一组')
   })
 
   it('公开 API 将旧 Worker 文件地址规范化为同源路径', async () => {
@@ -278,7 +299,7 @@ describe('Messages API', () => {
   it('POST /api/messages/:slug preserves sticker card style', async () => {
     const req = new Request('http://localhost/api/messages/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.71' },
       body: JSON.stringify({
         authorName: '李四',
         content: '祝你毕业快乐',
@@ -382,6 +403,91 @@ describe('Museum Gallery & Timeline API', () => {
       expect(body.data[0]).toHaveProperty('tags')
       expect(body.data[0]).toHaveProperty('featured')
     }
+  })
+
+  it('GET /api/albums batches photo loading without changing album order or photo fields', async () => {
+    const albumIds = ['albums-batch-a', 'albums-batch-b']
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM photos WHERE album_id IN (?, ?)').bind(...albumIds),
+      env.DB.prepare('DELETE FROM albums WHERE id IN (?, ?)').bind(...albumIds),
+      env.DB.prepare(
+        `INSERT INTO albums (id, title, description, frame_style, sort_order, cover_r2_key, tags, featured, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(albumIds[0], '批量相册甲', '相册甲说明', 'paper', 10, 'covers/batch-a.jpg', '["甲"]', 1, '2026-07-18 00:00:01'),
+      env.DB.prepare(
+        `INSERT INTO albums (id, title, description, frame_style, sort_order, cover_r2_key, tags, featured, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(albumIds[1], '批量相册乙', '相册乙说明', 'film', 20, null, '["乙"]', 0, '2026-07-18 00:00:02'),
+      env.DB.prepare(
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-1', albumIds[0], '甲-1.jpg', '甲-1', 'photos/batch-a-1.jpg', 2, '2026-07-18 00:00:03'),
+      env.DB.prepare(
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-2', albumIds[0], '甲-2.jpg', '甲-2', 'photos/batch-a-2.jpg', 1, '2026-07-18 00:00:04'),
+      env.DB.prepare(
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-3', albumIds[1], '乙-1.jpg', '乙-1', 'photos/batch-b-1.jpg', 1, '2026-07-18 00:00:05'),
+    ])
+
+    const preparedQueries: string[] = []
+    const countingDb = new Proxy(env.DB, {
+      get(target, property, receiver) {
+        if (property !== 'prepare') return Reflect.get(target, property, receiver)
+        return (query: string) => {
+          preparedQueries.push(query)
+          return target.prepare(query)
+        }
+      },
+    }) as unknown as D1Database
+    const bindings = new Proxy(env, {
+      get(target, property, receiver) {
+        return property === 'DB' ? countingDb : Reflect.get(target, property, receiver)
+      },
+    })
+
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(new Request('http://localhost/api/albums'), bindings, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+
+    expect(res.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(body.data.filter((album: any) => albumIds.includes(album.id))).toEqual([
+      {
+        id: albumIds[0],
+        title: '批量相册甲',
+        description: '相册甲说明',
+        frameStyle: 'paper',
+        sortOrder: 10,
+        coverR2Key: 'covers/batch-a.jpg',
+        tags: ['甲'],
+        featured: true,
+        photos: [
+          { id: 'albums-batch-photo-2', albumId: albumIds[0], filename: '甲-2.jpg', caption: '甲-2', r2Key: 'photos/batch-a-2.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:04' },
+          { id: 'albums-batch-photo-1', albumId: albumIds[0], filename: '甲-1.jpg', caption: '甲-1', r2Key: 'photos/batch-a-1.jpg', sortOrder: 2, createdAt: '2026-07-18 00:00:03' },
+        ],
+        createdAt: '2026-07-18 00:00:01',
+      },
+      {
+        id: albumIds[1],
+        title: '批量相册乙',
+        description: '相册乙说明',
+        frameStyle: 'film',
+        sortOrder: 20,
+        coverR2Key: null,
+        tags: ['乙'],
+        featured: false,
+        photos: [
+          { id: 'albums-batch-photo-3', albumId: albumIds[1], filename: '乙-1.jpg', caption: '乙-1', r2Key: 'photos/batch-b-1.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:05' },
+        ],
+        createdAt: '2026-07-18 00:00:02',
+      },
+    ])
+    expect(preparedQueries.filter(query => /SELECT \* FROM photos WHERE album_id = \?/.test(query))).toHaveLength(0)
+    expect(preparedQueries.filter(query => /FROM photos/.test(query))).toHaveLength(1)
   })
 
   it('GET /api/timeline — 包含 eventType 且为合法值', async () => {
@@ -506,7 +612,7 @@ describe('Admin Student API & Message Submission', () => {
     }
     const req = new Request('http://localhost/api/messages/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.72' },
       body: JSON.stringify(payload)
     })
     const ctx = createExecutionContext()

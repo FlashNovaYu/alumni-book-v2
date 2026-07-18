@@ -2,30 +2,34 @@
   <section class="seat-preview paper-panel museum-motion-soft">
     <p class="museum-kicker">ARCHIVE // 班级座位分布卷宗</p>
     <h2>教室座位记忆图</h2>
-    <p v-if="seatMap" class="archive-desc">检索成功: 已收录 <span class="highlight-count">{{ seatMap.seats.length }}</span> 个座位，<span class="highlight-count">{{ seatMap.missingSeatCount }}</span> 位同学待补充。</p>
+    <p v-if="seatMap" class="archive-desc">检索成功: 已收录 <span class="highlight-count">{{ seatMap.totalSeatCount }}</span> 个座位，<span class="highlight-count">{{ seatMap.missingSeatCount }}</span> 位同学待补充。</p>
     <p v-else-if="loading" class="archive-desc">正在提取教室座位记忆...</p>
     <p v-else class="archive-desc">载入班级座位分布的档案缩略图解。</p>
-    <div class="seat-preview__grid">
-      <span v-for="seat in seats" :key="seat" class="seat-cell">{{ seat }}</span>
+    <div v-if="seatLabels.length" class="seat-preview__grid">
+      <span v-for="seat in seatLabels" :key="seat" class="seat-cell">{{ seat }}</span>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { getClassmateToken } from '@alumni/shared'
 
 const props = defineProps<{
   apiBase?: string
-  seats?: string[]
 }>()
 
 const loading = ref(false)
-const seatMap = ref<{ seats: any[]; missingSeatCount: number } | null>(null)
+const seatMap = ref<{ seats?: Array<{ seatNo: string }>; totalSeatCount: number; missingSeatCount: number } | null>(null)
+const seatLabels = computed(() => seatMap.value?.seats?.map((seat) => seat.seatNo) || [])
 
 onMounted(async () => {
   loading.value = true
   try {
-    const res = await fetch(`${props.apiBase || ''}/api/highlights/seat-map`)
+    const token = getClassmateToken()
+    const res = await fetch(`${props.apiBase || ''}/api/highlights/seat-map`, {
+      headers: token ? { 'X-Classmate-Token': token } : undefined,
+    })
     const json = await res.json()
     if (json.success) {
       seatMap.value = json.data

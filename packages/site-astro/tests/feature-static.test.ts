@@ -63,8 +63,8 @@ describe('Feature visibility smoke test', () => {
     expect(homeHtml).toContain('同学录登录')
     expect(rosterHtml).toContain('人物长廊')
     expect(rosterHtml).toContain('档案检索')
-    expect(studentHtml).toContain('档案展柜')
-    expect(studentHtml).toContain('资料完整度')
+    expect(studentHtml).toContain('身份档案')
+    expect(studentHtml).toContain('给 TA 写信')
   })
 
   it('keeps visible empty states for incomplete content instead of hiding features', () => {

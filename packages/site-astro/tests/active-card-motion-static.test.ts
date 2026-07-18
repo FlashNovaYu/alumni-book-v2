@@ -54,15 +54,15 @@ describe('档案卡共享元素转场', () => {
 
   it('将详情辅助内容与共享身份元素分离，并保留减少动态回退', () => {
     const profile = read('components/StudentProfile.vue')
-    const global = read('styles/global.css')
+    const viewTransitions = read('styles/view-transitions.css')
 
     expect(profile).toContain('class="hero-support detail-content-enter"')
     expect(profile).toContain('class="student-body container detail-content-enter"')
-    expect(global).toContain('::view-transition-group(.student-avatar)')
-    expect(global).toContain('::view-transition-group(.student-name)')
-    expect(global).toContain('.student-page .detail-content-enter')
-    expect(global).toContain('view-transition-name: none !important')
-    expect(global).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.student-page \.detail-content-enter\s*\{[\s\S]*?animation:\s*none\s*!important;/)
-    expect(global).not.toContain('::view-transition-group(active-card)')
+    expect(viewTransitions).toContain('::view-transition-group(.student-avatar)')
+    expect(viewTransitions).toContain('::view-transition-group(.student-name)')
+    expect(viewTransitions).toContain('.student-page .detail-content-enter')
+    expect(viewTransitions).toContain('view-transition-name: none !important')
+    expect(viewTransitions).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.student-page \.detail-content-enter\s*\{[\s\S]*?animation:\s*none\s*!important;/)
+    expect(viewTransitions).not.toContain('::view-transition-group(active-card)')
   })
 })

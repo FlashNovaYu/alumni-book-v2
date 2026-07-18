@@ -449,6 +449,7 @@ test.describe('班级空间群聊基础流程', () => {
     await expect(closeDrawer).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(closeDrawer).toBeFocused()
+    await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible()
     await closeDrawer.click()
     await expect(mineButton).toBeFocused()
     await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden')

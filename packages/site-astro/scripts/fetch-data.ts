@@ -61,6 +61,8 @@ async function main() {
       const data = await fetchJSON(path)
       const publicData = path === '/api/students' && Array.isArray(data)
         ? data.map(toPublicStudent)
+        : path === '/api/classmates' && Array.isArray(data)
+          ? data.map(({ seatNo: _seatNo, dormNo: _dormNo, ...classmate }) => classmate)
         : data
       writeFileSync(join(outDir, `${name}.json`), JSON.stringify(publicData))
       console.log(`  Fetched ${name}`)

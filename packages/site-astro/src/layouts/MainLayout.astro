@@ -35,6 +35,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
     <title>{siteConfig.identity.siteName || '同学录'}</title>
     <meta name="description" content={siteConfig.identity.shareDescription || '同学录 · 青春回忆'} />
     <meta name="theme-color" content="#f4eddf" />
+    <link rel="icon" type="image/png" href={`${import.meta.env.BASE_URL}favicon.png`} />
     <script is:inline>
       (() => {
         const storageKey = 'alumni_theme'
@@ -161,8 +162,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
               element.style.display = visibleSlugs.has(element.dataset.studentIdentityCard || '') ? '' : 'none'
             })
 
-            const avatar = card.querySelector<HTMLElement>('.archive-card__avatar')
-            const name = card.querySelector<HTMLElement>('.archive-card__name')
+            const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
+            const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
             if (!avatar || !name) return
 
             avatar.style.viewTransitionName = 'student-avatar-' + state.slug

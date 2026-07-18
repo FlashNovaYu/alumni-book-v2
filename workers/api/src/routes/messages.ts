@@ -1,6 +1,9 @@
 import { Hono } from 'hono'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
+import { verifyClassmateSession } from '../lib/classmateSession'
+import { claimPublicRequestSlot, publicClientIp } from '../lib/publicRequestLimit'
+import { parsePagination } from '../lib/pagination'
 
 type Bindings = {
   DB: D1Database
@@ -9,49 +12,17 @@ type Bindings = {
 
 export const messagesRoutes = new Hono<{ Bindings: Bindings }>()
 
-function fromBase64url(str: string): string {
-  try {
-    return atob(str.replace(/-/g, '+').replace(/_/g, '/'))
-  } catch {
-    return ''
-  }
-}
+const MESSAGE_SUBMISSION_WINDOW_SECONDS = 60
+const MESSAGE_REACTION_WINDOW_SECONDS = 15
 
-function base64url(str: string): string {
-  return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-}
-
-async function hmacSign(data: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(data))
-  return base64url(String.fromCharCode(...new Uint8Array(sig)))
-}
-
-async function verifyClassmateToken(token: string, secret: string): Promise<string | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const slug = fromBase64url(parts[0])
-    const ts = parseInt(fromBase64url(parts[1]))
-    if (Date.now() - ts > 30 * 60 * 1000) return null
-    const derived = await hmacSign('classmate-auth', secret)
-    const expectedSig = await hmacSign(`${slug}:${ts}`, derived)
-    if (expectedSig !== parts[2]) return null
-    return slug
-  } catch {
-    return null
-  }
-}
-
-async function authClassmate(c: any, secret: string): Promise<string | null> {
+async function authClassmate(c: any): Promise<string | null> {
   const token = c.req.header('X-Classmate-Token')
-  if (!token) return null
-  return verifyClassmateToken(token, secret)
+  return verifyClassmateSession(c.env.DB, token)
+}
+
+function publicRateLimitResponse(c: any, retryAfterSeconds: number) {
+  c.header('Retry-After', String(retryAfterSeconds))
+  return c.json({ success: false, message: '操作过于频繁，请稍后再试' }, 429)
 }
 
 // 公开获取所有已通过审核的留言列表
@@ -119,6 +90,13 @@ messagesRoutes.post('/messages/:slug', async (c) => {
     return c.json({ success: false, message: '学生不存在' }, 404)
   }
 
+  const limit = await claimPublicRequestSlot(
+    db,
+    `message:${publicClientIp(c.req.raw)}:${slug}`,
+    MESSAGE_SUBMISSION_WINDOW_SECONDS,
+  )
+  if (limit.limited) return publicRateLimitResponse(c, limit.retryAfterSeconds)
+
   const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   await db.prepare(
     'INSERT INTO messages (id, student_slug, author_name, content, card_style, is_approved) VALUES (?, ?, ?, ?, ?, 0)'
@@ -137,6 +115,16 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
   if (!ALLOWED.includes(reaction)) {
     return c.json({ success: false, message: '不支持的表情' }, 400)
   }
+
+  const message = await db.prepare('SELECT id FROM messages WHERE id = ?').bind(id).first()
+  if (!message) return c.json({ success: false, message: '留言不存在' }, 404)
+
+  const limit = await claimPublicRequestSlot(
+    db,
+    `reaction:${publicClientIp(c.req.raw)}:${id}`,
+    MESSAGE_REACTION_WINDOW_SECONDS,
+  )
+  if (limit.limited) return publicRateLimitResponse(c, limit.retryAfterSeconds)
 
   // 原子更新避免并发覆盖（json_set 内 CRUD 为单条 SQL）
   const path = `$.${reaction}`
@@ -166,7 +154,7 @@ messagesRoutes.put('/messages/:id/reply', async (c) => {
     return c.json({ success: false, message: '回复内容必须在 1-500 字之间' }, 400)
   }
 
-  const authedSlug = await authClassmate(c, c.env.JWT_SECRET)
+  const authedSlug = await authClassmate(c)
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权，请先验证身份' }, 401)
   }
@@ -190,14 +178,18 @@ messagesRoutes.get('/admin/messages', async (c) => {
   const db = c.env.DB
   const slug = c.req.query('slug')
   const approved = c.req.query('approved')
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
 
-  let sql = 'SELECT * FROM messages WHERE 1=1'
+  let sql = `SELECT id, student_slug, author_name, content, reactions, reply, reply_at,
+                    is_approved, is_hidden, card_style, pinned, created_at
+             FROM messages WHERE 1=1`
   const binds: any[] = []
 
   if (slug) { sql += ' AND student_slug = ?'; binds.push(slug) }
   if (approved === '0') { sql += ' AND is_approved = 0' }
   if (approved === '1') { sql += ' AND is_approved = 1' }
-  sql += ' ORDER BY pinned DESC, created_at DESC LIMIT 100'
+  sql += ' ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?'
+  binds.push(limit, offset)
 
   const { results } = await db.prepare(sql).bind(...binds).all()
   return c.json({

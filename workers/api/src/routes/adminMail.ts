@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { jwt } from 'hono/jwt'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { buildAuditStatement, runAuditedBatch } from '../lib/adminAudit'
+import { parsePagination } from '../lib/pagination'
 
 type Bindings = {
   DB: D1Database
@@ -118,6 +119,7 @@ adminMailRoutes.post('/admin/mail/broadcast', async (c) => {
 })
 
 adminMailRoutes.get('/admin/mail/threads', async (c) => {
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
   const { results } = await c.env.DB.prepare(
     `SELECT
       t.id, t.subject, t.thread_type, t.allow_reply, t.updated_at,
@@ -128,8 +130,8 @@ adminMailRoutes.get('/admin/mail/threads', async (c) => {
      WHERE t.created_by_type = 'admin'
      GROUP BY t.id
      ORDER BY t.updated_at DESC
-     LIMIT 100`
-  ).all()
+     LIMIT ? OFFSET ?`
+  ).bind(limit, offset).all()
 
   c.header('Deprecation', 'true')
   return c.json({ success: true, data: results || [] })

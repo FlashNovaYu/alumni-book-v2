@@ -12,12 +12,20 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 ---
 
 <section class="home-cover" aria-labelledby="museum-hero-title">
+  <!-- 噪点纹理覆盖层 -->
+  <div class="home-cover__noise" aria-hidden="true" />
+
+  <!-- 径向渐变暗角 -->
+  <div class="home-cover__vignette" aria-hidden="true" />
+
+  <!-- 环境装饰 -->
   <div class="home-cover__ambient" aria-hidden="true">
     <span class="home-cover__shape home-cover__paper home-cover__paper--one"></span>
     <span class="home-cover__shape home-cover__paper home-cover__paper--two"></span>
     <span class="home-cover__shape home-cover__paper home-cover__paper--three"></span>
     <span class="home-cover__shape home-cover__film"></span>
-    <span class="home-cover__shape home-cover__ghost">CLASS MEMORY</span>
+    <!-- 替换 CLASS MEMORY 为更克制的装饰 -->
+    <div class="home-cover__deco-line" aria-hidden="true"></div>
   </div>
 
   <div class="home-cover__copy container">
@@ -33,6 +41,9 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     <div class="home-cover__scroll-reveal home-cover__copy-reveal" style="--reveal-delay: 1.08s">
       <a href="#login" class="home-cover__scroll" data-home-login-scroll aria-label="向下滑动到登录入口">
         <span>向下滑动</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
       </a>
     </div>
   </div>
@@ -47,7 +58,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 <section id="login" class="home-login-section" aria-labelledby="home-login-title">
   <div class="home-login-section__inner container">
     <div class="home-login-section__copy home-scroll-reveal">
-      <p class="paper-kicker">CLASSMATE PASS</p>
+      <p class="home-cover__kicker">CLASSMATE PASS</p>
       <h2 id="home-login-title" class="display-sm">身份验证</h2>
       <p>输入自己的同学账号与密码。首次登录后，系统会引导你把初始密码换成专属密码。</p>
     </div>
@@ -64,19 +75,41 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: calc(var(--nav-height) + var(--spacing-xl)) 0 var(--spacing-xxl);
+  padding: calc(var(--nav-height) + var(--space-6)) 0 var(--space-7);
   background:
     linear-gradient(180deg, rgba(15, 13, 11, 0.08), rgba(15, 13, 11, 0.88)),
     radial-gradient(circle at 18% 28%, rgba(200, 169, 106, 0.18), transparent 32%),
     radial-gradient(circle at 78% 72%, rgba(188, 79, 60, 0.16), transparent 34%),
     #11100e;
-  color: var(--color-on-dark);
+  color: var(--text-inverse);
+}
+
+/* 噪点纹理 */
+.home-cover__noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+  z-index: 1;
+}
+
+/* 径向渐变暗角 */
+.home-cover__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  z-index: 2;
 }
 
 .home-cover__ambient {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
 }
 
 .home-cover__shape {
@@ -98,7 +131,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   position: absolute;
   height: 54px;
   width: 260px;
-  border-radius: var(--rounded-pill);
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(251, 246, 236, 0.12);
   background: rgba(251, 246, 236, 0.04);
 }
@@ -137,7 +170,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   bottom: 12%;
   width: 190px;
   height: 44px;
-  border-radius: var(--rounded-md);
+  border-radius: var(--radius-md);
   border: 1px solid rgba(251, 246, 236, 0.11);
   background:
     repeating-linear-gradient(90deg, rgba(251, 246, 236, 0.08) 0 10px, transparent 10px 20px),
@@ -147,48 +180,46 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   --shape-enter-delay: 0.58s;
 }
 
-.home-cover__ghost {
+/* 装饰线 - 替代原来的 CLASS MEMORY */
+.home-cover__deco-line {
   position: absolute;
   left: 50%;
-  top: 52%;
-  --shape-x: -50%;
-  --shape-y: -50%;
+  top: 55%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200, 169, 106, 0.3), transparent);
   --shape-rotate: 0deg;
-  --shape-drift: 8px;
+  --shape-drift: 4px;
   --shape-enter-delay: 0.72s;
-  color: rgba(255, 255, 255, 0.035);
-  font-family: var(--font-display);
-  font-size: clamp(58px, 11vw, 128px);
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .home-cover__copy {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   max-width: 920px;
   text-align: center;
 }
 
 .home-cover__kicker {
-  margin-bottom: var(--spacing-lg);
-  color: var(--color-paper-gold);
-  font-size: var(--type-caption-uppercase-size);
-  font-weight: var(--type-caption-uppercase-weight);
-  letter-spacing: 0.18em;
+  margin-bottom: var(--space-5);
+  color: var(--gold);
+  font-size: var(--type-caption-uppercase);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
 }
 
 .home-cover__title {
   display: grid;
-  gap: var(--spacing-xs);
+  gap: var(--space-2);
   margin: 0;
   color: #fffaf2;
   font-family: var(--font-display);
-  font-size: clamp(52px, 9vw, 104px);
-  font-weight: 500;
-  line-height: 0.98;
-  letter-spacing: 0;
+  font-size: clamp(56px, 10vw, 120px);
+  font-weight: var(--weight-semibold);
+  line-height: 0.92;
+  letter-spacing: var(--tracking-tight);
   text-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
 }
 
@@ -202,7 +233,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 
 .home-cover__subtitle {
   max-width: 680px;
-  margin: var(--spacing-xl) auto 0;
+  margin: var(--space-6) auto 0;
   color: rgba(255, 250, 242, 0.78);
   font-size: clamp(16px, 1.6vw, 20px);
   line-height: 1.85;
@@ -211,8 +242,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 .home-cover__scroll-slot {
   position: absolute;
   left: 50%;
-  bottom: var(--spacing-xl);
-  z-index: 2;
+  bottom: var(--space-6);
+  z-index: 4;
   transform: translateX(-50%);
 }
 
@@ -220,19 +251,19 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 
 .home-cover__scroll {
   display: inline-flex;
-  min-height: 38px;
   align-items: center;
-  justify-content: center;
-  padding: 0 var(--spacing-lg);
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-5);
   border: 1px solid rgba(255, 250, 242, 0.22);
-  border-radius: var(--rounded-pill);
+  border-radius: var(--radius-pill);
   color: rgba(255, 250, 242, 0.76);
-  font-size: var(--type-body-sm-size);
+  font-size: var(--type-body-sm);
   text-decoration: none;
   transition:
-    border-color var(--duration-fast) var(--ease-out-quart),
-    color var(--duration-fast) var(--ease-out-quart),
-    transform var(--duration-fast) var(--ease-out-quart);
+    border-color var(--duration-fast) var(--ease-out-expo),
+    color var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-out-expo);
 }
 
 .home-cover__scroll:hover {
@@ -246,10 +277,10 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   display: grid;
   place-items: center;
   min-height: 36vh;
-  padding: var(--spacing-section) var(--spacing-lg);
+  padding: var(--space-9) var(--space-5);
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 250, 242, 0.28), transparent 34%),
-    linear-gradient(180deg, #11100e 0%, #211d17 24%, var(--color-paper-bg) 78%);
+    linear-gradient(180deg, #11100e 0%, #211d17 24%, var(--bg) 78%);
 }
 
 .home-login-cta__button {
@@ -257,22 +288,22 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   min-height: 52px;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--spacing-xl);
+  padding: 0 var(--space-6);
   border: 1px solid rgba(255, 250, 242, 0.22);
-  border-radius: var(--rounded-pill);
-  background: var(--color-paper-card);
-  color: var(--color-paper-ink);
-  box-shadow: var(--shadow-paper-panel);
-  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  font-weight: var(--weight-semibold);
   text-decoration: none;
   transition:
-    background-color var(--duration-fast) var(--ease-out-quart),
-    box-shadow var(--duration-fast) var(--ease-out-quart),
-    transform var(--duration-fast) var(--ease-out-quart);
+    background-color var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-out-expo);
 }
 
 .home-login-cta__button:hover {
-  background: var(--color-paper-bg-soft);
+  background: var(--bg-soft);
   box-shadow: 0 16px 40px rgba(76, 59, 38, 0.14);
   transform: translateY(-2px);
 }
@@ -281,10 +312,10 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   min-height: 100svh;
   display: grid;
   align-items: center;
-  padding: calc(var(--nav-height) + var(--spacing-xl)) 0 var(--spacing-section);
+  padding: calc(var(--nav-height) + var(--space-6)) 0 var(--space-9);
   background:
     var(--texture-paper-fiber),
-    var(--color-paper-bg);
+    var(--bg);
   background-size: 100% 100%, 100% 26px;
   scroll-margin-top: var(--nav-height);
 }
@@ -292,23 +323,34 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 .home-login-section__inner {
   display: grid;
   grid-template-columns: minmax(0, 0.86fr) minmax(320px, 460px);
-  gap: var(--spacing-xxl);
+  gap: var(--space-7);
   align-items: center;
 }
 
 .home-login-section__copy {
   max-width: 520px;
-  color: var(--color-paper-ink);
+  color: var(--text-primary);
 }
 
 .home-login-section__copy h2 {
-  margin: var(--spacing-sm) 0 var(--spacing-md);
-  color: var(--color-paper-ink);
+  margin: var(--space-3) 0 var(--space-4);
+  color: var(--text-primary);
 }
 
-.home-login-section__copy p:not(.paper-kicker) {
-  color: var(--color-paper-muted);
+.home-login-section__copy p:not(.home-cover__kicker) {
+  color: var(--text-muted);
   line-height: 1.9;
+}
+
+.home-login-section__pass {
+  transition:
+    transform var(--duration-slow) var(--ease-out-expo),
+    box-shadow var(--duration-slow) var(--ease-out-expo);
+}
+
+.home-login-section__pass:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .home-scroll-reveal {
@@ -369,7 +411,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     opacity: 0;
     transform: translateY(48px) scale(0.98);
     filter: blur(8px);
-    animation: homeScrollReveal 1s var(--ease-out-quart) both;
+    animation: homeScrollReveal 1s var(--ease-out-expo) both;
     animation-timeline: view();
     animation-range: entry 8% cover 36%;
   }
@@ -381,15 +423,12 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 
 @media (prefers-reduced-motion: reduce) {
   .home-cover__shape,
+  .home-cover__deco-line,
   .home-cover__copy-reveal {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;
     will-change: auto;
-  }
-
-  .home-cover__ghost {
-    transform: translate(-50%, -50%) !important;
   }
 
   .home-scroll-reveal {
@@ -403,7 +442,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 @media (max-width: 820px) {
   .home-cover {
     min-height: 92svh;
-    padding: calc(var(--nav-height) + var(--spacing-xl)) 0 var(--spacing-section);
+    padding: calc(var(--nav-height) + var(--space-6)) 0 var(--space-9);
   }
 
   .home-cover__copy {
@@ -419,12 +458,6 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     margin-right: 0;
   }
 
-  .home-cover__ghost {
-    font-size: 72px;
-    white-space: normal;
-    text-align: center;
-  }
-
   .home-cover__paper--one {
     left: -120px;
   }
@@ -435,23 +468,23 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 
   .home-login-cta {
     min-height: 30vh;
-    padding: var(--spacing-xxl) var(--spacing-lg);
+    padding: var(--space-7) var(--space-5);
   }
 
   .home-login-cta__button {
     width: min(100%, 320px);
-    padding: 0 var(--spacing-lg);
+    padding: 0 var(--space-5);
   }
 
   .home-login-section {
     align-items: start;
     min-height: auto;
-    padding: calc(var(--nav-height) + var(--spacing-lg)) 0 var(--spacing-xxl);
+    padding: calc(var(--nav-height) + var(--space-5)) 0 var(--space-7);
   }
 
   .home-login-section__inner {
     grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
+    gap: var(--space-5);
   }
 }
 </style>

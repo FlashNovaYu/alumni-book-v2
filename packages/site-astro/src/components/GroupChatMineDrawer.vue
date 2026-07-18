@@ -1,24 +1,26 @@
 <template>
-  <div v-if="open" class="mine-overlay" @click.self="closeDrawer">
-    <aside ref="drawer" class="mine-drawer" role="dialog" aria-modal="true" aria-label="我的群聊记录" tabindex="-1" @keydown="handleKeydown">
-      <header>
-        <div><p class="paper-kicker">MY CHAT ARCHIVE</p><h2>我的群聊记录</h2></div>
-        <button ref="closeButton" type="button" aria-label="关闭我的记录" @click="closeDrawer">关闭</button>
-      </header>
-      <p v-if="loading" class="mine-state">正在整理记录</p>
-      <p v-else-if="!groupedMessages.length" class="mine-state">还没有可归档的群聊记录。</p>
-      <div v-else class="mine-list">
-        <section v-for="group in groupedMessages" :key="group.key" class="mine-group" :aria-label="group.label">
-          <h3>{{ group.label }}</h3>
-          <article v-for="message in group.items" :key="message.id">
-            <div><time :datetime="message.createdAt">{{ formatTime(message.createdAt) }}</time></div>
-            <p>{{ message.content || '这条消息已被撤回' }}</p>
-            <small v-if="message.moderationReason">{{ message.moderationReason }}</small>
-          </article>
-        </section>
-      </div>
-    </aside>
-  </div>
+  <Teleport to="body">
+    <div v-if="open" class="mine-overlay" @click.self="closeDrawer">
+      <aside ref="drawer" class="mine-drawer" role="dialog" aria-modal="true" aria-label="我的群聊记录" tabindex="-1" @keydown="handleKeydown">
+        <header>
+          <div><p class="paper-kicker">MY CHAT ARCHIVE</p><h2>我的群聊记录</h2></div>
+          <button ref="closeButton" type="button" aria-label="关闭我的记录" @click="closeDrawer">关闭</button>
+        </header>
+        <p v-if="loading" class="mine-state">正在整理记录</p>
+        <p v-else-if="!groupedMessages.length" class="mine-state">还没有可归档的群聊记录。</p>
+        <div v-else class="mine-list">
+          <section v-for="group in groupedMessages" :key="group.key" class="mine-group" :aria-label="group.label">
+            <h3>{{ group.label }}</h3>
+            <article v-for="message in group.items" :key="message.id">
+              <div><time :datetime="message.createdAt">{{ formatTime(message.createdAt) }}</time></div>
+              <p>{{ message.content || '这条消息已被撤回' }}</p>
+              <small v-if="message.moderationReason">{{ message.moderationReason }}</small>
+            </article>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </Teleport>
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'

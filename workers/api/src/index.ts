@@ -27,6 +27,9 @@ import { directConversationsRoutes } from './routes/directConversations'
 import { filesRoutes } from './routes/files'
 import { normalizeFileUrl } from './lib/fileUrl'
 import { audienceForStudent, filterStudentForAudience, type StudentViewer } from './lib/studentAudience'
+import { claimPublicRequestSlot, publicClientIp } from './lib/publicRequestLimit'
+import { cleanupExpiredSessions } from './lib/sessionCleanup'
+import { adminOperationsRoutes } from './routes/adminOperations'
 
 
 type Bindings = {
@@ -34,6 +37,7 @@ type Bindings = {
   R2: R2Bucket
   JWT_SECRET: string
   CORS_ORIGIN: string
+  CORS_PREVIEW_ORIGINS?: string
 }
 
 type Variables = {
@@ -43,6 +47,44 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+const DEFAULT_CORS_ORIGIN = 'https://alumni-book.pages.dev'
+const VISIT_DEDUPE_WINDOW_SECONDS = 10 * 60
+
+function normalizeHttpsOrigin(value: string | undefined): string | null {
+  if (!value || value === '*') return null
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'https:' && url.pathname === '/' && !url.search && !url.hash
+      ? url.origin
+      : null
+  } catch {
+    return null
+  }
+}
+
+function isLocalDevelopmentOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin)
+    return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+  } catch {
+    return false
+  }
+}
+
+function resolveCorsOrigin(origin: string, env: Bindings): string | undefined {
+  if (isLocalDevelopmentOrigin(origin)) return origin
+
+  const allowedOrigins = new Set([
+    normalizeHttpsOrigin(env.CORS_ORIGIN) || DEFAULT_CORS_ORIGIN,
+    ...(env.CORS_PREVIEW_ORIGINS || '')
+      .split(',')
+      .map(normalizeHttpsOrigin)
+      .filter((value): value is string => value !== null),
+  ])
+
+  return allowedOrigins.has(origin) ? origin : undefined
+}
+
 // Request ID
 app.use('*', async (c, next) => {
   const requestId = crypto.randomUUID()
@@ -51,23 +93,45 @@ app.use('*', async (c, next) => {
   c.header('X-Request-Id', requestId)
 })
 
+function classifyRequestError(status: number): string | null {
+  if (status < 400) return null
+  if (status === 401 || status === 403) return 'auth_error'
+  if (status === 404) return 'not_found'
+  if (status === 429) return 'rate_limited'
+  if (status >= 500) return 'server_error'
+  return 'client_error'
+}
+
+app.use('*', async (c, next) => {
+  const startedAt = Date.now()
+  try {
+    await next()
+  } finally {
+    console.log(JSON.stringify({
+      event: 'http_request',
+      requestId: c.get('requestId') || 'unknown',
+      path: c.req.path,
+      method: c.req.method,
+      status: c.res.status,
+      durationMs: Date.now() - startedAt,
+      errorClass: classifyRequestError(c.res.status),
+    }))
+  }
+})
+
+// API 仅返回数据，不应被嵌入或作为可执行文档加载。
+app.use('*', async (c, next) => {
+  await next()
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+  c.header('Content-Security-Policy', "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+})
+
 // CORS
 app.use('*', async (c, next) => {
-  const originVal = c.env.CORS_ORIGIN || '*'
   const corsMiddleware = cors({
-    origin: (origin) => {
-      if (!origin) return originVal
-      if (
-        origin === originVal ||
-        origin.endsWith('.pages.dev') ||
-        origin.endsWith('.github.io') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1')
-      ) {
-        return origin
-      }
-      return originVal
-    },
+    origin: (origin) => resolveCorsOrigin(origin, c.env),
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Classmate-Token'],
@@ -76,6 +140,8 @@ app.use('*', async (c, next) => {
 })
 
 app.use('/api/*', async (c, next) => {
+  if (c.req.path === '/api/health' || c.req.path === '/api/readiness') return next()
+
   const missingBindings = [
     !c.env?.DB && 'DB',
     !c.env?.R2 && 'R2',
@@ -149,6 +215,34 @@ app.get('/api/health', (c) => {
   return c.json({ success: true, data: { status: 'ok', version: '2.0.0' } })
 })
 
+app.get('/api/readiness', async (c) => {
+  const checks = {
+    db: false,
+    r2: false,
+    jwtSecret: Boolean(c.env?.JWT_SECRET),
+  }
+
+  if (c.env?.DB) {
+    try {
+      await c.env.DB.prepare('SELECT 1').first()
+      checks.db = true
+    } catch {}
+  }
+  if (c.env?.R2) {
+    try {
+      await c.env.R2.list({ limit: 1 })
+      checks.r2 = true
+    } catch {}
+  }
+
+  const ready = checks.db && checks.r2 && checks.jwtSecret
+  return c.json({
+    success: ready,
+    data: { ready, checks },
+    ...(ready ? {} : { message: '服务依赖尚未就绪', requestId: c.get('requestId') || 'unknown' }),
+  }, ready ? 200 : 503)
+})
+
 // 认证路由 (不需要 JWT)
 app.route('/api/auth', authRoutes)
 app.route('/api/classmate-auth', classmateAuthRoutes)
@@ -190,8 +284,6 @@ app.get('/api/classmates', async (c) => {
       school: row.school || info.school || '',
       className: row.class_name || info.class || '',
       mbti: row.mbti || info.mbti || '',
-      seatNo: info.seatNo || '',
-      dormNo: info.dormNo || '',
       groupName: info.groupName || '',
       completion: Math.round((filled / 16) * 100),
       tags,
@@ -321,34 +413,41 @@ app.get('/api/albums', async (c) => {
     'SELECT * FROM albums ORDER BY sort_order, created_at'
   ).all()
 
-  const albumsWithPhotos = await Promise.all(
-    (albums || []).map(async (album: any) => {
-      const { results: photos } = await db.prepare(
-        'SELECT * FROM photos WHERE album_id = ? ORDER BY sort_order'
-      ).bind(album.id).all()
+  const photosByAlbum = new Map<string, any[]>()
+  const albumIds = (albums || []).map((album: any) => album.id)
+  if (albumIds.length > 0) {
+    const placeholders = albumIds.map(() => '?').join(', ')
+    const { results: photos } = await db.prepare(
+      `SELECT * FROM photos WHERE album_id IN (${placeholders}) ORDER BY album_id, sort_order`
+    ).bind(...albumIds).all()
 
-      return {
-        id: album.id,
-        title: album.title,
-        description: album.description,
-        frameStyle: album.frame_style,
-        sortOrder: album.sort_order,
-        coverR2Key: album.cover_r2_key,
-        tags: JSON.parse(album.tags || '[]'),
-        featured: !!album.featured,
-        photos: (photos || []).map((p: any) => ({
-          id: p.id,
-          albumId: p.album_id,
-          filename: p.filename,
-          caption: p.caption,
-          r2Key: p.r2_key,
-          sortOrder: p.sort_order,
-          createdAt: p.created_at,
-        })),
-        createdAt: album.created_at,
-      }
-    })
-  )
+    for (const photo of photos || []) {
+      const albumPhotos = photosByAlbum.get((photo as any).album_id) || []
+      albumPhotos.push(photo as any)
+      photosByAlbum.set((photo as any).album_id, albumPhotos)
+    }
+  }
+
+  const albumsWithPhotos = (albums || []).map((album: any) => ({
+    id: album.id,
+    title: album.title,
+    description: album.description,
+    frameStyle: album.frame_style,
+    sortOrder: album.sort_order,
+    coverR2Key: album.cover_r2_key,
+    tags: JSON.parse(album.tags || '[]'),
+    featured: !!album.featured,
+    photos: (photosByAlbum.get(album.id) || []).map((p: any) => ({
+      id: p.id,
+      albumId: p.album_id,
+      filename: p.filename,
+      caption: p.caption,
+      r2Key: p.r2_key,
+      sortOrder: p.sort_order,
+      createdAt: p.created_at,
+    })),
+    createdAt: album.created_at,
+  }))
 
   c.header('Cache-Control', 'public, max-age=60')
   return c.json({ success: true, data: albumsWithPhotos })
@@ -361,7 +460,14 @@ app.route('/api', classmateRoutes)
 app.post('/api/students/:slug/visit', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
-  await db.prepare('UPDATE students SET visit_count = visit_count + 1 WHERE slug = ?').bind(slug).run()
+  const limit = await claimPublicRequestSlot(
+    db,
+    `visit:${publicClientIp(c.req.raw)}:${slug}`,
+    VISIT_DEDUPE_WINDOW_SECONDS,
+  )
+  if (!limit.limited) {
+    await db.prepare('UPDATE students SET visit_count = visit_count + 1 WHERE slug = ?').bind(slug).run()
+  }
   const row = await db.prepare('SELECT visit_count FROM students WHERE slug = ?').bind(slug).first()
   return c.json({ success: true, data: { visitCount: (row as any)?.visit_count || 0 } })
 })
@@ -435,6 +541,7 @@ function permissionForWrites(permission: AdminPermission) {
 app.use('/api/admin/*', requireAdminSession, requirePasswordChangeCompleted)
 app.use('/api/admin/stats', requireOwner)
 app.use('/api/admin/workbench', requirePermission('dashboard.view'))
+app.use('/api/admin/operations/*', requireOwner)
 app.use('/api/admin/accounts*', requireOwner)
 app.use('/api/admin/account-candidates', requireOwner)
 app.use('/api/admin/audit-logs', requireOwner)
@@ -477,6 +584,7 @@ app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
 app.route('/api', adminCommunityRoutes)
 app.route('/api', adminAccountsRoutes)
+app.route('/api', adminOperationsRoutes)
 
 // 次级管理员工作台只聚合其职责范围内的计数与快捷入口，避免下发同学档案、浏览排行或资料完整度等数据。
 app.get('/api/admin/workbench', async (c) => {
@@ -634,6 +742,17 @@ app.onError((err, c) => {
 app.notFound((c) => {
   return c.json({ success: false, message: '接口不存在' }, 404)
 })
+
+export async function scheduled(_controller: ScheduledController, env: Bindings, _ctx: ExecutionContext) {
+  if (!env.DB) {
+    console.error(JSON.stringify({ event: 'scheduled_cleanup', status: 'skipped', reason: 'missing_db' }))
+    return
+  }
+  const result = await cleanupExpiredSessions(env.DB)
+  console.log(JSON.stringify({ event: 'scheduled_cleanup', status: 'ok', ...result }))
+}
+
+;(app as typeof app & { scheduled?: typeof scheduled }).scheduled = scheduled
 
 function formatStudent(row: any) {
   const info = JSON.parse(row.info || '{}')

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parsePagination } from '../lib/pagination'
 import { adminGuard } from '../lib/adminGuard'
 import { readLimitedJson } from '../lib/jsonBodyLimit'
 import { getAdminPrincipal } from '../lib/adminAuth'
@@ -122,6 +123,7 @@ adminCommunityRoutes.post('/admin/notifications/broadcast', async (c) => {
 })
 
 adminCommunityRoutes.get('/admin/notifications/history', async (c) => {
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
   const rows = await c.env.DB.prepare(`
     SELECT
       related_id,
@@ -133,8 +135,8 @@ adminCommunityRoutes.get('/admin/notifications/history', async (c) => {
     WHERE related_type = 'admin_notice' AND related_id IS NOT NULL
     GROUP BY related_id
     ORDER BY MAX(julianday(created_at)) DESC, related_id DESC
-    LIMIT 100
-  `).all()
+    LIMIT ? OFFSET ?
+  `).bind(limit, offset).all()
   return c.json({
     success: true,
     data: {
@@ -154,9 +156,12 @@ adminCommunityRoutes.get('/admin/group-chat/messages', async (c) => {
   const valid = new Set(['visible', 'hidden', 'recalled_by_author', 'recalled_by_admin'])
   if (status && !valid.has(status)) return c.json({ success: false, message: '状态无效' }, 400)
   const groupChatOnly = "client_nonce IS NOT NULL AND client_nonce NOT LIKE 'legacy:%'"
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
+  const fields = `id, author_slug, author_name, content, status, moderation_reason,
+                  recalled_at, recalled_by_type, created_at, updated_at`
   const query = status
-    ? c.env.DB.prepare(`SELECT * FROM public_messages WHERE ${groupChatOnly} AND status = ? ORDER BY updated_at DESC, id DESC LIMIT 100`).bind(status)
-    : c.env.DB.prepare(`SELECT * FROM public_messages WHERE ${groupChatOnly} ORDER BY updated_at DESC, id DESC LIMIT 100`)
+    ? c.env.DB.prepare(`SELECT ${fields} FROM public_messages WHERE ${groupChatOnly} AND status = ? ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?`).bind(status, limit, offset)
+    : c.env.DB.prepare(`SELECT ${fields} FROM public_messages WHERE ${groupChatOnly} ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?`).bind(limit, offset)
   const { results } = await query.all()
   return c.json({ success: true, data: (results || []).map(messageData) })
 })

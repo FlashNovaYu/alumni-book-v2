@@ -1,0 +1,176 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VIEW TRANSITIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.page-shell {
+  view-transition-name: page-main;
+}
+
+/* 前进方向 */
+html[data-nav-dir=forward]::view-transition-old(page-main) {
+  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-left;
+}
+
+html[data-nav-dir=forward]::view-transition-new(page-main) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-right;
+}
+
+/* 后退方向 */
+html[data-nav-dir=back]::view-transition-old(page-main) {
+  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-right;
+}
+
+html[data-nav-dir=back]::view-transition-new(page-main) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-left;
+}
+
+@keyframes page-exit-left {
+  to { transform: translateX(-40px); opacity: 0; }
+}
+
+@keyframes page-enter-right {
+  from { transform: translateX(40px); opacity: 0; }
+}
+
+@keyframes page-exit-right {
+  to { transform: translateX(40px); opacity: 0; }
+}
+
+@keyframes page-enter-left {
+  from { transform: translateX(-40px); opacity: 0; }
+}
+
+/* Heading 过渡 */
+::view-transition-group(page-heading) {
+  animation-duration: 0.34s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-nav-dir='forward']::view-transition-old(page-heading) {
+  animation: 0.22s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-left;
+}
+
+html[data-nav-dir='forward']::view-transition-new(page-heading) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-right;
+}
+
+html[data-nav-dir='back']::view-transition-old(page-heading) {
+  animation: 0.22s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-right;
+}
+
+html[data-nav-dir='back']::view-transition-new(page-heading) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-left;
+}
+
+@keyframes page-heading-exit-left {
+  to { transform: translateX(-30px); opacity: 0; }
+}
+
+@keyframes page-heading-enter-right {
+  from { transform: translateX(30px); opacity: 0; }
+}
+
+@keyframes page-heading-exit-right {
+  to { transform: translateX(30px); opacity: 0; }
+}
+
+@keyframes page-heading-enter-left {
+  from { transform: translateX(-30px); opacity: 0; }
+}
+
+/* Heading sweep */
+.page-header__title-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.page-header__title-sweep {
+  position: absolute;
+  right: 0;
+  bottom: -7px;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: pageHeadingSweep 0.68s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 特殊过渡 */
+html.vt-mailbox::view-transition-old(root) {
+  mix-blend-mode: normal;
+  animation: none !important;
+  z-index: 1;
+}
+
+html.vt-mailbox::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation: none !important;
+  z-index: 2147483646;
+}
+
+html.theme-transition::view-transition-old(root) {
+  animation: none;
+  z-index: 1;
+}
+
+html.theme-transition::view-transition-new(root) {
+  animation: none;
+  z-index: 2147483646;
+}
+
+html.theme-transition .page-shell,
+html.theme-transition [data-page-heading] {
+  view-transition-name: none !important;
+}
+
+html[data-theme='night'] .page-shell {
+  background-color: var(--color-paper-bg);
+}
+
+::view-transition-group(.student-avatar) {
+  animation-duration: 0.5s;
+  animation-timing-function: var(--ease-out-expo);
+}
+
+::view-transition-group(.student-name) {
+  animation-duration: 0.4s;
+  animation-timing-function: var(--ease-out-expo);
+}
+
+.student-page .detail-content-enter {
+  animation: detail-content-enter 0.52s var(--ease-out-expo) 0.18s both;
+}
+
+@keyframes detail-content-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* View Transitions reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  .page-shell {
+    view-transition-name: none !important;
+  }
+
+  [style*="view-transition-name"] {
+    view-transition-name: none !important;
+  }
+
+  ::view-transition-group(page-heading),
+  ::view-transition-old(page-heading),
+  ::view-transition-new(page-heading),
+  .page-header__title-sweep {
+    animation: none !important;
+  }
+
+  .student-page .detail-content-enter {
+    animation: none !important;
+  }
+}

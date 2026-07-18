@@ -189,7 +189,7 @@ test.describe('Class Space Flow', () => {
     await expect(page.locator('.hub-error')).toBeVisible()
     await expect(page.getByText('服务器开小差了')).toBeVisible()
     
-    const retryBtn = page.locator('.retry-btn')
+    const retryBtn = page.getByRole('button', { name: '重新加载' })
     await expect(retryBtn).toBeVisible()
 
     // 点击重试

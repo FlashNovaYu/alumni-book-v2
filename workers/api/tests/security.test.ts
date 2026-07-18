@@ -36,6 +36,42 @@ describe('Security and Session Revocation', () => {
     expect(res.headers.get('access-control-allow-headers')?.toLowerCase()).toContain('x-classmate-token')
   })
 
+  it('allows only configured production, approved preview, and local origins', async () => {
+    const securedEnv = {
+      DB: env.DB,
+      R2: env.R2,
+      JWT_SECRET: env.JWT_SECRET,
+      CORS_ORIGIN: 'https://alumni-book.pages.dev',
+      CORS_PREVIEW_ORIGINS: 'https://preview.alumni-book.pages.dev',
+    } as any
+
+    async function requestFrom(origin: string, bindings = securedEnv) {
+      const response = await worker.fetch(new Request('http://localhost/api/health', {
+        headers: { Origin: origin },
+      }), bindings, createExecutionContext())
+      return response.headers.get('access-control-allow-origin')
+    }
+
+    await expect(requestFrom('https://alumni-book.pages.dev')).resolves.toBe('https://alumni-book.pages.dev')
+    await expect(requestFrom('https://preview.alumni-book.pages.dev')).resolves.toBe('https://preview.alumni-book.pages.dev')
+    await expect(requestFrom('http://localhost:4321')).resolves.toBe('http://localhost:4321')
+    await expect(requestFrom('https://unapproved.pages.dev')).resolves.toBeNull()
+    await expect(requestFrom('https://attacker.example', {
+      DB: env.DB,
+      R2: env.R2,
+      JWT_SECRET: env.JWT_SECRET,
+    } as any)).resolves.toBeNull()
+  })
+
+  it('adds defensive browser security headers to API responses', async () => {
+    const response = await worker.fetch(new Request('http://localhost/api/health'), env, createExecutionContext())
+
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+    expect(response.headers.get('permissions-policy')).toContain('camera=()')
+    expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
+  })
+
   it('Session Revocation Flow (Login -> Access Admin API -> Logout -> Rejected)', async () => {
     // 1. 登录
     const loginReq = new Request('http://localhost/api/auth/login', {
@@ -117,6 +153,77 @@ describe('Security and Session Revocation', () => {
       headers: { 'X-Classmate-Token': token },
     }), env, createExecutionContext())
     expect(me.status).toBe(401)
+  })
+
+  it('formal classmate sessions can reply only to their own message wall and stop after logout', async () => {
+    const ownerSlug = 'reply-session-owner'
+    const otherSlug = 'reply-session-other'
+    const messageId = 'msg_formal_session_reply'
+
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT OR REPLACE INTO students (
+          id, name, slug, info, account_password_hash,
+          account_initial_password_changed, account_status
+        ) VALUES (?, ?, ?, '{}', ?, 1, 'active')`
+      ).bind('reply_session_owner', '回复主人', ownerSlug, await hashPassword('owner-reply-password')),
+      env.DB.prepare(
+        `INSERT OR REPLACE INTO students (
+          id, name, slug, info, account_password_hash,
+          account_initial_password_changed, account_status
+        ) VALUES (?, ?, ?, '{}', ?, 1, 'active')`
+      ).bind('reply_session_other', '回复同学', otherSlug, await hashPassword('other-reply-password')),
+      env.DB.prepare(
+        `INSERT OR REPLACE INTO messages (id, student_slug, author_name, content, is_approved)
+         VALUES (?, ?, '留言人', '正式登录后的回复测试', 1)`
+      ).bind(messageId, ownerSlug),
+    ])
+
+    async function login(slug: string, password: string) {
+      const context = createExecutionContext()
+      const response = await worker.fetch(new Request('http://localhost/api/classmate-auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, password }),
+      }), env, context)
+      await waitOnExecutionContext(context)
+      expect(response.status).toBe(200)
+      const body = await response.json() as any
+      expect(body.data.token.split('.')).toHaveLength(4)
+      return body.data.token as string
+    }
+
+    const ownerToken = await login(ownerSlug, 'owner-reply-password')
+    const otherToken = await login(otherSlug, 'other-reply-password')
+
+    const ownerReply = await worker.fetch(new Request(`http://localhost/api/messages/${messageId}/reply`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Classmate-Token': ownerToken },
+      body: JSON.stringify({ reply: '这是主人用正式会话写下的回复。' }),
+    }), env, createExecutionContext())
+    expect(ownerReply.status).toBe(200)
+    expect(await env.DB.prepare('SELECT reply FROM messages WHERE id = ?').bind(messageId).first())
+      .toMatchObject({ reply: '这是主人用正式会话写下的回复。' })
+
+    const otherReply = await worker.fetch(new Request(`http://localhost/api/messages/${messageId}/reply`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Classmate-Token': otherToken },
+      body: JSON.stringify({ reply: '我不应能越权回复。' }),
+    }), env, createExecutionContext())
+    expect(otherReply.status).toBe(403)
+
+    const logout = await worker.fetch(new Request('http://localhost/api/classmate-auth/logout', {
+      method: 'POST',
+      headers: { 'X-Classmate-Token': ownerToken },
+    }), env, createExecutionContext())
+    expect(logout.status).toBe(200)
+
+    const afterLogoutReply = await worker.fetch(new Request(`http://localhost/api/messages/${messageId}/reply`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Classmate-Token': ownerToken },
+      body: JSON.stringify({ reply: '注销后不应能够回复。' }),
+    }), env, createExecutionContext())
+    expect(afterLogoutReply.status).toBe(401)
   })
 
   it('Classmate Self-Service Auth Flow (No Secret -> Set Secret -> Require Secret -> Verify)', async () => {

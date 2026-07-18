@@ -24,10 +24,21 @@ describe('公开站点界面反馈回归', () => {
 
   it('keeps the roster at nine cards per page with accessible page buttons', () => {
     const roster = read('components/RosterWall.vue')
+    const pagination = read('components/ui/UiPagination.vue')
 
     expect(roster).toContain('const PAGE_SIZE = 9')
-    expect(roster).toContain(':aria-label="`第 ${page} 页`"')
-    expect(roster).toContain("aria-current=\"currentPage === page ? 'page' : undefined\"")
+    expect(roster).toContain('@update:model-value="goToPage"')
+    expect(pagination).toContain(':aria-label="`第 ${page} 页`"')
+    expect(pagination).toContain("aria-current=\"page === modelValue ? 'page' : undefined\"")
+    expect(pagination.match(/type="button"/g)).toHaveLength(3)
+    expect(pagination).toContain('v-for="(page, index) in visiblePages"')
+    expect(pagination).toContain(':key="page === \'ellipsis\' ? `ellipsis-${index}` : page"')
+  })
+
+  it('runs pagination unit coverage in the default site test suite', () => {
+    const packageJson = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8'))
+
+    expect(packageJson.scripts.test).toContain('tests/pagination.test.ts')
   })
 
   it('falls back from an avatar that finished failing before Vue hydration', () => {
@@ -94,7 +105,7 @@ describe('公开站点界面反馈回归', () => {
     const albums = read('components/ClassSpaceAlbumRail.vue')
     const timeline = read('components/ClassSpaceTimelineRail.vue')
 
-    expect(roster).toMatch(/\.archive-grid\s*\{[^}]*grid-auto-rows:\s*1fr;[^}]*align-items:\s*stretch;/)
+    expect(roster).toMatch(/\.roster-grid\s*\{[^}]*grid-auto-rows:\s*1fr;[^}]*align-items:\s*stretch;/)
     expect(nav).toContain('<IconBrand size={22} />')
     expect(nav).toMatch(/\.brand-mark\s*\{[^}]*width:\s*auto;[^}]*height:\s*auto;[^}]*border:\s*0;/)
     expect(albums).toContain('class="album-cover-overlay"')

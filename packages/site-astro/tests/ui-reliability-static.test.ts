@@ -150,7 +150,7 @@ describe('长内容与年度册入口可靠性', () => {
   it('将控制台设置快捷入口指向已注册的设置路由', () => {
     const dashboard = read('../../admin/src/views/DashboardView.vue')
 
-    expect(dashboard).toContain("can('site.settings.manage') && { label: '调整站点设置', to: '/settings' }")
+    expect(dashboard).toContain("if (can('site.settings.manage')) actions.push({ label: '站点设置', to: '/settings' })")
     expect(dashboard).not.toContain('<router-link to="/config"')
   })
 })
@@ -279,7 +279,7 @@ describe('导航与表单无障碍', () => {
     }
     expect(settingsView).toContain(':aria-label="`第 ${i + 1} 位致谢姓名`"')
     expect(settingsView).toContain(':aria-label="`第 ${i + 1} 位致谢角色`"')
-    expect(adminLayout).toContain('<nav class="sidebar-nav">')
+    expect(adminLayout).toContain('<nav class="sidebar__nav">')
     expect(adminLayout).toContain('审核中心')
   })
 
