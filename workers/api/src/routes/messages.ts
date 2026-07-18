@@ -180,7 +180,9 @@ messagesRoutes.get('/admin/messages', async (c) => {
   const approved = c.req.query('approved')
   const { limit, offset } = parsePagination(c.req.query(), 100, 100)
 
-  let sql = 'SELECT * FROM messages WHERE 1=1'
+  let sql = `SELECT id, student_slug, author_name, content, reactions, reply, reply_at,
+                    is_approved, is_hidden, card_style, pinned, created_at
+             FROM messages WHERE 1=1`
   const binds: any[] = []
 
   if (slug) { sql += ' AND student_slug = ?'; binds.push(slug) }
