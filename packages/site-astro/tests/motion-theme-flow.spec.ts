@@ -66,12 +66,12 @@ test.describe('减少动态偏好', () => {
     await signInForNavigation(page)
     await page.goto('./roster/', { waitUntil: 'networkidle' })
 
-    const card = page.locator('.archive-card[href]:not([href="#"])').first()
+    const card = page.locator('.roster-card[href]:not([href="#"])').first()
     await card.evaluate((element) => element.addEventListener('click', (event) => event.preventDefault(), { once: true }))
     await card.click()
 
-    await expect(card.locator('.archive-card__avatar')).toHaveCSS('opacity', '1')
-    await expect(card.locator('.archive-card__body')).toHaveCSS('opacity', '1')
+    await expect(card.locator('.roster-card__avatar')).toHaveCSS('opacity', '1')
+    await expect(card.locator('.roster-card__body')).toHaveCSS('opacity', '1')
   })
 })
 
