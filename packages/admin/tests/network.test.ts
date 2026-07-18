@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ApiRequestError, requestJson } from '../src/api/network'
-import { adminFetch, clearCurrentAdminCache, fetchCurrentAdmin } from '../src/api/client'
+import { adminFetch, changeAdminPassword, clearCurrentAdminCache, fetchCurrentAdmin } from '../src/api/client'
 import type { AdminIdentity } from '@alumni/shared'
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -184,6 +184,35 @@ test('管理令牌变化后不复用旧身份缓存', async () => {
     const second = await fetchCurrentAdmin()
     assert.equal(calls, 2)
     assert.notEqual(first.id, second.id)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('改密成功后刷新身份而不复用旧的改密状态缓存', async () => {
+  storage.clear()
+  storage.setItem('admin_token', 'token-a')
+  clearCurrentAdminCache()
+  const requestedPaths: string[] = []
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async (input) => {
+    const path = String(input)
+    requestedPaths.push(path)
+    if (path === '/api/auth/me') {
+      const mustChangePassword = requestedPaths.filter((item) => item === '/api/auth/me').length === 1
+      return jsonResponse({ success: true, data: { admin: { ...admin, mustChangePassword } } })
+    }
+    if (path === '/api/auth/change-password') return jsonResponse({ success: true })
+    throw new Error(`未预期的请求: ${path}`)
+  }
+
+  try {
+    assert.equal((await fetchCurrentAdmin()).mustChangePassword, true)
+    await changeAdminPassword('old-password', 'new-password', 'new-password')
+    const refreshedAdmin = await fetchCurrentAdmin()
+
+    assert.equal(refreshedAdmin.mustChangePassword, false)
+    assert.deepEqual(requestedPaths, ['/api/auth/me', '/api/auth/change-password', '/api/auth/me'])
   } finally {
     globalThis.fetch = previousFetch
   }
