@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS photos (
   FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_photos_album_sort_order
+  ON photos(album_id, sort_order, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_albums_sort_created
+  ON albums(sort_order, created_at);
+
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
   student_slug TEXT NOT NULL,
@@ -285,6 +291,12 @@ CREATE INDEX IF NOT EXISTS idx_direct_messages_history
 
 CREATE INDEX IF NOT EXISTS idx_direct_messages_unread
   ON direct_messages(recipient_slug, read_at, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_cursor
+  ON direct_messages(conversation_id, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_unread
+  ON direct_messages(conversation_id, recipient_slug, read_at, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS content_reviews (
   id TEXT PRIMARY KEY,

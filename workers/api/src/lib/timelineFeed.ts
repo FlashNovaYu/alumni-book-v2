@@ -7,12 +7,13 @@ export async function getTimelineFeed(
   options: { type?: TimelineFeedType; limit?: number; curatedOnly?: boolean } = {},
 ): Promise<any[]> {
   const { type, limit = 100, curatedOnly = false } = options
+  const sourceLimit = Math.max(1, Math.min(limit, 100))
   const timeline: any[] = []
   const queries: Promise<unknown>[] = []
 
   if (!type || type === 'event') {
     queries.push(
-      db.prepare('SELECT * FROM timeline_events ORDER BY event_date DESC, sort_order').all()
+      db.prepare('SELECT * FROM timeline_events ORDER BY event_date DESC, sort_order LIMIT ?').bind(sourceLimit).all()
         .then(({ results }) => {
           for (const e of (results || [])) {
             timeline.push({
@@ -32,7 +33,7 @@ export async function getTimelineFeed(
 
   if (!curatedOnly && (!type || type === 'message')) {
     queries.push(
-      db.prepare("SELECT id, student_slug, author_name, content, created_at FROM messages WHERE is_approved = 1 AND is_hidden = 0 ORDER BY created_at DESC LIMIT 30").all()
+      db.prepare("SELECT id, student_slug, author_name, content, created_at FROM messages WHERE is_approved = 1 AND is_hidden = 0 ORDER BY created_at DESC LIMIT ?").bind(sourceLimit).all()
         .then(({ results }) => {
           for (const m of (results || [])) {
             timeline.push({
@@ -50,7 +51,7 @@ export async function getTimelineFeed(
 
   if (!curatedOnly && (!type || type === 'photo')) {
     queries.push(
-      db.prepare("SELECT p.*, a.title as album_title FROM photos p JOIN albums a ON p.album_id = a.id ORDER BY p.created_at DESC LIMIT 30").all()
+      db.prepare("SELECT p.*, a.title as album_title FROM photos p JOIN albums a ON p.album_id = a.id ORDER BY p.created_at DESC LIMIT ?").bind(sourceLimit).all()
         .then(({ results }) => {
           for (const p of (results || [])) {
             timeline.push({
@@ -68,7 +69,7 @@ export async function getTimelineFeed(
 
   if (!curatedOnly && (!type || type === 'join')) {
     queries.push(
-      db.prepare("SELECT name, slug, avatar_url, created_at FROM students ORDER BY created_at DESC LIMIT 30").all()
+      db.prepare("SELECT name, slug, avatar_url, created_at FROM students ORDER BY created_at DESC LIMIT ?").bind(sourceLimit).all()
         .then(({ results }) => {
           for (const s of (results || [])) {
             timeline.push({

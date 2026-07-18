@@ -212,22 +212,9 @@ const ALLOWED_MIMES: Record<string, string[]> = {
   background: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
 }
 
-async function deleteOldFile(db: D1Database, r2: R2Bucket, query: string, params: any[]) {
-  try {
-    const row = await db.prepare(query).bind(...params).first()
-    if (!row) return
-    
-    const url = (row as any).avatar_url || (row as any).background_url
-    if (url) {
-      const parts = url.split('/api/files/')
-      if (parts.length === 2) {
-        const oldKey = parts[1]
-        await r2.delete(oldKey)
-      }
-    }
-  } catch (e) {
-    console.error('Failed to delete old file from R2:', e)
-  }
+function fileKeyFromUrl(url: string | null | undefined) {
+  const parts = String(url || '').split('/api/files/')
+  return parts.length === 2 ? parts[1] : null
 }
 
 // POST /api/classmate/upload — 自助上传头像/背景图
@@ -284,6 +271,10 @@ classmateRoutes.post('/classmate/upload', async (c) => {
     ? `avatars/${slug}_${timestamp}.${imageFormat.extension}`
     : `backgrounds/${slug}_${timestamp}.${imageFormat.extension}`
 
+  const urlColumn = type === 'avatar' ? 'avatar_url' : 'background_url'
+  const existing = await db.prepare(`SELECT ${urlColumn} FROM students WHERE slug = ?`).bind(slug).first() as any
+  const oldKey = fileKeyFromUrl(existing?.[urlColumn])
+
   // 3. 上传新文件到 R2
   await r2.put(r2Key, imageContents, {
     httpMetadata: { contentType: imageFormat.mime },
@@ -292,15 +283,19 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   // 统一存为相对路径，有利于环境迁移与解耦
   const relativeUrl = `/api/files/${r2Key}`
 
-  // 4. 清理旧文件并更新数据库
-  if (type === 'avatar') {
-    await deleteOldFile(db, r2, 'SELECT avatar_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET avatar_url = ?, updated_at = datetime(\'now\') WHERE slug = ?')
+  // 4. Commit the pointer first. If D1 fails, preserve the old object and
+  // compensate the newly uploaded object; only successful commits retire it.
+  try {
+    await db.prepare(`UPDATE students SET ${urlColumn} = ?, updated_at = datetime('now') WHERE slug = ?`)
       .bind(relativeUrl, slug).run()
-  } else if (type === 'background') {
-    await deleteOldFile(db, r2, 'SELECT background_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET background_url = ?, updated_at = datetime(\'now\') WHERE slug = ?')
-      .bind(relativeUrl, slug).run()
+  } catch (error) {
+    await r2.delete(r2Key).catch(() => undefined)
+    return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
+  }
+  if (oldKey && oldKey !== r2Key) {
+    await r2.delete(oldKey).catch((error) => {
+      console.error('Failed to delete old file from R2:', error)
+    })
   }
 
   const origin = new URL(c.req.url).origin

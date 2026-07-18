@@ -51,6 +51,71 @@ async function formatConversation(db: D1Database, row: any, viewerSlug: string) 
   }
 }
 
+/**
+ * Keep the conversation list bounded to three reads irrespective of the number
+ * of conversations: rows, peers, then latest-message/unread aggregates.
+ */
+export async function listConversations(db: D1Database, viewerSlug: string) {
+  const conversationRows = await db.prepare(
+    'SELECT * FROM direct_conversations WHERE participant_a_slug = ? OR participant_b_slug = ? ORDER BY updated_at DESC'
+  ).bind(viewerSlug, viewerSlug).all()
+  const conversations = (conversationRows.results || []) as any[]
+  if (conversations.length === 0) return []
+
+  const peerSlugs = conversations.map((row) => (
+    row.participant_a_slug === viewerSlug ? row.participant_b_slug : row.participant_a_slug
+  ))
+  const conversationIds = conversations.map((row) => row.id)
+  const peerPlaceholders = peerSlugs.map(() => '?').join(', ')
+  const conversationPlaceholders = conversationIds.map(() => '?').join(', ')
+
+  const [peerResult, messageResult] = await Promise.all([
+    db.prepare(`SELECT name, slug, avatar_url FROM students WHERE slug IN (${peerPlaceholders})`)
+      .bind(...peerSlugs).all(),
+    db.prepare(
+      `WITH ranked_messages AS (
+         SELECT id, conversation_id, sender_slug, body, created_at,
+           ROW_NUMBER() OVER (PARTITION BY conversation_id ORDER BY created_at DESC, id DESC) AS row_number
+         FROM direct_messages WHERE conversation_id IN (${conversationPlaceholders})
+       ), unread_counts AS (
+         SELECT conversation_id, COUNT(*) AS unread_count
+         FROM direct_messages
+         WHERE conversation_id IN (${conversationPlaceholders}) AND recipient_slug = ? AND read_at IS NULL
+         GROUP BY conversation_id
+       )
+       SELECT ranked_messages.id, ranked_messages.conversation_id, ranked_messages.sender_slug,
+         ranked_messages.body, ranked_messages.created_at, COALESCE(unread_counts.unread_count, 0) AS unread_count
+       FROM ranked_messages
+       LEFT JOIN unread_counts ON unread_counts.conversation_id = ranked_messages.conversation_id
+       WHERE ranked_messages.row_number = 1`
+    ).bind(...conversationIds, ...conversationIds, viewerSlug).all(),
+  ])
+
+  const peers = new Map((peerResult.results || []).map((row: any) => [row.slug, row]))
+  const latestMessages = new Map((messageResult.results || []).map((row: any) => [row.conversation_id, row]))
+  return conversations.map((row) => {
+    const peerSlug = row.participant_a_slug === viewerSlug ? row.participant_b_slug : row.participant_a_slug
+    const peer = peers.get(peerSlug) as any
+    const lastMessage = latestMessages.get(row.id) as any
+    return {
+      id: row.id,
+      peer: {
+        name: peer ? peer.name : '未知同学',
+        slug: peerSlug,
+        avatarUrl: peer ? peer.avatar_url : null,
+      },
+      lastMessage: lastMessage ? {
+        id: lastMessage.id,
+        senderSlug: lastMessage.sender_slug,
+        body: lastMessage.body,
+        createdAt: lastMessage.created_at,
+      } : null,
+      unreadCount: Number(lastMessage?.unread_count || 0),
+      updatedAt: row.updated_at,
+    }
+  })
+}
+
 function handleIdempotentResponse(c: any, existingMessage: any, viewerSlug: string, conversation: any) {
   return c.json({
     success: true,
@@ -74,14 +139,7 @@ directConversationsRoutes.get('/direct-conversations', async (c) => {
   if (isClassmateResponse(identity)) return identity
   const viewerSlug = identity.slug
 
-  const rows = await c.env.DB.prepare(
-    'SELECT * FROM direct_conversations WHERE participant_a_slug = ? OR participant_b_slug = ? ORDER BY updated_at DESC'
-  ).bind(viewerSlug, viewerSlug).all()
-
-  const items = []
-  for (const row of rows.results || []) {
-    items.push(await formatConversation(c.env.DB, row, viewerSlug))
-  }
+  const items = await listConversations(c.env.DB, viewerSlug)
 
   return c.json({ success: true, data: { items } })
 })

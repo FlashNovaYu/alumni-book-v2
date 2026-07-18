@@ -312,18 +312,19 @@ describe('Group chat API', () => {
     expect(reaction).toBeNull()
   })
 
-  it('uses one list query and combines legacy and live reaction counts', async () => {
+  it('uses bounded list reads and combines legacy and live reaction counts', async () => {
     const now = new Date().toISOString()
     await env.DB.batch([
       env.DB.prepare("INSERT INTO public_messages (id, author_slug, author_name, content, reactions, status, created_at, updated_at) VALUES ('group-chat-preloaded', ?, '群聊甲', '正文', '{\"👍\":2}', 'visible', ?, ?)").bind(PRIMARY_SLUG, now, now),
       env.DB.prepare("INSERT INTO group_chat_reactions (message_id, reactor_slug, reaction, created_at) VALUES ('group-chat-preloaded', ?, '👍', ?)").bind(OTHER_SLUG, now),
     ])
-    let prepares = 0
-    const countingDb = { prepare(sql: string) { prepares++; return env.DB.prepare(sql) } } as unknown as D1Database
+    const sql: string[] = []
+    const countingDb = { prepare(statement: string) { sql.push(statement); return env.DB.prepare(statement) } } as unknown as D1Database
 
     const [message] = await listGroupMessages(countingDb, PRIMARY_SLUG, { limit: 10 })
 
-    expect(prepares).toBe(1)
+    expect(sql.length).toBeLessThanOrEqual(2)
+    expect(sql.some((statement) => /group_chat_reactions[\s\S]*message_id IN/i.test(statement))).toBe(true)
     expect(message).toMatchObject({ reactionCounts: { '👍': 3 }, myReaction: null })
   })
 

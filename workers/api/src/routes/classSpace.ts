@@ -11,20 +11,25 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
   try { return JSON.parse(value || '') as T } catch { return fallback }
 }
 
+const OVERVIEW_CHAT_WINDOW = 30
+const OVERVIEW_CHAT_SCAN_LIMIT = 120
+
 classSpaceRoutes.get('/class-space/overview', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
 
   const chatItems = []
   let before: CursorValue | undefined
-  while (chatItems.length < 30) {
-    const page = await listGroupMessages(c.env.DB, identity.slug, { before, includeStatusChanges: true, limit: 30 })
+  let scanned = 0
+  while (chatItems.length < OVERVIEW_CHAT_WINDOW && scanned < OVERVIEW_CHAT_SCAN_LIMIT) {
+    const page = await listGroupMessages(c.env.DB, identity.slug, { before, includeStatusChanges: true, limit: OVERVIEW_CHAT_WINDOW })
+    scanned += page.length
     chatItems.unshift(...page.filter((item) => item.status !== 'hidden'))
-    if (page.length < 30) break
+    if (page.length < OVERVIEW_CHAT_WINDOW) break
     const oldest = page[0]
     before = { timestamp: oldest.createdAt, id: oldest.id }
   }
-  const chat = chatItems.slice(-30)
+  const chat = chatItems.slice(-OVERVIEW_CHAT_WINDOW)
 
   const [albumRows, groupMessageCount, albumCount, timeline, mute] = await Promise.all([
     c.env.DB.prepare(

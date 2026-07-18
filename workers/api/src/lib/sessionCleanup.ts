@@ -4,6 +4,7 @@ type CleanupResult = {
   classmateSessions: number
   adminSessions: number
   authAttempts: number
+  publicRequestLimits: number
 }
 
 function sqliteDate(value: Date) {
@@ -19,18 +20,20 @@ export async function cleanupExpiredSessions(db: D1Database, now = new Date()): 
   const expiresBefore = sqliteDate(now)
   const nowSeconds = Math.floor(now.getTime() / 1000)
   const attemptsBefore = nowSeconds - AUTH_FAILURE_WINDOW_SECONDS
-  const [classmate, admin, attempts] = await db.batch([
+  const [classmate, admin, attempts, publicRequestLimits] = await db.batch([
     db.prepare('DELETE FROM classmate_sessions WHERE expires_at <= ?').bind(expiresBefore),
     db.prepare('DELETE FROM admin_sessions WHERE expires_at <= ?').bind(expiresBefore),
     db.prepare(
       `DELETE FROM auth_login_attempts
        WHERE last_failed_at <= ? AND (blocked_until IS NULL OR blocked_until <= ?)`
     ).bind(attemptsBefore, nowSeconds),
+    db.prepare('DELETE FROM public_request_limits WHERE expires_at <= ?').bind(nowSeconds),
   ])
 
   return {
     classmateSessions: changedRows(classmate),
     adminSessions: changedRows(admin),
     authAttempts: changedRows(attempts),
+    publicRequestLimits: changedRows(publicRequestLimits),
   }
 }

@@ -71,6 +71,8 @@ describe('过期认证记录清理', () => {
       env.DB.prepare("INSERT OR REPLACE INTO auth_login_attempts (attempt_key, route, ip, account, failures, last_failed_at) VALUES ('cleanup-expired-attempt', 'test', '127.0.0.1', 'test', 5, ?)").bind(nowSeconds - 901),
       env.DB.prepare("INSERT OR REPLACE INTO auth_login_attempts (attempt_key, route, ip, account, failures, last_failed_at) VALUES ('cleanup-live-attempt', 'test', '127.0.0.1', 'test', 1, ?)").bind(nowSeconds - 60),
       env.DB.prepare("INSERT OR REPLACE INTO auth_login_attempts (attempt_key, route, ip, account, failures, blocked_until, last_failed_at) VALUES ('cleanup-blocked-attempt', 'test', '127.0.0.1', 'test', 6, ?, ?)").bind(nowSeconds + 300, nowSeconds - 901),
+      env.DB.prepare("INSERT OR REPLACE INTO public_request_limits (limit_key, expires_at) VALUES ('cleanup-expired-public-limit', ?)").bind(nowSeconds - 1),
+      env.DB.prepare("INSERT OR REPLACE INTO public_request_limits (limit_key, expires_at) VALUES ('cleanup-live-public-limit', ?)").bind(nowSeconds + 60),
     ])
 
     await cleanupExpiredSessions(env.DB, new Date('2026-01-01T00:00:00Z'))
@@ -81,5 +83,8 @@ describe('过期认证记录清理', () => {
       { attempt_key: 'cleanup-blocked-attempt' },
       { attempt_key: 'cleanup-live-attempt' },
     ] })
+    expect(await env.DB.prepare("SELECT limit_key FROM public_request_limits WHERE limit_key LIKE 'cleanup-%' ORDER BY limit_key").all()).toMatchObject({
+      results: [{ limit_key: 'cleanup-live-public-limit' }],
+    })
   })
 })
