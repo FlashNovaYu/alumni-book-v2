@@ -42,7 +42,7 @@ const VARIANT_PREFIX: Record<string, string> = {
 
 type UploadVariant = { key: string; contentType: string; width: number; height: number; kind: string }
 
-function parseUploadVariants(formData: FormData, type: string): { metadata: UploadVariant[]; files: Array<{ metadata: UploadVariant; file: File }> } | { error: string } {
+export function parseUploadVariants(formData: FormData, type: string): { metadata: UploadVariant[]; files: Array<{ metadata: UploadVariant; file: File }> } | { error: string } {
   const raw = formData.get('variants')
   if (!raw) return { metadata: [], files: [] }
   let parsed: unknown

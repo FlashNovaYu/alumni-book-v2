@@ -8,13 +8,15 @@
       @click="openLightbox(idx)"
     >
       <img
-        v-if="!photoErrors[photo]"
-        :src="photoUrl(photo)"
+        v-if="!photoErrors[photoKey(photo)]"
+        :src="photoMedia(photo).src"
+        :srcset="photoMedia(photo).srcset || undefined"
+        :sizes="photoMedia(photo).sizes"
         alt=""
         loading="lazy"
         decoding="async"
         style="aspect-ratio: 1"
-        @error="photoErrors[photo] = true"
+        @error="photoErrors[photoKey(photo)] = true"
       />
       <div v-else class="photo-error-placeholder">⚠️ 图片加载失败</div>
     </div>
@@ -61,8 +63,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, reactive, watch } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
+import { buildMediaSources, type MediaVariant } from '@alumni/shared'
 
-const props = defineProps<{ photos: string[]; apiBase: string }>()
+type PhotoInput = string | { r2Key: string; media?: { variants: MediaVariant[] } | null; width?: number; height?: number }
+const props = defineProps<{ photos: PhotoInput[]; apiBase: string }>()
 
 const isMounted = ref(false)
 const photoErrors = ref<Record<string, boolean>>({})
@@ -73,10 +77,15 @@ const lightbox = reactive({
   index: 0
 })
 
-function photoUrl(p: string) {
-  if (!p) return ''
-  if (p.startsWith('http')) return p
-  return joinApiUrl(props.apiBase, p)
+function photoKey(p: PhotoInput) { return typeof p === 'string' ? p : p.r2Key }
+function photoUrl(p: PhotoInput) {
+  const value = photoKey(p)
+  if (!value) return ''
+  if (value.startsWith('http')) return value
+  return joinApiUrl(props.apiBase, value)
+}
+function photoMedia(p: PhotoInput) {
+  return buildMediaSources(photoUrl(p), typeof p === 'string' ? undefined : p.media?.variants, typeof p === 'string' ? 320 : (p.width || 320), typeof p === 'string' ? 320 : (p.height || 320))
 }
 
 function openLightbox(index: number) {

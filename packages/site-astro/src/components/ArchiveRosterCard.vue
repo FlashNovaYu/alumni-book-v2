@@ -14,7 +14,9 @@
         <img
           v-if="card.avatarUrl && !avatarError"
           ref="avatarImage"
-          :src="avatarSrc"
+          :src="avatarMedia.src"
+          :srcset="avatarMedia.srcset || undefined"
+          :sizes="avatarMedia.sizes"
           :alt="card.name"
           width="72"
           height="72"
@@ -43,6 +45,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { ArchiveClassmateCard } from '../utils/museumViewModels'
+import { buildMediaSources } from '@alumni/shared'
 
 const props = defineProps<{ card: ArchiveClassmateCard; apiBase: string }>()
 const emit = defineEmits<{ 'identity-transition': [slug: string] }>()
@@ -136,6 +139,7 @@ const avatarSrc = computed(() => {
   if (props.card.avatarUrl.startsWith('http')) return props.card.avatarUrl
   return `${props.apiBase}${props.card.avatarUrl}`
 })
+const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card.avatarMedia?.variants, 72, 72))
 </script>
 
 <style scoped>

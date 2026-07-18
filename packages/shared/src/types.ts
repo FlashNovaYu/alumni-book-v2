@@ -102,6 +102,7 @@ export interface ClassmateEntry {
   hasPage: boolean
   hasStandardProfile?: boolean
   avatarUrl: string | null
+  avatarMedia?: { variants: MediaVariant[] } | null
   motto: string
   nickname?: string
   school?: string

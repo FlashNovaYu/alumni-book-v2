@@ -264,7 +264,7 @@ app.route('/api', groupChatRoutes)
 app.get('/api/classmates', async (c) => {
   const db = c.env.DB
   const { results } = await db.prepare(
-    'SELECT name, slug, avatar_url, info, school, class_name, mbti, is_owner, custom_html FROM students ORDER BY name'
+    'SELECT name, slug, avatar_url, media_json, info, school, class_name, mbti, is_owner, custom_html FROM students ORDER BY name'
   ).all()
 
   const classmates = (results || []).map((row: any) => {
@@ -291,6 +291,7 @@ app.get('/api/classmates', async (c) => {
       hasPage: true,
       hasStandardProfile: !(row.is_owner && row.custom_html),
       avatarUrl: normalizeFileUrl(row.avatar_url),
+      avatarMedia: (() => { try { const value = JSON.parse(row.media_json || '{}'); return value.variants ? { variants: value.variants } : null } catch { return null } })(),
       motto: info.motto || '',
       nickname: info.nickname || '',
       school: row.school || info.school || '',
