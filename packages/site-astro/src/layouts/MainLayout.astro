@@ -206,6 +206,10 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const direction = sessionStorage.getItem('vt-nav-dir')
           if (direction) document.documentElement.dataset.navDir = direction
           sessionStorage.removeItem('vt-nav-dir')
+          // Navigation runtime may initialize before pageshow on a cold document.
+          // Refresh after restoring the direction so the active marker cannot keep
+          // the default forward animation when the user navigates backward.
+          window.__alumniNavRuntime?.refresh()
           const x = Number(sessionStorage.getItem('vt-click-x'))
           const y = Number(sessionStorage.getItem('vt-click-y'))
           if (x && y && document.documentElement.classList.contains('vt-mailbox') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
