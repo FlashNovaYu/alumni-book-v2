@@ -28,6 +28,8 @@ import { filesRoutes } from './routes/files'
 import { normalizeFileUrl } from './lib/fileUrl'
 import { audienceForStudent, filterStudentForAudience, type StudentViewer } from './lib/studentAudience'
 import { claimPublicRequestSlot, publicClientIp } from './lib/publicRequestLimit'
+import { cleanupExpiredSessions } from './lib/sessionCleanup'
+import { adminOperationsRoutes } from './routes/adminOperations'
 
 
 type Bindings = {
@@ -91,6 +93,32 @@ app.use('*', async (c, next) => {
   c.header('X-Request-Id', requestId)
 })
 
+function classifyRequestError(status: number): string | null {
+  if (status < 400) return null
+  if (status === 401 || status === 403) return 'auth_error'
+  if (status === 404) return 'not_found'
+  if (status === 429) return 'rate_limited'
+  if (status >= 500) return 'server_error'
+  return 'client_error'
+}
+
+app.use('*', async (c, next) => {
+  const startedAt = Date.now()
+  try {
+    await next()
+  } finally {
+    console.log(JSON.stringify({
+      event: 'http_request',
+      requestId: c.get('requestId') || 'unknown',
+      path: c.req.path,
+      method: c.req.method,
+      status: c.res.status,
+      durationMs: Date.now() - startedAt,
+      errorClass: classifyRequestError(c.res.status),
+    }))
+  }
+})
+
 // API 仅返回数据，不应被嵌入或作为可执行文档加载。
 app.use('*', async (c, next) => {
   await next()
@@ -112,6 +140,8 @@ app.use('*', async (c, next) => {
 })
 
 app.use('/api/*', async (c, next) => {
+  if (c.req.path === '/api/health' || c.req.path === '/api/readiness') return next()
+
   const missingBindings = [
     !c.env?.DB && 'DB',
     !c.env?.R2 && 'R2',
@@ -183,6 +213,34 @@ app.use('/api/class-space/overview', etag())
 // 健康检查
 app.get('/api/health', (c) => {
   return c.json({ success: true, data: { status: 'ok', version: '2.0.0' } })
+})
+
+app.get('/api/readiness', async (c) => {
+  const checks = {
+    db: false,
+    r2: false,
+    jwtSecret: Boolean(c.env?.JWT_SECRET),
+  }
+
+  if (c.env?.DB) {
+    try {
+      await c.env.DB.prepare('SELECT 1').first()
+      checks.db = true
+    } catch {}
+  }
+  if (c.env?.R2) {
+    try {
+      await c.env.R2.list({ limit: 1 })
+      checks.r2 = true
+    } catch {}
+  }
+
+  const ready = checks.db && checks.r2 && checks.jwtSecret
+  return c.json({
+    success: ready,
+    data: { ready, checks },
+    ...(ready ? {} : { message: '服务依赖尚未就绪', requestId: c.get('requestId') || 'unknown' }),
+  }, ready ? 200 : 503)
 })
 
 // 认证路由 (不需要 JWT)
@@ -483,6 +541,7 @@ function permissionForWrites(permission: AdminPermission) {
 app.use('/api/admin/*', requireAdminSession, requirePasswordChangeCompleted)
 app.use('/api/admin/stats', requireOwner)
 app.use('/api/admin/workbench', requirePermission('dashboard.view'))
+app.use('/api/admin/operations/*', requireOwner)
 app.use('/api/admin/accounts*', requireOwner)
 app.use('/api/admin/account-candidates', requireOwner)
 app.use('/api/admin/audit-logs', requireOwner)
@@ -525,6 +584,7 @@ app.route('/api', mailboxRoutes)
 app.route('/api', adminMailRoutes)
 app.route('/api', adminCommunityRoutes)
 app.route('/api', adminAccountsRoutes)
+app.route('/api', adminOperationsRoutes)
 
 // 次级管理员工作台只聚合其职责范围内的计数与快捷入口，避免下发同学档案、浏览排行或资料完整度等数据。
 app.get('/api/admin/workbench', async (c) => {
@@ -682,6 +742,17 @@ app.onError((err, c) => {
 app.notFound((c) => {
   return c.json({ success: false, message: '接口不存在' }, 404)
 })
+
+export async function scheduled(_controller: ScheduledController, env: Bindings, _ctx: ExecutionContext) {
+  if (!env.DB) {
+    console.error(JSON.stringify({ event: 'scheduled_cleanup', status: 'skipped', reason: 'missing_db' }))
+    return
+  }
+  const result = await cleanupExpiredSessions(env.DB)
+  console.log(JSON.stringify({ event: 'scheduled_cleanup', status: 'ok', ...result }))
+}
+
+;(app as typeof app & { scheduled?: typeof scheduled }).scheduled = scheduled
 
 function formatStudent(row: any) {
   const info = JSON.parse(row.info || '{}')

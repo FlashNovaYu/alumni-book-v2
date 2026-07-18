@@ -16,7 +16,7 @@ export type AuthRateLimitStatus = {
 }
 
 const MAX_FAILURES = 5
-const FAILURE_WINDOW_SECONDS = 15 * 60
+export const AUTH_FAILURE_WINDOW_SECONDS = 15 * 60
 const BLOCK_SECONDS = 15 * 60
 
 function keyFor({ route, ip, account }: AuthRateLimitKey) {
@@ -52,7 +52,7 @@ export async function checkAuthRateLimit(db: D1Database, input: AuthRateLimitKey
     return { limited: true, retryAfterSeconds: retryAfter(row.blocked_until, now) }
   }
 
-  if (now - row.last_failed_at >= FAILURE_WINDOW_SECONDS) {
+  if (now - row.last_failed_at >= AUTH_FAILURE_WINDOW_SECONDS) {
     await db.prepare('DELETE FROM auth_login_attempts WHERE attempt_key = ?').bind(keyFor(input)).run()
   }
 
@@ -65,7 +65,7 @@ export async function recordAuthFailure(db: D1Database, input: AuthRateLimitKey)
   const row = await db.prepare(
     'SELECT failures, blocked_until, last_failed_at FROM auth_login_attempts WHERE attempt_key = ?'
   ).bind(attemptKey).first<RateLimitRow>()
-  const previousFailures = row && now - row.last_failed_at < FAILURE_WINDOW_SECONDS ? row.failures : 0
+  const previousFailures = row && now - row.last_failed_at < AUTH_FAILURE_WINDOW_SECONDS ? row.failures : 0
   const failures = previousFailures + 1
   const blockedUntil = failures > MAX_FAILURES ? now + BLOCK_SECONDS : null
 

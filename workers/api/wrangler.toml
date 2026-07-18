@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-10-22"
 workers_dev = true
 
+# 每日北京时间 11:00 清理已过期的认证会话与限流记录。
+[triggers]
+crons = ["0 3 * * *"]
+
 [vars]
 # 正式站点唯一允许的跨域来源；缺失时 Worker 也会回退到此地址，绝不使用通配符。
 CORS_ORIGIN = "https://alumni-book.pages.dev"
