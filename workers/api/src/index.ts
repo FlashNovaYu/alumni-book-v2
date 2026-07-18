@@ -291,7 +291,7 @@ app.get('/api/classmates', async (c) => {
       hasPage: true,
       hasStandardProfile: !(row.is_owner && row.custom_html),
       avatarUrl: normalizeFileUrl(row.avatar_url),
-      avatarMedia: (() => { try { const value = JSON.parse(row.media_json || '{}'); return value.variants ? { variants: value.variants } : null } catch { return null } })(),
+      avatarMedia: parseStudentMedia(row.media_json).avatar || null,
       motto: info.motto || '',
       nickname: info.nickname || '',
       school: row.school || info.school || '',
@@ -456,7 +456,7 @@ app.get('/api/albums', async (c) => {
       filename: p.filename,
       caption: p.caption,
       r2Key: p.r2_key,
-      media: (() => { try { const value = JSON.parse(p.media_json || '{}'); return value.variants ? { variants: value.variants } : null } catch { return null } })(),
+      ...(() => { try { const value = JSON.parse(p.media_json || '{}'); return Array.isArray(value.variants) && value.variants.length ? { media: { variants: value.variants } } : {} } catch { return {} } })(),
       sortOrder: p.sort_order,
       createdAt: p.created_at,
     })),
@@ -792,11 +792,19 @@ function formatStudent(row: any) {
       class: row.class_name || info.class || '',
     },
     photos: JSON.parse(row.photos || '[]'),
-    media: (() => { try { const value = JSON.parse(row.media_json || '{}'); return value.variants ? { variants: value.variants } : null } catch { return null } })(),
+    media: parseStudentMedia(row.media_json),
     visitCount: row.visit_count || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+function parseStudentMedia(raw: string | null | undefined) {
+  try {
+    const value = JSON.parse(raw || '{}')
+    if (Array.isArray(value?.variants)) return { avatar: { variants: value.variants } }
+    return value && typeof value === 'object' ? value : {}
+  } catch { return {} }
 }
 
 export default app

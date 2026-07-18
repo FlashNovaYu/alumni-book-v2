@@ -6,7 +6,9 @@ import schemaSource from '../src/db/schema.sql?raw'
 beforeAll(async () => {
   const throughIndexes = testMigrations.filter((migration) => migration.name <= '0017_performance_indexes')
   const timestampMigration = testMigrations.find((migration) => migration.name === '0018_normalize_timestamps')
+  const mediaMigration = testMigrations.find((migration) => migration.name === '0019_media_variants')
   if (!timestampMigration) throw new Error('缺少 0018 测试迁移')
+  if (!mediaMigration) throw new Error('缺少 0019 测试迁移')
   await applyD1Migrations(env.DB, throughIndexes)
   await env.DB.batch([
     env.DB.prepare("INSERT INTO students (id, name, slug) VALUES ('migration-student-a', '迁移甲', 'migration-a')"),
@@ -22,14 +24,22 @@ beforeAll(async () => {
     env.DB.prepare("INSERT INTO admin_sessions (token, expires_at) VALUES ('migration-admin-token', '2099-01-01 00:00:00')"),
   ])
   await applyD1Migrations(env.DB, [timestampMigration])
+  await applyD1Migrations(env.DB, [mediaMigration])
 })
 
-describe('0017/0018 性能迁移', () => {
+describe('0017/0018/0019 性能迁移', () => {
   it('新库 schema 只声明历史游标索引并包含规范化触发器', () => {
     expect(schemaSource).not.toContain('idx_direct_messages_conversation_cursor')
     expect(schemaSource.match(/CREATE INDEX IF NOT EXISTS idx_direct_messages_history/g)).toHaveLength(1)
     expect(schemaSource).toContain('trg_public_messages_normalize_updates')
     expect(schemaSource).toContain('trg_classmate_sessions_normalize_expires')
+  })
+
+  it('0019 按真实顺序增加媒体元数据列并保留旧记录默认值', async () => {
+    const student = await env.DB.prepare("SELECT media_json FROM students WHERE slug = 'migration-a'").first<any>()
+    expect(student?.media_json).toBe('{}')
+    const columns = await env.DB.prepare("PRAGMA table_info(photos)").all<any>()
+    expect((columns.results || []).some((column: any) => column.name === 'media_json')).toBe(true)
   })
 
   it('按真实顺序提供所需索引且不复制历史游标索引', async () => {

@@ -38,6 +38,17 @@ export interface ImageVariantOptions {
   quality?: number
 }
 
+export function appendImageVariants(formData: FormData, variants: GeneratedImageVariant[], prefix: string, target: string) {
+  const metadata = variants.filter((variant) => variant.kind !== 'original').map((variant) => {
+    const extension = variant.contentType === 'image/webp' ? 'webp' : 'jpg'
+    const key = `${prefix}/${target}_${Date.now()}_${crypto.randomUUID()}_${variant.kind}.${extension}`
+    formData.append(`variant_${variant.kind}`, new File([variant.blob], `${variant.kind}.${extension}`, { type: variant.contentType }))
+    return { key, contentType: variant.contentType, width: variant.width, height: variant.height, kind: variant.kind }
+  })
+  if (metadata.length) formData.append('variants', JSON.stringify(metadata))
+  return metadata
+}
+
 function throwIfAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException('图片处理已取消', 'AbortError')
 }
@@ -46,7 +57,7 @@ async function decodeImage(file: File, signal?: AbortSignal): Promise<{ source: 
   throwIfAborted(signal)
   if (typeof createImageBitmap === 'function') {
     const bitmap = await createImageBitmap(file)
-    throwIfAborted(signal)
+    try { throwIfAborted(signal) } catch (error) { bitmap.close(); throw error }
     return { source: bitmap, width: bitmap.width, height: bitmap.height }
   }
   const url = URL.createObjectURL(file)
@@ -80,7 +91,7 @@ export async function generateImageVariants(file: File, options: ImageVariantOpt
   if (!file.type.startsWith('image/') || file.type === SVG_TYPE) {
     return [{ kind: 'original', blob: file, width: 0, height: 0, contentType: file.type || 'application/octet-stream' }]
   }
-  const widths = (options.widths || [128, 256, 320, 960]).filter((value) => Number.isFinite(value) && value > 0)
+  const widths = [...new Set(options.widths || [128, 256, 320, 960])].filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b)
   const quality = options.quality ?? 0.82
   let decoded: Awaited<ReturnType<typeof decodeImage>> | null = null
   try {
@@ -95,20 +106,26 @@ export async function generateImageVariants(file: File, options: ImageVariantOpt
       canvas.width = targetWidth
       canvas.height = targetHeight
       const context = canvas.getContext('2d')
-      if (!context) continue
+      if (!context) { canvas.width = 1; canvas.height = 1; continue }
       context.drawImage(decoded.source, 0, 0, targetWidth, targetHeight)
-      let blob: Blob
-      let contentType = 'image/webp'
       try {
-        blob = await canvasBlob(canvas, contentType, quality, options.signal)
-        if (blob.type && blob.type !== 'image/webp') throw new Error('WebP 编码不可用')
-      } catch {
-        contentType = 'image/jpeg'
-        blob = await canvasBlob(canvas, contentType, quality, options.signal)
+        let blob: Blob
+        let contentType = 'image/webp'
+        try {
+          blob = await canvasBlob(canvas, contentType, quality, options.signal)
+          throwIfAborted(options.signal)
+          if (blob.type && blob.type !== 'image/webp') throw new Error('WebP 编码不可用')
+        } catch {
+          throwIfAborted(options.signal)
+          contentType = 'image/jpeg'
+          blob = await canvasBlob(canvas, contentType, quality, options.signal)
+          throwIfAborted(options.signal)
+        }
+        output.push({ kind: String(width) as GeneratedImageVariant['kind'], blob, width: targetWidth, height: targetHeight, contentType })
+      } finally {
+        canvas.width = 1
+        canvas.height = 1
       }
-      output.push({ kind: String(width) as GeneratedImageVariant['kind'], blob, width: targetWidth, height: targetHeight, contentType })
-      canvas.width = 1
-      canvas.height = 1
     }
     return output
   } catch {

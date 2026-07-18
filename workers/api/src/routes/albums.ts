@@ -8,6 +8,15 @@ type Bindings = {
   JWT_SECRET: string
 }
 
+function photoObjectKeys(row: any): string[] {
+  const keys = row?.r2_key ? [String(row.r2_key)] : []
+  try {
+    const media = JSON.parse(String(row?.media_json || '{}'))
+    for (const variant of media?.variants || []) if (variant?.key) keys.push(String(variant.key))
+  } catch { /* legacy row */ }
+  return [...new Set(keys)]
+}
+
 export const albumsRoutes = new Hono<{ Bindings: Bindings }>()
 
 // 创建相册
@@ -81,7 +90,7 @@ albumsRoutes.delete('/albums/:id', async (c) => {
   if (!cleanReason) return c.json({ success: false, message: '删除相册时请填写原因' }, 400)
   const album = await db.prepare('SELECT title FROM albums WHERE id = ?').bind(id).first()
   if (!album) return c.json({ success: false, message: '相册不存在' }, 404)
-  const { results: photos } = await db.prepare('SELECT r2_key FROM photos WHERE album_id = ?').bind(id).all()
+  const { results: photos } = await db.prepare('SELECT r2_key, media_json FROM photos WHERE album_id = ?').bind(id).all()
 
   await runAuditedBatch(db, admin.id, [
     db.prepare('DELETE FROM photos WHERE album_id = ?').bind(id),
@@ -92,10 +101,7 @@ albumsRoutes.delete('/albums/:id', async (c) => {
   try {
     if (photos && r2) {
       for (const row of photos) {
-        const key = (row as any).r2_key
-        if (key) {
-          await r2.delete(key)
-        }
+        for (const key of photoObjectKeys(row)) await r2.delete(key)
       }
     }
   } catch (e) {
@@ -142,16 +148,15 @@ albumsRoutes.delete('/photos/:id', async (c) => {
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除照片时请填写原因' }, 400)
 
-  const photo = await db.prepare('SELECT r2_key FROM photos WHERE id = ?').bind(id).first()
+  const photo = await db.prepare('SELECT r2_key, media_json FROM photos WHERE id = ?').bind(id).first()
   if (!photo) {
     return c.json({ success: false, message: '照片不存在' }, 404)
   }
 
-  const key = (photo as any).r2_key
   await runAuditedBatch(db, admin.id, [db.prepare('DELETE FROM photos WHERE id = ?').bind(id)], { action: 'photo.delete', resourceType: 'photo', resourceId: id, reason: cleanReason, before: photo })
-  if (key && r2) {
+  if (r2) {
     try {
-      await r2.delete(key)
+      for (const key of photoObjectKeys(photo)) await r2.delete(key)
     } catch (e) {
       console.error('Failed to delete photo from R2:', e)
     }

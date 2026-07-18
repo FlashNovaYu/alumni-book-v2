@@ -32,7 +32,7 @@
 
         <div v-if="album.photos?.length" class="album-thumbs">
           <div v-for="photo in album.photos.slice(0, 6)" :key="photo.id" class="thumb">
-            <img :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" width="72" height="72" loading="lazy" decoding="async" />
+            <img :src="getPhotoMedia(photo, 72).src" :srcset="getPhotoMedia(photo, 72).srcset || undefined" :sizes="getPhotoMedia(photo, 72).sizes" :alt="photo.caption" width="72" height="72" loading="lazy" decoding="async" />
           </div>
           <div v-if="album.photos.length > 6" class="thumb-more">
             +{{ album.photos.length - 6 }}
@@ -127,7 +127,7 @@
               <h3 class="title-sm mb-2">照片管理 (输入说明后失焦自动保存，点击▲▼调序)</h3>
               <div v-if="editAlbum.photos && editAlbum.photos.length" class="manage-photo-grid">
                 <div v-for="(photo, idx) in editAlbum.photos" :key="photo.id" class="manage-photo-item">
-                  <img :src="getPhotoUrl(photo.r2Key)" class="manage-photo-img" width="160" height="120" loading="lazy" decoding="async" />
+                  <img :src="getPhotoMedia(photo, 160).src" :srcset="getPhotoMedia(photo, 160).srcset || undefined" :sizes="getPhotoMedia(photo, 160).sizes" class="manage-photo-img" width="160" height="120" loading="lazy" decoding="async" />
                   <div class="photo-info">
                     <input v-model="photo.caption" type="text" class="text-input photo-caption-input" placeholder="输入说明..." @blur="updatePhotoCaption(photo)" />
                     <div class="photo-actions mt-1">
@@ -192,7 +192,7 @@ import { adminFetch } from '@/api/client'
 import { isAbortError } from '@/api/network'
 import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import { compressImage } from '@/utils/image'
-import { generateImageVariants } from '@alumni/shared'
+import { appendImageVariants, buildMediaSources, generateImageVariants } from '@alumni/shared'
 import type { Album, ApiResponse } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -250,6 +250,9 @@ async function loadAlbums(reset = false) {
   } finally {
     if (listController === controller) loadingMore.value = false
   }
+}
+function getPhotoMedia(photo: any, width: number) {
+  return buildMediaSources(getPhotoUrl(photo.r2Key), photo.media?.variants, width, Math.round(width * 0.75))
 }
 
 async function handleCreate() {
@@ -319,13 +322,7 @@ async function uploadFiles(files: FileList) {
         formData.append('file', compressed)
         formData.append('type', 'photo')
         formData.append('albumId', uploadAlbum.value!.id)
-        const variants = generated.filter((variant) => variant.kind !== 'original').map((variant) => {
-          const extension = variant.contentType === 'image/webp' ? 'webp' : 'jpg'
-          const key = `photos/${uploadAlbum.value!.id}_${Date.now()}_${crypto.randomUUID()}_${variant.kind}.${extension}`
-          formData.append(`variant_${variant.kind}`, new File([variant.blob], `${variant.kind}.${extension}`, { type: variant.contentType }))
-          return { key, contentType: variant.contentType, width: variant.width, height: variant.height, kind: variant.kind }
-        })
-        if (variants.length) formData.append('variants', JSON.stringify(variants))
+        appendImageVariants(formData, generated, 'photos', uploadAlbum.value!.id)
         await adminFetch('/api/upload', { method: 'POST', body: formData, headers: {}, signal })
       } catch (error: any) {
         if (signal.aborted) return

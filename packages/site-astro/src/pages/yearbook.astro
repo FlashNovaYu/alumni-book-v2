@@ -1,7 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
-import { buildMediaSources, type MediaVariant } from '@alumni/shared'
+import { buildMediaSources, type MediaVariant, type StudentMediaAssets } from '@alumni/shared'
 
 interface Classmate {
   name: string
@@ -10,6 +10,7 @@ interface Classmate {
   motto: string
   visitCount: number
   updatedAt: string
+  media?: StudentMediaAssets | null
 }
 
 interface Photo {
@@ -95,6 +96,10 @@ function photoMedia(photo: Photo) {
   const media = buildMediaSources(source, photo.media?.variants, 320, 213)
   return { src: media.src, srcset: media.srcset || undefined, sizes: media.sizes, width: media.width, height: media.height }
 }
+function avatarMedia(mate: Classmate) {
+  const source = mate.avatarUrl?.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl || ''}`
+  return buildMediaSources(source, mate.media?.avatar?.variants, 72, 72)
+}
 ---
 
 <MainLayout>
@@ -171,14 +176,17 @@ function photoMedia(photo: Photo) {
             <div class="yearbook-mate-card card">
               <div class="mate-avatar-box">
                 {mate.avatarUrl ? (
-                  <object
+                  <img
                     class="mate-avatar-image"
-                    data={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`}
-                    aria-label={`${mate.name}的头像`}
-                    style="aspect-ratio: 1"
-                  >
-                    <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
-                  </object>
+                    src={avatarMedia(mate).src}
+                    srcset={avatarMedia(mate).srcset || undefined}
+                    sizes={avatarMedia(mate).sizes}
+                    width="72"
+                    height="72"
+                    loading="lazy"
+                    decoding="async"
+                    alt={`${mate.name}的头像`}
+                  />
                 ) : (
                   <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
                 )}

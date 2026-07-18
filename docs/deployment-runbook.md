@@ -27,4 +27,4 @@ pnpm --filter worker exec wrangler --cwd ../.. pages deploy deploy --project-nam
 
 ## 媒体变体回填
 
-先执行 `pnpm media:backfill --dry-run --batch=25 --retries=3` 生成任务清单并核对范围。执行模式必须显式设置 `MEDIA_BACKFILL_URL` 并传入 `--execute`；每批失败会重试，失败项写入 `media-backfill-failures.json`。回填始终保留原图，不执行删除操作；需要回滚时停止运维端点并清除变体元数据即可，原始 `r2_key` 不变。
+先从 D1 导出 `students` 与 `photos` 为本地 JSON，再执行 `pnpm media:backfill --input=media-export.json --dry-run --batch=25 --retries=3`。脚本会枚举缺失变体的记录，输出待处理数量、预计新增 R2 对象数和确定性任务清单，不依赖线上运维端点。回填始终保留原图；需要回滚时清除变体元数据即可，原始 `r2_key` 不变。

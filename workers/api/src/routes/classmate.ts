@@ -3,6 +3,7 @@ import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { validateImageUpload } from '../lib/imageValidation'
+import { parseUploadVariants } from './upload'
 import {
   checkAuthRateLimit,
   clearAuthFailures,
@@ -236,6 +237,8 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   if (type !== 'avatar' && type !== 'background') {
     return c.json({ success: false, message: '不允许的上传类型' }, 400)
   }
+  const parsedVariants = await parseUploadVariants(formData, type, slug)
+  if ('error' in parsedVariants) return c.json({ success: false, message: parsedVariants.error }, 400)
 
   const authedSlug = await authClassmate(c)
   if (!authedSlug) {
@@ -271,17 +274,28 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   const r2Key = type === 'avatar'
     ? `avatars/${slug}_${timestamp}.${imageFormat.extension}`
     : `backgrounds/${slug}_${timestamp}.${imageFormat.extension}`
+  for (const variant of parsedVariants.metadata) if (await r2.head(variant.key)) return c.json({ success: false, message: '图片变体键已存在' }, 409)
 
   const urlColumn = type === 'avatar' ? 'avatar_url' : 'background_url'
   const existing = await db.prepare(`SELECT ${urlColumn}, media_json FROM students WHERE slug = ?`).bind(slug).first() as any
   const oldKey = fileKeyFromUrl(existing?.[urlColumn])
-  let oldVariantKeys: string[] = []
-  try { oldVariantKeys = JSON.parse(String(existing?.media_json || '{}')).variants?.map((item: any) => item.key) || [] } catch { oldVariantKeys = [] }
+  let media: any = {}
+  try { media = JSON.parse(String(existing?.media_json || '{}')); if (Array.isArray(media?.variants)) media = { avatar: { variants: media.variants } } } catch { media = {} }
+  const oldVariantKeys: string[] = media?.[type]?.variants?.map((item: any) => item.key) || []
+  media[type] = { variants: parsedVariants.metadata }
 
   // 3. 上传新文件到 R2
-  await r2.put(r2Key, imageContents, {
-    httpMetadata: { contentType: imageFormat.mime },
-  })
+  const uploadedKeys = [r2Key]
+  try {
+    await r2.put(r2Key, imageContents, { httpMetadata: { contentType: imageFormat.mime } })
+    for (const variant of parsedVariants.files) {
+      await r2.put(variant.metadata.key, variant.file.stream(), { httpMetadata: { contentType: variant.metadata.contentType } })
+      uploadedKeys.push(variant.metadata.key)
+    }
+  } catch {
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
+    return c.json({ success: false, message: '文件上传失败，请重试' }, 500)
+  }
 
   // 统一存为相对路径，有利于环境迁移与解耦
   const relativeUrl = `/api/files/${r2Key}`
@@ -290,9 +304,9 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   // compensate the newly uploaded object; only successful commits retire it.
   try {
     await db.prepare(`UPDATE students SET ${urlColumn} = ?, media_json = ?, updated_at = datetime('now') WHERE slug = ?`)
-      .bind(relativeUrl, JSON.stringify({ variants: [] }), slug).run()
+      .bind(relativeUrl, JSON.stringify(media), slug).run()
   } catch (error) {
-    await r2.delete(r2Key).catch(() => undefined)
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
     return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
   }
   if (oldKey && oldKey !== r2Key) {
@@ -305,6 +319,6 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   const origin = new URL(c.req.url).origin
   const absoluteUrl = `${origin}${relativeUrl}`
 
-  return c.json({ success: true, data: { url: absoluteUrl, r2Key } })
+  return c.json({ success: true, data: { url: absoluteUrl, r2Key, ...(parsedVariants.metadata.length ? { variants: parsedVariants.metadata } : {}) } })
 })
 

@@ -13,7 +13,7 @@ export interface Student {
   customHtml: string | null
   info: StudentInfo
   photos: string[]
-  media?: { variants: MediaVariant[] } | null
+  media?: StudentMediaAssets | null
   visitCount: number
   createdAt: string
   updatedAt: string
@@ -204,6 +204,12 @@ export interface MediaAsset {
   width?: number
   height?: number
   variants?: MediaVariant[]
+}
+
+export interface StudentMediaAssets {
+  avatar?: { variants: MediaVariant[] }
+  background?: { variants: MediaVariant[] }
+  music?: { variants: MediaVariant[] }
 }
 
 /** 留言 */

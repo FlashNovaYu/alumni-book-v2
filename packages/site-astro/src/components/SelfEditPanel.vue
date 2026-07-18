@@ -202,7 +202,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
+import { appendImageVariants, generateImageVariants, getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 import { handleClassmateUnauthorized, SESSION_EXPIRED_MESSAGE } from '../api/classmateSession'
 import CalendarDatePicker from './CalendarDatePicker.vue'
@@ -338,6 +338,7 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
     fd.append('file', compressed)
     fd.append('type', type)
     fd.append('slug', props.studentSlug)
+    appendImageVariants(fd, await generateImageVariants(compressed), type === 'avatar' ? 'avatars' : 'backgrounds', props.studentSlug)
 
     const url = joinApiUrl(props.apiBase, '/api/classmate/upload')
     const res = await fetch(url, {
