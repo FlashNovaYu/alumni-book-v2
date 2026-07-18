@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
-const classmates = Array.from({ length: 10 }, (_, index) => ({
+const classmates = Array.from({ length: 13 }, (_, index) => ({
   name: `分页同学 ${index + 1}`,
   slug: `page-mate-${index + 1}`,
   hasPage: true,
@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
   await mockClassmateInboxSummary(page)
 })
 
-test('roster paginates nine cards, resets search to the first page, and hides broken avatars', async ({ page }) => {
+test('roster paginates twelve cards, resets search to the first page, and hides broken avatars', async ({ page }) => {
   await page.route('**/api/classmates', async (route) => {
     await route.fulfill({
       status: 200,
@@ -56,14 +56,14 @@ test('roster paginates nine cards, resets search to the first page, and hides br
   await page.goto('./roster/', { waitUntil: 'networkidle' })
 
   await expect(page.getByRole('button', { name: '第 2 页' })).toBeVisible()
-  await expect(page.locator('.roster-card:visible')).toHaveCount(9)
+  await expect(page.locator('.roster-card:visible')).toHaveCount(12)
   const firstAvatar = page.locator('.roster-card:visible').first().locator('.roster-card__avatar')
   await expect(firstAvatar.locator('img')).toHaveCount(0)
   await expect(firstAvatar).toHaveText('分')
 
   await page.getByRole('button', { name: '第 2 页' }).click()
   await expect(page.locator('.roster-card:visible')).toHaveCount(1)
-  await expect(page.getByText('分页同学 10')).toBeVisible()
+  await expect(page.getByText('分页同学 13')).toBeVisible()
 
   await page.getByRole('textbox', { name: '档案检索' }).fill('分页')
   const pagination = page.getByRole('navigation', { name: '人物长廊分页' })
@@ -83,8 +83,8 @@ test('roster only renders ellipses when pagination omits page numbers', async ({
 
   for (const scenario of [
     { count: 27, labels: ['1', '2', '3'], ellipses: 0 },
-    { count: 45, labels: ['1', '2', '3', '4', '5'], ellipses: 0 },
-    { count: 54, labels: ['1', '2', '6'], ellipses: 1 },
+    { count: 60, labels: ['1', '2', '3', '4', '5'], ellipses: 0 },
+    { count: 72, labels: ['1', '2', '6'], ellipses: 1 },
   ]) {
     responseClassmates = createClassmates(scenario.count)
     await page.goto('./roster/', { waitUntil: 'networkidle' })

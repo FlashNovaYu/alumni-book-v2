@@ -27,4 +27,17 @@ pnpm --filter worker exec wrangler --cwd ../.. pages deploy deploy --project-nam
 
 ## 媒体变体回填
 
-先从 D1 导出 `students` 与 `photos` 为本地 JSON，再执行 `pnpm media:backfill --input=media-export.json --dry-run --batch=25 --retries=3`。脚本会枚举缺失变体的记录，输出待处理数量、预计新增 R2 对象数和确定性任务清单，不依赖线上运维端点。回填始终保留原图；需要回滚时清除变体元数据即可，原始 `r2_key` 不变。
+先从 D1 导出 `students` 与 `photos` 为本地 JSON，并准备原图目录（或在导出中提供 `files` 映射），执行：
+
+```powershell
+pnpm media:backfill --input=media-export.json --assets-dir=./assets --dry-run --batch=25 --retries=3
+```
+
+确认计划后，使用 `--execute` 在本地 Wrangler D1/R2 执行；只有明确需要写入远程资源时才额外使用 `--remote`：
+
+```powershell
+pnpm media:backfill --input=media-export.json --assets-dir=./assets --execute --batch=25 --retries=3
+pnpm media:backfill --input=media-export.json --assets-dir=./assets --execute --remote --batch=25 --retries=3
+```
+
+脚本会使用 ffmpeg 生成 WebP，编码失败时回退 JPEG，并通过 Wrangler 分批上传 R2、更新 D1 `media_json`；失败任务按 `--retries` 重试。旧 `students.photos` 字符串数组没有独立 `photos.id` 时只生成并上传派生文件，保留原数组并输出告警。回填始终保留原图；需要回滚时清除变体元数据即可，原始 `r2_key` 不变。

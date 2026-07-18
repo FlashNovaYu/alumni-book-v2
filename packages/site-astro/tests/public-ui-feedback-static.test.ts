@@ -22,11 +22,11 @@ describe('公开站点界面反馈回归', () => {
     expect(directory).toContain('section-description')
   })
 
-  it('keeps the roster at nine cards per page with accessible page buttons', () => {
+  it('keeps the roster at twelve cards per page with accessible page buttons', () => {
     const roster = read('components/RosterWall.vue')
     const pagination = read('components/ui/UiPagination.vue')
 
-    expect(roster).toContain('const PAGE_SIZE = 9')
+    expect(roster).toContain('const PAGE_SIZE = 12')
     expect(roster).toContain('@update:model-value="goToPage"')
     expect(pagination).toContain(':aria-label="`第 ${page} 页`"')
     expect(pagination).toContain("aria-current=\"page === modelValue ? 'page' : undefined\"")

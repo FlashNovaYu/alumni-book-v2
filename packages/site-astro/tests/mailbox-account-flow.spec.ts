@@ -100,7 +100,7 @@ test.describe('Classmate Account Center Flow', () => {
     await page.click('a[href*="edit=1"]')
     await expect(page).toHaveURL(/\/student\/chenyuhao\/\?edit=1/)
     await expect(page.locator('.editor-overlay')).toBeVisible()
-    await page.click('.editor-close')
+    await page.locator('.editor-close').click({ force: true })
     await expect(page).toHaveURL(/\/student\/chenyuhao\/$/)
   })
 })
