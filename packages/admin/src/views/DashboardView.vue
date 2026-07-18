@@ -10,7 +10,7 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="dashboard__skeleton" aria-label="正在加载工作台">
+    <div v-if="loading" class="dashboard__skeleton" role="status" aria-live="polite" aria-label="正在加载工作台">
       <UiSkeleton v-for="i in 3" :key="i" variant="card" />
     </div>
 
