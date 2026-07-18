@@ -1,4 +1,4 @@
-import { isAudioMuted, playCrystalTick, toggleAudioMuted } from './audioSynth'
+import { hasAudioContext, isAudioMuted, playCrystalTick, toggleAudioMuted } from './audioSynth'
 
 interface VolumeRuntime { destroy(): void }
 
@@ -29,7 +29,7 @@ export function initVolumeToggle() {
     const now = performance.now()
     if (now - lastHoverAt < 100) return
     lastHoverAt = now
-    playCrystalTick()
+    if (hasAudioContext()) playCrystalTick()
   }
   buttons.forEach((button) => button.addEventListener('click', onClick))
   hoverTargets.forEach((target) => target.addEventListener('pointerenter', onHover, { passive: true }))

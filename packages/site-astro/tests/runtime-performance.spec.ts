@@ -10,14 +10,17 @@ describe('公开站点原生运行时性能约束', () => {
     const layout = read('layouts/MainLayout.astro')
     expect(layout).not.toContain("from 'astro:transitions'")
     expect(layout).not.toContain('<ClientRouter')
-    expect(layout).toContain("import { initNavSession } from '../runtime/navSession'")
-    expect(layout).toContain("import { initVolumeToggle } from '../runtime/volumeToggle'")
+    expect(layout).toContain("import('../runtime/navSession')")
+    expect(layout).toContain("import('../runtime/volumeToggle')")
   })
 
   it('公共运行时只绑定页面生命周期，并在离页时清理资源', () => {
     const nav = read('scripts/navRuntime.ts')
     expect(nav).not.toContain("astro:before-swap")
     expect(nav).not.toContain("astro:page-load")
+    expect(nav).not.toContain('getBoundingClientRect')
+    expect(nav).not.toContain('offsetLeft')
+    expect(nav).not.toContain('offsetWidth')
     expect(nav).toContain("pagehide")
     expect(nav).toContain('cancelAnimationFrame')
   })
@@ -30,12 +33,33 @@ describe('公开站点原生运行时性能约束', () => {
     expect(audio).toContain('noiseBuffer')
     expect(audio).not.toContain('onMounted')
     expect(volume).toContain('toggleAudioMuted()')
+    expect(volume).toContain('if (hasAudioContext()) playCrystalTick()')
+    expect(audio).toContain("document.addEventListener('visibilitychange'")
   })
 
   it('纯静态页面不包含 Vue runtime 或 ClientRouter 关键词', () => {
     const layout = read('layouts/MainLayout.astro')
     expect(layout).not.toContain('client:load')
     expect(layout).not.toContain('ClientRouter')
+  })
+
+  it('同页锚点不触发导航进度，并正确处理 BFCache 生命周期', () => {
+    const layout = read('layouts/MainLayout.astro')
+    expect(layout).toContain('url.pathname === window.location.pathname && url.search === window.location.search')
+    expect(layout).toContain('(event as PageTransitionEvent).persisted')
+    expect(layout).toContain('restoreStudentIdentityTarget()')
+    expect(layout).toContain('initNavRuntime()')
+  })
+
+  it('首页运行时仅使用原生页面生命周期并清理滚动 RAF', () => {
+    const hero = read('components/MuseumHero.astro')
+    expect(hero).not.toContain('astro:before-preparation')
+    expect(hero).not.toContain('astro:page-load')
+    expect(hero).toContain("window.addEventListener('pageshow'")
+    expect(hero).toContain("window.addEventListener('pagehide'")
+    expect(hero).toContain("document.addEventListener('DOMContentLoaded'")
+    expect(hero).toContain("window.removeEventListener('scroll'")
+    expect(hero).toContain('cancelAnimationFrame')
   })
 
   it('首页、时间轴、更多和年度册构建产物不输出 Vue islands', () => {

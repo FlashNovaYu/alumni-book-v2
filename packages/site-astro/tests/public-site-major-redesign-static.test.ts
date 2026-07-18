@@ -66,7 +66,7 @@ describe('public site major redesign constraints', () => {
     expect(source).toContain('data-home-login-scroll')
     expect(source).toContain('scrollIntoView')
     expect(source).toContain("behavior: prefersReducedMotion ? 'auto' : 'smooth'")
-    expect(source).toContain("document.querySelector('#login')")
+    expect(source).toContain("document.querySelector<HTMLElement>('#login')")
   })
 
   it('top nav supports a minimal logged-out homepage state', () => {

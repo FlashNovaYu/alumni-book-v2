@@ -71,7 +71,8 @@ function bindGlobalLifecycle() {
   if (window.__alumniNavLifecycleBound) return
   window.__alumniNavLifecycleBound = true
 
-  window.addEventListener('pagehide', () => {
+  window.addEventListener('pagehide', (event) => {
+    if ((event as PageTransitionEvent).persisted) return
     window.__alumniNavRuntime?.destroy()
   })
   document.addEventListener('visibilitychange', () => {
@@ -99,11 +100,8 @@ export function initNavRuntime(): void {
   let adminEntryController: AbortController | null = null
   let resizeObserver: ResizeObserver | null = null
   let activeInkFrame: number | null = null
-  let activeInkInitialized = false
-  const storedMarker = consumeNavMarker()
-  const incomingMarker = window.__alumniNavActiveMarker || storedMarker
+  consumeNavMarker()
   let currentMarker: NavMarker | null = null
-  let previousActiveLeft = incomingMarker?.left ?? null
   let destroyed = false
 
   const closeDrawer = () => {
@@ -130,64 +128,17 @@ export function initNavRuntime(): void {
     const active = directory.querySelector<HTMLElement>('[data-nav-item][aria-current="page"]')
     const paper = directory.querySelector<HTMLElement>('.nav-active-paper')
     const ink = directory.querySelector<HTMLElement>('.nav-active-ink')
-    if (!active || !paper || !ink) {
-      if (paper) paper.style.opacity = '0'
-      if (ink) ink.style.opacity = '0'
-      return
-    }
+    if (!active || !paper || !ink) return
 
-    const marker = {
-      left: active.offsetLeft,
-      paperWidth: active.offsetWidth,
-      inkLeft: active.offsetLeft + 11,
-      inkWidth: Math.max(22, active.offsetWidth - 22),
-    }
-    const applyMarker = (next: typeof marker) => {
-      paper.style.width = `${next.paperWidth}px`
-      paper.style.transform = `translateX(${next.left}px)`
-      paper.style.opacity = '1'
-      ink.style.width = `${next.inkWidth}px`
-      ink.style.transform = `translateX(${next.inkLeft}px)`
-      ink.style.opacity = '1'
-    }
-    const previousMarker = activeInkInitialized ? null : incomingMarker
-
-    if (!activeInkInitialized || marker.left !== previousActiveLeft) {
-      directory.dataset.navDirection = previousActiveLeft !== null && marker.left < previousActiveLeft
-        ? 'backward'
-        : 'forward'
-    }
-
-    if (!activeInkInitialized) {
-      directory.dataset.navReady = 'false'
-      if (previousMarker) {
-        directory.dataset.navRevealing = 'true'
-        applyMarker(previousMarker)
-        directory.getBoundingClientRect()
-        directory.dataset.navReady = 'true'
-        activeInkFrame = window.requestAnimationFrame(() => {
-          activeInkFrame = null
-          if (!destroyed) {
-            applyMarker(marker)
-            directory.dataset.navRevealing = 'false'
-          }
-        })
-      } else {
-        directory.dataset.navRevealing = 'false'
-        applyMarker(marker)
-        activeInkFrame = window.requestAnimationFrame(() => {
-          activeInkFrame = null
-          if (!destroyed) directory.dataset.navReady = 'true'
-        })
-      }
-      activeInkInitialized = true
-    } else {
-      applyMarker(marker)
-    }
-
-    previousActiveLeft = marker.left
-    currentMarker = marker
-    window.__alumniNavActiveMarker = marker
+    // 活跃背景和下划线由 CSS 伪元素绘制，运行时不读取布局几何，避免强制回流。
+    paper.style.opacity = '0'
+    ink.style.opacity = '0'
+    const direction = window.sessionStorage.getItem('vt-nav-dir') || document.documentElement.dataset.navDir
+    directory.dataset.navDirection = direction === 'back' ? 'backward' : 'forward'
+    directory.dataset.navReady = 'true'
+    directory.dataset.navRevealing = 'false'
+    currentMarker = { left: 0, paperWidth: 0, inkLeft: 0, inkWidth: 0 }
+    window.__alumniNavActiveMarker = currentMarker
   }
 
   function syncSession() {
@@ -318,6 +269,27 @@ export function initNavRuntime(): void {
     }
   })
   document.querySelectorAll<HTMLElement>('.mobile-drawer a').forEach((link) => listen(link, 'click', closeDrawer))
+  const prefetchedDocuments = new Set<string>()
+  const prefetchDocument = (event: Event) => {
+    const anchor = event.currentTarget as HTMLAnchorElement
+    const url = new URL(anchor.href, window.location.href)
+    if (url.origin !== window.location.origin || url.pathname === window.location.pathname || prefetchedDocuments.has(url.href)) return
+    prefetchedDocuments.add(url.href)
+    if (typeof HTMLScriptElement.supports === 'function' && HTMLScriptElement.supports('speculationrules')) {
+      const rules = document.createElement('script')
+      rules.type = 'speculationrules'
+      rules.textContent = JSON.stringify({ prerender: [{ source: 'list', urls: [url.href], eagerness: 'immediate' }] })
+      document.head.appendChild(rules)
+    }
+    const hint = document.createElement('link')
+    hint.rel = 'prefetch'
+    hint.href = url.href
+    document.head.appendChild(hint)
+  }
+  document.querySelectorAll<HTMLAnchorElement>('[data-nav-item], .drawer-link').forEach((link) => {
+    listen(link, 'pointerenter', prefetchDocument)
+    listen(link, 'focus', prefetchDocument)
+  })
   document.querySelectorAll<HTMLElement>('[data-nav-item], .drawer-link').forEach((link) => listen(link, 'click', () => {
     if (!currentMarker) return
     try {

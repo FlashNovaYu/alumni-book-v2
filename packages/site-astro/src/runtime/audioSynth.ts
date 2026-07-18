@@ -17,6 +17,10 @@ function getAudioContext(): AudioContext | null {
   return audioContext
 }
 
+export function hasAudioContext() {
+  return audioContext !== null
+}
+
 function resumeContext(context: AudioContext) {
   if (context.state === 'suspended') void context.resume()
 }
@@ -103,4 +107,15 @@ export function toggleAudioMuted() {
   setAudioMuted(next)
   if (!next) playCrystalTick()
   return next
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!audioContext) return
+    if (document.hidden) {
+      void audioContext.suspend()
+    } else if (audioContext.state === 'suspended') {
+      void audioContext.resume()
+    }
+  })
 }

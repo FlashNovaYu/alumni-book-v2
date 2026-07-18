@@ -112,14 +112,10 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
       <TopNav />
       <main class="main-content"><slot /></main>
       <script>
-        import { initGlobalReveal } from '../scripts/globalReveal'
-        import { initNavRuntime } from '../scripts/navRuntime'
-        import { initThemeRuntime } from '../scripts/themeRuntime'
-        import { initNavSession } from '../runtime/navSession'
-        import { initVolumeToggle } from '../runtime/volumeToggle'
+        let reinitAuxiliaryRuntime = () => {}
 
         function restoreStudentIdentityTarget() {
-          let slug = ''
+          let slug = sessionStorage.getItem('vt-student-return-slug') || ''
           try {
             const state = JSON.parse(sessionStorage.getItem('vt-student-identity-state') || 'null') as { slug?: unknown } | null
             if (typeof state?.slug === 'string') slug = state.slug
@@ -136,11 +132,23 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         }
 
         restoreStudentIdentityTarget()
-        initGlobalReveal(true)
-        initNavRuntime()
-        initThemeRuntime()
-        initNavSession(document.documentElement.dataset.apiBase || '')
-        initVolumeToggle()
+        void Promise.all([
+          import('../scripts/navRuntime'),
+          import('../scripts/globalReveal'),
+          import('../scripts/themeRuntime'),
+          import('../runtime/navSession'),
+          import('../runtime/volumeToggle'),
+        ]).then(([navRuntime, globalReveal, themeRuntime, navSession, volumeToggle]) => {
+          const apiBase = document.documentElement.dataset.apiBase || ''
+          reinitAuxiliaryRuntime = () => {
+            navRuntime.initNavRuntime()
+            globalReveal.initGlobalReveal(true)
+            themeRuntime.initThemeRuntime()
+            navSession.initNavSession(apiBase)
+            volumeToggle.initVolumeToggle()
+          }
+          reinitAuxiliaryRuntime()
+        })
 
         const order = ['/', '/preface/', '/roster/', '/class-space/', '/yearbook/', '/more/']
         const cleanPath = (path: string) => {
@@ -167,17 +175,34 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           document.documentElement.classList.add('is-navigating')
         }
 
+        let navigationResetTimer: ReturnType<typeof setTimeout> | null = null
+        const clearNavigationState = () => {
+          document.documentElement.classList.remove('is-navigating')
+          if (navigationResetTimer !== null) clearTimeout(navigationResetTimer)
+          navigationResetTimer = null
+        }
+
         const onDocumentClick = (event: MouseEvent) => {
           if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
           const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
           if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return
           const url = new URL(anchor.href, window.location.href)
           if (url.origin !== window.location.origin) return
+          if (url.pathname === window.location.pathname && url.search === window.location.search) return
+          const identityCard = anchor.closest<HTMLElement>('[data-student-identity-card]')
+          if (identityCard?.dataset.studentIdentityCard && url.pathname.includes('/student/')) {
+            sessionStorage.setItem('vt-student-return-slug', identityCard.dataset.studentIdentityCard)
+          }
           setNavigationState(url.href, event)
+          navigationResetTimer = setTimeout(clearNavigationState, 4000)
         }
         document.addEventListener('click', onDocumentClick, { capture: true, passive: true })
-        window.addEventListener('pageshow', () => {
-          document.documentElement.classList.remove('is-navigating')
+        window.addEventListener('pageshow', (event) => {
+          clearNavigationState()
+          if ((event as PageTransitionEvent).persisted) {
+            restoreStudentIdentityTarget()
+            reinitAuxiliaryRuntime()
+          }
           const direction = sessionStorage.getItem('vt-nav-dir')
           if (direction) document.documentElement.dataset.navDir = direction
           sessionStorage.removeItem('vt-nav-dir')
@@ -190,16 +215,17 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           sessionStorage.removeItem('vt-click-x')
           sessionStorage.removeItem('vt-click-y')
           document.documentElement.classList.remove('vt-mailbox')
-        }, { once: true })
-        window.addEventListener('pagehide', () => {
+        })
+        window.addEventListener('pagehide', (event) => {
+          if ((event as PageTransitionEvent).persisted) return
           document.removeEventListener('click', onDocumentClick, true)
           window.__alumniNavRuntime?.destroy()
           window.__alumniThemeRuntime?.destroy()
           window.__alumniVolumeRuntime?.destroy()
-        }, { once: true })
+        })
 
         function initCustomCursor() {
-          if (matchMedia('(pointer: coarse)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+          if (matchMedia('(pointer: coarse)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches || document.querySelector('.custom-cursor')) return
           const cursor = document.createElement('div')
           cursor.className = 'custom-cursor'
           cursor.setAttribute('data-cursor', '')
@@ -211,14 +237,26 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           let cursorX = 0
           let cursorY = 0
           let frame = 0
-          const onMove = (event: MouseEvent) => { mouseX = event.clientX; mouseY = event.clientY; cursor.classList.add('is-visible') }
+          const onMove = (event: MouseEvent) => {
+            mouseX = event.clientX
+            mouseY = event.clientY
+            cursor.classList.add('is-visible')
+            if (!frame) frame = requestAnimationFrame(tick)
+          }
           const onOver = (event: MouseEvent) => cursor.classList.toggle('is-hovered', Boolean((event.target as HTMLElement).closest('a,button,[role="button"]')))
-          const tick = () => { cursorX += (mouseX - cursorX) * 0.16; cursorY += (mouseY - cursorY) * 0.16; cursor.style.transform = `translate3d(${cursorX}px,${cursorY}px,0)`; frame = requestAnimationFrame(tick) }
+          const tick = () => {
+            cursorX += (mouseX - cursorX) * 0.16
+            cursorY += (mouseY - cursorY) * 0.16
+            cursor.style.transform = `translate3d(${cursorX}px,${cursorY}px,0)`
+            if (Math.abs(mouseX - cursorX) > 0.1 || Math.abs(mouseY - cursorY) > 0.1) frame = requestAnimationFrame(tick)
+            else frame = 0
+          }
           const cleanupCursor = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseover', onOver); cancelAnimationFrame(frame); cursor.remove(); document.documentElement.removeAttribute('data-custom-cursor') }
           document.addEventListener('mousemove', onMove, { passive: true })
           document.addEventListener('mouseover', onOver, { passive: true })
-          tick()
-          window.addEventListener('pagehide', cleanupCursor, { once: true })
+          window.addEventListener('pagehide', (event) => {
+            if (!(event as PageTransitionEvent).persisted) cleanupCursor()
+          })
         }
         initCustomCursor()
 
