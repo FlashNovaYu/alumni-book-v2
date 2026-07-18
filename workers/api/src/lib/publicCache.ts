@@ -7,7 +7,7 @@ const PUBLIC_PATHS = new Set([
   '/api/rankings',
   '/api/timeline',
 ])
-const TIMELINE_QUERY_VALUES = new Set(['event', 'message', 'photo', 'join'])
+const CANONICAL_TIMELINE_SEARCHES = new Set(['', '?type=event', '?type=message', '?type=photo', '?type=join'])
 
 function hasIdentityHeaders(request: Request): boolean {
   return Boolean(
@@ -26,10 +26,8 @@ export function isPublicStableGet(request: Request): boolean {
   if (request.method !== 'GET' || hasIdentityHeaders(request)) return false
   const url = new URL(request.url)
   if (!PUBLIC_PATHS.has(url.pathname)) return false
-  const keys = [...url.searchParams.keys()]
-  if (url.pathname !== '/api/timeline') return keys.length === 0
-  if (keys.length === 0) return true
-  return keys.length === 1 && keys[0] === 'type' && TIMELINE_QUERY_VALUES.has(url.searchParams.get('type') || '')
+  if (url.pathname !== '/api/timeline') return url.search === ''
+  return CANONICAL_TIMELINE_SEARCHES.has(url.search)
 }
 
 export function publicCacheControl(): string {
@@ -40,15 +38,23 @@ function mayUseEdgeCache(request: Request): boolean {
   return new URL(request.url).protocol === 'https:'
 }
 
+function canonicalPublicCacheKey(request: Request): Request | null {
+  if (!isPublicStableGet(request) || !mayUseEdgeCache(request)) return null
+  const url = new URL(request.url)
+  return new Request(`${url.origin}${url.pathname}${url.search}`, { method: 'GET' })
+}
+
 /** Cache failures must never change the API response. */
 export async function matchPublicCache(request: Request): Promise<Response | undefined> {
-  if (!isPublicStableGet(request) || !mayUseEdgeCache(request)) return undefined
-  return edgeCache().match(request).catch(() => undefined)
+  const key = canonicalPublicCacheKey(request)
+  if (!key) return undefined
+  return edgeCache().match(key).catch(() => undefined)
 }
 
 export function storePublicCache(request: Request, response: Response, waitUntil: (promise: Promise<unknown>) => void) {
-  if (!isPublicStableGet(request) || !mayUseEdgeCache(request) || !response.ok || response.headers.get('Cache-Control') !== PUBLIC_CACHE_CONTROL) return
-  waitUntil(edgeCache().put(request, response.clone()).catch(() => undefined))
+  const key = canonicalPublicCacheKey(request)
+  if (!key || !response.ok || response.headers.get('Cache-Control') !== PUBLIC_CACHE_CONTROL) return
+  waitUntil(edgeCache().put(key, response.clone()).catch(() => undefined))
 }
 
 export function clearPublicCache(request: Request, waitUntil: (promise: Promise<unknown>) => void) {

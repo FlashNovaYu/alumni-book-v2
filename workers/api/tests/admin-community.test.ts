@@ -220,7 +220,7 @@ describe('Admin group chat moderation API', () => {
       method: 'PUT', headers: adminHeaders(token), body: JSON.stringify({ reason: '时区禁言', mutedUntil: '2030-01-01T12:00:00+08:00' }),
     })
     expect(response.status).toBe(200)
-    await expect(env.DB.prepare('SELECT muted_until FROM group_chat_mutes WHERE student_slug = ?').bind(OTHER_SLUG).first()).resolves.toMatchObject({ muted_until: '2030-01-01T12:00:00+08:00' })
+    await expect(env.DB.prepare('SELECT muted_until FROM group_chat_mutes WHERE student_slug = ?').bind(OTHER_SLUG).first()).resolves.toMatchObject({ muted_until: '2030-01-01T04:00:00.000Z' })
   })
 
   it('makes concurrent mute and unmute write one audit and notification with mute content type', async () => {

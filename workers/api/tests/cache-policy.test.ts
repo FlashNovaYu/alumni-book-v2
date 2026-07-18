@@ -32,8 +32,10 @@ describe('dynamic API cache policy', () => {
   it('only shares canonical timeline query variants', async () => {
     const typed = await requestAt('https://cache-policy.test', '/api/timeline?type=event')
     expect(typed.headers.get('cache-control')).toContain('public')
-    const unknown = await requestAt('https://cache-policy.test', '/api/timeline?foo=event')
-    expect(unknown.headers.get('cache-control')).toContain('no-store')
+    for (const query of ['?foo=event', '?type=%65vent', '?%74ype=event', '?type=event&type=event', '?foo=event&type=event']) {
+      const unknown = await requestAt('https://cache-policy.test', `/api/timeline${query}`)
+      expect(unknown.headers.get('cache-control')).toContain('no-store')
+    }
   })
 
   it('never serves an anonymous public cache entry to an identity-bearing request', async () => {
@@ -49,6 +51,22 @@ describe('dynamic API cache policy', () => {
     const payload = await identity.json() as any
     expect(identity.headers.get('cache-control')).toContain('no-store')
     expect(payload.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'identity-cache-event' })]))
+  })
+
+  it('does not retain encoded query variants across a mapped write', async () => {
+    const edge = 'https://cache-encoded.test'
+    const encodedUrl = `${edge}/api/timeline?type=%65vent`
+    await caches.default.delete(new Request(encodedUrl))
+    const before = await requestAt(edge, '/api/timeline?type=%65vent')
+    expect(before.headers.get('cache-control')).toContain('no-store')
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO timeline_events (id, title, event_date) VALUES ('encoded-cache-event', '编码变体新事件', '2098-01-01')"
+    ).run()
+    await requestAt(edge, '/api/students/test_init/visit', {
+      method: 'POST', headers: { 'CF-Connecting-IP': 'cache-encoded-write' },
+    })
+    const after = await requestAt(edge, '/api/timeline?type=%65vent')
+    expect((await after.json() as any).data).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'encoded-cache-event' })]))
   })
 
   it('keeps all student projections private and varies by identity headers', async () => {

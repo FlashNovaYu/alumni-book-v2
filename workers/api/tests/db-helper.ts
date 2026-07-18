@@ -1,6 +1,12 @@
 import { applyD1Migrations } from 'cloudflare:test'
 
 import { hashPassword } from '../src/lib/password'
+import performanceIndexesMigration from '../migrations/0017_performance_indexes.sql?raw'
+import normalizeTimestampsMigration from '../migrations/0018_normalize_timestamps.sql?raw'
+
+function migrationQueries(source: string) {
+  return source.replace(/^\uFEFF/, '').trim().split(/;\s*\r?\n\s*\r?\n/).map((query) => query.trim()).filter(Boolean)
+}
 
 export const testMigrations = [
   { name: '0001_init', queries: [
@@ -372,26 +378,8 @@ export const testMigrations = [
     )`,
     `CREATE INDEX IF NOT EXISTS idx_public_request_limits_expires ON public_request_limits(expires_at)`,
   ]},
-  { name: '0017_performance_indexes', queries: [
-    `CREATE INDEX IF NOT EXISTS idx_photos_album_sort_order ON photos(album_id, sort_order, created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_albums_sort_created ON albums(sort_order, created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_unread ON direct_messages(conversation_id, recipient_slug, read_at, created_at DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_group_chat_history ON public_messages(status, created_at DESC, id DESC)`,
-  ]},
-  { name: '0018_normalize_timestamps', queries: [
-    `UPDATE direct_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', created_at) WHERE created_at NOT LIKE '%T%Z'`,
-    `UPDATE direct_conversations SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', created_at), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', updated_at) WHERE created_at NOT LIKE '%T%Z' OR updated_at NOT LIKE '%T%Z'`,
-    `UPDATE public_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', created_at), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', updated_at) WHERE created_at NOT LIKE '%T%Z' OR updated_at NOT LIKE '%T%Z'`,
-    `UPDATE classmate_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', expires_at) WHERE expires_at NOT LIKE '%T%Z'`,
-    `UPDATE admin_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', expires_at) WHERE expires_at NOT LIKE '%T%Z'`,
-    `CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_created AFTER INSERT ON direct_messages WHEN NEW.created_at NOT LIKE '%T%Z' BEGIN UPDATE direct_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at) WHERE id = NEW.id; END`,
-    `CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_updated AFTER UPDATE OF created_at ON direct_messages WHEN NEW.created_at NOT LIKE '%T%Z' BEGIN UPDATE direct_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at) WHERE id = NEW.id; END`,
-    `CREATE TRIGGER IF NOT EXISTS trg_direct_conversations_normalize_created AFTER INSERT ON direct_conversations WHEN NEW.created_at NOT LIKE '%T%Z' OR NEW.updated_at NOT LIKE '%T%Z' BEGIN UPDATE direct_conversations SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at) WHERE id = NEW.id; END`,
-    `CREATE TRIGGER IF NOT EXISTS trg_public_messages_normalize_timestamps AFTER INSERT ON public_messages WHEN NEW.created_at NOT LIKE '%T%Z' OR NEW.updated_at NOT LIKE '%T%Z' BEGIN UPDATE public_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at) WHERE id = NEW.id; END`,
-    `CREATE TRIGGER IF NOT EXISTS trg_public_messages_normalize_updates AFTER UPDATE OF created_at, updated_at ON public_messages WHEN NEW.created_at NOT LIKE '%T%Z' OR NEW.updated_at NOT LIKE '%T%Z' BEGIN UPDATE public_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at) WHERE id = NEW.id; END`,
-    `CREATE TRIGGER IF NOT EXISTS trg_classmate_sessions_normalize_expires AFTER INSERT ON classmate_sessions WHEN NEW.expires_at NOT LIKE '%T%Z' BEGIN UPDATE classmate_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at) WHERE token = NEW.token; END`,
-    `CREATE TRIGGER IF NOT EXISTS trg_admin_sessions_normalize_expires AFTER INSERT ON admin_sessions WHEN NEW.expires_at NOT LIKE '%T%Z' BEGIN UPDATE admin_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at) WHERE token = NEW.token; END`,
-  ]}
+  { name: '0017_performance_indexes', queries: migrationQueries(performanceIndexesMigration) },
+  { name: '0018_normalize_timestamps', queries: migrationQueries(normalizeTimestampsMigration) }
 ]
 
 export const TEST_LEGACY_ADMIN_PASSWORD = 'test-legacy-admin-password'
