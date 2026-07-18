@@ -58,7 +58,8 @@ describe('class post office static constraints', () => {
   it('adds profile write-mail entry without replacing profile message wall', () => {
     const source = read('components/StudentProfile.vue')
 
-    expect(source).toContain('profile-mail-actions')
+    expect(source).toContain('student-hero__actions')
+    expect(source).toContain("siteUrl('mailbox/?to='")
     expect(source).toContain('给 TA 写信')
     expect(source).toContain('MessageWall')
   })
