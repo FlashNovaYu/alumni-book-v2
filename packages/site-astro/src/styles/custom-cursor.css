@@ -1,0 +1,62 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CUSTOM CURSOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (pointer: fine) {
+  html[data-custom-cursor],
+  html[data-custom-cursor] body,
+  html[data-custom-cursor] a,
+  html[data-custom-cursor] button,
+  html[data-custom-cursor] [role="button"],
+  html[data-custom-cursor] input,
+  html[data-custom-cursor] textarea {
+    cursor: none !important;
+  }
+
+  .custom-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    opacity: 0;
+    pointer-events: none;
+    z-index: var(--z-cursor);
+    transform: translate3d(0, 0, 0) translate(-50%, -50%);
+    mix-blend-mode: difference;
+    transition:
+      width 0.28s var(--ease-out-expo),
+      height 0.28s var(--ease-out-expo),
+      background-color 0.28s var(--ease-out-expo),
+      border 0.28s var(--ease-out-expo),
+      opacity 0.2s ease;
+  }
+
+  .custom-cursor.is-visible {
+    opacity: 0.9;
+  }
+
+  .custom-cursor.is-hovered {
+    width: 46px;
+    height: 46px;
+    background-color: transparent;
+    border: 1.5px solid var(--accent);
+    mix-blend-mode: normal;
+  }
+
+  .custom-cursor__icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .custom-cursor.is-hovered .custom-cursor__icon {
+    opacity: 1;
+  }
+}

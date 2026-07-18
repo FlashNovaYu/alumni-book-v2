@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENT PRIMITIVES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Card ── */
+.card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  transition:
+    transform var(--duration-normal) var(--ease-out-expo),
+    box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.card--elevated {
+  box-shadow: var(--shadow-md);
+}
+
+.card--ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+/* ── Button ── */
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--btn-height);
+  padding: 0 var(--btn-padding);
+  font-size: var(--type-body-md);
+  font-weight: var(--weight-medium);
+  border-radius: var(--btn-radius);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-out-expo);
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-active);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-soft);
+  border-color: var(--border-strong);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+.btn-danger {
+  background-color: var(--error);
+  color: var(--bg-raised);
+}
+
+.btn-danger:hover {
+  background-color: #b03e3e;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn-sm {
+  height: var(--btn-height-sm);
+  padding: 0 var(--btn-padding-sm);
+  font-size: var(--type-body-sm);
+  border-radius: var(--btn-radius-sm);
+}
+
+.btn-icon {
+  width: var(--btn-height);
+  height: var(--btn-height);
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+.btn-icon-sm {
+  width: var(--btn-height-sm);
+  height: var(--btn-height-sm);
+  padding: 0;
+}
+
+/* ── Input ── */
+.text-input {
+  width: 100%;
+  height: var(--input-height);
+  padding: 0 var(--input-padding);
+  font-size: var(--type-body-lg);
+  font-weight: var(--weight-regular);
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-out-expo);
+}
+
+.text-input::placeholder {
+  color: var(--text-dim);
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+}
+
+.badge--default { background: var(--bg-soft); color: var(--text-secondary); }
+.badge--accent { background: var(--accent-soft); color: var(--accent); }
+.badge--success { background: rgba(93, 184, 114, 0.12); color: #3a8f52; }
+.badge--warning { background: rgba(212, 160, 23, 0.12); color: #a07810; }
+.badge--error { background: rgba(198, 69, 69, 0.12); color: #b03e3e; }
+
+/* ── Tag ── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-size: var(--type-caption);
+}

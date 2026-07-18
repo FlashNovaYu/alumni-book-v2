@@ -10,7 +10,7 @@ function read(relativePath: string) {
 
 describe('responsive vintage paper redesign static constraints', () => {
   it('defines the vintage paper token family used by public pages', () => {
-    const tokens = read('styles/tokens.css')
+    const tokens = fs.readFileSync(path.resolve(__dirname, '../../shared/src/tokens.css'), 'utf-8')
 
     expect(tokens).toContain('--color-paper-bg')
     expect(tokens).toContain('--color-paper-card')

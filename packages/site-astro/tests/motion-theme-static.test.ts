@@ -31,20 +31,21 @@ describe('夜读主题基础层', () => {
 
   it('通过夜读令牌和独立根转场实现水波，而不影响信箱水波', () => {
     const runtime = read('scripts/themeRuntime.ts')
-    const tokens = read('styles/tokens.css')
-    const global = read('styles/global.css')
+    const sharedTokens = read('../../shared/src/tokens.css')
+    const siteTokens = read('styles/tokens.css')
+    const viewTransitions = read('styles/view-transitions.css')
 
     expect(runtime).toContain("classList.add('theme-transition')")
     expect(runtime).toContain("classList.remove('theme-transition')")
-    expect(tokens).toContain("html[data-theme='night']")
-    expect(tokens).toContain('--color-paper-bg: #20252d')
-    expect(tokens).toContain('--color-paper-card: #28313c')
-    expect(global).toContain('html.theme-transition::view-transition-new(root)')
-    expect(global).toContain('html.theme-transition .page-shell')
-    expect(global).toContain('html.theme-transition [data-page-heading]')
-    expect(global).toContain('view-transition-name: none !important')
-    expect(global).toContain("html[data-theme='night'] .page-shell")
-    expect(global).toContain('html.vt-mailbox::view-transition-new(root)')
+    expect(sharedTokens).toContain("html[data-theme='night']")
+    expect(sharedTokens).toContain('--color-paper-bg: var(--bg)')
+    expect(sharedTokens).toContain('--color-paper-card: var(--bg-surface)')
+    expect(siteTokens).toContain('--texture-paper-fiber:')
+    expect(viewTransitions).toContain('html.theme-transition::view-transition-new(root)')
+    expect(viewTransitions).toContain('html.theme-transition .page-shell')
+    expect(viewTransitions).toContain('html.theme-transition [data-page-heading]')
+    expect(viewTransitions).toContain('view-transition-name: none !important')
+    expect(viewTransitions).toContain('html.vt-mailbox::view-transition-new(root)')
   })
 
   it('只为普通栏目页提供唯一的共享标题锚点', () => {
@@ -65,14 +66,14 @@ describe('夜读主题基础层', () => {
   })
 
   it('为共享标题提供独立的前进与后退转场', () => {
-    const global = read('styles/global.css')
+    const viewTransitions = read('styles/view-transitions.css')
     const layout = read('layouts/MainLayout.astro')
 
-    expect(global).toContain('::view-transition-old(page-heading)')
-    expect(global).toContain('::view-transition-new(page-heading)')
-    expect(global).toContain('@keyframes page-heading-enter-right')
-    expect(global).toContain('@keyframes page-heading-exit-left')
-    expect(global).toContain('@keyframes page-heading-sweep')
+    expect(viewTransitions).toContain('::view-transition-old(page-heading)')
+    expect(viewTransitions).toContain('::view-transition-new(page-heading)')
+    expect(viewTransitions).toContain('@keyframes page-heading-enter-right')
+    expect(viewTransitions).toContain('@keyframes page-heading-exit-left')
+    expect(read('styles/animations.css')).toContain('@keyframes pageHeadingSweep')
     expect(layout).toContain("'/class-space/'")
     expect(layout).toContain("'/yearbook/'")
     expect(layout).toContain("'/more/'")

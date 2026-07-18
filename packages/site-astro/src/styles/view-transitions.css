@@ -1,0 +1,152 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VIEW TRANSITIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.page-shell {
+  view-transition-name: page-main;
+}
+
+/* 前进方向 */
+html[data-nav-dir=forward]::view-transition-old(page-main) {
+  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-left;
+}
+
+html[data-nav-dir=forward]::view-transition-new(page-main) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-right;
+}
+
+/* 后退方向 */
+html[data-nav-dir=back]::view-transition-old(page-main) {
+  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-right;
+}
+
+html[data-nav-dir=back]::view-transition-new(page-main) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-left;
+}
+
+@keyframes page-exit-left {
+  to { transform: translateX(-40px); opacity: 0; }
+}
+
+@keyframes page-enter-right {
+  from { transform: translateX(40px); opacity: 0; }
+}
+
+@keyframes page-exit-right {
+  to { transform: translateX(40px); opacity: 0; }
+}
+
+@keyframes page-enter-left {
+  from { transform: translateX(-40px); opacity: 0; }
+}
+
+/* Heading 过渡 */
+::view-transition-group(page-heading) {
+  animation-duration: 0.34s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-nav-dir='forward']::view-transition-old(page-heading) {
+  animation: 0.22s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-left;
+}
+
+html[data-nav-dir='forward']::view-transition-new(page-heading) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-right;
+}
+
+html[data-nav-dir='back']::view-transition-old(page-heading) {
+  animation: 0.22s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-right;
+}
+
+html[data-nav-dir='back']::view-transition-new(page-heading) {
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-left;
+}
+
+@keyframes page-heading-exit-left {
+  to { transform: translateX(-30px); opacity: 0; }
+}
+
+@keyframes page-heading-enter-right {
+  from { transform: translateX(30px); opacity: 0; }
+}
+
+@keyframes page-heading-exit-right {
+  to { transform: translateX(30px); opacity: 0; }
+}
+
+@keyframes page-heading-enter-left {
+  from { transform: translateX(-30px); opacity: 0; }
+}
+
+/* Heading sweep */
+.page-header__title-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.page-header__title-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: pageHeadingSweep 1.8s var(--ease-out-expo) forwards;
+}
+
+/* 特殊过渡 */
+html.vt-mailbox::view-transition-old(root) {
+  mix-blend-mode: normal;
+  animation: none !important;
+  z-index: 1;
+}
+
+html.vt-mailbox::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation: none !important;
+  z-index: 2147483646;
+}
+
+html.theme-transition::view-transition-old(root) {
+  animation: none;
+  z-index: 1;
+}
+
+html.theme-transition::view-transition-new(root) {
+  animation: none;
+  z-index: 2147483646;
+}
+
+html.theme-transition .page-shell,
+html.theme-transition [data-page-heading] {
+  view-transition-name: none !important;
+}
+
+.student-page .detail-content-enter {
+  animation: pageFadeIn 0.5s var(--ease-out-expo) forwards;
+}
+
+/* View Transitions reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  .page-shell {
+    view-transition-name: none !important;
+  }
+
+  [style*="view-transition-name"] {
+    view-transition-name: none !important;
+  }
+
+  ::view-transition-group(page-heading),
+  ::view-transition-old(page-heading),
+  ::view-transition-new(page-heading),
+  .page-header__title-sweep {
+    animation: none !important;
+  }
+
+  .student-page .detail-content-enter {
+    animation: none !important;
+  }
+}
