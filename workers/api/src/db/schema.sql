@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
   admin_account_id TEXT,
   expires_at TEXT NOT NULL,
   revoked_at TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (admin_account_id) REFERENCES admin_accounts(id)
 );
 
@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS classmate_sessions (
   token TEXT PRIMARY KEY,
   student_slug TEXT NOT NULL,
   expires_at TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (student_slug) REFERENCES students(slug) ON DELETE CASCADE
 );
 
@@ -295,9 +295,6 @@ CREATE INDEX IF NOT EXISTS idx_direct_messages_history
 CREATE INDEX IF NOT EXISTS idx_direct_messages_unread
   ON direct_messages(recipient_slug, read_at, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_cursor
-  ON direct_messages(conversation_id, created_at DESC, id DESC);
-
 CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_unread
   ON direct_messages(conversation_id, recipient_slug, read_at, created_at DESC);
 
@@ -344,6 +341,20 @@ BEGIN
   SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at),
       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at)
   WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_classmate_sessions_normalize_expires
+AFTER INSERT ON classmate_sessions
+WHEN NEW.expires_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE classmate_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at) WHERE token = NEW.token;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_admin_sessions_normalize_expires
+AFTER INSERT ON admin_sessions
+WHEN NEW.expires_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE admin_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at) WHERE token = NEW.token;
 END;
 
 CREATE TABLE IF NOT EXISTS content_reviews (

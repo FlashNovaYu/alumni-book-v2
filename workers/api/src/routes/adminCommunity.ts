@@ -134,7 +134,7 @@ adminCommunityRoutes.get('/admin/notifications/history', async (c) => {
     FROM notifications
     WHERE related_type = 'admin_notice' AND related_id IS NOT NULL
     GROUP BY related_id
-    ORDER BY MAX(julianday(created_at)) DESC, related_id DESC
+    ORDER BY MAX(created_at) DESC, related_id DESC
     LIMIT ? OFFSET ?
   `).bind(limit, offset).all()
   return c.json({

@@ -112,7 +112,7 @@ export async function requireAdminSession(c: Context, next: Next): Promise<Respo
 
   const session = await c.env.DB.prepare(
     `SELECT admin_account_id FROM admin_sessions
-     WHERE token = ? AND revoked_at IS NULL AND julianday(expires_at) > julianday('now')`
+     WHERE token = ? AND revoked_at IS NULL AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
   ).bind(token).first() as { admin_account_id: string | null } | null
   if (!session?.admin_account_id) return c.json({ success: false, message: '管理会话已失效' }, 401)
 

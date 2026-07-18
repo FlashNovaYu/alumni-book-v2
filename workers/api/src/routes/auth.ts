@@ -78,7 +78,7 @@ async function createAdminSession(db: D1Database, accountId: string, secret: str
     ADMIN_SESSION_TTL_SECONDS,
   )
   await db.prepare(
-    "INSERT INTO admin_sessions (token, admin_account_id, expires_at) VALUES (?, ?, datetime('now', '+8 hours'))"
+    "INSERT INTO admin_sessions (token, admin_account_id, expires_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+8 hours'))"
   ).bind(token, accountId).run()
   return token
 }

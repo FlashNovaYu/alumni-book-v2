@@ -28,10 +28,11 @@ function normalizeInput(input: CreateGroupChatMessageInput) {
   return { content, clientNonce, replyToId, cardStyle }
 }
 
-function retryAfterSeconds(earliestJulianDay: unknown, windowSeconds: number) {
-  const earliest = Number(earliestJulianDay)
-  const now = Date.now() / 86_400_000 + 2_440_587.5
-  return Math.max(1, Math.ceil(windowSeconds - (now - earliest) * 86_400))
+function retryAfterSeconds(earliestTimestamp: unknown, windowSeconds: number) {
+  const earliest = Date.parse(String(earliestTimestamp || ''))
+  return Number.isFinite(earliest)
+    ? Math.max(1, Math.ceil(windowSeconds - (Date.now() - earliest) / 1000))
+    : windowSeconds
 }
 
 export async function createGroupChatMessage(
@@ -76,10 +77,10 @@ export async function createGroupChatMessage(
   const now = new Date().toISOString()
   const [recent, hourly] = await Promise.all([
     db.prepare(
-      "SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-30 seconds')"
+      "SELECT COUNT(*) AS count, MIN(created_at) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 seconds')"
     ).bind(identity.slug).first(),
     db.prepare(
-      "SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-1 hour')"
+      "SELECT COUNT(*) AS count, MIN(created_at) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')"
     ).bind(identity.slug).first(),
   ])
   const recentCount = Number((recent as any)?.count || 0)
@@ -102,19 +103,19 @@ export async function createGroupChatMessage(
      WHERE NOT EXISTS (
        SELECT 1 FROM group_chat_mutes
        WHERE student_slug = ?
-         AND (muted_until IS NULL OR julianday(muted_until) > julianday('now'))
+         AND (muted_until IS NULL OR muted_until > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
      )
      AND (
        SELECT COUNT(*) FROM public_messages
        WHERE author_slug = ?
          AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin')
-         AND julianday(created_at) >= julianday('now', '-30 seconds')
+         AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 seconds')
      ) < 6
      AND (
        SELECT COUNT(*) FROM public_messages
        WHERE author_slug = ?
          AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin')
-         AND julianday(created_at) >= julianday('now', '-1 hour')
+         AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')
      ) < 60
      ON CONFLICT(author_slug, client_nonce) WHERE client_nonce IS NOT NULL DO NOTHING`
   ).bind(id, identity.slug, identity.name, content, cardStyle, replyToId, clientNonce, now, now, identity.slug, identity.slug, identity.slug).run()
@@ -132,10 +133,10 @@ export async function createGroupChatMessage(
     }
     const [latestRecent, latestHourly] = await Promise.all([
       db.prepare(
-        "SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-30 seconds')"
+        "SELECT COUNT(*) AS count, MIN(created_at) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 seconds')"
       ).bind(identity.slug).first(),
       db.prepare(
-        "SELECT COUNT(*) AS count, MIN(julianday(created_at)) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND julianday(created_at) >= julianday('now', '-1 hour')"
+        "SELECT COUNT(*) AS count, MIN(created_at) AS earliest FROM public_messages WHERE author_slug = ? AND status IN ('visible', 'recalled_by_author', 'recalled_by_admin') AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour')"
       ).bind(identity.slug).first(),
     ])
     const latestRecentCount = Number((latestRecent as any)?.count || 0)

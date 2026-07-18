@@ -138,7 +138,7 @@ classmateRoutes.post('/classmate/token', async (c) => {
   await clearAuthFailures(db, rateLimitKey)
   const token = await generateClassmateToken(slug, await getClassmateSecret(c.env.JWT_SECRET))
   await db.prepare(
-    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"
+    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+7 days'))"
   ).bind(token, slug).run()
 
   return c.json({

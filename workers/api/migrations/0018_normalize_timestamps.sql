@@ -18,6 +18,14 @@ UPDATE group_chat_mutes
 SET muted_until = strftime('%Y-%m-%dT%H:%M:%fZ', muted_until)
 WHERE muted_until IS NOT NULL AND muted_until NOT LIKE '%T%Z';
 
+UPDATE classmate_sessions
+SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', expires_at)
+WHERE expires_at NOT LIKE '%T%Z';
+
+UPDATE admin_sessions
+SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', expires_at)
+WHERE expires_at NOT LIKE '%T%Z';
+
 CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_created
 AFTER INSERT ON direct_messages
 WHEN NEW.created_at NOT LIKE '%T%Z'
@@ -60,4 +68,18 @@ BEGIN
   SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at),
       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at)
   WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_classmate_sessions_normalize_expires
+AFTER INSERT ON classmate_sessions
+WHEN NEW.expires_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE classmate_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at) WHERE token = NEW.token;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_admin_sessions_normalize_expires
+AFTER INSERT ON admin_sessions
+WHEN NEW.expires_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE admin_sessions SET expires_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at) WHERE token = NEW.token;
 END;

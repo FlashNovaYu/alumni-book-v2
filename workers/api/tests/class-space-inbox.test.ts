@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
 import { decodeCursor } from '../src/lib/cursor'
-import { OVERVIEW_CHAT_SCAN_LIMIT } from '../src/routes/classSpace'
+import { listOverviewChat, OVERVIEW_CHAT_SCAN_LIMIT } from '../src/routes/classSpace'
 
 const CLASSMATE_NAME = '信箱测试同学'
 const CLASSMATE_SLUG = 'test-classmate-inbox'
@@ -93,6 +93,27 @@ beforeAll(async () => {
 describe('Class space overview API', () => {
   it('caps hidden-message history scanning at one hundred rows', () => {
     expect(OVERVIEW_CHAT_SCAN_LIMIT).toBe(100)
+  })
+
+  it('stops scanning after one hundred hidden rows instead of paging without bound', async () => {
+    const requestedLimits: number[] = []
+    let produced = 0
+    const loadPage = async (_db: D1Database, _slug: string, options: any) => {
+      requestedLimits.push(options.limit)
+      const count = Math.min(options.limit, 101 - produced)
+      const page = Array.from({ length: count }, (_, offset) => ({
+        id: `hidden-${produced + offset}`,
+        status: 'hidden',
+        createdAt: new Date(Date.UTC(2020, 0, 1, 0, 0, produced + offset)).toISOString(),
+      })) as any
+      produced += count
+      return page
+    }
+    const result = await listOverviewChat(env.DB, 'scan-cap-slug', loadPage as any)
+    expect(result.scanned).toBe(100)
+    expect(requestedLimits).toEqual([30, 30, 30, 10])
+    expect(requestedLimits.reduce((sum, limit) => sum + limit, 0)).toBe(100)
+    expect(result.items).toHaveLength(0)
   })
 
   it('requires a classmate token', async () => {

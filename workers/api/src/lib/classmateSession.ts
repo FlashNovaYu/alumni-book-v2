@@ -20,7 +20,7 @@ export async function createClassmateSession(db: D1Database, slug: string, secre
   const signature = await hmacSign(`${slug}:${issuedAt}:${nonce}`, secret)
   const token = `${base64url(slug)}.${issuedAt}.${nonce}.${signature}`
   await db.prepare(
-    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"
+    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+7 days'))"
   ).bind(token, slug).run()
   return token
 }
@@ -28,7 +28,7 @@ export async function createClassmateSession(db: D1Database, slug: string, secre
 export async function verifyClassmateSession(db: D1Database, token: string | null | undefined): Promise<string | null> {
   if (!token) return null
   const row = await db.prepare(
-    "SELECT student_slug FROM classmate_sessions WHERE token = ? AND julianday(expires_at) > julianday('now')"
+    "SELECT student_slug FROM classmate_sessions WHERE token = ? AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
   ).bind(token).first() as any
   return row?.student_slug || null
 }

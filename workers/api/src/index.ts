@@ -718,7 +718,7 @@ async function resolveStudentViewer(c: any): Promise<StudentViewer> {
     try {
       const session = await c.env.DB.prepare(
         `SELECT admin_account_id FROM admin_sessions
-         WHERE token = ? AND revoked_at IS NULL AND julianday(expires_at) > julianday('now')`
+         WHERE token = ? AND revoked_at IS NULL AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
       ).bind(adminToken).first() as { admin_account_id: string } | null
       const admin = session ? await loadActiveAdmin(c.env.DB, session.admin_account_id) : null
       if (admin && !admin.mustChangePassword && hasPermission(admin, 'students.manage')) return { kind: 'admin' }

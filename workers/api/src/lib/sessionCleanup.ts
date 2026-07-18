@@ -7,17 +7,13 @@ type CleanupResult = {
   publicRequestLimits: number
 }
 
-function sqliteDate(value: Date) {
-  return value.toISOString().slice(0, 19).replace('T', ' ')
-}
-
 function changedRows(result: D1Result<unknown>) {
   return Number(result.meta?.changes || 0)
 }
 
 /** 清理已过期的认证记录；不触碰仍在有效期内的会话或限流计数。 */
 export async function cleanupExpiredSessions(db: D1Database, now = new Date()): Promise<CleanupResult> {
-  const expiresBefore = sqliteDate(now)
+  const expiresBefore = now.toISOString()
   const nowSeconds = Math.floor(now.getTime() / 1000)
   const attemptsBefore = nowSeconds - AUTH_FAILURE_WINDOW_SECONDS
   const [classmate, admin, attempts, publicRequestLimits] = await db.batch([

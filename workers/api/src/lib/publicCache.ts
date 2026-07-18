@@ -7,6 +7,7 @@ const PUBLIC_PATHS = new Set([
   '/api/rankings',
   '/api/timeline',
 ])
+const TIMELINE_QUERY_VALUES = new Set(['event', 'message', 'photo', 'join'])
 
 function hasIdentityHeaders(request: Request): boolean {
   return Boolean(
@@ -22,9 +23,13 @@ function edgeCache(): Cache {
 
 /** Only cache fixed, anonymous public JSON endpoints. The full URL retains query variants. */
 export function isPublicStableGet(request: Request): boolean {
-  return request.method === 'GET'
-    && !hasIdentityHeaders(request)
-    && PUBLIC_PATHS.has(new URL(request.url).pathname)
+  if (request.method !== 'GET' || hasIdentityHeaders(request)) return false
+  const url = new URL(request.url)
+  if (!PUBLIC_PATHS.has(url.pathname)) return false
+  const keys = [...url.searchParams.keys()]
+  if (url.pathname !== '/api/timeline') return keys.length === 0
+  if (keys.length === 0) return true
+  return keys.length === 1 && keys[0] === 'type' && TIMELINE_QUERY_VALUES.has(url.searchParams.get('type') || '')
 }
 
 export function publicCacheControl(): string {

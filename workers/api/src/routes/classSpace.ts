@@ -14,22 +14,31 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
 export const OVERVIEW_CHAT_WINDOW = 30
 export const OVERVIEW_CHAT_SCAN_LIMIT = 100
 
+export async function listOverviewChat(
+  db: D1Database,
+  slug: string,
+  loadPage: typeof listGroupMessages = listGroupMessages,
+) {
+  const chatItems: any[] = []
+  let before: CursorValue | undefined
+  let scanned = 0
+  while (chatItems.length < OVERVIEW_CHAT_WINDOW && scanned < OVERVIEW_CHAT_SCAN_LIMIT) {
+    const limit = Math.min(OVERVIEW_CHAT_WINDOW, OVERVIEW_CHAT_SCAN_LIMIT - scanned)
+    const page = await loadPage(db, slug, { before, includeStatusChanges: true, limit })
+    scanned += page.length
+    chatItems.unshift(...page.filter((item) => item.status !== 'hidden'))
+    if (page.length < limit) break
+    const oldest = page[0]
+    before = { timestamp: oldest.createdAt, id: oldest.id }
+  }
+  return { items: chatItems.slice(-OVERVIEW_CHAT_WINDOW), scanned }
+}
+
 classSpaceRoutes.get('/class-space/overview', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
 
-  const chatItems = []
-  let before: CursorValue | undefined
-  let scanned = 0
-  while (chatItems.length < OVERVIEW_CHAT_WINDOW && scanned < OVERVIEW_CHAT_SCAN_LIMIT) {
-    const page = await listGroupMessages(c.env.DB, identity.slug, { before, includeStatusChanges: true, limit: OVERVIEW_CHAT_WINDOW })
-    scanned += page.length
-    chatItems.unshift(...page.filter((item) => item.status !== 'hidden'))
-    if (page.length < OVERVIEW_CHAT_WINDOW) break
-    const oldest = page[0]
-    before = { timestamp: oldest.createdAt, id: oldest.id }
-  }
-  const chat = chatItems.slice(-OVERVIEW_CHAT_WINDOW)
+  const chat = (await listOverviewChat(c.env.DB, identity.slug)).items
 
   const [albumRows, groupMessageCount, albumCount, timeline, mute] = await Promise.all([
     c.env.DB.prepare(

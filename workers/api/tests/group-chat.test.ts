@@ -325,7 +325,6 @@ describe('Group chat API', () => {
 
     expect(sql.length).toBeLessThanOrEqual(2)
     expect(sql.some((statement) => /group_chat_reactions[\s\S]*message_id IN/i.test(statement))).toBe(true)
-    expect(sql.join('\n')).not.toContain('julianday(pm.created_at)')
     expect(message).toMatchObject({ reactionCounts: { '👍': 3 }, myReaction: null })
   })
 

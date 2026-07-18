@@ -29,6 +29,28 @@ describe('dynamic API cache policy', () => {
     },
   )
 
+  it('only shares canonical timeline query variants', async () => {
+    const typed = await requestAt('https://cache-policy.test', '/api/timeline?type=event')
+    expect(typed.headers.get('cache-control')).toContain('public')
+    const unknown = await requestAt('https://cache-policy.test', '/api/timeline?foo=event')
+    expect(unknown.headers.get('cache-control')).toContain('no-store')
+  })
+
+  it('never serves an anonymous public cache entry to an identity-bearing request', async () => {
+    const edge = 'https://cache-identity.test'
+    await caches.default.delete(new Request(`${edge}/api/timeline?type=event`))
+    await requestAt(edge, '/api/timeline?type=event')
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO timeline_events (id, title, event_date) VALUES ('identity-cache-event', '身份请求新事件', '2099-01-01')"
+    ).run()
+    const identity = await requestAt(edge, '/api/timeline?type=event', {
+      headers: { 'X-Classmate-Token': 'identity-cache-token' },
+    })
+    const payload = await identity.json() as any
+    expect(identity.headers.get('cache-control')).toContain('no-store')
+    expect(payload.data).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'identity-cache-event' })]))
+  })
+
   it('keeps all student projections private and varies by identity headers', async () => {
     const response = await request('/api/students', {
       headers: { 'X-Classmate-Token': 'not-a-valid-token' },
@@ -123,5 +145,13 @@ describe('dynamic API cache policy', () => {
     expect(anonymous.headers.get('cache-control')).toContain('private')
     expect(identity.headers.get('cache-control')).toContain('private')
     expect(anonymous.headers.get('etag')).toBeNull()
+
+    const warmedTimeline = await requestAt(edge, '/api/timeline?type=event')
+    expect(warmedTimeline.headers.get('cache-control')).toContain('public')
+    await requestAt(edge, '/api/students/test_init/visit', {
+      method: 'POST', headers: { 'CF-Connecting-IP': 'cache-invalidation-test-2' },
+    })
+    const timelineAfterWrite = await caches.default.match(new Request(`${edge}/api/timeline?type=event`))
+    expect(timelineAfterWrite).toBeUndefined()
   })
 })

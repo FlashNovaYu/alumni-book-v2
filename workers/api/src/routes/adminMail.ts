@@ -29,7 +29,7 @@ async function adminGuard(c: any, next: any) {
       }
 
       const session = await c.env.DB.prepare(
-        "SELECT token FROM admin_sessions WHERE token = ? AND julianday(expires_at) > julianday('now')"
+        "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
       ).bind(token).first()
 
       if (!session) {
