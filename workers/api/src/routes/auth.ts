@@ -3,6 +3,14 @@ import { hashPassword, verifyPassword } from '../lib/password'
 import { getAdminPrincipal, loadActiveAdmin, requireAdminSession } from '../lib/adminAuth'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { runAuditedBatch } from '../lib/adminAudit'
+import {
+  checkAuthRateLimit,
+  clearAuthFailures,
+  clientIp,
+  normalizeAccount,
+  rateLimitResponse,
+  recordAuthFailure,
+} from '../lib/authRateLimit'
 
 type Bindings = {
   DB: D1Database
@@ -74,22 +82,36 @@ async function createAdminSession(db: D1Database, accountId: string, secret: str
   return token
 }
 
-async function legacyPasswordIsValid(db: D1Database, password: string): Promise<boolean> {
-  const config = await db.prepare("SELECT value FROM site_config WHERE key = 'admin_password'").first<{ value: string }>()
-  return config ? verifyPassword(password, config.value) : password === 'admin888'
-}
-
 authRoutes.post('/login', async (c) => {
   const body = await c.req.json().catch(() => ({})) as { username?: string; password?: string }
+  const rateLimitKey = {
+    route: 'admin-login',
+    ip: clientIp(c.req.raw),
+    account: normalizeAccount(body.username || '<setup>'),
+  }
+  const currentLimit = await checkAuthRateLimit(c.env.DB, rateLimitKey)
+  if (currentLimit.limited) return rateLimitResponse(c, currentLimit)
+
+  const failedLogin = async (message: string, status: 400 | 401 | 503) => {
+    if (status === 401) {
+      const nextLimit = await recordAuthFailure(c.env.DB, rateLimitKey)
+      if (nextLimit.limited) return rateLimitResponse(c, nextLimit)
+    }
+    return c.json({ success: false, message }, status)
+  }
+
   const owner = await c.env.DB.prepare(
     'SELECT id FROM admin_accounts WHERE is_owner = 1 AND status = \'active\''
   ).first<{ id: string }>()
 
   if (!owner) {
+    const config = await c.env.DB.prepare("SELECT value FROM site_config WHERE key = 'admin_password'").first<{ value: string }>()
+    if (!config) return failedLogin('管理员认证尚未配置', 503)
     const password = String(body.password || '')
-    if (!password || !(await legacyPasswordIsValid(c.env.DB, password))) {
-      return c.json({ success: false, message: '管理密码错误' }, 401)
+    if (!password || !(await verifyPassword(password, config.value))) {
+      return failedLogin('管理密码错误', 401)
     }
+    await clearAuthFailures(c.env.DB, rateLimitKey)
     const setupToken = await createToken({ kind: 'admin_setup' }, c.env.JWT_SECRET, ADMIN_SETUP_TTL_SECONDS)
     return c.json({ success: true, data: { setupToken } })
   }
@@ -103,9 +125,10 @@ authRoutes.post('/login', async (c) => {
      WHERE username = ? AND account_type = 'standalone' AND status = 'active'`
   ).bind(username).first<{ id: string; password_hash: string }>()
   if (!account || !(await verifyPassword(password, account.password_hash))) {
-    return c.json({ success: false, message: '用户名或密码错误' }, 401)
+    return failedLogin('用户名或密码错误', 401)
   }
 
+  await clearAuthFailures(c.env.DB, rateLimitKey)
   await c.env.DB.prepare(
     "UPDATE admin_accounts SET last_login_at = datetime('now') WHERE id = ?"
   ).bind(account.id).run()

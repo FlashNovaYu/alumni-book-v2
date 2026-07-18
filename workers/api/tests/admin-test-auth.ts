@@ -1,3 +1,5 @@
+import { TEST_LEGACY_ADMIN_PASSWORD } from './db-helper'
+
 type TestRequest = (path: string, options?: RequestInit) => Promise<Response>
 
 const TEST_USERNAME = 'test-owner'
@@ -7,7 +9,7 @@ export async function loginTestAdmin(request: TestRequest): Promise<string> {
   const legacy = await request('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: 'admin888' }),
+    body: JSON.stringify({ password: TEST_LEGACY_ADMIN_PASSWORD }),
   })
   const legacyBody = await legacy.json() as any
   if (legacyBody.data?.token) return legacyBody.data.token

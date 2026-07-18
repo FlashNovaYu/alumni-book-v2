@@ -2,6 +2,14 @@ import { Hono } from 'hono'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { validateImageUpload } from '../lib/imageValidation'
+import {
+  checkAuthRateLimit,
+  clearAuthFailures,
+  clientIp,
+  normalizeAccount,
+  rateLimitResponse,
+  recordAuthFailure,
+} from '../lib/authRateLimit'
 
 type Bindings = {
   DB: D1Database
@@ -84,32 +92,49 @@ async function authClassmate(c: any): Promise<string | null> {
 // POST /api/classmate/token — 获取编辑凭证
 classmateRoutes.post('/classmate/token', async (c) => {
   const db = c.env.DB
-  const { name, slug, editSecret } = await c.req.json()
+  const body = await c.req.json().catch(() => ({})) as { name?: string; slug?: string; editSecret?: string }
+  const name = String(body.name || '').trim()
+  const slug = String(body.slug || '').trim()
+  const editSecret = String(body.editSecret || '')
 
   if (!name || !slug) {
     return c.json({ success: false, message: '姓名和 slug 必填' }, 400)
   }
 
+  const rateLimitKey = {
+    route: 'classmate-token',
+    ip: clientIp(c.req.raw),
+    account: normalizeAccount(slug || name),
+  }
+  const currentLimit = await checkAuthRateLimit(db, rateLimitKey)
+  if (currentLimit.limited) return rateLimitResponse(c, currentLimit)
+  const failedToken = async (body: Record<string, unknown>, status: 403 | 404) => {
+    const nextLimit = await recordAuthFailure(db, rateLimitKey)
+    if (nextLimit.limited) return rateLimitResponse(c, nextLimit)
+    return c.json(body, status)
+  }
+
   const student = await db.prepare('SELECT name, edit_secret_hash FROM students WHERE slug = ?').bind(slug).first()
   if (!student) {
-    return c.json({ success: false, message: '同学不存在' }, 404)
+    return failedToken({ success: false, message: '同学不存在' }, 404)
   }
 
   if ((student as any).name !== name) {
-    return c.json({ success: false, message: '姓名不匹配' }, 403)
+    return failedToken({ success: false, message: '姓名不匹配' }, 403)
   }
 
   const storedHash = (student as any).edit_secret_hash
   if (storedHash) {
     if (!editSecret) {
-      return c.json({ success: false, message: '请输入编辑口令', requireSecret: true }, 403)
+      return failedToken({ success: false, message: '请输入编辑口令', requireSecret: true }, 403)
     }
     const valid = await verifyPassword(editSecret, storedHash)
     if (!valid) {
-      return c.json({ success: false, message: '口令错误', requireSecret: true }, 403)
+      return failedToken({ success: false, message: '口令错误', requireSecret: true }, 403)
     }
   }
 
+  await clearAuthFailures(db, rateLimitKey)
   const token = await generateClassmateToken(slug, await getClassmateSecret(c.env.JWT_SECRET))
   await db.prepare(
     "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"

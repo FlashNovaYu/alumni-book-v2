@@ -1,6 +1,6 @@
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { initTestDb } from './db-helper'
+import { initTestDb, TEST_LEGACY_ADMIN_PASSWORD } from './db-helper'
 import { getAdminPermissions, loadActiveAdmin } from '../src/lib/adminAuth'
 import { runAuditedBatch } from '../src/lib/adminAudit'
 import worker from '../src/index'
@@ -76,7 +76,7 @@ describe('Administrator RBAC schema', () => {
     const legacyLogin = await worker.fetch(new Request('http://localhost/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'admin888' }),
+      body: JSON.stringify({ password: TEST_LEGACY_ADMIN_PASSWORD }),
     }), env, loginContext)
     await waitOnExecutionContext(loginContext)
     expect(legacyLogin.status).toBe(200)

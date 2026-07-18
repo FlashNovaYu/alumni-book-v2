@@ -1,5 +1,7 @@
 import { applyD1Migrations } from 'cloudflare:test'
 
+import { hashPassword } from '../src/lib/password'
+
 export const testMigrations = [
   { name: '0001_init', queries: [
     `CREATE TABLE IF NOT EXISTS students (
@@ -350,11 +352,28 @@ export const testMigrations = [
       ('operator', 'content.manage'),
       ('operator', 'notifications.view'),
       ('operator', 'notifications.publish')`,
+  ]},
+  { name: '0015_auth_login_rate_limits', queries: [
+    `CREATE TABLE IF NOT EXISTS auth_login_attempts (
+      attempt_key TEXT PRIMARY KEY,
+      route TEXT NOT NULL,
+      ip TEXT NOT NULL,
+      account TEXT NOT NULL,
+      failures INTEGER NOT NULL DEFAULT 0,
+      blocked_until INTEGER,
+      last_failed_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_cleanup ON auth_login_attempts(last_failed_at)`,
   ]}
 ]
 
+export const TEST_LEGACY_ADMIN_PASSWORD = 'test-legacy-admin-password'
+
 export async function initTestDb(db: any) {
   await applyD1Migrations(db, testMigrations)
+  await db.prepare(
+    "INSERT OR REPLACE INTO site_config (key, value) VALUES ('admin_password', ?)"
+  ).bind(await hashPassword(TEST_LEGACY_ADMIN_PASSWORD)).run()
   await db.prepare(`
     INSERT OR REPLACE INTO students (id, name, slug, info)
     VALUES (?, ?, ?, ?)

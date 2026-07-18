@@ -158,6 +158,20 @@ CREATE INDEX IF NOT EXISTS idx_admin_sessions_account ON admin_sessions(admin_ac
 CREATE INDEX IF NOT EXISTS idx_admin_audit_actor_created ON admin_audit_logs(admin_account_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_audit_resource ON admin_audit_logs(resource_type, resource_id, created_at DESC);
 
+-- 认证失败记录仅保存短期计数，不保存密码或令牌等敏感凭据。
+CREATE TABLE IF NOT EXISTS auth_login_attempts (
+  attempt_key TEXT PRIMARY KEY,
+  route TEXT NOT NULL,
+  ip TEXT NOT NULL,
+  account TEXT NOT NULL,
+  failures INTEGER NOT NULL DEFAULT 0,
+  blocked_until INTEGER,
+  last_failed_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_cleanup
+  ON auth_login_attempts(last_failed_at);
+
 CREATE TABLE IF NOT EXISTS classmate_sessions (
   token TEXT PRIMARY KEY,
   student_slug TEXT NOT NULL,
