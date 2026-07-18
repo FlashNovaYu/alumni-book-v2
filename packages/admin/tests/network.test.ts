@@ -130,6 +130,23 @@ test('请求超过时限时中止并返回超时错误', async () => {
   assert.equal(attempts, 1)
 })
 
+test('调用方 AbortSignal 会立即中止且不会重试', async () => {
+  const controller = new AbortController()
+  let attempts = 0
+  const request = requestJson('/api/students', { signal: controller.signal }, {
+    fetchImpl: async (_input, init) => {
+      attempts += 1
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('已取消', 'AbortError')), { once: true })
+      })
+    },
+  })
+  controller.abort()
+
+  await assert.rejects(request, (error: unknown) => error instanceof DOMException && error.name === 'AbortError')
+  assert.equal(attempts, 1)
+})
+
 test('同一管理令牌的并发身份读取只发起一次请求', async () => {
   storage.clear()
   storage.setItem('admin_token', 'token-a')

@@ -1,6 +1,6 @@
 import type { AdminAccountSummary, AdminAuditLog, AdminPermission, AdminPermissionOverride, AdminRoleId, ApiResponse } from '@alumni/shared'
 import { adminFetch } from './client'
-import { DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams, type PageResult } from './pagination'
+import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams, type PageResult } from './pagination'
 
 export type PermissionOverride = AdminPermissionOverride
 export type CreateAdminAccountPayload = {
@@ -26,6 +26,21 @@ export async function listAdminAccounts(cursor?: string | null, signal?: AbortSi
   const query = pageSearchParams(DEFAULT_PAGE_SIZE, cursor)
   const response = await adminFetch<ApiResponse<AdminAccountSummary[] | PageResult<AdminAccountSummary>>>(`/api/admin/accounts?${query}`, { signal })
   return normalizePageResult(response.data, DEFAULT_PAGE_SIZE, cursor)
+}
+
+export async function listAllAdminAccounts(signal?: AbortSignal): Promise<AdminAccountSummary[]> {
+  let accounts: AdminAccountSummary[] = []
+  let cursor: string | null = null
+  const seenCursors = new Set<string>()
+  do {
+    const page = await listAdminAccounts(cursor, signal)
+    const merged = appendUniquePage(accounts, page.items, (account) => account.id)
+    accounts = merged.items
+    if (!page.nextCursor || merged.added === 0 || seenCursors.has(page.nextCursor)) break
+    seenCursors.add(page.nextCursor)
+    cursor = page.nextCursor
+  } while (cursor)
+  return accounts
 }
 
 export async function listAccountCandidates(signal?: AbortSignal) {

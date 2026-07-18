@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "vite --port 3001",
     "build": "vue-tsc --noEmit && vite build",
-    "test": "pnpm run test:static && node tests/community-static.mjs && node tests/network-integration-static.mjs && pnpm run test:network && tsx --test tests/audit-summary.test.ts tests/list-performance.test.mjs tests/route-loading.test.mjs",
+    "test": "pnpm run test:static && node tests/community-static.mjs && node tests/network-integration-static.mjs && pnpm run test:network && tsx --test tests/audit-summary.test.ts tests/list-performance.test.mjs tests/route-loading.test.mjs && pnpm run test:view",
     "test:network": "tsx --test tests/network.test.ts",
+    "test:view": "vitest run tests/view-behavior.test.ts",
     "verify:dist-network": "node tests/dist-network.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
@@ -19,8 +20,11 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.0",
+    "@vue/test-utils": "^2.4.11",
+    "jsdom": "^26.1.0",
     "typescript": "^5.6.0",
     "vite": "^6.4.3",
+    "vitest": "^2.0.0",
     "vue-tsc": "^2.2.0"
   }
 }

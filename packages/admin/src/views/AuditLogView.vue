@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import type { AdminAccountSummary, AdminAuditLog } from '@alumni/shared'
-import { listAdminAccounts, listAuditLogs, type AuditLogFilters } from '@/api/adminAccounts'
+import { listAllAdminAccounts, listAuditLogs, type AuditLogFilters } from '@/api/adminAccounts'
 import { summarizeAuditLog } from '@/utils/auditSummary'
 import { isAbortError } from '@/api/network'
 import { appendUniquePage } from '@/api/pagination'
@@ -44,6 +44,7 @@ const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
 const loadingMore = ref(false)
 let loadController: AbortController | null = null
+const accountController = new AbortController()
 
 const summaryOf = summarizeAuditLog
 function formatDate(value: string) { return value ? new Date(value.replace(' ', 'T') + 'Z').toLocaleString('zh-CN') : '' }
@@ -76,12 +77,11 @@ async function resetFilters() {
 }
 onMounted(async () => {
   try {
-    const page = await listAdminAccounts()
-    accounts.value = page.items
+    accounts.value = await listAllAdminAccounts(accountController.signal)
     await load(true)
   } catch { loading.value = false }
 })
-onBeforeUnmount(() => { loadController?.abort() })
+onBeforeUnmount(() => { accountController.abort(); loadController?.abort() })
 </script>
 
 <style scoped>
