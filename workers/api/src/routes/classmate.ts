@@ -237,9 +237,6 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   if (type !== 'avatar' && type !== 'background') {
     return c.json({ success: false, message: '不允许的上传类型' }, 400)
   }
-  const parsedVariants = await parseUploadVariants(formData, type, slug)
-  if ('error' in parsedVariants) return c.json({ success: false, message: parsedVariants.error }, 400)
-
   const authedSlug = await authClassmate(c)
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权' }, 401)
@@ -247,6 +244,8 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   if (authedSlug !== slug) {
     return c.json({ success: false, message: '只能编辑自己的资料' }, 403)
   }
+  const parsedVariants = await parseUploadVariants(formData, type, slug)
+  if ('error' in parsedVariants) return c.json({ success: false, message: parsedVariants.error }, 400)
 
   if (!file) {
     return c.json({ success: false, message: '没有文件' }, 400)
