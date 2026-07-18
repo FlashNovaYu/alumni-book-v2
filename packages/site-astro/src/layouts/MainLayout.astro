@@ -161,8 +161,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
               element.style.display = visibleSlugs.has(element.dataset.studentIdentityCard || '') ? '' : 'none'
             })
 
-            const avatar = card.querySelector<HTMLElement>('.archive-card__avatar')
-            const name = card.querySelector<HTMLElement>('.archive-card__name')
+            const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
+            const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
             if (!avatar || !name) return
 
             avatar.style.viewTransitionName = 'student-avatar-' + state.slug
