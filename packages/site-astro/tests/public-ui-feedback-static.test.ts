@@ -31,6 +31,14 @@ describe('公开站点界面反馈回归', () => {
     expect(pagination).toContain(':aria-label="`第 ${page} 页`"')
     expect(pagination).toContain("aria-current=\"page === modelValue ? 'page' : undefined\"")
     expect(pagination.match(/type="button"/g)).toHaveLength(3)
+    expect(pagination).toContain('v-for="(page, index) in visiblePages"')
+    expect(pagination).toContain(':key="page === \'ellipsis\' ? `ellipsis-${index}` : page"')
+  })
+
+  it('runs pagination unit coverage in the default site test suite', () => {
+    const packageJson = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8'))
+
+    expect(packageJson.scripts.test).toContain('tests/pagination.test.ts')
   })
 
   it('falls back from an avatar that finished failing before Vue hydration', () => {

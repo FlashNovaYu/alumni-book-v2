@@ -15,7 +15,7 @@
 
     <!-- Pages -->
     <div class="ui-pagination__pages">
-      <template v-for="page in visiblePages" :key="page">
+      <template v-for="(page, index) in visiblePages" :key="page === 'ellipsis' ? `ellipsis-${index}` : page">
         <button
           v-if="page !== 'ellipsis'"
           type="button"
