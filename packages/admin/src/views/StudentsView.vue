@@ -34,7 +34,7 @@
       </div>
     </div>
     <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="loadStudents()">
-      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${students.length}/${total}）` }}
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${students.length}${total !== null ? `/${total}` : ''}）` }}
     </button>
 
     <!-- 新建学生对话框 -->
@@ -69,7 +69,7 @@
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
 import { isAbortError } from '@/api/network'
-import { DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
+import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import type { Student, ApiResponse } from '@alumni/shared'
 
 const students = ref<Student[]>([])
@@ -80,7 +80,7 @@ const newStudent = ref({ name: '', slug: '' })
 const createSuccess = ref('')
 const failedAvatarIds = ref(new Set<string>())
 const nextCursor = ref<string | null>(null)
-const total = ref(0)
+const total = ref<number | null>(null)
 const loadingMore = ref(false)
 let listController: AbortController | null = null
 
@@ -108,8 +108,9 @@ async function loadStudents(reset = false) {
       ? res.data.filter((student) => student.name.toLowerCase().includes(keyword.value.trim().toLowerCase()))
       : res.data
     const page = normalizePageResult(legacyFiltered, DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
-    students.value = reset ? page.items : [...students.value, ...page.items]
-    nextCursor.value = page.nextCursor
+    const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(students.value, page.items, (student) => student.id)
+    students.value = merged.items
+    nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
     total.value = page.total
   } catch (error) {
     if (isAbortError(error)) return

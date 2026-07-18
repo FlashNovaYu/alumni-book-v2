@@ -41,7 +41,7 @@
       </div>
     </div>
     <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="loadAlbums()">
-      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${albums.length}/${total}）` }}
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${albums.length}${total !== null ? `/${total}` : ''}）` }}
     </button>
 
     <!-- 新建相册对话框 -->
@@ -190,7 +190,7 @@
 import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
 import { isAbortError } from '@/api/network'
-import { DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
+import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import { compressImage } from '@/utils/image'
 import type { Album, ApiResponse } from '@alumni/shared'
 
@@ -205,7 +205,7 @@ const isDragOver = ref(false)
 const creating = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
 const nextCursor = ref<string | null>(null)
-const total = ref(0)
+const total = ref<number | null>(null)
 const loadingMore = ref(false)
 let listController: AbortController | null = null
 
@@ -238,8 +238,9 @@ async function loadAlbums(reset = false) {
     const res = await adminFetch<ApiResponse<any[] | { items: any[]; nextCursor: string | null; total: number }>>(`/api/albums?${query}`, { signal: controller.signal })
     if (controller.signal.aborted) return
     const page = normalizePageResult(res.data, DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
-    albums.value = reset ? page.items : [...albums.value, ...page.items]
-    nextCursor.value = page.nextCursor
+    const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(albums.value, page.items, (album) => album.id)
+    albums.value = merged.items
+    nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
     total.value = page.total
   } catch (error) {
     if (isAbortError(error)) return

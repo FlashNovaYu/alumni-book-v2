@@ -23,7 +23,7 @@
       </ol>
     </div>
     <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="load(false)">
-      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${logs.length}/${total}）` }}
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${logs.length}${total !== null ? `/${total}` : ''}）` }}
     </button>
   </section>
 </template>
@@ -34,13 +34,14 @@ import type { AdminAccountSummary, AdminAuditLog } from '@alumni/shared'
 import { listAdminAccounts, listAuditLogs, type AuditLogFilters } from '@/api/adminAccounts'
 import { summarizeAuditLog } from '@/utils/auditSummary'
 import { isAbortError } from '@/api/network'
+import { appendUniquePage } from '@/api/pagination'
 
 const logs = ref<AdminAuditLog[]>([])
 const accounts = ref<AdminAccountSummary[]>([])
 const loading = ref(true)
 const filters = reactive<AuditLogFilters>({ actorId: '', action: '', resourceType: '', from: '', to: '' })
 const nextCursor = ref<string | null>(null)
-const total = ref(0)
+const total = ref<number | null>(null)
 const loadingMore = ref(false)
 let loadController: AbortController | null = null
 
@@ -59,8 +60,9 @@ async function load(reset = true) {
   try {
     const page = await listAuditLogs(filters, reset ? null : nextCursor.value, controller.signal)
     if (controller.signal.aborted) return
-    logs.value = reset ? page.items : [...logs.value, ...page.items]
-    nextCursor.value = page.nextCursor
+    const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(logs.value, page.items, (log) => log.id)
+    logs.value = merged.items
+    nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
     total.value = page.total
   } catch (error) {
     if (!isAbortError(error)) logs.value = reset ? [] : logs.value

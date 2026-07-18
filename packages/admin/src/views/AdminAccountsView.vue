@@ -90,7 +90,7 @@
       </table>
     </div>
     <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="load(false)">
-      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${accounts.length}/${total}）` }}
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${accounts.length}${total !== null ? `/${total}` : ''}）` }}
     </button>
   </section>
 </template>
@@ -103,6 +103,7 @@ import {
   resetAdminPassword, revokeAdminSessions, type CreateAdminAccountPayload, updateAdminAccount,
 } from '@/api/adminAccounts'
 import { isAbortError } from '@/api/network'
+import { appendUniquePage } from '@/api/pagination'
 
 const permissions = ADMIN_PERMISSIONS
 const accounts = ref<AdminAccountSummary[]>([])
@@ -113,7 +114,7 @@ const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const error = ref('')
 const nextCursor = ref<string | null>(null)
-const total = ref(0)
+const total = ref<number | null>(null)
 const loadingMore = ref(false)
 let loadController: AbortController | null = null
 
@@ -178,9 +179,10 @@ async function load(reset = true) {
       reset ? listAccountCandidates(controller.signal) : Promise.resolve(candidates.value),
     ])
     if (controller.signal.aborted) return
-    accounts.value = reset ? page.items : [...accounts.value, ...page.items]
+    const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(accounts.value, page.items, (account) => account.id)
+    accounts.value = merged.items
     candidates.value = nextCandidates
-    nextCursor.value = page.nextCursor
+    nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
     total.value = page.total
   } catch (err) {
     if (!isAbortError(err)) error.value = err instanceof Error ? err.message : '账号加载失败'
