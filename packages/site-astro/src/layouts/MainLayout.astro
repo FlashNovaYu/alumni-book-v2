@@ -1,6 +1,7 @@
 ---
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
+import UiVolumeToggle from '../components/ui/UiVolumeToggle.vue'
 import { ClientRouter } from 'astro:transitions'
 import '../styles/global.css'
 
@@ -112,6 +113,9 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
     </div>
     <div class="app">
       <TopNav />
+      <div style="position: fixed; right: 24px; bottom: 24px; z-index: 50;">
+        <UiVolumeToggle client:load />
+      </div>
       <main class="main-content"><slot /></main>
       <script>
         import { initGlobalReveal } from '../scripts/globalReveal'
@@ -283,7 +287,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           sessionStorage.removeItem('vt-nav-dir')
         })
 
-        // 自定义复古钢笔水滴光标初始化逻辑
+        // 自定义复古光标初始化逻辑 (无延迟跟手方案)
         function initCustomCursor() {
           if (window.matchMedia('(pointer: coarse)').matches) return;
           if (document.querySelector('.custom-cursor')) return;
@@ -291,66 +295,69 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const cursor = document.createElement('div');
           cursor.className = 'custom-cursor';
           cursor.setAttribute('data-cursor', '');
-          cursor.innerHTML = `
-            <div class="custom-cursor__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:100%; height:100%;">
-                <path d="M12 20h9"></path>
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-              </svg>
-            </div>
-          `;
           document.body.appendChild(cursor);
           document.documentElement.setAttribute('data-custom-cursor', 'true');
 
-          let mouseX = 0;
-          let mouseY = 0;
-          let cursorX = 0;
-          let cursorY = 0;
+          let currentX = window.innerWidth / 2;
+          let currentY = window.innerHeight / 2;
           let isVisible = false;
 
-          const onMouseMove = (e: MouseEvent) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
+          const TEXT_SELECTOR = 'p, span, strong, em, blockquote, li, h1, h2, h3, h4, h5, h6, figcaption, td, th, label, .email-text';
+          const CLICKABLE_SELECTOR = 'a, button, [role="button"], .btn, .archive-card, input, textarea, select, .profile-mail-actions a, [data-mailbox-trigger], .cursor-pointer';
+
+          const renderCursor = () => {
+            cursor.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
+          };
+
+          const onPointerMove = (e: PointerEvent) => {
+            if (e.pointerType && e.pointerType !== 'mouse') return;
+            currentX = e.clientX;
+            currentY = e.clientY;
+            
             if (!isVisible) {
               cursor.classList.add('is-visible');
               isVisible = true;
             }
-          };
+            
+            renderCursor();
 
-          const onMouseOver = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            if (target && target.closest('a, button, [role="button"], .btn, .archive-card, .profile-mail-actions a, [data-mailbox-trigger]')) {
-              cursor.classList.add('is-hovered');
+            if (target && target.closest(CLICKABLE_SELECTOR)) {
+              cursor.classList.add('is-clickable');
+              cursor.classList.remove('is-text');
+            } else if (target && target.closest(TEXT_SELECTOR)) {
+              cursor.classList.add('is-text');
+              cursor.classList.remove('is-clickable');
             } else {
-              cursor.classList.remove('is-hovered');
+              cursor.classList.remove('is-clickable', 'is-text');
             }
           };
 
-          const onMouseLeave = () => {
+          const onPointerDown = (e: PointerEvent) => {
+            if (e.pointerType && e.pointerType !== 'mouse') return;
+            cursor.classList.add('is-pressed');
+          };
+
+          const onPointerUp = (e: PointerEvent) => {
+            if (e.pointerType && e.pointerType !== 'mouse') return;
+            cursor.classList.remove('is-pressed');
+          };
+
+          const onPointerLeave = () => {
             cursor.classList.remove('is-visible');
             isVisible = false;
           };
 
-          document.addEventListener('mousemove', onMouseMove);
-          document.addEventListener('mouseover', onMouseOver);
-          document.addEventListener('mouseleave', onMouseLeave);
-
-          let animationFrameId: number;
-          const updatePosition = () => {
-            const dx = mouseX - cursorX;
-            const dy = mouseY - cursorY;
-            cursorX += dx * 0.16;
-            cursorY += dy * 0.16;
-            cursor.style.transform = `translate3d(${cursorX}px, ${cursorY}px, 0)`;
-            animationFrameId = requestAnimationFrame(updatePosition);
-          };
-          updatePosition();
+          document.addEventListener('pointermove', onPointerMove, { passive: true });
+          document.addEventListener('pointerdown', onPointerDown, { passive: true });
+          document.addEventListener('pointerup', onPointerUp, { passive: true });
+          document.addEventListener('pointerleave', onPointerLeave);
 
           document.addEventListener('astro:before-preparation', () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseover', onMouseOver);
-            document.removeEventListener('mouseleave', onMouseLeave);
-            cancelAnimationFrame(animationFrameId);
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerdown', onPointerDown);
+            document.removeEventListener('pointerup', onPointerUp);
+            document.removeEventListener('pointerleave', onPointerLeave);
             cursor.remove();
           }, { once: true });
         }
