@@ -50,8 +50,9 @@
         :class="{ 'is-hovered': getState(mate.slug).isHovered }"
         :style="getTiltStyles(mate.slug, `rotateZ(${getStaticRotation(index)}deg) translateY(${getStaticY(index)}px)`)"
         @mousemove="onMouseMove($event, mate.slug)"
-        @mouseenter="onMouseEnter(mate.slug)"
+        @mouseenter="onMouseEnter(mate.slug); playPaperSlide()"
         @mouseleave="onMouseLeave(mate.slug)"
+        @touchstart="playPaperSlide()"
       >
         <ArchiveRosterCard
           :card="toArchiveClassmateCard(mate, siteBase)"
@@ -89,6 +90,7 @@ import UiEmptyState from './ui/UiEmptyState.vue'
 import UiPagination from './ui/UiPagination.vue'
 import { toArchiveClassmateCard } from '../utils/museumViewModels'
 import { useMouseTilt } from '../composables/useMouseTilt'
+import { useAudioSynth } from '../composables/useAudioSynth'
 
 interface Classmate {
   name: string
@@ -146,6 +148,7 @@ const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
 
 const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
+const { playPaperSlide } = useAudioSynth()
 
 function getStaticRotation(index: number) {
   return (Math.sin(index * 1.5) * 1.5).toFixed(2);
@@ -156,7 +159,7 @@ function getStaticY(index: number) {
 const currentPage = ref(1)
 const isRestoringIdentityState = ref(false)
 const loading = ref(false)
-const PAGE_SIZE = 9
+const PAGE_SIZE = 12
 
 const rootRef = ref<HTMLElement | null>(null)
 
@@ -375,15 +378,16 @@ onMounted(async () => {
 
 .roster-card-wrapper {
   position: relative;
-  border-radius: var(--radius-lg);
   transform-style: preserve-3d;
   will-change: transform;
-  box-shadow: var(--shadow-skeuo-sm);
-  background: var(--bg-surface);
+  display: flex;
+}
+
+.roster-card-wrapper > :first-child {
+  flex: 1;
 }
 
 .roster-card-wrapper.is-hovered {
-  box-shadow: var(--shadow-skeuo-lg);
   z-index: 10;
 }
 
@@ -434,8 +438,8 @@ onMounted(async () => {
   }
 
   .roster-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 }
 </style>

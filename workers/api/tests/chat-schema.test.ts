@@ -6,7 +6,9 @@ beforeAll(async () => {
   const chatMigration = testMigrations.find((migration) => migration.name === '0012_chat_rework')
   if (!chatMigration) throw new Error('缺少 0012_chat_rework 测试迁移')
 
-  await applyD1Migrations(env.DB, testMigrations.filter((migration) => migration.name !== '0012_chat_rework'))
+  const beforeChat = testMigrations.filter((migration) => migration.name < '0012_chat_rework')
+  const afterChat = testMigrations.filter((migration) => migration.name > '0012_chat_rework')
+  await applyD1Migrations(env.DB, beforeChat)
   await env.DB.prepare(`
     INSERT INTO students (id, name, slug)
     VALUES ('stu_test_init', '测试同学', 'test_init')
@@ -16,6 +18,7 @@ beforeAll(async () => {
     VALUES ('pm_chat_rework_migration_fixture', 'test_init', '测试同学', '迁移前审核通过的消息', 'approved')
   `).run()
   await applyD1Migrations(env.DB, [chatMigration])
+  await applyD1Migrations(env.DB, afterChat)
   await env.DB.prepare(`
     INSERT INTO public_messages (id, author_slug, author_name, content, status)
     VALUES ('pm_reaction_parent', 'test_init', '测试同学', '回应测试消息', 'visible')

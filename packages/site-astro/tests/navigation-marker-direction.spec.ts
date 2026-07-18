@@ -15,11 +15,12 @@ test('top navigation records a backward marker transition when moving from roste
   })
 
   await page.goto('./roster/', { waitUntil: 'networkidle' })
+  await page.waitForFunction(() => Boolean((window as Window & { __alumniNavRuntime?: unknown }).__alumniNavRuntime))
   await page.getByRole('link', { name: '前言', exact: true }).click()
   await expect(page).toHaveURL(/\/preface\/?$/)
   await expect(page.locator('[data-nav-directory]')).toHaveAttribute('data-nav-direction', 'backward')
-  const fillOrigin = await page.locator('.nav-active-ink-fill').evaluate((element) => {
-    const { transformOrigin } = getComputedStyle(element)
+  const fillOrigin = await page.locator('[data-nav-item][aria-current="page"]').evaluate((element) => {
+    const { transformOrigin } = getComputedStyle(element, '::after')
     return Number.parseFloat(transformOrigin.split(' ')[0])
   })
   expect(fillOrigin).toBeGreaterThan(0)

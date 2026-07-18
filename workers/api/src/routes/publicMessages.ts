@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { createNotification } from '../lib/notificationService'
 import { createGroupChatMessage } from '../lib/groupChatCreate'
@@ -131,7 +132,7 @@ publicMessagesRoutes.post('/public-messages', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
 
-  const body = await c.req.json().catch(() => ({}))
+  const body = await parseLimitedJson<any>(c, { fallback: {} })
   const creator = identity as GroupChatCreatorIdentity
 
   const result = await createGroupChatMessage(c.env.DB, creator, {
@@ -165,7 +166,7 @@ publicMessagesRoutes.put('/public-messages/:id/react', async (c) => {
   if (isClassmateResponse(identity)) return identity
 
   const id = c.req.param('id')
-  const { reaction } = await c.req.json().catch(() => ({}))
+  const { reaction } = await parseLimitedJson<any>(c, { fallback: {} })
   const allowed = ['❤️', '👍', '😂', '🎉']
   if (!allowed.includes(reaction)) {
     return c.json({ success: false, message: '不支持的表情' }, 400)
@@ -219,7 +220,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/approve', async (c) => {
     notificationTitle: '公共留言已通过审核',
     notificationBody: '你提交的公共留言已经展示在班级留言墙。',
   }))
-  if (Number(results[results.length - 1]?.meta.changes || 0) !== 1) return c.json({ success: false, message: '该留言已完成审核' }, 409)
+  if (Number(results[results.length - 1]?.meta.changes || 0) < 1) return c.json({ success: false, message: '该留言已完成审核' }, 409)
 
   return c.json({ success: true, message: '已审核通过' })
 })
@@ -228,7 +229,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/reject', async (c) => {
   const id = c.req.param('id')
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const reviewReason = String(reason || '').trim()
   if (!reviewReason) return c.json({ success: false, message: '请填写退回原因' }, 400)
 
@@ -247,7 +248,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/reject', async (c) => {
     notificationTitle: '公共留言未通过审核',
     notificationBody: reviewReason,
   }))
-  if (Number(results[results.length - 1]?.meta.changes || 0) !== 1) return c.json({ success: false, message: '该留言已完成审核' }, 409)
+  if (Number(results[results.length - 1]?.meta.changes || 0) < 1) return c.json({ success: false, message: '该留言已完成审核' }, 409)
 
   return c.json({ success: true, message: '已退回留言' })
 })
@@ -256,7 +257,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/hide', async (c) => {
   const id = c.req.param('id')
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { hidden, reason } = await c.req.json().catch(() => ({}))
+  const { hidden, reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (hidden && !cleanReason) return c.json({ success: false, message: '隐藏留言时请填写原因' }, 400)
   const before = await c.env.DB.prepare('SELECT status FROM public_messages WHERE id = ?').bind(id).first()
@@ -278,7 +279,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/pin', async (c) => {
   const id = c.req.param('id')
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { pinned } = await c.req.json().catch(() => ({}))
+  const { pinned } = await parseLimitedJson<any>(c, { fallback: {} })
   const before = await c.env.DB.prepare('SELECT pinned FROM public_messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare('UPDATE public_messages SET pinned = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(pinned ? 1 : 0, id)], {
@@ -291,7 +292,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/feature', async (c) => {
   const id = c.req.param('id')
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { featured } = await c.req.json().catch(() => ({}))
+  const { featured } = await parseLimitedJson<any>(c, { fallback: {} })
   const before = await c.env.DB.prepare('SELECT featured FROM public_messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare('UPDATE public_messages SET featured = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(featured ? 1 : 0, id)], {
@@ -304,7 +305,7 @@ publicMessagesRoutes.delete('/admin/public-messages/:id', async (c) => {
   const id = c.req.param('id')
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除留言时请填写原因' }, 400)
   const before = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first()

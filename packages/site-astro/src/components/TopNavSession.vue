@@ -44,32 +44,34 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-left: var(--spacing-xs);
+  margin-left: var(--spacing-sm);
   padding-left: var(--spacing-sm);
-  border-left: 1px solid var(--color-hairline);
+  border-left: 1px solid color-mix(in srgb, var(--color-paper-brown) 20%, var(--color-paper-border));
   font-size: var(--type-nav-link-size);
-  height: 20px;
+  font-family: var(--font-serif, serif);
 }
 
 .session-name {
-  color: var(--color-muted);
-  font-weight: 500;
+  color: var(--color-paper-ink);
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .btn-logout {
   background: none;
-  border: none;
-  color: #cc785c;
+  border: 1px solid var(--color-paper-stamp-red);
+  color: var(--color-paper-stamp-red);
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 8px;
   cursor: pointer;
-  padding: 0;
-  font-weight: 500;
-  transition: color var(--duration-fast);
+  font-size: var(--type-sm, 12px);
+  transition: all var(--duration-fast);
   white-space: nowrap;
 }
 
 .btn-logout:hover {
-  color: #b36349;
+  background: var(--color-paper-stamp-red);
+  color: var(--color-body-bg, #fff);
 }
 
 @media (max-width: 768px) {

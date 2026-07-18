@@ -30,6 +30,7 @@ import { audienceForStudent, filterStudentForAudience, type StudentViewer } from
 import { claimPublicRequestSlot, publicClientIp } from './lib/publicRequestLimit'
 import { cleanupExpiredSessions } from './lib/sessionCleanup'
 import { adminOperationsRoutes } from './routes/adminOperations'
+import { clearPublicCache, isPublicStableGet, matchPublicCache, publicCacheControl, storePublicCache } from './lib/publicCache'
 
 
 type Bindings = {
@@ -161,25 +162,32 @@ app.use('/api/*', async (c, next) => {
   return next()
 })
 
-const PUBLIC_REVALIDATED_GET_PREFIXES = [
-  '/api/classmates',
-  '/api/students',
-  '/api/config',
-  '/api/albums',
-  '/api/rankings',
-  '/api/messages',
-  '/api/timeline',
-  '/api/highlights',
-]
-
-function isPublicRevalidatedGet(path: string) {
-  return PUBLIC_REVALIDATED_GET_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+function isStudentAudienceGet(path: string, method: string) {
+  return method === 'GET' && (path === '/api/students' || path.startsWith('/api/students/'))
 }
 
-// 动态 API 缓存策略：
-// - 公开 GET JSON 允许浏览器保存并用 ETag 重新验证，避免重复下载完整响应。
-// - 管理、认证、写操作仍禁用存储，避免隐私与后台状态污染。
-// - R2 文件路由保留后续专用 immutable 缓存头。
+function appendVary(headers: Headers, value: string) {
+  const existing = headers.get('Vary')
+  const parts = new Set((existing ? existing.split(',') : []).map((item) => item.trim()).filter(Boolean))
+  for (const item of value.split(',')) parts.add(item.trim())
+  headers.set('Vary', [...parts].join(', '))
+}
+
+// This layer only admits anonymous, fixed public reads. Identity-bearing requests
+// never touch the shared cache, and writes merely evict their exact URL variant.
+app.use('/api/*', async (c, next) => {
+  const cached = await matchPublicCache(c.req.raw)
+  if (cached) return cached
+  await next()
+  clearPublicCache(c.req.raw, (promise) => c.executionCtx.waitUntil(promise))
+  if (isPublicStableGet(c.req.raw) && c.res.ok && !c.res.headers.has('Last-Modified')) {
+    c.res.headers.set('Last-Modified', new Date().toUTCString())
+  }
+  storePublicCache(c.req.raw, c.res, (promise) => c.executionCtx.waitUntil(promise))
+})
+
+// Dynamic API cache policy is finalized after route handlers so a generic middleware
+// cannot overwrite route-specific privacy requirements.
 app.use('/api/*', async (c, next) => {
   await next()
 
@@ -191,8 +199,14 @@ app.use('/api/*', async (c, next) => {
     return
   }
 
-  if (c.req.method === 'GET' && isPublicRevalidatedGet(path)) {
-    c.res.headers.set('Cache-Control', 'no-cache, max-age=0, must-revalidate')
+  if (isStudentAudienceGet(path, c.req.method)) {
+    c.res.headers.set('Cache-Control', 'private, no-cache')
+    appendVary(c.res.headers, 'Authorization, X-Classmate-Token')
+    return
+  }
+
+  if (isPublicStableGet(c.req.raw)) {
+    c.res.headers.set('Cache-Control', publicCacheControl())
     return
   }
 
@@ -203,12 +217,10 @@ app.use('/api/*', async (c, next) => {
 
 // 为公开 JSON 接口启用 ETag 自动缓存校验
 app.use('/api/classmates', etag())
-app.use('/api/students', etag())
-app.use('/api/students/*', etag())
 app.use('/api/config', etag())
 app.use('/api/albums', etag())
 app.use('/api/rankings', etag())
-app.use('/api/class-space/overview', etag())
+app.use('/api/timeline', etag())
 
 // 健康检查
 app.get('/api/health', (c) => {
@@ -252,7 +264,7 @@ app.route('/api', groupChatRoutes)
 app.get('/api/classmates', async (c) => {
   const db = c.env.DB
   const { results } = await db.prepare(
-    'SELECT name, slug, avatar_url, info, school, class_name, mbti, is_owner, custom_html FROM students ORDER BY name'
+    'SELECT name, slug, avatar_url, media_json, info, school, class_name, mbti, is_owner, custom_html FROM students ORDER BY name'
   ).all()
 
   const classmates = (results || []).map((row: any) => {
@@ -279,6 +291,7 @@ app.get('/api/classmates', async (c) => {
       hasPage: true,
       hasStandardProfile: !(row.is_owner && row.custom_html),
       avatarUrl: normalizeFileUrl(row.avatar_url),
+      avatarMedia: parseStudentMedia(row.media_json).avatar || null,
       motto: info.motto || '',
       nickname: info.nickname || '',
       school: row.school || info.school || '',
@@ -443,6 +456,7 @@ app.get('/api/albums', async (c) => {
       filename: p.filename,
       caption: p.caption,
       r2Key: p.r2_key,
+      ...(() => { try { const value = JSON.parse(p.media_json || '{}'); return Array.isArray(value.variants) && value.variants.length ? { media: { variants: value.variants } } : {} } catch { return {} } })(),
       sortOrder: p.sort_order,
       createdAt: p.created_at,
     })),
@@ -465,10 +479,9 @@ app.post('/api/students/:slug/visit', async (c) => {
     `visit:${publicClientIp(c.req.raw)}:${slug}`,
     VISIT_DEDUPE_WINDOW_SECONDS,
   )
-  if (!limit.limited) {
-    await db.prepare('UPDATE students SET visit_count = visit_count + 1 WHERE slug = ?').bind(slug).run()
-  }
-  const row = await db.prepare('SELECT visit_count FROM students WHERE slug = ?').bind(slug).first()
+  const row = await db.prepare(
+    'UPDATE students SET visit_count = visit_count + ? WHERE slug = ? RETURNING visit_count'
+  ).bind(limit.limited ? 0 : 1, slug).first()
   return c.json({ success: true, data: { visitCount: (row as any)?.visit_count || 0 } })
 })
 
@@ -710,7 +723,7 @@ async function resolveStudentViewer(c: any): Promise<StudentViewer> {
     try {
       const session = await c.env.DB.prepare(
         `SELECT admin_account_id FROM admin_sessions
-         WHERE token = ? AND revoked_at IS NULL AND julianday(expires_at) > julianday('now')`
+         WHERE token = ? AND revoked_at IS NULL AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
       ).bind(adminToken).first() as { admin_account_id: string } | null
       const admin = session ? await loadActiveAdmin(c.env.DB, session.admin_account_id) : null
       if (admin && !admin.mustChangePassword && hasPermission(admin, 'students.manage')) return { kind: 'admin' }
@@ -779,10 +792,19 @@ function formatStudent(row: any) {
       class: row.class_name || info.class || '',
     },
     photos: JSON.parse(row.photos || '[]'),
+    media: parseStudentMedia(row.media_json),
     visitCount: row.visit_count || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+function parseStudentMedia(raw: string | null | undefined) {
+  try {
+    const value = JSON.parse(raw || '{}')
+    if (Array.isArray(value?.variants)) return { avatar: { variants: value.variants } }
+    return value && typeof value === 'object' ? value : {}
+  } catch { return {} }
 }
 
 export default app

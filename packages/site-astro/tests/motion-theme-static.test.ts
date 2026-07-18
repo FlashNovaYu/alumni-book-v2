@@ -24,7 +24,7 @@ describe('夜读主题基础层', () => {
     expect(layout).toContain('is:inline')
     expect(layout).toContain("const storageKey = 'alumni_theme'")
     expect(layout).toContain("document.documentElement.dataset.theme = theme")
-    expect(layout).toContain("import { initThemeRuntime } from '../scripts/themeRuntime'")
+    expect(layout).toContain("import('../scripts/themeRuntime')")
     expect(nav.match(/data-theme-toggle/g)?.length).toBe(2)
     expect(nav).toContain('aria-label="切换为夜读模式"')
   })

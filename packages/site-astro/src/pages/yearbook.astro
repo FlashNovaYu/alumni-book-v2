@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
+import { buildMediaSources, type MediaVariant, type StudentMediaAssets } from '@alumni/shared'
 
 interface Classmate {
   name: string
@@ -9,12 +10,14 @@ interface Classmate {
   motto: string
   visitCount: number
   updatedAt: string
+  media?: StudentMediaAssets | null
 }
 
 interface Photo {
   id: string
   r2Key: string
   caption: string
+  media?: { variants: MediaVariant[] } | null
 }
 
 interface Album {
@@ -87,6 +90,16 @@ const totalMessages = messages.length
 
 // 排行
 const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).slice(0, 3)
+
+function photoMedia(photo: Photo) {
+  const source = photo.r2Key.startsWith('http') ? photo.r2Key : `${API_BASE}/api/files/${photo.r2Key}`
+  const media = buildMediaSources(source, photo.media?.variants, 320, 213)
+  return { src: media.src, srcset: media.srcset || undefined, sizes: media.sizes, width: media.width, height: media.height }
+}
+function avatarMedia(mate: Classmate) {
+  const source = mate.avatarUrl?.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl || ''}`
+  return buildMediaSources(source, mate.media?.avatar?.variants, 72, 72)
+}
 ---
 
 <MainLayout>
@@ -163,14 +176,17 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
             <div class="yearbook-mate-card card">
               <div class="mate-avatar-box">
                 {mate.avatarUrl ? (
-                  <object
+                  <img
                     class="mate-avatar-image"
-                    data={mate.avatarUrl.startsWith('http') ? mate.avatarUrl : `${API_BASE}${mate.avatarUrl}`}
-                    aria-label={`${mate.name}的头像`}
-                    style="aspect-ratio: 1"
-                  >
-                    <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
-                  </object>
+                    src={avatarMedia(mate).src}
+                    srcset={avatarMedia(mate).srcset || undefined}
+                    sizes={avatarMedia(mate).sizes}
+                    width="72"
+                    height="72"
+                    loading="lazy"
+                    decoding="async"
+                    alt={`${mate.name}的头像`}
+                  />
                 ) : (
                   <span class="mate-avatar-char">{mate.name.charAt(0)}</span>
                 )}
@@ -197,7 +213,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
             (album.photos || []).slice(0, 3).map(photo => (
               <div class="yearbook-photo-card card">
                 <div class="yearbook-photo-img-wrapper">
-                  <img src={photo.r2Key.startsWith('http') ? photo.r2Key : `${API_BASE}/api/files/${photo.r2Key}`} alt={photo.caption} loading="lazy" />
+                  <img {...photoMedia(photo)} alt={photo.caption} loading="lazy" decoding="async" />
                 </div>
                 {photo.caption && <p class="yearbook-photo-caption mt-1">{photo.caption}</p>}
               </div>

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { ADMIN_PERMISSIONS, getAdminPermissions, getAdminPrincipal, type AdminPermission } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 import { hashPassword } from '../lib/password'
@@ -75,7 +76,7 @@ adminAccountsRoutes.get('/admin/account-candidates', async (c) => {
 adminAccountsRoutes.post('/admin/accounts', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json().catch(() => ({})) as any
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as any
   const accountType = body.accountType
   const displayName = String(body.displayName || '').trim()
   const roleId = String(body.roleId || '')
@@ -128,7 +129,7 @@ adminAccountsRoutes.put('/admin/accounts/:id', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
-  const body = await c.req.json().catch(() => ({})) as any
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as any
   const displayName = String(body.displayName || '').trim()
   const roleId = String(body.roleId || '')
   const overrides = validOverrides(body.permissionOverrides)
@@ -166,7 +167,7 @@ adminAccountsRoutes.post('/admin/accounts/:id/disable', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
-  const { reason } = await c.req.json().catch(() => ({})) as { reason?: unknown }
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} }) as { reason?: unknown }
   const cleanReason = cleanDestructiveReason(reason)
   if (!cleanReason) return c.json({ success: false, message: '停用管理员时请填写原因' }, 400)
   const account = await c.env.DB.prepare('SELECT is_owner, status FROM admin_accounts WHERE id = ?').bind(id).first<any>()
@@ -183,7 +184,7 @@ adminAccountsRoutes.post('/admin/accounts/:id/reset-password', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
-  const { initialPassword, reason } = await c.req.json().catch(() => ({})) as { initialPassword?: string; reason?: unknown }
+  const { initialPassword, reason } = await parseLimitedJson<any>(c, { fallback: {} }) as { initialPassword?: string; reason?: unknown }
   const password = String(initialPassword || '')
   const cleanReason = cleanDestructiveReason(reason)
   if (password.length < 8) return c.json({ success: false, message: '初始密码至少 8 位' }, 400)
@@ -213,7 +214,7 @@ adminAccountsRoutes.post('/admin/accounts/:id/revoke-sessions', async (c) => {
   const principal = getAdminPrincipal(c)
   if (!principal) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const id = c.req.param('id')
-  const { reason } = await c.req.json().catch(() => ({})) as { reason?: unknown }
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} }) as { reason?: unknown }
   const cleanReason = cleanDestructiveReason(reason)
   if (!cleanReason) return c.json({ success: false, message: '撤销管理员会话时请填写原因' }, 400)
   const account = await c.env.DB.prepare('SELECT id FROM admin_accounts WHERE id = ?').bind(id).first()

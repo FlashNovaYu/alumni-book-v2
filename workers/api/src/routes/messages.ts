@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 import { verifyClassmateSession } from '../lib/classmateSession'
@@ -72,7 +73,7 @@ messagesRoutes.get('/messages/:slug', async (c) => {
 messagesRoutes.post('/messages/:slug', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
 
   const { authorName, content, cardStyle } = body
   if (!authorName || !authorName.trim()) {
@@ -109,7 +110,7 @@ messagesRoutes.post('/messages/:slug', async (c) => {
 messagesRoutes.put('/messages/:id/react', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
-  const { reaction } = await c.req.json()
+  const { reaction } = await parseLimitedJson(c)
 
   const ALLOWED = ['❤️', '👍', '😂', '🎉']
   if (!ALLOWED.includes(reaction)) {
@@ -148,7 +149,7 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
 messagesRoutes.put('/messages/:id/reply', async (c) => {
   const id = c.req.param('id')
   const db = c.env.DB
-  const { reply } = await c.req.json()
+  const { reply } = await parseLimitedJson(c)
 
   if (!reply || !reply.trim() || reply.trim().length > 500) {
     return c.json({ success: false, message: '回复内容必须在 1-500 字之间' }, 400)
@@ -231,7 +232,7 @@ messagesRoutes.put('/admin/messages/:id/hide', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { hidden, reason } = await c.req.json()
+  const { hidden, reason } = await parseLimitedJson(c)
   const cleanReason = String(reason || '').trim()
   if (hidden && !cleanReason) return c.json({ success: false, message: '隐藏留言时请填写原因' }, 400)
   const before = await db.prepare('SELECT is_hidden FROM messages WHERE id = ?').bind(id).first()
@@ -248,7 +249,7 @@ messagesRoutes.put('/admin/messages/:id/pin', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { pinned } = await c.req.json()
+  const { pinned } = await parseLimitedJson(c)
   const before = await db.prepare('SELECT pinned FROM messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(db, admin.id, [
@@ -262,7 +263,7 @@ messagesRoutes.post('/admin/messages/batch', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { ids, action, hidden, reason } = await c.req.json()
+  const { ids, action, hidden, reason } = await parseLimitedJson(c)
   if (!Array.isArray(ids) || ids.length === 0) {
     return c.json({ success: false, message: '无效的 ID 数组' }, 400)
   }
@@ -296,7 +297,7 @@ messagesRoutes.delete('/admin/messages/:id', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除留言时请填写原因' }, 400)
   const before = await db.prepare('SELECT student_slug, author_name FROM messages WHERE id = ?').bind(id).first()

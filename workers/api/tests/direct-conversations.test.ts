@@ -2,6 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
+import { listConversations } from '../src/routes/directConversations'
 
 const STUDENT_A = 'direct-student-a'
 const STUDENT_B = 'direct-student-b'
@@ -40,6 +41,48 @@ beforeEach(async () => {
 })
 
 describe('Direct Conversations API', () => {
+  it('uses the composite history index for canonical timestamp pagination', async () => {
+    const { results } = await env.DB.prepare(
+      `EXPLAIN QUERY PLAN
+       SELECT id FROM direct_messages
+       WHERE conversation_id = ? AND (created_at < ? OR (created_at = ? AND id < ?))
+       ORDER BY created_at DESC, id DESC LIMIT ?`
+    ).bind('query-plan-conversation', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', 'cursor', 30).all<any>()
+    expect((results || []).map((row: any) => row.detail).join('\n')).toContain('idx_direct_messages_history')
+  })
+
+  it('loads ten conversations with at most three D1 reads', async () => {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM direct_messages'),
+      env.DB.prepare('DELETE FROM direct_conversations'),
+      ...Array.from({ length: 10 }, (_, index) => {
+        const peer = `direct-bulk-${index}`
+        const id = `conv_${STUDENT_A}_${peer}`
+        const time = `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`
+        return env.DB.prepare(
+          "INSERT OR REPLACE INTO students (id, name, slug, account_status, account_initial_password_changed) VALUES (?, ?, ?, 'active', 1)"
+        ).bind(`bulk-id-${index}`, `批量同学${index}`, peer)
+      }),
+    ])
+    for (let index = 0; index < 10; index++) {
+      const peer = `direct-bulk-${index}`
+      const id = `conv_${STUDENT_A}_${peer}`
+      const time = `2026-01-01T00:00:${String(index).padStart(2, '0')}.000Z`
+      await env.DB.batch([
+        env.DB.prepare('INSERT INTO direct_conversations (id, participant_a_slug, participant_b_slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').bind(id, peer, STUDENT_A, time, time),
+        env.DB.prepare('INSERT INTO direct_messages (id, conversation_id, sender_slug, recipient_slug, body, client_nonce, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(`bulk-msg-${index}`, id, peer, STUDENT_A, `消息${index}`, `bulk-${index}`, time),
+      ])
+    }
+
+    let prepares = 0
+    const countingDb = { prepare(sql: string) { prepares++; return env.DB.prepare(sql) } } as unknown as D1Database
+    const items = await listConversations(countingDb, STUDENT_A)
+
+    expect(items).toHaveLength(10)
+    expect(items[0].unreadCount).toBe(1)
+    expect(prepares).toBeLessThanOrEqual(3)
+  })
+
   it('requires a classmate session on every endpoint', async () => {
     const endpoints = [
       { path: '/api/direct-conversations', method: 'GET' },

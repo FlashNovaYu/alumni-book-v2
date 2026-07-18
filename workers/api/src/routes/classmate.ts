@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { validateImageUpload } from '../lib/imageValidation'
+import { parseUploadVariants } from './upload'
 import {
   checkAuthRateLimit,
   clearAuthFailures,
@@ -92,7 +94,7 @@ async function authClassmate(c: any): Promise<string | null> {
 // POST /api/classmate/token — 获取编辑凭证
 classmateRoutes.post('/classmate/token', async (c) => {
   const db = c.env.DB
-  const body = await c.req.json().catch(() => ({})) as { name?: string; slug?: string; editSecret?: string }
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as { name?: string; slug?: string; editSecret?: string }
   const name = String(body.name || '').trim()
   const slug = String(body.slug || '').trim()
   const editSecret = String(body.editSecret || '')
@@ -137,7 +139,7 @@ classmateRoutes.post('/classmate/token', async (c) => {
   await clearAuthFailures(db, rateLimitKey)
   const token = await generateClassmateToken(slug, await getClassmateSecret(c.env.JWT_SECRET))
   await db.prepare(
-    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"
+    "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+7 days'))"
   ).bind(token, slug).run()
 
   return c.json({
@@ -162,7 +164,7 @@ classmateRoutes.put('/classmate/students/:slug', async (c) => {
     return c.json({ success: false, message: '只能编辑自己的资料' }, 403)
   }
 
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
   const fields: string[] = []
   const values: any[] = []
 
@@ -212,22 +214,9 @@ const ALLOWED_MIMES: Record<string, string[]> = {
   background: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
 }
 
-async function deleteOldFile(db: D1Database, r2: R2Bucket, query: string, params: any[]) {
-  try {
-    const row = await db.prepare(query).bind(...params).first()
-    if (!row) return
-    
-    const url = (row as any).avatar_url || (row as any).background_url
-    if (url) {
-      const parts = url.split('/api/files/')
-      if (parts.length === 2) {
-        const oldKey = parts[1]
-        await r2.delete(oldKey)
-      }
-    }
-  } catch (e) {
-    console.error('Failed to delete old file from R2:', e)
-  }
+function fileKeyFromUrl(url: string | null | undefined) {
+  const parts = String(url || '').split('/api/files/')
+  return parts.length === 2 ? parts[1] : null
 }
 
 // POST /api/classmate/upload — 自助上传头像/背景图
@@ -248,7 +237,6 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   if (type !== 'avatar' && type !== 'background') {
     return c.json({ success: false, message: '不允许的上传类型' }, 400)
   }
-
   const authedSlug = await authClassmate(c)
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权' }, 401)
@@ -256,6 +244,8 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   if (authedSlug !== slug) {
     return c.json({ success: false, message: '只能编辑自己的资料' }, 403)
   }
+  const parsedVariants = await parseUploadVariants(formData, type, slug)
+  if ('error' in parsedVariants) return c.json({ success: false, message: parsedVariants.error }, 400)
 
   if (!file) {
     return c.json({ success: false, message: '没有文件' }, 400)
@@ -283,29 +273,51 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   const r2Key = type === 'avatar'
     ? `avatars/${slug}_${timestamp}.${imageFormat.extension}`
     : `backgrounds/${slug}_${timestamp}.${imageFormat.extension}`
+  for (const variant of parsedVariants.metadata) if (await r2.head(variant.key)) return c.json({ success: false, message: '图片变体键已存在' }, 409)
+
+  const urlColumn = type === 'avatar' ? 'avatar_url' : 'background_url'
+  const existing = await db.prepare(`SELECT ${urlColumn}, media_json FROM students WHERE slug = ?`).bind(slug).first() as any
+  const oldKey = fileKeyFromUrl(existing?.[urlColumn])
+  let media: any = {}
+  try { media = JSON.parse(String(existing?.media_json || '{}')); if (Array.isArray(media?.variants)) media = { avatar: { variants: media.variants } } } catch { media = {} }
+  const oldVariantKeys: string[] = media?.[type]?.variants?.map((item: any) => item.key) || []
+  media[type] = { variants: parsedVariants.metadata }
 
   // 3. 上传新文件到 R2
-  await r2.put(r2Key, imageContents, {
-    httpMetadata: { contentType: imageFormat.mime },
-  })
+  const uploadedKeys = [r2Key]
+  try {
+    await r2.put(r2Key, imageContents, { httpMetadata: { contentType: imageFormat.mime } })
+    for (const variant of parsedVariants.files) {
+      await r2.put(variant.metadata.key, variant.file.stream(), { httpMetadata: { contentType: variant.metadata.contentType } })
+      uploadedKeys.push(variant.metadata.key)
+    }
+  } catch {
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
+    return c.json({ success: false, message: '文件上传失败，请重试' }, 500)
+  }
 
   // 统一存为相对路径，有利于环境迁移与解耦
   const relativeUrl = `/api/files/${r2Key}`
 
-  // 4. 清理旧文件并更新数据库
-  if (type === 'avatar') {
-    await deleteOldFile(db, r2, 'SELECT avatar_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET avatar_url = ?, updated_at = datetime(\'now\') WHERE slug = ?')
-      .bind(relativeUrl, slug).run()
-  } else if (type === 'background') {
-    await deleteOldFile(db, r2, 'SELECT background_url FROM students WHERE slug = ?', [slug])
-    await db.prepare('UPDATE students SET background_url = ?, updated_at = datetime(\'now\') WHERE slug = ?')
-      .bind(relativeUrl, slug).run()
+  // 4. Commit the pointer first. If D1 fails, preserve the old object and
+  // compensate the newly uploaded object; only successful commits retire it.
+  try {
+    await db.prepare(`UPDATE students SET ${urlColumn} = ?, media_json = ?, updated_at = datetime('now') WHERE slug = ?`)
+      .bind(relativeUrl, JSON.stringify(media), slug).run()
+  } catch (error) {
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
+    return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
   }
+  if (oldKey && oldKey !== r2Key) {
+    await r2.delete(oldKey).catch((error) => {
+      console.error('Failed to delete old file from R2:', error)
+    })
+  }
+  if (oldVariantKeys.length) await Promise.all(oldVariantKeys.map((key) => r2.delete(key).catch(() => undefined)))
 
   const origin = new URL(c.req.url).origin
   const absoluteUrl = `${origin}${relativeUrl}`
 
-  return c.json({ success: true, data: { url: absoluteUrl, r2Key } })
+  return c.json({ success: true, data: { url: absoluteUrl, r2Key, ...(parsedVariants.metadata.length ? { variants: parsedVariants.metadata } : {}) } })
 })
 

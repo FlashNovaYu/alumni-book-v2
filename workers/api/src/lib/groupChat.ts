@@ -4,6 +4,11 @@ export const GROUP_REACTIONS = ['❤️', '👍', '😂', '🎉'] as const
 
 type MessageRow = Record<string, any>
 
+function canonicalTimestamp(value: string): string {
+  const parsed = Date.parse(value.includes('T') ? value : `${value.replace(' ', 'T')}Z`)
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : value
+}
+
 type ListOptions = {
   before?: { timestamp: string; id: string }
   updatedAfter?: { timestamp: string; id: string }
@@ -89,46 +94,71 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
       : "pm.status = 'visible'"]
   const values: unknown[] = options.mine ? [viewerSlug] : []
   if (options.before) {
-    clauses.push('(julianday(pm.created_at) < julianday(?) OR (julianday(pm.created_at) = julianday(?) AND pm.id < ?))')
-    values.push(options.before.timestamp, options.before.timestamp, options.before.id)
+    clauses.push('(pm.created_at < ? OR (pm.created_at = ? AND pm.id < ?))')
+    const timestamp = canonicalTimestamp(options.before.timestamp)
+    values.push(timestamp, timestamp, options.before.id)
   }
   if (options.updatedAfter) {
-    clauses.push('(julianday(pm.updated_at) > julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id > ?))')
-    values.push(options.updatedAfter.timestamp, options.updatedAfter.timestamp, options.updatedAfter.id)
+    clauses.push('(pm.updated_at > ? OR (pm.updated_at = ? AND pm.id > ?))')
+    const timestamp = canonicalTimestamp(options.updatedAfter.timestamp)
+    values.push(timestamp, timestamp, options.updatedAfter.id)
   }
   if (options.updatedBefore) {
-    clauses.push('(julianday(pm.updated_at) < julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id <= ?))')
-    values.push(options.updatedBefore.timestamp, options.updatedBefore.timestamp, options.updatedBefore.id)
+    clauses.push('(pm.updated_at < ? OR (pm.updated_at = ? AND pm.id <= ?))')
+    const timestamp = canonicalTimestamp(options.updatedBefore.timestamp)
+    values.push(timestamp, timestamp, options.updatedBefore.id)
   }
   values.push(options.limit)
   const orderBy = options.updatedAfter
-    ? 'julianday(pm.updated_at) ASC, pm.id ASC'
-    : 'julianday(pm.created_at) DESC, pm.id DESC'
+    ? 'pm.updated_at ASC, pm.id ASC'
+    : 'pm.created_at DESC, pm.id DESC'
   const result = await db.prepare(
-    `WITH reaction_counts AS (
-       SELECT message_id, reaction, COUNT(*) AS count FROM group_chat_reactions GROUP BY message_id, reaction
-     ), reaction_aggregates AS (
-       SELECT message_id, json_group_object(reaction, count) AS reaction_counts_json FROM reaction_counts GROUP BY message_id
-     )
-     SELECT pm.*, s.avatar_url, ra.reaction_counts_json, mine_reaction.reaction AS my_reaction,
+    `SELECT pm.*, s.avatar_url,
        reply.id AS reply_id, reply.author_name AS reply_author_name, reply.content AS reply_content, reply.status AS reply_status
      FROM public_messages pm
      LEFT JOIN students s ON s.slug = pm.author_slug
-     LEFT JOIN reaction_aggregates ra ON ra.message_id = pm.id
-     LEFT JOIN group_chat_reactions mine_reaction ON mine_reaction.message_id = pm.id AND mine_reaction.reactor_slug = ?
      LEFT JOIN public_messages reply ON reply.id = pm.reply_to_id
      WHERE ${clauses.join(' AND ')} ORDER BY ${orderBy} LIMIT ?`
-  ).bind(viewerSlug, ...values).all()
-  const messages = await Promise.all((result.results || []).map((row) => formatGroupMessage(db, row, viewerSlug, options.includeStatusChanges)))
+  ).bind(...values).all()
+  const rows = (result.results || []) as MessageRow[]
+  if (rows.length === 0) return []
+
+  // Aggregate reactions only for the page returned above. The previous global CTE
+  // scanned every historical reaction for each page request.
+  const messageIds = rows.map((row) => row.id)
+  const placeholders = messageIds.map(() => '?').join(', ')
+  const reactionResult = await db.prepare(
+    `SELECT message_id, reaction, COUNT(*) AS count,
+       MAX(CASE WHEN reactor_slug = ? THEN 1 ELSE 0 END) AS mine
+     FROM group_chat_reactions
+     WHERE message_id IN (${placeholders})
+     GROUP BY message_id, reaction`
+  ).bind(viewerSlug, ...messageIds).all()
+  const reactionsByMessage = new Map<string, { counts: Record<string, number>; mine: string | null }>()
+  for (const reaction of reactionResult.results || []) {
+    const item = reaction as any
+    const aggregate = reactionsByMessage.get(item.message_id) || { counts: {}, mine: null }
+    aggregate.counts[item.reaction] = Number(item.count || 0)
+    if (Number(item.mine) > 0) aggregate.mine = item.reaction
+    reactionsByMessage.set(item.message_id, aggregate)
+  }
+  const messages = await Promise.all(rows.map((row) => {
+    const aggregate = reactionsByMessage.get(row.id)
+    return formatGroupMessage(db, {
+      ...row,
+      reaction_counts_json: JSON.stringify(aggregate?.counts || {}),
+      my_reaction: aggregate?.mine || null,
+    }, viewerSlug, options.includeStatusChanges)
+  }))
   return options.updatedAfter ? messages : messages.reverse()
 }
 
 export async function getActiveMute(db: D1Database, slug: string): Promise<{ reason: string; mutedUntil: string | null } | null> {
   await db.prepare(
-    "DELETE FROM group_chat_mutes WHERE student_slug = ? AND muted_until IS NOT NULL AND julianday(muted_until) <= julianday('now')"
+    "DELETE FROM group_chat_mutes WHERE student_slug = ? AND muted_until IS NOT NULL AND muted_until <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
   ).bind(slug).run()
   const row = await db.prepare(
-    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR julianday(muted_until) > julianday('now'))"
+    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR muted_until > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
   ).bind(slug).first() as any
   return row ? { reason: row.reason, mutedUntil: row.muted_until } : null
 }

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { getTimelineFeed, TimelineFeedType } from '../lib/timelineFeed'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
@@ -42,7 +43,7 @@ timelineRoutes.post('/timeline/events', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
   if (!body.title || !body.eventDate) {
     return c.json({ success: false, message: '标题和日期必填' }, 400)
   }
@@ -58,7 +59,7 @@ timelineRoutes.put('/timeline/events/reorder', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
 
-  const body = await c.req.json().catch(() => ({})) as { eventDate?: unknown; ids?: unknown }
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as { eventDate?: unknown; ids?: unknown }
   const eventDate = typeof body.eventDate === 'string' ? body.eventDate : ''
   const ids = Array.isArray(body.ids) && body.ids.every((id) => typeof id === 'string') ? body.ids as string[] : []
   if (!eventDate || ids.length === 0 || new Set(ids).size !== ids.length) {
@@ -96,7 +97,7 @@ timelineRoutes.put('/timeline/events/:id', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
   const fields: string[] = []
   const values: any[] = []
   if (body.title !== undefined) { fields.push('title = ?'); values.push(body.title) }
@@ -120,7 +121,7 @@ timelineRoutes.delete('/timeline/events/:id', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除时光轴事件时请填写原因' }, 400)
   const before = await db.prepare('SELECT title, event_date FROM timeline_events WHERE id = ?').bind(id).first()

@@ -8,6 +8,7 @@ export interface ArchiveClassmateCard {
   hasPage: boolean
   hasStandardProfile: boolean
   avatarUrl: string | null
+  avatarMedia?: { variants: import('@alumni/shared').MediaVariant[] } | null
   motto: string
   tags: string[]
   completion: number
@@ -23,6 +24,7 @@ export function toArchiveClassmateCard(mate: ClassmateEntry, siteBase: string): 
     hasPage: mate.hasPage,
     hasStandardProfile: mate.hasStandardProfile !== false,
     avatarUrl: mate.avatarUrl,
+    avatarMedia: mate.avatarMedia,
     motto: mate.motto || '这位同学还没有写下座右铭',
     tags: mate.tags || [mate.mbti, mate.school, mate.className].filter(Boolean).map(String).slice(0, 3),
     completion,

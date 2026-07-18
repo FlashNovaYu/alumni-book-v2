@@ -30,15 +30,29 @@ test('first login requires changing the initial password before entering preface
   await mockClassmateAdminEntry(page)
   await mockClassmateInboxSummary(page)
 
-  await page.goto('./')
+  const visitorPassRequests: string[] = []
+  page.on('request', (request) => {
+    if (/VisitorPass/i.test(request.url())) visitorPassRequests.push(request.url())
+  })
+
+  await page.goto('./', { waitUntil: 'networkidle' })
+  expect(visitorPassRequests).toHaveLength(0)
+  const visitorPassLoaded = page.waitForRequest((request) => /VisitorPass/i.test(request.url()))
   await page.getByTestId('home-login-cta').click()
+  await visitorPassLoaded
+  await expect(page.locator('astro-island[component-url*="VisitorPass"]')).not.toHaveAttribute('ssr', '')
   
   // 输入同学姓名
-  await page.locator('#username-input').fill('测试同学')
+  const username = page.locator('#username-input')
+  await expect(username).toBeEditable()
+  await username.fill('测试同学')
   
   // 输入初始密码并点击登录
   await page.locator('#password-input').fill('123456')
-  await page.click('.login-btn')
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/classmate-auth/login') && response.ok()),
+    page.click('.login-btn'),
+  ])
   
   // 检查是否显示强制改密弹窗
   const modal = page.locator('.change-password-modal')
@@ -47,7 +61,10 @@ test('first login requires changing the initial password before entering preface
   // 填写新密码并提交
   await page.locator('#new-password').fill('new-pass-123')
   await page.locator('#confirm-password').fill('new-pass-123')
-  await page.click('.change-password-btn')
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/classmate-auth/change-password') && response.ok()),
+    page.click('.change-password-btn'),
+  ])
   
   // 校验是否跳转至前言页面
   await expect(page).toHaveURL(/\/preface/, { timeout: 15000 })

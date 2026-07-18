@@ -10,9 +10,9 @@
         </div>
       </div>
       <div v-if="messageType === 'profile'" class="filter-tabs tab-group-sub">
-        <button :class="['tab-btn tab-btn-sm', { active: profileFilter === 'all' }]" @click="profileFilter = 'all'">全部</button>
-        <button :class="['tab-btn tab-btn-sm', { active: profileFilter === 'pending' }]" @click="profileFilter = 'pending'">待审核</button>
-        <button :class="['tab-btn tab-btn-sm', { active: profileFilter === 'approved' }]" @click="profileFilter = 'approved'">已通过</button>
+        <button :class="['tab-btn tab-btn-sm', { active: profileFilter === 'all' }]" @click="changeProfileFilter('all')">全部</button>
+        <button :class="['tab-btn tab-btn-sm', { active: profileFilter === 'pending' }]" @click="changeProfileFilter('pending')">待审核</button>
+        <button :class="['tab-btn tab-btn-sm', { active: profileFilter === 'approved' }]" @click="changeProfileFilter('approved')">已通过</button>
       </div>
       <div v-else-if="messageType === 'group'" class="filter-tabs tab-group-sub">
         <button v-for="option in groupFilters" :key="option.value" :class="['tab-btn tab-btn-sm', { active: groupFilter === option.value }]" @click="changeGroupFilter(option.value)">{{ option.label }}</button>
@@ -88,6 +88,9 @@
       </article>
       <p v-if="!legacyMessages.length" class="empty-notice">没有历史公共投稿。</p>
     </div>
+    <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="load()">
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${currentListLength}${total !== null ? `/${total}` : ''}）` }}
+    </button>
 
     <div v-if="moderation" class="modal-backdrop" @click.self="closeModeration">
       <section class="modal" role="dialog" aria-modal="true" aria-labelledby="moderation-title">
@@ -107,6 +110,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { adminFetch, getCurrentAdmin } from '@/api/client'
+import { RequestLifecycle } from '@/api/requestLifecycle'
+import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
+import { listProfileMessages, type ProfileMessage } from '@/api/messages'
 import {
   fetchGroupChatMessages,
   muteClassmate,
@@ -117,7 +123,6 @@ import {
   type AdminGroupChatStatus,
 } from '@/api/community'
 
-interface ProfileMessage { id: string; studentSlug: string; authorName: string; content: string; isApproved: boolean; isHidden: boolean; createdAt: string; pinned: boolean; reply?: string | null }
 interface LegacyMessage { id: string; authorSlug: string; authorName: string; content: string; status: 'pending' | 'approved' | 'rejected' | 'hidden'; reviewReason?: string | null; reviewedBy?: string | null; reviewedAt?: string | null; featured: boolean; pinned: boolean; createdAt: string }
 type MessageType = 'profile' | 'group' | 'legacy'
 type ModerationKind = 'hide' | 'restore' | 'recall' | 'mute'
@@ -136,6 +141,9 @@ const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null)
 const moderation = ref<{ kind: ModerationKind; message: AdminGroupChatMessage } | null>(null)
 const moderationReason = ref('')
 const muteDuration = ref<'permanent' | 'day' | 'week'>('permanent')
+const nextCursor = ref<string | null>(null)
+const total = ref<number | null>(null)
+const loadingMore = ref(false)
 const groupFilters: Array<{ value: 'all' | AdminGroupChatStatus; label: string }> = [
   { value: 'all', label: '全部' }, { value: 'visible', label: '最新' }, { value: 'hidden', label: '已隐藏' }, { value: 'recalled_by_admin', label: '管理员撤回' }, { value: 'recalled_by_author', label: '同学撤回' },
 ]
@@ -146,7 +154,9 @@ const canManage = computed(() => {
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 let loadVersion = 0
+const requestLifecycle = new RequestLifecycle()
 const filteredMessages = computed(() => profileFilter.value === 'all' ? messages.value : messages.value.filter((message) => profileFilter.value === 'pending' ? !message.isApproved : message.isApproved))
+const currentListLength = computed(() => messageType.value === 'profile' ? filteredMessages.value.length : messageType.value === 'group' ? groupMessages.value.length : legacyMessages.value.length)
 const moderationTitle = computed(() => ({ hide: '隐藏群聊消息', restore: '恢复群聊消息', recall: '撤回群聊消息', mute: '禁言同学' }[moderation.value?.kind || 'hide']))
 
 function showToast(type: 'success' | 'error', message: string) {
@@ -159,32 +169,60 @@ function groupStatusLabel(status: AdminGroupChatStatus) {
   return ({ visible: '正常显示', hidden: '已隐藏', recalled_by_author: '同学撤回', recalled_by_admin: '管理员撤回' }[status])
 }
 
-async function load() {
+async function load(reset = false) {
   const activeType = messageType.value
   const version = ++loadVersion
+  if (reset) {
+    nextCursor.value = null
+    selectedIds.value = []
+  }
+  const cursor = reset ? null : nextCursor.value
+  const controller = requestLifecycle.begin()
   loading.value = true
+  loadingMore.value = !reset
   try {
     if (activeType === 'profile') {
-      const result = await adminFetch<{ data?: ProfileMessage[] }>('/api/admin/messages')
-      if (version === loadVersion && messageType.value === activeType) messages.value = result.data || []
+      const page = await listProfileMessages(profileFilter.value, cursor, controller.signal)
+      if (version === loadVersion && messageType.value === activeType) requestLifecycle.commit(controller, () => {
+        const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(messages.value, page.items, (message) => message.id)
+        messages.value = merged.items
+        nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
+        total.value = page.total
+      })
     }
     if (activeType === 'group') {
-      const result = await fetchGroupChatMessages(groupFilter.value === 'all' ? undefined : groupFilter.value)
-      if (version === loadVersion && messageType.value === activeType) groupMessages.value = result
+      const page = await fetchGroupChatMessages(groupFilter.value === 'all' ? undefined : groupFilter.value, cursor, controller.signal)
+      if (version === loadVersion && messageType.value === activeType) requestLifecycle.commit(controller, () => {
+        const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(groupMessages.value, page.items, (message) => message.id)
+        groupMessages.value = merged.items
+        nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
+        total.value = page.total
+      })
     }
     if (activeType === 'legacy') {
-      const result = await adminFetch<{ data?: LegacyMessage[] }>('/api/admin/public-messages')
-      if (version === loadVersion && messageType.value === activeType) legacyMessages.value = result.data || []
+      const query = pageSearchParams(DEFAULT_PAGE_SIZE, cursor)
+      const result = await adminFetch<{ data?: LegacyMessage[] | { items: LegacyMessage[]; nextCursor: string | null; total: number } }>(`/api/admin/public-messages?${query}`, { signal: controller.signal })
+      const page = normalizePageResult(result.data, DEFAULT_PAGE_SIZE, cursor)
+      if (version === loadVersion && messageType.value === activeType) requestLifecycle.commit(controller, () => {
+        const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(legacyMessages.value, page.items, (message) => message.id)
+        legacyMessages.value = merged.items
+        nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
+        total.value = page.total
+      })
     }
   } catch (error) {
-    if (version === loadVersion && messageType.value === activeType) showToast('error', error instanceof Error ? error.message : '留言加载失败')
+    if (version === loadVersion && messageType.value === activeType && requestLifecycle.shouldReport(error, controller)) showToast('error', error instanceof Error ? error.message : '留言加载失败')
   } finally {
-    if (version === loadVersion && messageType.value === activeType) loading.value = false
+    if (version === loadVersion && messageType.value === activeType && requestLifecycle.finish(controller)) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
 }
 
-function changeMessageType(type: MessageType) { messageType.value = type; selectedIds.value = []; void load() }
-function changeGroupFilter(filter: 'all' | AdminGroupChatStatus) { groupFilter.value = filter; void load() }
+function changeMessageType(type: MessageType) { messageType.value = type; void load(true) }
+function changeProfileFilter(filter: 'all' | 'pending' | 'approved') { profileFilter.value = filter; void load(true) }
+function changeGroupFilter(filter: 'all' | AdminGroupChatStatus) { groupFilter.value = filter; void load(true) }
 function replaceGroupMessage(next: AdminGroupChatMessage) { groupMessages.value = groupMessages.value.map((message) => message.id === next.id ? next : message) }
 function openModeration(kind: ModerationKind, message: AdminGroupChatMessage) { moderation.value = { kind, message }; moderationReason.value = ''; muteDuration.value = 'permanent' }
 function closeModeration() { if (!processing.value) moderation.value = null }
@@ -311,8 +349,8 @@ watch(() => route.query.tab, (tab) => {
   if (type !== messageType.value) changeMessageType(type)
 })
 
-onMounted(load)
-onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
+onMounted(() => { void load(true) })
+onBeforeUnmount(() => { requestLifecycle.abort(); if (toastTimer) clearTimeout(toastTimer) })
 </script>
 
 <style scoped>
@@ -327,6 +365,7 @@ onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
 .tab-btn-sm { min-height: 30px; padding: 0 var(--spacing-sm); }
 .batch-actions-panel { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-md) var(--spacing-lg); }
 .batch-buttons, .msg-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
+.load-more { justify-self: center; }
 .loading, .empty-notice { padding: var(--spacing-xxl); color: var(--color-muted); text-align: center; }
 .msg-list { display: grid; gap: var(--spacing-md); }
 .msg-card { padding: var(--spacing-lg); border-left: 4px solid transparent; }

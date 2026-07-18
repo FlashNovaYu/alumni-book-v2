@@ -1,4 +1,5 @@
 export * from './types'
 export { getSessionName, setSessionName, clearSession, escapeHtml, formatDate, getClassmateToken, setClassmateSession, getClassmateStudent, clearClassmateSession } from './utils'
-export { createThumbnail, compressImage } from './imageUtils'
+export { createThumbnail, compressImage, generateImageVariants, appendImageVariants, type GeneratedImageVariant, type ImageVariantOptions } from './imageUtils'
+export { buildMediaSources } from './media'
 export { buildPaginationItems, type PaginationItem } from './pagination'

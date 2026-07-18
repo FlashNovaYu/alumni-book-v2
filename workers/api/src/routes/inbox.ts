@@ -252,7 +252,7 @@ inboxRoutes.get('/inbox/sync', async (c) => {
         SELECT latest.id
         FROM direct_messages latest
         WHERE latest.conversation_id = c.id
-        ORDER BY julianday(latest.created_at) DESC, latest.id DESC
+        ORDER BY latest.created_at DESC, latest.id DESC
         LIMIT 1
       )
       LEFT JOIN (

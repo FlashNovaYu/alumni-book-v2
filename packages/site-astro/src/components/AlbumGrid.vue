@@ -34,14 +34,17 @@
             :class="{ 'is-hovered': getState(photo.id).isHovered }"
             :style="getTiltStyles(photo.id, `rotateZ(${getStaticRotation(i)}deg) translateY(${getStaticY(i)}px)`)"
             @mousemove="onMouseMove($event, photo.id)"
-            @mouseenter="onMouseEnter(photo.id)"
+            @mouseenter="onMouseEnter(photo.id); playPaperSlide()"
             @mouseleave="onMouseLeave(photo.id)"
-            @click="openLightbox(album.photos, i)"
+            @touchstart="playPaperSlide()"
+            @click="openLightbox(album.photos, i); playCrystalTick()"
           >
             <div class="glare-layer" :style="{ opacity: getState(photo.id).isHovered ? 1 : 0 }"></div>
             <img
               v-if="!photoErrors[photo.id]"
-              :src="getPhotoUrl(photo.r2Key)"
+              :src="getMedia(photo).src"
+              :srcset="getMedia(photo).srcset || undefined"
+              :sizes="getMedia(photo).sizes"
               :alt="photo.caption"
               loading="lazy"
               decoding="async"
@@ -113,8 +116,11 @@ import { ref, reactive, computed, watch, onUnmounted, onMounted } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
 import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
 import { useMouseTilt } from '../composables/useMouseTilt'
+import { useAudioSynth } from '../composables/useAudioSynth'
+import { buildMediaSources, type MediaVariant } from '@alumni/shared'
 
 const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 10, scale: 1.05 })
+const { playPaperSlide, playCrystalTick } = useAudioSynth()
 
 function getStaticRotation(index: number) {
   return (Math.sin(index * 1.5) * 2).toFixed(2);
@@ -126,7 +132,7 @@ function getStaticY(index: number) {
 const props = defineProps<{
   albums: Array<{
     id: string; title: string; description: string; frameStyle: string; coverR2Key?: string; tags?: string[]
-    photos: Array<{ id: string; r2Key: string; caption: string }>
+    photos: Array<{ id: string; r2Key: string; caption: string; media?: { variants: MediaVariant[] } | null }>
   }>
   apiBase: string
 }>()
@@ -140,6 +146,10 @@ function getPhotoUrl(r2Key: string) {
   if (!r2Key) return ''
   if (r2Key.startsWith('http')) return r2Key
   return joinApiUrl(props.apiBase, `/api/files/${r2Key}`)
+}
+
+function getMedia(photo: { r2Key: string; media?: { variants: MediaVariant[] } | null }) {
+  return buildMediaSources(getPhotoUrl(photo.r2Key), photo.media?.variants, 320, 320)
 }
 
 // 标签过滤
@@ -485,7 +495,10 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .lightbox-enter-from, .lightbox-leave-to { opacity: 0; }
 
 @media (max-width: 768px) {
-  .photo-grid { grid-template-columns: repeat(2, 1fr); }
+  .photo-grid { 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 12px;
+  }
 
   .tags-filter-bar {
     justify-content: flex-start;

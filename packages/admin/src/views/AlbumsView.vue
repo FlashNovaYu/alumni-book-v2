@@ -27,12 +27,12 @@
         
         <div class="album-cover-preview-row mb-3" v-if="album.coverR2Key">
           <span class="text-xs text-muted">当前封面: </span>
-          <img :src="getPhotoUrl(album.coverR2Key)" class="cover-mini-thumb" />
+          <img :src="getPhotoUrl(album.coverR2Key)" class="cover-mini-thumb" width="56" height="56" loading="lazy" decoding="async" />
         </div>
 
         <div v-if="album.photos?.length" class="album-thumbs">
           <div v-for="photo in album.photos.slice(0, 6)" :key="photo.id" class="thumb">
-            <img :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" />
+            <img :src="getPhotoMedia(photo, 72).src" :srcset="getPhotoMedia(photo, 72).srcset || undefined" :sizes="getPhotoMedia(photo, 72).sizes" :alt="photo.caption" width="72" height="72" loading="lazy" decoding="async" />
           </div>
           <div v-if="album.photos.length > 6" class="thumb-more">
             +{{ album.photos.length - 6 }}
@@ -40,6 +40,9 @@
         </div>
       </div>
     </div>
+    <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="loadAlbums()">
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${albums.length}${total !== null ? `/${total}` : ''}）` }}
+    </button>
 
     <!-- 新建相册对话框 -->
     <Teleport to="body">
@@ -124,7 +127,7 @@
               <h3 class="title-sm mb-2">照片管理 (输入说明后失焦自动保存，点击▲▼调序)</h3>
               <div v-if="editAlbum.photos && editAlbum.photos.length" class="manage-photo-grid">
                 <div v-for="(photo, idx) in editAlbum.photos" :key="photo.id" class="manage-photo-item">
-                  <img :src="getPhotoUrl(photo.r2Key)" class="manage-photo-img" />
+                  <img :src="getPhotoMedia(photo, 160).src" :srcset="getPhotoMedia(photo, 160).srcset || undefined" :sizes="getPhotoMedia(photo, 160).sizes" class="manage-photo-img" width="160" height="120" loading="lazy" decoding="async" />
                   <div class="photo-info">
                     <input v-model="photo.caption" type="text" class="text-input photo-caption-input" placeholder="输入说明..." @blur="updatePhotoCaption(photo)" />
                     <div class="photo-actions mt-1">
@@ -172,7 +175,17 @@
               <strong>拖入照片至此</strong>
               <span>或点击选择文件</span>
             </div>
-            <div v-if="uploading" class="upload-progress">上传中...</div>
+            <div v-if="uploadTasks.length" class="upload-progress-list" aria-live="polite">
+              <div v-for="task in uploadTasks" :key="task.id" class="upload-progress-item">
+                <div class="upload-progress-heading">
+                  <span class="upload-progress-name">{{ task.file.name }}</span>
+                  <span class="upload-progress-stage">{{ task.stage }}</span>
+                  <button v-if="task.status === 'queued' || task.status === 'processing'" class="btn-secondary btn-action-sm" @click="cancelUpload(task.id)">取消</button>
+                </div>
+                <progress :value="task.progress" max="100" aria-label="上传进度"></progress>
+                <span v-if="task.error" class="upload-progress-error">{{ task.error }}</span>
+              </div>
+            </div>
             <div class="modal-actions">
               <button class="btn-secondary" :disabled="uploading" @click="uploadAlbum = null">关闭</button>
             </div>
@@ -184,21 +197,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
+import { isAbortError } from '@/api/network'
+import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import { compressImage } from '@/utils/image'
+import { appendImageVariants, buildMediaSources, generateImageVariants } from '@alumni/shared'
 import type { Album, ApiResponse } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+type UploadTask = {
+  id: string
+  file: File
+  status: 'queued' | 'processing' | 'done' | 'failed' | 'cancelled'
+  stage: string
+  progress: number
+  error?: string
+  controller: AbortController
+}
 
 const albums = ref<any[]>([])
 const showCreate = ref(false)
 const uploadAlbum = ref<any | null>(null)
 const uploading = ref(false)
+const uploadTasks = ref<UploadTask[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
 const creating = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
+const nextCursor = ref<string | null>(null)
+const total = ref<number | null>(null)
+const loadingMore = ref(false)
+let listController: AbortController | null = null
+let uploadController: AbortController | null = null
 
 const editAlbum = ref<any | null>(null)
 const editForm = ref({
@@ -215,13 +247,33 @@ function getPhotoUrl(r2Key: string): string {
   return `${API_BASE}/api/files/${r2Key}`
 }
 
-async function loadAlbums() {
-  try {
-    const res = await adminFetch<ApiResponse<any[]>>('/api/albums')
-    albums.value = res.data || []
-  } catch {
+async function loadAlbums(reset = false) {
+  if (reset) {
+    listController?.abort()
     albums.value = []
+    nextCursor.value = null
   }
+  const controller = new AbortController()
+  listController = controller
+  loadingMore.value = true
+  const query = pageSearchParams(DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
+  try {
+    const res = await adminFetch<ApiResponse<any[] | { items: any[]; nextCursor: string | null; total: number }>>(`/api/albums?${query}`, { signal: controller.signal })
+    if (controller.signal.aborted) return
+    const page = normalizePageResult(res.data, DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
+    const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(albums.value, page.items, (album) => album.id)
+    albums.value = merged.items
+    nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
+    total.value = page.total
+  } catch (error) {
+    if (isAbortError(error)) return
+    if (reset) albums.value = []
+  } finally {
+    if (listController === controller) loadingMore.value = false
+  }
+}
+function getPhotoMedia(photo: any, width: number) {
+  return buildMediaSources(getPhotoUrl(photo.r2Key), photo.media?.variants, width, Math.round(width * 0.75))
 }
 
 async function handleCreate() {
@@ -243,7 +295,7 @@ async function handleCreate() {
     })
     showCreate.value = false
     newAlbum.value = { title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false }
-    await loadAlbums()
+    await loadAlbums(true)
   } catch (e: any) {
     alert(e.message || '创建失败')
   } finally {
@@ -274,34 +326,90 @@ async function uploadFiles(files: FileList) {
   if (!files?.length || !uploadAlbum.value) return
 
   uploading.value = true
-  try {
-    for (const file of Array.from(files)) {
-      const formData = new FormData()
-      const compressed = await compressImage(file, 1280, 0.8)
-      formData.append('file', compressed)
-      formData.append('type', 'photo')
-      formData.append('albumId', uploadAlbum.value.id)
-      await adminFetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        headers: {},
-      })
+  uploadController?.abort()
+  uploadController = new AbortController()
+  const signal = uploadController.signal
+  const queue = Array.from(files).map((file, index): UploadTask => ({
+    id: `${Date.now()}-${index}-${file.name}`,
+    file,
+    status: 'queued',
+    stage: '等待中',
+    progress: 0,
+    controller: new AbortController(),
+  }))
+  uploadTasks.value = queue
+  const failures: string[] = []
+  let cursor = 0
+  const worker = async () => {
+    while (cursor < queue.length) {
+      if (signal.aborted) return
+      const task = queue[cursor++]
+      if (task.status === 'cancelled' || task.controller.signal.aborted) continue
+      const file = task.file
+      task.status = 'processing'
+      try {
+        task.stage = '压缩中'
+        task.progress = 10
+        const compressed = await compressImage(file, 1280, 0.8)
+        if (signal.aborted || task.controller.signal.aborted) throw new DOMException('上传已取消', 'AbortError')
+        task.stage = '生成缩略图'
+        task.progress = 35
+        const generated = await generateImageVariants(compressed, { signal: task.controller.signal })
+        if (signal.aborted || task.controller.signal.aborted) throw new DOMException('上传已取消', 'AbortError')
+        const formData = new FormData()
+        formData.append('file', compressed)
+        formData.append('type', 'photo')
+        formData.append('albumId', uploadAlbum.value!.id)
+        appendImageVariants(formData, generated, 'photos', uploadAlbum.value!.id)
+        task.stage = '上传中'
+        task.progress = 65
+        await adminFetch('/api/upload', { method: 'POST', body: formData, headers: {}, signal: task.controller.signal })
+        task.status = 'done'
+        task.stage = '已完成'
+        task.progress = 100
+      } catch (error: any) {
+        if (signal.aborted) return
+        if (task.controller.signal.aborted || isAbortError(error)) {
+          task.status = 'cancelled'
+          task.stage = '已取消'
+          return
+        }
+        task.status = 'failed'
+        task.stage = '失败'
+        task.error = error?.message || '上传失败'
+        failures.push(`${file.name}: ${task.error}`)
+      }
     }
-    await loadAlbums()
-    alert('上传成功')
-  } catch (e: any) {
-    alert(e.message || '上传失败')
-  } finally {
-    uploading.value = false
-    if (fileInput.value) fileInput.value.value = ''
   }
+  try {
+    await Promise.all([worker(), worker()])
+    if (signal.aborted) return
+    await loadAlbums(true)
+    alert(failures.length ? `部分上传失败（${failures.length} 张）：\n${failures.join('\n')}` : '上传成功')
+  } catch (e: any) {
+    if (!signal.aborted) alert(e.message || '上传失败')
+  } finally {
+    if (uploadController?.signal === signal) {
+      uploading.value = false
+      uploadController = null
+      if (fileInput.value) fileInput.value.value = ''
+    }
+  }
+}
+
+function cancelUpload(id: string) {
+  const task = uploadTasks.value.find((item) => item.id === id)
+  if (!task || task.status === 'done' || task.status === 'failed' || task.status === 'cancelled') return
+  task.status = 'cancelled'
+  task.stage = '已取消'
+  task.controller.abort()
 }
 
 async function handleDelete(album: any) {
   if (!confirm(`确定要删除相册 "${album.title}" 吗？`)) return
   try {
     await adminFetch(`/api/albums/${album.id}`, { method: 'DELETE' })
-    await loadAlbums()
+    await loadAlbums(true)
   } catch (e: any) {
     alert(e.message || '删除失败')
   }
@@ -406,7 +514,7 @@ async function handleSaveEdit() {
       })
     })
     closeEdit()
-    await loadAlbums()
+    await loadAlbums(true)
   } catch (e: any) {
     alert('保存修改失败: ' + e.message)
   } finally {
@@ -414,7 +522,8 @@ async function handleSaveEdit() {
   }
 }
 
-onMounted(loadAlbums)
+onMounted(() => { void loadAlbums(true) })
+onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 </script>
 
 <style scoped>
@@ -459,6 +568,8 @@ onMounted(loadAlbums)
   flex-direction: column;
   gap: var(--spacing-lg);
 }
+
+.load-more { display: block; margin: var(--spacing-lg) auto 0; }
 
 .album-header-row {
   display: flex;
@@ -532,6 +643,13 @@ onMounted(loadAlbums)
 .modal h2 { margin-bottom: var(--spacing-lg); }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); }
 .upload-progress { padding: var(--spacing-md); text-align: center; color: var(--color-muted); }
+.upload-progress-list { display: grid; gap: 8px; max-height: 220px; overflow: auto; padding: var(--spacing-sm) 0; }
+.upload-progress-item { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--color-paper-border); border-radius: var(--rounded-sm); }
+.upload-progress-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.upload-progress-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.upload-progress-stage { color: var(--color-muted); font-size: 11px; }
+.upload-progress-item progress { width: 100%; height: 5px; accent-color: var(--color-accent); }
+.upload-progress-error { color: var(--color-danger, #b53b32); font-size: 11px; }
 .upload-modal { max-width: 520px; }
 .upload-subtitle { margin: calc(var(--spacing-md) * -1) 0 var(--spacing-md); color: var(--color-muted); font-size: var(--type-body-sm-size); }
 .upload-dropzone { display: grid; min-height: 180px; place-content: center; gap: var(--spacing-xs); padding: var(--spacing-lg); color: var(--color-muted); text-align: center; border: 2px dashed var(--color-hairline); border-radius: var(--rounded-lg); background: var(--color-surface-cream); cursor: pointer; transition: border-color .2s ease, background-color .2s ease, color .2s ease; }

@@ -2,19 +2,21 @@
   <div class="photo-wall">
     <div
       v-for="(photo, idx) in photos"
-      :key="photo"
+      :key="photoKey(photo)"
       class="photo-item"
       :style="{ '--photo-index': idx }"
       @click="openLightbox(idx)"
     >
       <img
-        v-if="!photoErrors[photo]"
-        :src="photoUrl(photo)"
+        v-if="!photoErrors[photoKey(photo)]"
+        :src="photoMedia(photo).src"
+        :srcset="photoMedia(photo).srcset || undefined"
+        :sizes="photoMedia(photo).sizes"
         alt=""
         loading="lazy"
         decoding="async"
         style="aspect-ratio: 1"
-        @error="photoErrors[photo] = true"
+        @error="photoErrors[photoKey(photo)] = true"
       />
       <div v-else class="photo-error-placeholder">⚠️ 图片加载失败</div>
     </div>
@@ -61,8 +63,18 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, reactive, watch } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
+import { buildMediaSources, type MediaVariant } from '@alumni/shared'
 
-const props = defineProps<{ photos: string[]; apiBase: string }>()
+type PhotoInput = string | {
+  r2Key?: string
+  url?: string
+  key?: string
+  media?: { variants?: MediaVariant[] } | null
+  variants?: MediaVariant[] | null
+  width?: number
+  height?: number
+}
+const props = defineProps<{ photos: PhotoInput[]; apiBase: string }>()
 
 const isMounted = ref(false)
 const photoErrors = ref<Record<string, boolean>>({})
@@ -73,10 +85,20 @@ const lightbox = reactive({
   index: 0
 })
 
-function photoUrl(p: string) {
-  if (!p) return ''
-  if (p.startsWith('http')) return p
-  return joinApiUrl(props.apiBase, p)
+function photoKey(p: PhotoInput) {
+  if (typeof p === 'string') return p
+  return String(p.r2Key || p.url || p.key || '')
+}
+function photoUrl(p: PhotoInput) {
+  const value = photoKey(p)
+  if (!value) return ''
+  if (value.startsWith('http')) return value
+  if (value.startsWith('/api/files/')) return joinApiUrl(props.apiBase, value)
+  return joinApiUrl(props.apiBase, `/api/files/${value.replace(/^\/+/, '')}`)
+}
+function photoMedia(p: PhotoInput) {
+  const variants = typeof p === 'string' ? undefined : (p.media?.variants || p.variants || undefined)
+  return buildMediaSources(photoUrl(p), variants, typeof p === 'string' ? 320 : (p.width || 320), typeof p === 'string' ? 320 : (p.height || 320))
 }
 
 function openLightbox(index: number) {

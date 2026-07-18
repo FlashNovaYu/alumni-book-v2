@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS students (
   privacy_level TEXT DEFAULT 'classmates',
   info TEXT DEFAULT '{}',
   photos TEXT DEFAULT '[]',
+  media_json TEXT NOT NULL DEFAULT '{}',
   account_password_hash TEXT,
   account_initial_password_changed INTEGER DEFAULT 0,
   account_status TEXT DEFAULT 'pending',
@@ -53,10 +54,17 @@ CREATE TABLE IF NOT EXISTS photos (
   filename TEXT NOT NULL,
   caption TEXT DEFAULT '',
   r2_key TEXT NOT NULL,
+  media_json TEXT NOT NULL DEFAULT '{}',
   sort_order INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_photos_album_sort_order
+  ON photos(album_id, sort_order, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_albums_sort_created
+  ON albums(sort_order, created_at);
 
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
@@ -94,7 +102,7 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
   admin_account_id TEXT,
   expires_at TEXT NOT NULL,
   revoked_at TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (admin_account_id) REFERENCES admin_accounts(id)
 );
 
@@ -176,7 +184,7 @@ CREATE TABLE IF NOT EXISTS classmate_sessions (
   token TEXT PRIMARY KEY,
   student_slug TEXT NOT NULL,
   expires_at TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (student_slug) REFERENCES students(slug) ON DELETE CASCADE
 );
 
@@ -226,6 +234,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_public_messages_nonce
 
 CREATE INDEX IF NOT EXISTS idx_group_chat_updated
   ON public_messages(updated_at, id);
+
+CREATE INDEX IF NOT EXISTS idx_group_chat_history
+  ON public_messages(status, created_at DESC, id DESC);
 
 CREATE TABLE IF NOT EXISTS group_chat_reactions (
   message_id TEXT NOT NULL,
@@ -285,6 +296,107 @@ CREATE INDEX IF NOT EXISTS idx_direct_messages_history
 
 CREATE INDEX IF NOT EXISTS idx_direct_messages_unread
   ON direct_messages(recipient_slug, read_at, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_unread
+  ON direct_messages(conversation_id, recipient_slug, read_at, created_at DESC);
+
+-- Keep legacy SQLite timestamps compatible with text cursor comparisons.
+CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_created
+AFTER INSERT ON direct_messages
+WHEN NEW.created_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at)
+BEGIN
+  UPDATE direct_messages SET created_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at) WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_updated
+AFTER UPDATE OF created_at ON direct_messages
+WHEN NEW.created_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at)
+BEGIN
+  UPDATE direct_messages SET created_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at) WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_direct_conversations_normalize_created
+AFTER INSERT ON direct_conversations
+WHEN NEW.created_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at) OR NEW.updated_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+BEGIN
+  UPDATE direct_conversations
+  SET created_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at),
+      updated_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_direct_conversations_normalize_updated
+AFTER UPDATE OF created_at, updated_at ON direct_conversations
+WHEN NEW.created_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at)
+  OR NEW.updated_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+BEGIN
+  UPDATE direct_conversations
+  SET created_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at),
+      updated_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_messages_normalize_timestamps
+AFTER INSERT ON public_messages
+WHEN NEW.created_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at) OR NEW.updated_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+BEGIN
+  UPDATE public_messages
+  SET created_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at),
+      updated_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_messages_normalize_updates
+AFTER UPDATE OF created_at, updated_at ON public_messages
+WHEN NEW.created_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at) OR NEW.updated_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+BEGIN
+  UPDATE public_messages
+  SET created_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at), NEW.created_at),
+      updated_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at), NEW.updated_at)
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_classmate_sessions_normalize_expires
+AFTER INSERT ON classmate_sessions
+WHEN NEW.expires_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at)
+BEGIN
+  UPDATE classmate_sessions SET expires_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at) WHERE token = NEW.token;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_admin_sessions_normalize_expires
+AFTER INSERT ON admin_sessions
+WHEN NEW.expires_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at)
+BEGIN
+  UPDATE admin_sessions SET expires_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at) WHERE token = NEW.token;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_classmate_sessions_normalize_updates
+AFTER UPDATE OF expires_at ON classmate_sessions
+WHEN NEW.expires_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at)
+BEGIN
+  UPDATE classmate_sessions SET expires_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at) WHERE token = NEW.token;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_admin_sessions_normalize_updates
+AFTER UPDATE OF expires_at ON admin_sessions
+WHEN NEW.expires_at IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at)
+BEGIN
+  UPDATE admin_sessions SET expires_at = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.expires_at), NEW.expires_at) WHERE token = NEW.token;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_group_chat_mutes_normalize_insert
+AFTER INSERT ON group_chat_mutes
+WHEN NEW.muted_until IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.muted_until), NEW.muted_until)
+BEGIN
+  UPDATE group_chat_mutes SET muted_until = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.muted_until), NEW.muted_until) WHERE student_slug = NEW.student_slug;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_group_chat_mutes_normalize_update
+AFTER UPDATE OF muted_until ON group_chat_mutes
+WHEN NEW.muted_until IS NOT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.muted_until), NEW.muted_until)
+BEGIN
+  UPDATE group_chat_mutes SET muted_until = COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', NEW.muted_until), NEW.muted_until) WHERE student_slug = NEW.student_slug;
+END;
 
 CREATE TABLE IF NOT EXISTS content_reviews (
   id TEXT PRIMARY KEY,

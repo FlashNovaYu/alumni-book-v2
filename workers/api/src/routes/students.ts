@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { hashPassword } from '../lib/password'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
@@ -17,7 +18,7 @@ studentsRoutes.post('/students', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
   const { name, slug } = body
 
   if (!name || !slug) {
@@ -74,7 +75,7 @@ studentsRoutes.put('/students/:slug', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
 
   const existing = await db.prepare('SELECT * FROM students WHERE slug = ?').bind(slug).first()
   if (!existing) {
@@ -150,7 +151,7 @@ studentsRoutes.delete('/students/:slug', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除学生档案时请填写原因' }, 400)
 

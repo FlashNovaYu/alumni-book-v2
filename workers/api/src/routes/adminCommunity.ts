@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { parsePagination } from '../lib/pagination'
 import { adminGuard } from '../lib/adminGuard'
-import { readLimitedJson } from '../lib/jsonBodyLimit'
+import { parseLimitedJson, readLimitedJson } from '../lib/jsonBodyLimit'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { buildAuditStatement } from '../lib/adminAudit'
 
@@ -134,7 +134,7 @@ adminCommunityRoutes.get('/admin/notifications/history', async (c) => {
     FROM notifications
     WHERE related_type = 'admin_notice' AND related_id IS NOT NULL
     GROUP BY related_id
-    ORDER BY MAX(julianday(created_at)) DESC, related_id DESC
+    ORDER BY MAX(created_at) DESC, related_id DESC
     LIMIT ? OFFSET ?
   `).bind(limit, offset).all()
   return c.json({
@@ -167,7 +167,7 @@ adminCommunityRoutes.get('/admin/group-chat/messages', async (c) => {
 })
 
 adminCommunityRoutes.put('/admin/group-chat/messages/:id/hide', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as any
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as any
   const reason = reasonOf(body.reason)
   if (!reason) return c.json({ success: false, message: '请填写治理原因' }, 400)
   if (typeof body.hidden !== 'boolean') return c.json({ success: false, message: 'hidden 必须为布尔值' }, 400)
@@ -198,7 +198,7 @@ adminCommunityRoutes.put('/admin/group-chat/messages/:id/hide', async (c) => {
 })
 
 adminCommunityRoutes.post('/admin/group-chat/messages/:id/recall', async (c) => {
-  const reason = reasonOf((await c.req.json().catch(() => ({})) as any).reason)
+  const reason = reasonOf((await parseLimitedJson<any>(c, { fallback: {} }) as any).reason)
   if (!reason) return c.json({ success: false, message: '请填写治理原因' }, 400)
   const messageId = c.req.param('id')
   const existing = await c.env.DB.prepare('SELECT * FROM public_messages WHERE id = ?').bind(messageId).first() as any
@@ -242,7 +242,7 @@ function muteChangeCondition() {
 }
 
 adminCommunityRoutes.put('/admin/group-chat/mutes/:slug', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as any
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as any
   const reason = reasonOf(body.reason)
   if (!reason) return c.json({ success: false, message: '请填写治理原因' }, 400)
   if (body.mutedUntil !== null && !isValidFutureIso(body.mutedUntil)) return c.json({ success: false, message: '解除时间必须是带时区的未来 ISO 时间' }, 400)

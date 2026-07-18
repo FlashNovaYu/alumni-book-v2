@@ -102,7 +102,7 @@ describe('纸质档案导航契约', () => {
     const runtime = read('scripts/navRuntime.ts')
     const layout = read('layouts/MainLayout.astro')
 
-    expect(runtime).toContain('astro:before-swap')
+    expect(runtime).toContain("window.addEventListener('pagehide'")
     expect(runtime).toContain('window.__alumniNavRuntime')
     expect(runtime).toContain('ResizeObserver')
     expect(runtime).toContain('setTimeout')

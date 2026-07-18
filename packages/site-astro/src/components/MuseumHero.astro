@@ -1,6 +1,5 @@
 ---
 import VisitorPass from './VisitorPass.vue'
-
 interface Props {
   apiBase: string
   heroEyebrow: string
@@ -63,7 +62,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
       <p>输入自己的同学账号与密码。首次登录后，系统会引导你把初始密码换成专属密码。</p>
     </div>
     <div class="home-login-section__pass home-scroll-reveal">
-      <VisitorPass client:load apiBase={apiBase} />
+      <VisitorPass client:visible apiBase={apiBase} />
     </div>
   </div>
 </section>
@@ -483,71 +482,74 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 </style>
 
 <script>
+  let cleanupParallax = () => {}
+  let cleanupLoginScroll = () => {}
+
   function initParallax() {
+    cleanupParallax()
     const elements = document.querySelectorAll<HTMLElement>('[data-parallax]')
-    if (!elements.length) return
+    if (!elements.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReducedMotion) return
-
-    let rafId: number
+    let rafId: number | null = null
     let ticking = false
-
     const updateParallax = () => {
       const scrollY = window.scrollY
       if (scrollY > window.innerHeight * 1.5) {
         ticking = false
+        rafId = null
         return
       }
-      elements.forEach(el => {
+      elements.forEach((element) => {
         try {
-          const config = JSON.parse(el.getAttribute('data-parallax') || '{}')
-          const speed = config.speed || 0
-          const y = scrollY * speed
-          el.style.setProperty('--parallax-y', `${y}px`)
-        } catch(e) {}
+          const speed = JSON.parse(element.getAttribute('data-parallax') || '{}').speed || 0
+          element.style.setProperty('--parallax-y', `${scrollY * speed}px`)
+        } catch {}
       })
       ticking = false
+      rafId = null
     }
-
     const onScroll = () => {
       if (!ticking) {
         rafId = requestAnimationFrame(updateParallax)
         ticking = true
       }
     }
-
     window.addEventListener('scroll', onScroll, { passive: true })
-
-    document.addEventListener('astro:before-preparation', () => {
+    cleanupParallax = () => {
       window.removeEventListener('scroll', onScroll)
-      cancelAnimationFrame(rafId)
-    }, { once: true })
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      rafId = null
+      ticking = false
+    }
   }
 
   function initHomeLoginScroll() {
-    const target = document.querySelector('#login')
-    const triggers = document.querySelectorAll('[data-home-login-scroll]')
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
+    cleanupLoginScroll()
+    const target = document.querySelector<HTMLElement>('#login')
+    const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-home-login-scroll]'))
     if (!target || !triggers.length) return
-
-    triggers.forEach((trigger) => {
-      trigger.addEventListener('click', (event) => {
-        event.preventDefault()
-        target.scrollIntoView({
-          behavior: prefersReducedMotion ? 'auto' : 'smooth',
-          block: 'start',
-        })
-        history.replaceState(null, '', '#login')
-      })
-    })
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const onClick = (event: Event) => {
+      event.preventDefault()
+      target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' })
+      history.replaceState(null, '', '#login')
+    }
+    triggers.forEach((trigger) => trigger.addEventListener('click', onClick))
+    cleanupLoginScroll = () => triggers.forEach((trigger) => trigger.removeEventListener('click', onClick))
   }
 
-  initHomeLoginScroll()
-  initParallax()
-  document.addEventListener('astro:page-load', () => {
+  function initMuseumHeroRuntime() {
     initHomeLoginScroll()
     initParallax()
+  }
+
+  window.addEventListener('pageshow', initMuseumHeroRuntime)
+  window.addEventListener('pagehide', (event) => {
+    if (!(event as PageTransitionEvent).persisted) {
+      cleanupLoginScroll()
+      cleanupParallax()
+    }
   })
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMuseumHeroRuntime, { once: true })
+  else initMuseumHeroRuntime()
 </script>

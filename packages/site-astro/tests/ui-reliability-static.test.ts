@@ -93,8 +93,8 @@ describe('头像与学生页 hydration 可靠性', () => {
   it('为年度册头像提供固定比例和无 JavaScript 的首字降级', () => {
     const yearbook = read('pages/yearbook.astro')
 
-    expect(yearbook).toContain('style="aspect-ratio: 1"')
-    expect(yearbook).toContain('<object')
+    expect(yearbook).toContain('width="72"')
+    expect(yearbook).toContain('loading="lazy"')
     expect(yearbook).toContain('<span class="mate-avatar-char">{mate.name.charAt(0)}</span>')
   })
 })
@@ -287,7 +287,7 @@ describe('导航与表单无障碍', () => {
     const nav = read('components/TopNav.astro')
     const runtime = read('scripts/navRuntime.ts')
     expect(nav).toMatch(/class="mobile-drawer"[^>]*aria-hidden="true"[^>]*inert/)
-    expect(runtime).toContain("document.addEventListener('astro:before-swap'")
+    expect(runtime).toContain("window.addEventListener('pagehide'")
     expect(runtime).toContain('window.__alumniNavRuntime?.destroy()')
     expect(runtime).toContain('cleanup.splice(0).forEach')
   })

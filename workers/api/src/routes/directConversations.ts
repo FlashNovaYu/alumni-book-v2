@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { decodeCursor, encodeCursor } from '../lib/cursor'
 
@@ -7,6 +8,11 @@ type Bindings = {
 }
 
 export const directConversationsRoutes = new Hono<{ Bindings: Bindings }>()
+
+function canonicalTimestamp(value: string): string {
+  const parsed = Date.parse(value.includes('T') ? value : `${value.replace(' ', 'T')}Z`)
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : value
+}
 
 function orderedPair(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a]
@@ -26,7 +32,7 @@ async function formatConversation(db: D1Database, row: any, viewerSlug: string) 
   ).bind(peerSlug).first() as any
 
   const lastMsgRow = await db.prepare(
-    'SELECT id, sender_slug, body, created_at FROM direct_messages WHERE conversation_id = ? ORDER BY julianday(created_at) DESC, id DESC LIMIT 1'
+    'SELECT id, sender_slug, body, created_at FROM direct_messages WHERE conversation_id = ? ORDER BY created_at DESC, id DESC LIMIT 1'
   ).bind(row.id).first() as any
 
   const unreadRow = await db.prepare(
@@ -49,6 +55,71 @@ async function formatConversation(db: D1Database, row: any, viewerSlug: string) 
     unreadCount: unreadRow ? unreadRow.count : 0,
     updatedAt: row.updated_at
   }
+}
+
+/**
+ * Keep the conversation list bounded to three reads irrespective of the number
+ * of conversations: rows, peers, then latest-message/unread aggregates.
+ */
+export async function listConversations(db: D1Database, viewerSlug: string) {
+  const conversationRows = await db.prepare(
+    'SELECT * FROM direct_conversations WHERE participant_a_slug = ? OR participant_b_slug = ? ORDER BY updated_at DESC'
+  ).bind(viewerSlug, viewerSlug).all()
+  const conversations = (conversationRows.results || []) as any[]
+  if (conversations.length === 0) return []
+
+  const peerSlugs = conversations.map((row) => (
+    row.participant_a_slug === viewerSlug ? row.participant_b_slug : row.participant_a_slug
+  ))
+  const conversationIds = conversations.map((row) => row.id)
+  const peerPlaceholders = peerSlugs.map(() => '?').join(', ')
+  const conversationPlaceholders = conversationIds.map(() => '?').join(', ')
+
+  const [peerResult, messageResult] = await Promise.all([
+    db.prepare(`SELECT name, slug, avatar_url FROM students WHERE slug IN (${peerPlaceholders})`)
+      .bind(...peerSlugs).all(),
+    db.prepare(
+      `WITH ranked_messages AS (
+         SELECT id, conversation_id, sender_slug, body, created_at,
+           ROW_NUMBER() OVER (PARTITION BY conversation_id ORDER BY created_at DESC, id DESC) AS row_number
+         FROM direct_messages WHERE conversation_id IN (${conversationPlaceholders})
+       ), unread_counts AS (
+         SELECT conversation_id, COUNT(*) AS unread_count
+         FROM direct_messages
+         WHERE conversation_id IN (${conversationPlaceholders}) AND recipient_slug = ? AND read_at IS NULL
+         GROUP BY conversation_id
+       )
+       SELECT ranked_messages.id, ranked_messages.conversation_id, ranked_messages.sender_slug,
+         ranked_messages.body, ranked_messages.created_at, COALESCE(unread_counts.unread_count, 0) AS unread_count
+       FROM ranked_messages
+       LEFT JOIN unread_counts ON unread_counts.conversation_id = ranked_messages.conversation_id
+       WHERE ranked_messages.row_number = 1`
+    ).bind(...conversationIds, ...conversationIds, viewerSlug).all(),
+  ])
+
+  const peers = new Map((peerResult.results || []).map((row: any) => [row.slug, row]))
+  const latestMessages = new Map((messageResult.results || []).map((row: any) => [row.conversation_id, row]))
+  return conversations.map((row) => {
+    const peerSlug = row.participant_a_slug === viewerSlug ? row.participant_b_slug : row.participant_a_slug
+    const peer = peers.get(peerSlug) as any
+    const lastMessage = latestMessages.get(row.id) as any
+    return {
+      id: row.id,
+      peer: {
+        name: peer ? peer.name : '未知同学',
+        slug: peerSlug,
+        avatarUrl: peer ? peer.avatar_url : null,
+      },
+      lastMessage: lastMessage ? {
+        id: lastMessage.id,
+        senderSlug: lastMessage.sender_slug,
+        body: lastMessage.body,
+        createdAt: lastMessage.created_at,
+      } : null,
+      unreadCount: Number(lastMessage?.unread_count || 0),
+      updatedAt: row.updated_at,
+    }
+  })
 }
 
 function handleIdempotentResponse(c: any, existingMessage: any, viewerSlug: string, conversation: any) {
@@ -74,14 +145,7 @@ directConversationsRoutes.get('/direct-conversations', async (c) => {
   if (isClassmateResponse(identity)) return identity
   const viewerSlug = identity.slug
 
-  const rows = await c.env.DB.prepare(
-    'SELECT * FROM direct_conversations WHERE participant_a_slug = ? OR participant_b_slug = ? ORDER BY updated_at DESC'
-  ).bind(viewerSlug, viewerSlug).all()
-
-  const items = []
-  for (const row of rows.results || []) {
-    items.push(await formatConversation(c.env.DB, row, viewerSlug))
-  }
+  const items = await listConversations(c.env.DB, viewerSlug)
 
   return c.json({ success: true, data: { items } })
 })
@@ -95,12 +159,7 @@ directConversationsRoutes.post('/direct-conversations', async (c) => {
   }
   const viewerSlug = identity.slug
 
-  let bodyObj: any
-  try {
-    bodyObj = await c.req.json()
-  } catch {
-    return c.json({ success: false, message: '无效的 JSON 请求体' }, 400)
-  }
+  const bodyObj = await parseLimitedJson<any>(c, { invalidMessage: '无效的 JSON 请求体' })
 
   if (!bodyObj || typeof bodyObj !== 'object') {
     return c.json({ success: false, message: '请求体 must be object' }, 400)
@@ -307,11 +366,12 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
   const params: any[] = [id]
 
   if (beforeCursor) {
-    queryStr += ' AND (julianday(created_at) < julianday(?) OR (julianday(created_at) = julianday(?) AND id < ?))'
-    params.push(beforeCursor.timestamp, beforeCursor.timestamp, beforeCursor.id)
+    queryStr += ' AND (created_at < ? OR (created_at = ? AND id < ?))'
+    const timestamp = canonicalTimestamp(beforeCursor.timestamp)
+    params.push(timestamp, timestamp, beforeCursor.id)
   }
 
-  queryStr += ' ORDER BY julianday(created_at) DESC, id DESC LIMIT ?'
+  queryStr += ' ORDER BY created_at DESC, id DESC LIMIT ?'
   params.push(limitVal)
 
   const msgRows = await c.env.DB.prepare(queryStr).bind(...params).all()
@@ -355,12 +415,7 @@ directConversationsRoutes.post('/direct-conversations/:id/messages', async (c) =
     return c.json({ success: false, message: '会话不存在或无权访问' }, 404)
   }
 
-  let bodyObj: any
-  try {
-    bodyObj = await c.req.json()
-  } catch {
-    return c.json({ success: false, message: '无效的 JSON 请求体' }, 400)
-  }
+  const bodyObj = await parseLimitedJson<any>(c, { invalidMessage: '无效的 JSON 请求体' })
 
   if (!bodyObj || typeof bodyObj !== 'object') {
     return c.json({ success: false, message: '请求体 must be object' }, 400)
@@ -442,12 +497,7 @@ directConversationsRoutes.put('/direct-conversations/:id/read', async (c) => {
     return c.json({ success: false, message: '会话不存在或无权访问' }, 404)
   }
 
-  let bodyObj: any
-  try {
-    bodyObj = await c.req.json()
-  } catch {
-    return c.json({ success: false, message: '请求体格式错误' }, 400)
-  }
+  const bodyObj = await parseLimitedJson<any>(c, { invalidMessage: '请求体格式错误' })
 
   if (!bodyObj || typeof bodyObj !== 'object' || Array.isArray(bodyObj)) {
     return c.json({ success: false, message: '请求体格式错误' }, 400)
@@ -476,10 +526,10 @@ directConversationsRoutes.put('/direct-conversations/:id/read', async (c) => {
       AND recipient_slug = ?
       AND read_at IS NULL
       AND (
-        julianday(created_at) < julianday(?)
-        OR (julianday(created_at) = julianday(?) AND id <= ?)
+        created_at < ?
+        OR (created_at = ? AND id <= ?)
       )
-  `).bind(now, id, viewerSlug, targetMsg.created_at, targetMsg.created_at, throughMessageId).run()
+  `).bind(now, id, viewerSlug, canonicalTimestamp(targetMsg.created_at), canonicalTimestamp(targetMsg.created_at), throughMessageId).run()
 
   return c.json({ success: true })
 })

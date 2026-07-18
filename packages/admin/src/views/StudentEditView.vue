@@ -257,7 +257,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminFetch } from '@/api/client'
 import { compressImage } from '@/utils/image'
-import type { Student, StudentInfo, ApiResponse } from '@alumni/shared'
+import { appendImageVariants, generateImageVariants, type Student, type StudentInfo, type ApiResponse } from '@alumni/shared'
 import CalendarDatePicker from '@/components/CalendarDatePicker.vue'
 
 const route = useRoute()
@@ -304,6 +304,7 @@ async function handleAvatarUpload(e: Event) {
   formData.append('file', compressed)
   formData.append('type', 'avatar')
   formData.append('slug', student.value.slug)
+  appendImageVariants(formData, await generateImageVariants(compressed), 'avatars', student.value.slug)
   try {
     const res = await adminFetch<ApiResponse<{ url: string }>>('/api/upload', {
       method: 'POST',
@@ -325,6 +326,7 @@ async function handleBackgroundUpload(e: Event) {
   formData.append('file', compressed)
   formData.append('type', 'background')
   formData.append('slug', student.value.slug)
+  appendImageVariants(formData, await generateImageVariants(compressed), 'backgrounds', student.value.slug)
   try {
     const res = await adminFetch<ApiResponse<{ url: string }>>('/api/upload', {
       method: 'POST',

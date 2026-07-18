@@ -15,7 +15,7 @@ export async function adminGuard(c: any, next: any) {
         return
       }
       const session = await c.env.DB.prepare(
-        "SELECT token FROM admin_sessions WHERE token = ? AND julianday(expires_at) > julianday('now')"
+        "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
       ).bind(token).first()
       if (!session) {
         response = c.json({ success: false, message: '登录已失效' }, 401)

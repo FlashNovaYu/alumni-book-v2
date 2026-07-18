@@ -234,7 +234,7 @@ describe('Public API', () => {
     expect(Array.isArray(body.data.recent)).toBe(true)
   })
 
-  it('GET /api/classmates uses revalidation-friendly cache headers instead of no-store', async () => {
+  it('GET /api/classmates uses the short shared public cache policy', async () => {
     const req = new Request('http://localhost/api/classmates')
     const ctx = createExecutionContext()
     const res = await worker.fetch(req, env, ctx)
@@ -242,8 +242,7 @@ describe('Public API', () => {
 
     expect(res.status).toBe(200)
     const cacheControl = res.headers.get('Cache-Control') || ''
-    expect(cacheControl).toContain('no-cache')
-    expect(cacheControl).not.toContain('no-store')
+    expect(cacheControl).toBe('public, max-age=60, s-maxage=60, stale-while-revalidate=300')
   })
 
   it('GET /api/config supports ETag conditional revalidation', async () => {

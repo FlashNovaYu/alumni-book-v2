@@ -6,14 +6,14 @@
     </div>
 
     <div class="search-bar">
-      <input v-model="keyword" type="text" class="text-input" placeholder="搜索学生姓名…" aria-label="搜索学生" />
+      <input v-model="keyword" type="text" class="text-input" placeholder="搜索学生姓名…" aria-label="搜索学生" @input="resetStudents" />
     </div>
 
     <div class="student-list">
       <div v-for="student in filtered" :key="student.id" class="student-row card">
         <div class="student-info">
           <div class="student-avatar">
-            <img v-if="student.avatarUrl && !failedAvatarIds.has(student.id)" :src="student.avatarUrl" :alt="student.name" @error="failedAvatarIds.add(student.id)" />
+            <img v-if="student.avatarUrl && !failedAvatarIds.has(student.id)" :src="student.avatarUrl" :alt="student.name" width="40" height="40" loading="lazy" decoding="async" @error="failedAvatarIds.add(student.id)" />
             <span v-else>{{ student.name.charAt(0) }}</span>
           </div>
             <div>
@@ -33,6 +33,9 @@
         </div>
       </div>
     </div>
+    <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="loadStudents()">
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${students.length}${total !== null ? `/${total}` : ''}）` }}
+    </button>
 
     <!-- 新建学生对话框 -->
     <Teleport to="body">
@@ -63,8 +66,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
+import { isAbortError } from '@/api/network'
+import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import type { Student, ApiResponse } from '@alumni/shared'
 
 const students = ref<Student[]>([])
@@ -74,6 +79,10 @@ const creating = ref(false)
 const newStudent = ref({ name: '', slug: '' })
 const createSuccess = ref('')
 const failedAvatarIds = ref(new Set<string>())
+const nextCursor = ref<string | null>(null)
+const total = ref<number | null>(null)
+const loadingMore = ref(false)
+let listController: AbortController | null = null
 
 const filtered = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
@@ -81,14 +90,37 @@ const filtered = computed(() => {
   return students.value.filter(s => s.name.toLowerCase().includes(kw))
 })
 
-async function loadStudents() {
-  try {
-    const res = await adminFetch<ApiResponse<Student[]>>('/api/students')
-    students.value = res.data || []
-  } catch {
+async function loadStudents(reset = false) {
+  if (reset) {
+    listController?.abort()
     students.value = []
+    nextCursor.value = null
+  }
+  const controller = new AbortController()
+  listController = controller
+  loadingMore.value = true
+  const query = pageSearchParams(DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
+  if (keyword.value.trim()) query.set('search', keyword.value.trim())
+  try {
+    const res = await adminFetch<ApiResponse<Student[] | { items: Student[]; nextCursor: string | null; total: number }>>(`/api/students?${query}`, { signal: controller.signal })
+    if (controller.signal.aborted) return
+    const legacyFiltered = Array.isArray(res.data) && keyword.value.trim()
+      ? res.data.filter((student) => student.name.toLowerCase().includes(keyword.value.trim().toLowerCase()))
+      : res.data
+    const page = normalizePageResult(legacyFiltered, DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
+    const merged = reset ? { items: page.items, added: page.items.length } : appendUniquePage(students.value, page.items, (student) => student.id)
+    students.value = merged.items
+    nextCursor.value = merged.added === 0 && !reset ? null : page.nextCursor
+    total.value = page.total
+  } catch (error) {
+    if (isAbortError(error)) return
+    if (reset) students.value = []
+  } finally {
+    if (listController === controller) loadingMore.value = false
   }
 }
+
+function resetStudents() { void loadStudents(true) }
 
 async function handleCreate() {
   if (!newStudent.value.name.trim() || !newStudent.value.slug.trim()) return
@@ -98,7 +130,7 @@ async function handleCreate() {
       method: 'POST',
       body: JSON.stringify(newStudent.value),
     })
-    await loadStudents()
+    await loadStudents(true)
     createSuccess.value = '已创建同学账号，初始密码为 123456，请通知同学首次登录后修改。'
   } catch (e: any) {
     alert(e.message || '创建失败')
@@ -123,13 +155,14 @@ async function handleDelete(student: Student) {
   if (!confirm(`确定要删除 "${student.name}" 吗？此操作不可撤销。`)) return
   try {
     await adminFetch(`/api/students/${student.slug}`, { method: 'DELETE' })
-    await loadStudents()
+    await loadStudents(true)
   } catch (e: any) {
     alert(e.message || '删除失败')
   }
 }
 
-onMounted(loadStudents)
+onMounted(() => { void loadStudents(true) })
+onBeforeUnmount(() => { listController?.abort() })
 
 const getFrontUrl = (slug: string) => {
   if (!slug) return '#'
@@ -165,6 +198,8 @@ function getStatusClass(status: string | undefined | null) {
   flex-direction: column;
   gap: var(--spacing-sm);
 }
+
+.load-more { display: block; margin: var(--spacing-lg) auto 0; }
 
 .student-row {
   display: flex;
