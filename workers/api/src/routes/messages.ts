@@ -3,6 +3,7 @@ import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { claimPublicRequestSlot, publicClientIp } from '../lib/publicRequestLimit'
+import { parsePagination } from '../lib/pagination'
 
 type Bindings = {
   DB: D1Database
@@ -177,6 +178,7 @@ messagesRoutes.get('/admin/messages', async (c) => {
   const db = c.env.DB
   const slug = c.req.query('slug')
   const approved = c.req.query('approved')
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
 
   let sql = 'SELECT * FROM messages WHERE 1=1'
   const binds: any[] = []
@@ -184,7 +186,8 @@ messagesRoutes.get('/admin/messages', async (c) => {
   if (slug) { sql += ' AND student_slug = ?'; binds.push(slug) }
   if (approved === '0') { sql += ' AND is_approved = 0' }
   if (approved === '1') { sql += ' AND is_approved = 1' }
-  sql += ' ORDER BY pinned DESC, created_at DESC LIMIT 100'
+  sql += ' ORDER BY pinned DESC, created_at DESC LIMIT ? OFFSET ?'
+  binds.push(limit, offset)
 
   const { results } = await db.prepare(sql).bind(...binds).all()
   return c.json({

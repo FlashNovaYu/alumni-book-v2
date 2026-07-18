@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { getUnreadNotificationCount } from '../lib/notificationService'
+import { parsePagination } from '../lib/pagination'
 
 type Bindings = {
   DB: D1Database
@@ -32,9 +33,10 @@ notificationsRoutes.get('/notifications', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
 
+  const { limit, offset } = parsePagination(c.req.query(), 50, 100)
   const { results } = await c.env.DB.prepare(
-    'SELECT * FROM notifications WHERE recipient_slug = ? ORDER BY created_at DESC LIMIT 50'
-  ).bind(identity.slug).all()
+    'SELECT id, type, title, body, related_type, related_id, read_at, created_at FROM notifications WHERE recipient_slug = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+  ).bind(identity.slug, limit, offset).all()
 
   return c.json({ success: true, data: { items: (results || []).map(formatNotification) } })
 })

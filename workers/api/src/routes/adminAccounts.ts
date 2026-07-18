@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { ADMIN_PERMISSIONS, getAdminPermissions, getAdminPrincipal, type AdminPermission } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 import { hashPassword } from '../lib/password'
+import { parsePagination } from '../lib/pagination'
 
 type Bindings = { DB: D1Database; JWT_SECRET: string }
 type Override = { permission: AdminPermission; effect: 'allow' | 'deny' }
@@ -31,10 +32,11 @@ function validOverrides(value: unknown): Override[] | null {
 }
 
 adminAccountsRoutes.get('/admin/accounts', async (c) => {
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
   const { results } = await c.env.DB.prepare(
     `SELECT id, account_type, username, display_name, student_slug, role_id, status, is_owner, must_change_password, last_login_at, created_at
-     FROM admin_accounts ORDER BY is_owner DESC, created_at ASC`
-  ).all()
+     FROM admin_accounts ORDER BY is_owner DESC, created_at ASC LIMIT ? OFFSET ?`
+  ).bind(limit, offset).all()
   const accounts = await Promise.all((results || []).map(async (row: any) => {
     const { results: overrides } = await c.env.DB.prepare(
       'SELECT permission, effect FROM admin_account_permissions WHERE admin_account_id = ? ORDER BY permission'
@@ -227,6 +229,7 @@ adminAccountsRoutes.post('/admin/accounts/:id/revoke-sessions', async (c) => {
 })
 
 adminAccountsRoutes.get('/admin/audit-logs', async (c) => {
+  const { limit, offset } = parsePagination(c.req.query(), 100, 100)
   const conditions: string[] = []
   const binds: string[] = []
   const actorId = c.req.query('actorId')
@@ -244,7 +247,7 @@ adminAccountsRoutes.get('/admin/audit-logs', async (c) => {
     `SELECT l.*, a.display_name AS admin_display_name
      FROM admin_audit_logs l JOIN admin_accounts a ON a.id = l.admin_account_id
      ${where}
-     ORDER BY l.created_at DESC LIMIT 100`
-  ).bind(...binds).all()
+     ORDER BY l.created_at DESC LIMIT ? OFFSET ?`
+  ).bind(...binds, limit, offset).all()
   return c.json({ success: true, data: results || [] })
 })
