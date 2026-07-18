@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS students (
   privacy_level TEXT DEFAULT 'classmates',
   info TEXT DEFAULT '{}',
   photos TEXT DEFAULT '[]',
+  media_json TEXT NOT NULL DEFAULT '{}',
   account_password_hash TEXT,
   account_initial_password_changed INTEGER DEFAULT 0,
   account_status TEXT DEFAULT 'pending',
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS photos (
   filename TEXT NOT NULL,
   caption TEXT DEFAULT '',
   r2_key TEXT NOT NULL,
+  media_json TEXT NOT NULL DEFAULT '{}',
   sort_order INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE

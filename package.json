@@ -22,6 +22,7 @@
     "db:migrate": "pnpm --filter worker run db:migrate",
     "migrate:data": "tsx scripts/migrate.ts",
     "migrate:chat-data": "tsx scripts/migrate-chat-data.ts",
+    "media:backfill": "tsx scripts/backfill-media-variants.ts",
     "audit:content": "tsx scripts/audit-content.ts",
     "verify:worker": "pnpm --filter worker exec vitest run",
     "verify:shared": "pnpm --filter @alumni/shared typecheck",

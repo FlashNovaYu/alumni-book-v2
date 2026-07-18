@@ -13,6 +13,7 @@ export interface Student {
   customHtml: string | null
   info: StudentInfo
   photos: string[]
+  media?: { variants: MediaVariant[] } | null
   visitCount: number
   createdAt: string
   updatedAt: string
@@ -182,6 +183,26 @@ export interface Photo {
   r2Key: string
   sortOrder: number
   createdAt: string
+  media?: { variants: MediaVariant[] } | null
+}
+
+/** Image derivative metadata stored alongside an original R2 object. */
+export interface MediaVariant {
+  key: string
+  contentType: string
+  width: number
+  height: number
+  kind: string
+}
+
+/** A responsive media source. Legacy records only carry src/r2Key. */
+export interface MediaAsset {
+  src: string
+  srcset: string
+  sizes: string
+  width?: number
+  height?: number
+  variants?: MediaVariant[]
 }
 
 /** 留言 */

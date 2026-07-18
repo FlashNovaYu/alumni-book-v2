@@ -192,6 +192,7 @@ import { adminFetch } from '@/api/client'
 import { isAbortError } from '@/api/network'
 import { appendUniquePage, DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import { compressImage } from '@/utils/image'
+import { generateImageVariants } from '@alumni/shared'
 import type { Album, ApiResponse } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -208,6 +209,7 @@ const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
 const loadingMore = ref(false)
 let listController: AbortController | null = null
+let uploadController: AbortController | null = null
 
 const editAlbum = ref<any | null>(null)
 const editForm = ref({
@@ -300,25 +302,47 @@ async function uploadFiles(files: FileList) {
   if (!files?.length || !uploadAlbum.value) return
 
   uploading.value = true
-  try {
-    for (const file of Array.from(files)) {
-      const formData = new FormData()
-      const compressed = await compressImage(file, 1280, 0.8)
-      formData.append('file', compressed)
-      formData.append('type', 'photo')
-      formData.append('albumId', uploadAlbum.value.id)
-      await adminFetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        headers: {},
-      })
+  uploadController?.abort()
+  uploadController = new AbortController()
+  const signal = uploadController.signal
+  const queue = Array.from(files)
+  const failures: string[] = []
+  let cursor = 0
+  const worker = async () => {
+    while (cursor < queue.length) {
+      if (signal.aborted) return
+      const file = queue[cursor++]
+      try {
+        const compressed = await compressImage(file, 1280, 0.8)
+        const generated = await generateImageVariants(compressed, { signal })
+        const formData = new FormData()
+        formData.append('file', compressed)
+        formData.append('type', 'photo')
+        formData.append('albumId', uploadAlbum.value!.id)
+        const variants = generated.filter((variant) => variant.kind !== 'original').map((variant) => {
+          const extension = variant.contentType === 'image/webp' ? 'webp' : 'jpg'
+          const key = `photos/${uploadAlbum.value!.id}_${Date.now()}_${crypto.randomUUID()}_${variant.kind}.${extension}`
+          formData.append(`variant_${variant.kind}`, new File([variant.blob], `${variant.kind}.${extension}`, { type: variant.contentType }))
+          return { key, contentType: variant.contentType, width: variant.width, height: variant.height, kind: variant.kind }
+        })
+        if (variants.length) formData.append('variants', JSON.stringify(variants))
+        await adminFetch('/api/upload', { method: 'POST', body: formData, headers: {}, signal })
+      } catch (error: any) {
+        if (signal.aborted) return
+        failures.push(`${file.name}: ${error?.message || '上传失败'}`)
+      }
     }
+  }
+  try {
+    await Promise.all([worker(), worker()])
+    if (signal.aborted) return
     await loadAlbums(true)
-    alert('上传成功')
+    alert(failures.length ? `部分上传失败（${failures.length} 张）：\n${failures.join('\n')}` : '上传成功')
   } catch (e: any) {
-    alert(e.message || '上传失败')
+    if (!signal.aborted) alert(e.message || '上传失败')
   } finally {
     uploading.value = false
+    uploadController = null
     if (fileInput.value) fileInput.value.value = ''
   }
 }
@@ -441,7 +465,7 @@ async function handleSaveEdit() {
 }
 
 onMounted(() => { void loadAlbums(true) })
-onBeforeUnmount(() => { listController?.abort() })
+onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 </script>
 
 <style scoped>

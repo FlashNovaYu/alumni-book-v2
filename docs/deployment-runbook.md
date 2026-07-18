@@ -24,3 +24,7 @@ pnpm --filter worker exec wrangler --cwd ../.. pages deploy deploy --project-nam
 ## 回滚
 
 出现生产故障时，在 Cloudflare Pages 的 Deployments 中选择已验证的历史生产部署执行 Rollback。不要检出旧工作树重新构建，因为旧源码、实时数据和构建工具可能产生与历史产物不同的结果。
+
+## 媒体变体回填
+
+先执行 `pnpm media:backfill --dry-run --batch=25 --retries=3` 生成任务清单并核对范围。执行模式必须显式设置 `MEDIA_BACKFILL_URL` 并传入 `--execute`；每批失败会重试，失败项写入 `media-backfill-failures.json`。回填始终保留原图，不执行删除操作；需要回滚时停止运维端点并清除变体元数据即可，原始 `r2_key` 不变。

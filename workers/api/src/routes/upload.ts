@@ -34,6 +34,47 @@ function fileKeyFromUrl(url: string | null | undefined) {
   return parts.length === 2 ? parts[1] : null
 }
 
+const VARIANT_LIMIT = 5
+const VARIANT_MAX_TOTAL = 8 * 1024 * 1024
+const VARIANT_PREFIX: Record<string, string> = {
+  avatar: 'avatars/', background: 'backgrounds/', photo: 'photos/', music: 'music/', misc: 'misc/',
+}
+
+type UploadVariant = { key: string; contentType: string; width: number; height: number; kind: string }
+
+function parseUploadVariants(formData: FormData, type: string): { metadata: UploadVariant[]; files: Array<{ metadata: UploadVariant; file: File }> } | { error: string } {
+  const raw = formData.get('variants')
+  if (!raw) return { metadata: [], files: [] }
+  let parsed: unknown
+  try { parsed = JSON.parse(String(raw)) } catch { return { error: '变体元数据无效' } }
+  if (!Array.isArray(parsed) || parsed.length > VARIANT_LIMIT) return { error: '图片变体数量超出限制' }
+  const metadata: UploadVariant[] = []
+  const files: Array<{ metadata: UploadVariant; file: File }> = []
+  const kinds = new Set<string>()
+  let total = 0
+  for (const item of parsed) {
+    const value = item as Partial<UploadVariant> & { size?: number }
+    const key = String(value.key || '')
+    const contentType = String(value.contentType || '')
+    const kind = String(value.kind || '')
+    const width = Number(value.width)
+    const height = Number(value.height)
+    if (!key || key.length > 512 || key.includes('..') || !key.startsWith(VARIANT_PREFIX[type]) || !/^image\/(?:webp|jpeg|jpg|png)$/.test(contentType) || !kind || kinds.has(kind) || !Number.isInteger(width) || width < 1 || width > 10000 || !Number.isInteger(height) || height < 1 || height > 10000) {
+      return { error: '图片变体元数据无效' }
+    }
+    const file = formData.get(`variant_${kind}`)
+    if (!(file instanceof File)) return { error: `缺少图片变体文件: ${kind}` }
+    if (file.size > 4 * 1024 * 1024) return { error: '图片变体过大' }
+    total += file.size
+    if (total > VARIANT_MAX_TOTAL) return { error: '图片变体总大小超出限制' }
+    const normalized = { key, contentType: contentType === 'image/jpg' ? 'image/jpeg' : contentType, width, height, kind }
+    kinds.add(kind)
+    metadata.push(normalized)
+    files.push({ metadata: normalized, file })
+  }
+  return { metadata, files }
+}
+
 export function buildUploadKey(type: string, file: File, slug: string, albumId: string, extension?: string) {
   const ext = extension || file.name.split('.').pop() || 'bin'
   const timestamp = Date.now()
@@ -63,6 +104,8 @@ uploadRoutes.post('/upload', async (c) => {
   if (!(UPLOAD_TYPES as readonly string[]).includes(type)) {
     return c.json({ success: false, message: '上传类型无效' }, 400)
   }
+  const parsedVariants = parseUploadVariants(formData, type)
+  if ('error' in parsedVariants) return c.json({ success: false, message: parsedVariants.error }, 400)
   if (['avatar', 'music', 'background'].includes(type) && !slug) {
     return c.json({ success: false, message: '学生标识不能为空' }, 400)
   }
@@ -79,10 +122,10 @@ uploadRoutes.post('/upload', async (c) => {
     return c.json({ success: false, message: '没有文件' }, 400)
   }
 
-  let studentTarget: { avatar_url?: string | null; music_url?: string | null; background_url?: string | null } | null = null
+  let studentTarget: { avatar_url?: string | null; music_url?: string | null; background_url?: string | null; media_json?: string | null } | null = null
   if (['avatar', 'music', 'background'].includes(type)) {
     studentTarget = await db.prepare(
-      'SELECT avatar_url, music_url, background_url FROM students WHERE slug = ?'
+      'SELECT avatar_url, music_url, background_url, media_json FROM students WHERE slug = ?'
     ).bind(slug).first()
     if (!studentTarget) return c.json({ success: false, message: '学生不存在' }, 404)
   }
@@ -112,44 +155,57 @@ uploadRoutes.post('/upload', async (c) => {
   const ext = imageFormat?.extension || file.name.split('.').pop() || 'bin'
   const timestamp = Date.now()
   const r2Key = buildUploadKey(type, file, slug, albumId, ext)
+  const variantKeys = parsedVariants.metadata.map((variant) => variant.key)
 
   // 3. 上传新文件
-  await r2.put(r2Key, imageContents || file.stream(), {
-    httpMetadata: { contentType: imageFormat?.mime || file.type },
-  })
+  const uploadedKeys: string[] = [r2Key]
+  try {
+    await r2.put(r2Key, imageContents || file.stream(), { httpMetadata: { contentType: imageFormat?.mime || file.type } })
+    for (const variant of parsedVariants.files) {
+      await r2.put(variant.metadata.key, variant.file.stream(), { httpMetadata: { contentType: variant.metadata.contentType } })
+      uploadedKeys.push(variant.metadata.key)
+    }
+  } catch {
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
+    return c.json({ success: false, message: '文件上传失败，请重试' }, 500)
+  }
 
   // 统一存为相对路径，有利于环境迁移与解耦
   const relativeUrl = `/api/files/${r2Key}`
 
   // 4. 先让业务数据与审计记录原子提交；批处理失败时补偿删除刚上传的对象。
   let previousKey: string | null = null
+  let previousVariantKeys: string[] = []
   let mutation: D1PreparedStatement | null = null
   let resourceType = 'upload'
   let resourceId = r2Key
   try {
     if (type === 'avatar' && slug) {
       previousKey = fileKeyFromUrl(studentTarget?.avatar_url)
-      mutation = db.prepare('UPDATE students SET avatar_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+      try { previousVariantKeys = JSON.parse(String((studentTarget as any)?.media_json || '{}')).variants?.map((item: any) => item.key) || [] } catch { previousVariantKeys = [] }
+      mutation = db.prepare('UPDATE students SET avatar_url = ?, media_json = ? WHERE slug = ?').bind(relativeUrl, JSON.stringify({ variants: parsedVariants.metadata }), slug)
       resourceType = 'student'; resourceId = slug
     }
 
     if (type === 'music' && slug) {
       previousKey = fileKeyFromUrl(studentTarget?.music_url)
-      mutation = db.prepare('UPDATE students SET music_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+      try { previousVariantKeys = JSON.parse(String((studentTarget as any)?.media_json || '{}')).variants?.map((item: any) => item.key) || [] } catch { previousVariantKeys = [] }
+      mutation = db.prepare('UPDATE students SET music_url = ?, media_json = ? WHERE slug = ?').bind(relativeUrl, JSON.stringify({ variants: parsedVariants.metadata }), slug)
       resourceType = 'student'; resourceId = slug
     }
 
     if (type === 'background' && slug) {
       previousKey = fileKeyFromUrl(studentTarget?.background_url)
-      mutation = db.prepare('UPDATE students SET background_url = ? WHERE slug = ?').bind(relativeUrl, slug)
+      try { previousVariantKeys = JSON.parse(String((studentTarget as any)?.media_json || '{}')).variants?.map((item: any) => item.key) || [] } catch { previousVariantKeys = [] }
+      mutation = db.prepare('UPDATE students SET background_url = ?, media_json = ? WHERE slug = ?').bind(relativeUrl, JSON.stringify({ variants: parsedVariants.metadata }), slug)
       resourceType = 'student'; resourceId = slug
     }
 
     if (type === 'photo' && albumId) {
       const photoId = `photo_${timestamp}_${Math.random().toString(36).slice(2, 6)}`
       mutation = db.prepare(
-        'INSERT INTO photos (id, album_id, filename, r2_key) VALUES (?, ?, ?, ?)'
-      ).bind(photoId, albumId, file.name, r2Key)
+        'INSERT INTO photos (id, album_id, filename, r2_key, media_json) VALUES (?, ?, ?, ?, ?)'
+      ).bind(photoId, albumId, file.name, r2Key, JSON.stringify({ variants: parsedVariants.metadata }))
       resourceType = 'photo'; resourceId = photoId
     }
 
@@ -157,15 +213,16 @@ uploadRoutes.post('/upload', async (c) => {
       action: 'file.upload', resourceType, resourceId, after: { type, filename: file.name, r2Key },
     })
   } catch (error) {
-    await r2.delete(r2Key).catch(() => undefined)
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
     return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
   }
   if (previousKey && previousKey !== r2Key) {
     await r2.delete(previousKey).catch(() => undefined)
   }
+  if (previousVariantKeys.length) await Promise.all(previousVariantKeys.filter((key) => !variantKeys.includes(key)).map((key) => r2.delete(key).catch(() => undefined)))
 
   const origin = new URL(c.req.url).origin
   const absoluteUrl = `${origin}${relativeUrl}`
 
-  return c.json({ success: true, data: { url: absoluteUrl, r2Key } })
+  return c.json({ success: true, data: { url: absoluteUrl, r2Key, ...(parsedVariants.metadata.length ? { variants: parsedVariants.metadata } : {}) } })
 })

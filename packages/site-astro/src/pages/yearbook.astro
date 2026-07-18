@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
+import { buildMediaSources, type MediaVariant } from '@alumni/shared'
 
 interface Classmate {
   name: string
@@ -15,6 +16,7 @@ interface Photo {
   id: string
   r2Key: string
   caption: string
+  media?: { variants: MediaVariant[] } | null
 }
 
 interface Album {
@@ -87,6 +89,12 @@ const totalMessages = messages.length
 
 // 排行
 const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).slice(0, 3)
+
+function photoMedia(photo: Photo) {
+  const source = photo.r2Key.startsWith('http') ? photo.r2Key : `${API_BASE}/api/files/${photo.r2Key}`
+  const media = buildMediaSources(source, photo.media?.variants, 320, 213)
+  return { src: media.src, srcset: media.srcset || undefined, sizes: media.sizes, width: media.width, height: media.height }
+}
 ---
 
 <MainLayout>
@@ -197,7 +205,7 @@ const topVisited = [...students].sort((a, b) => b.visitCount - a.visitCount).sli
             (album.photos || []).slice(0, 3).map(photo => (
               <div class="yearbook-photo-card card">
                 <div class="yearbook-photo-img-wrapper">
-                  <img src={photo.r2Key.startsWith('http') ? photo.r2Key : `${API_BASE}/api/files/${photo.r2Key}`} alt={photo.caption} loading="lazy" />
+                  <img {...photoMedia(photo)} alt={photo.caption} loading="lazy" decoding="async" />
                 </div>
                 {photo.caption && <p class="yearbook-photo-caption mt-1">{photo.caption}</p>}
               </div>

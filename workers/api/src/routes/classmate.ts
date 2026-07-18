@@ -273,8 +273,10 @@ classmateRoutes.post('/classmate/upload', async (c) => {
     : `backgrounds/${slug}_${timestamp}.${imageFormat.extension}`
 
   const urlColumn = type === 'avatar' ? 'avatar_url' : 'background_url'
-  const existing = await db.prepare(`SELECT ${urlColumn} FROM students WHERE slug = ?`).bind(slug).first() as any
+  const existing = await db.prepare(`SELECT ${urlColumn}, media_json FROM students WHERE slug = ?`).bind(slug).first() as any
   const oldKey = fileKeyFromUrl(existing?.[urlColumn])
+  let oldVariantKeys: string[] = []
+  try { oldVariantKeys = JSON.parse(String(existing?.media_json || '{}')).variants?.map((item: any) => item.key) || [] } catch { oldVariantKeys = [] }
 
   // 3. 上传新文件到 R2
   await r2.put(r2Key, imageContents, {
@@ -287,8 +289,8 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   // 4. Commit the pointer first. If D1 fails, preserve the old object and
   // compensate the newly uploaded object; only successful commits retire it.
   try {
-    await db.prepare(`UPDATE students SET ${urlColumn} = ?, updated_at = datetime('now') WHERE slug = ?`)
-      .bind(relativeUrl, slug).run()
+    await db.prepare(`UPDATE students SET ${urlColumn} = ?, media_json = ?, updated_at = datetime('now') WHERE slug = ?`)
+      .bind(relativeUrl, JSON.stringify({ variants: [] }), slug).run()
   } catch (error) {
     await r2.delete(r2Key).catch(() => undefined)
     return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
@@ -298,6 +300,7 @@ classmateRoutes.post('/classmate/upload', async (c) => {
       console.error('Failed to delete old file from R2:', error)
     })
   }
+  if (oldVariantKeys.length) await Promise.all(oldVariantKeys.map((key) => r2.delete(key).catch(() => undefined)))
 
   const origin = new URL(c.req.url).origin
   const absoluteUrl = `${origin}${relativeUrl}`
