@@ -71,8 +71,8 @@ describe('夜读主题基础层', () => {
 
     expect(viewTransitions).toContain('::view-transition-old(page-heading)')
     expect(viewTransitions).toContain('::view-transition-new(page-heading)')
-    expect(viewTransitions).toContain('@keyframes page-heading-enter-right')
-    expect(viewTransitions).toContain('@keyframes page-heading-exit-left')
+    expect(viewTransitions).toContain('@keyframes page-heading-enter-forward')
+    expect(viewTransitions).toContain('@keyframes page-heading-enter-backward')
     expect(read('styles/animations.css')).toContain('@keyframes pageHeadingSweep')
     expect(layout).toContain("'/class-space/'")
     expect(layout).toContain("'/yearbook/'")

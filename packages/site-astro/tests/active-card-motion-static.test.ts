@@ -31,7 +31,7 @@ describe('档案卡共享元素转场', () => {
     expect(card).toContain('data-student-identity-card')
     expect(card).toContain("emit('identity-transition', props.card.slug)")
     expect(roster).toContain('@identity-transition="rememberIdentityTransition"')
-    expect(roster).toContain('v-for="mate in classmates"')
+    expect(roster).toMatch(/v-for="(?:\(mate, index\)|mate) in classmates"/)
     expect(roster).toContain('v-show="isCardVisible(mate)"')
     expect(roster).toContain("'vt-student-identity-state'")
     expect(layout).toContain("const studentIdentityTransitionKey = 'vt-student-identity-state'")

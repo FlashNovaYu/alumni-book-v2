@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="mine-overlay" @click.self="closeDrawer">
+    <div v-show="open" class="mine-overlay" @click.self="closeDrawer">
       <aside ref="drawer" class="mine-drawer" role="dialog" aria-modal="true" aria-label="我的群聊记录" tabindex="-1" @keydown="handleKeydown">
         <header>
           <div><p class="paper-kicker">MY CHAT ARCHIVE</p><h2>我的群聊记录</h2></div>

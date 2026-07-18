@@ -25,9 +25,20 @@
             <span v-for="tag in album.tags" :key="tag" class="album-tag-badge">{{ tag }}</span>
           </div>
         </div>
-        
-        <div class="photo-grid" :class="'frame-' + album.frameStyle">
-          <div v-for="(photo, i) in album.photos" :key="photo.id" class="photo-item" @click="openLightbox(album.photos, i)">
+
+        <TransitionGroup name="photo-list" tag="div" class="photo-grid" :class="'frame-' + album.frameStyle">
+          <div
+            v-for="(photo, i) in album.photos"
+            :key="photo.id"
+            class="photo-item"
+            :class="{ 'is-hovered': getState(photo.id).isHovered }"
+            :style="getTiltStyles(photo.id, `rotateZ(${getStaticRotation(i)}deg) translateY(${getStaticY(i)}px)`)"
+            @mousemove="onMouseMove($event, photo.id)"
+            @mouseenter="onMouseEnter(photo.id)"
+            @mouseleave="onMouseLeave(photo.id)"
+            @click="openLightbox(album.photos, i)"
+          >
+            <div class="glare-layer" :style="{ opacity: getState(photo.id).isHovered ? 1 : 0 }"></div>
             <img
               v-if="!photoErrors[photo.id]"
               :src="getPhotoUrl(photo.r2Key)"
@@ -40,10 +51,10 @@
             <div v-else class="photo-error-placeholder">⚠️ 图片加载失败</div>
             <div v-if="photo.caption" class="photo-caption">{{ photo.caption }}</div>
           </div>
-        </div>
+        </TransitionGroup>
       </div>
     </div>
-    
+
     <div v-else class="empty-state">
       <p>在此分类下暂无影像</p>
     </div>
@@ -65,16 +76,16 @@
         </button>
         <div class="lightbox-content">
           <!-- 模糊占位图（0 延迟，100% 缓存命中，作为大图载入前的优雅遮罩） -->
-          <img 
+          <img
             v-if="!highResLoaded"
-            :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)" 
-            class="lightbox-img placeholder-blur" 
+            :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)"
+            class="lightbox-img placeholder-blur"
             alt="Loading..."
           />
           <!-- 高清大图 -->
-          <img 
-            :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)" 
-            class="lightbox-img real-img" 
+          <img
+            :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)"
+            class="lightbox-img real-img"
             :class="{ 'loaded': highResLoaded }"
             :alt="lightbox.photos[lightbox.index]?.caption"
             @load="onHighResLoad"
@@ -101,6 +112,16 @@
 import { ref, reactive, computed, watch, onUnmounted, onMounted } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
 import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
+import { useMouseTilt } from '../composables/useMouseTilt'
+
+const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 10, scale: 1.05 })
+
+function getStaticRotation(index: number) {
+  return (Math.sin(index * 1.5) * 2).toFixed(2);
+}
+function getStaticY(index: number) {
+  return (Math.cos(index * 2.1) * 3).toFixed(2);
+}
 
 const props = defineProps<{
   albums: Array<{
@@ -138,7 +159,7 @@ const allTags = computed(() => {
 
 const filteredAlbums = computed(() => {
   if (selectedTag.value === '全部') return albumsState.value
-  return albumsState.value.filter(album => 
+  return albumsState.value.filter(album =>
     album.tags && Array.isArray(album.tags) && album.tags.includes(selectedTag.value)
   )
 })
@@ -284,29 +305,102 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   border-radius: var(--rounded-pill);
 }
 
-.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm); }
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+  perspective: 1200px;
+}
+
 .photo-item {
   position: relative;
-  aspect-ratio: 1;
-  border-radius: var(--rounded-sm);
-  overflow: hidden;
+  border-radius: 4px;
   cursor: pointer;
-  transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart);
-  border: 6px solid var(--color-paper-card);
-  background: var(--color-paper-card-muted);
-  box-shadow: var(--shadow-paper-card);
+  /* Retro paper padding */
+  padding: 12px;
+  padding-bottom: 36px;
+  background: #fdfaf6;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.08),
+    0 1px 3px rgba(0,0,0,0.1),
+    inset 0 0 0 1px rgba(0,0,0,0.05);
+  transform-style: preserve-3d;
+  will-change: transform;
 }
-.photo-item:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-paper-card);
-}
-.photo-item img { width: 100%; height: 100%; object-fit: cover; }
-.photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: var(--spacing-xxs) var(--spacing-xs); background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); color: var(--color-on-dark); font-size: var(--type-caption-size); opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quart); }
-.photo-item:hover .photo-caption { opacity: 1; }
 
-.frame-retro .photo-item { border: 6px solid #e8d5a8; box-shadow: 0 0 0 2px #b8903a; border-radius: 2px; }
-.frame-film .photo-item { border: 5px solid #1c1c1c; box-shadow: inset 0 0 0 2px #2e2e2e; border-radius: 2px; }
-.frame-polaroid .photo-item { border: 8px solid #fff; border-bottom: 32px solid #fff; box-shadow: 0 2px 14px rgba(0,0,0,0.12); border-radius: 1px; }
+.photo-item.is-hovered {
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.15),
+    0 8px 16px rgba(0,0,0,0.1),
+    inset 0 0 0 1px rgba(0,0,0,0.05);
+  z-index: 10;
+}
+
+.glare-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 255, 255, 0.4) 0%,
+    transparent 60%
+  );
+  mix-blend-mode: soft-light;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+.photo-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.photo-caption {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 0 12px;
+  color: #8c7b64;
+  font-family: 'Kaiti', 'STKaiti', cursive, serif;
+  font-size: 13px;
+  opacity: 0.8;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
+  z-index: 6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.photo-item:hover .photo-caption { opacity: 1; color: #5a4b38; }
+
+.frame-retro .photo-item { background: #f4ecd8; padding-bottom: 40px; }
+.frame-film .photo-item { padding: 12px; padding-bottom: 12px; background: #1c1c1c; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.frame-film .photo-caption { color: #aaa; bottom: 16px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); padding: 8px; opacity: 0; }
+.frame-film .photo-item:hover .photo-caption { opacity: 1; color: #eee; }
+.frame-polaroid .photo-item { padding: 16px; padding-bottom: 56px; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.15); border-radius: 2px; }
+.frame-polaroid .photo-caption { bottom: 16px; font-size: 14px; color: #444; }
+
+/* FLIP Animations */
+.photo-list-move,
+.photo-list-enter-active,
+.photo-list-leave-active {
+  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.photo-list-enter-from,
+.photo-list-leave-to {
+  opacity: 0;
+  transform: translateY(30px) scale(0.9) rotateZ(-2deg);
+}
+
+.photo-list-leave-active {
+  position: absolute;
+}
 
 .lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; }
 .lightbox-close { position: absolute; top: 20px; right: 24px; color: rgba(240,210,150,0.6); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }

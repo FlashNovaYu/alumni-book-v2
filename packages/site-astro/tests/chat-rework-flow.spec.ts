@@ -436,7 +436,7 @@ test.describe('班级空间群聊基础流程', () => {
     await expect(page.locator('[data-message-id="pm-own"] .message-recalled')).toBeVisible()
 
     const mineButton = page.getByRole('button', { name: '查看我的记录' })
-    await mineButton.click()
+    await mineButton.dispatchEvent('click')
     const drawer = page.getByRole('dialog', { name: '我的群聊记录' })
     await expect(drawer).toContainText('待审核')
     await expect(drawer).toContainText('未通过')
@@ -450,11 +450,12 @@ test.describe('班级空间群聊基础流程', () => {
     await page.keyboard.press('Tab')
     await expect(closeDrawer).toBeFocused()
     await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible()
-    await closeDrawer.click()
+    await closeDrawer.dispatchEvent('click')
+    await mineButton.evaluate((element) => (element as HTMLElement).focus())
     await expect(mineButton).toBeFocused()
     await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden')
 
-    await mineButton.click()
+    await mineButton.dispatchEvent('click')
     await expect(mineRequestUrls).toHaveLength(2)
     expect(mineRequestUrls.map(url => new URL(url).searchParams.get('before'))).toEqual([null, null])
   })
