@@ -64,9 +64,9 @@ describe('认证登录失败限流', () => {
 
   it('正式同学账号登录按 IP 与账号限流，并返回 Retry-After', async () => {
     const decayIp = '198.51.100.21'
-    expect((await request('/api/classmate-auth/login', { slug: 'rate-limit-classmate', password: 'wrong' }, decayIp)).status).toBe(401)
+    expect((await request('/api/classmate-auth/login', { slug: '限流同学', password: 'wrong' }, decayIp)).status).toBe(401)
     expect((await request('/api/classmate-auth/login', { slug: 'rate-limit-classmate', password: 'rate-limit-classmate-password' }, decayIp)).status).toBe(200)
-    expect((await request('/api/classmate-auth/login', { slug: 'rate-limit-classmate', password: 'wrong' }, decayIp)).status).toBe(401)
+    expect((await request('/api/classmate-auth/login', { slug: '限流同学', password: 'wrong' }, decayIp)).status).toBe(401)
 
     await expectBlocked(
       '/api/classmate-auth/login',

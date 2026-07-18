@@ -28,10 +28,14 @@ classmateAuthRoutes.post('/login', async (c) => {
   const password = String(body.password || '')
   if (!slug || !password) return c.json({ success: false, message: '账号和密码必填' }, 400)
 
+  const student = await c.env.DB.prepare(
+    'SELECT name, slug, avatar_url, account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ? OR name = ?'
+  ).bind(slug, slug).first() as any
+
   const rateLimitKey = {
     route: 'classmate-login',
     ip: clientIp(c.req.raw),
-    account: normalizeAccount(slug),
+    account: normalizeAccount(student?.slug || slug),
   }
   const currentLimit = await checkAuthRateLimit(c.env.DB, rateLimitKey)
   if (currentLimit.limited) return rateLimitResponse(c, currentLimit)
@@ -40,10 +44,6 @@ classmateAuthRoutes.post('/login', async (c) => {
     if (nextLimit.limited) return rateLimitResponse(c, nextLimit)
     return c.json({ success: false, message: '账号或密码错误' }, 401)
   }
-
-  const student = await c.env.DB.prepare(
-    'SELECT name, slug, avatar_url, account_password_hash, account_initial_password_changed, account_status FROM students WHERE slug = ? OR name = ?'
-  ).bind(slug, slug).first() as any
 
   if (!student || student.account_status === 'locked') {
     return failedLogin()
