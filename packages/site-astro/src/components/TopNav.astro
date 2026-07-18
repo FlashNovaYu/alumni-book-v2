@@ -11,19 +11,6 @@ const navItems = [
   { href: '/roster', label: '同学档案' },
   { href: '/class-space', label: '班级空间' },
   { href: '/yearbook', label: '年度册' },
----
-import IconBrand from './icons/IconBrand.astro'
-
-const currentPath = Astro.url.pathname
-const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
-const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
-const adminHref = href('/admin/#/classmate')
-const isHome = currentPath === base || currentPath === href('/')
-const navItems = [
-  { href: '/preface', label: '前言' },
-  { href: '/roster', label: '同学档案' },
-  { href: '/class-space', label: '班级空间' },
-  { href: '/yearbook', label: '年度册' },
   { href: '/more', label: '更多' },
 ]
 const isActive = (path: string) => currentPath === href(path) || currentPath.startsWith(`${href(path)}/`)
@@ -156,7 +143,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .top-nav.is-scrolled .ticket-container {
-    box-shadow: 0 8px 24px rgba(74, 50, 29, 0.12);
+    filter: drop-shadow(0 8px 24px rgba(74, 50, 29, 0.12));
   }
 
   .nav-inner {
@@ -173,10 +160,10 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     background: var(--color-paper-card);
     border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
     border-radius: 6px;
-    box-shadow: 0 4px 15px rgba(96, 65, 35, 0.08);
+    filter: drop-shadow(0 4px 15px rgba(96, 65, 35, 0.08));
     margin: 8px auto; /* Slightly detached from absolute top */
     padding: 0;
-    transition: box-shadow var(--duration-normal) ease;
+    transition: filter var(--duration-normal) ease;
   }
 
   .ticket-stub-left, .ticket-stub-right {
