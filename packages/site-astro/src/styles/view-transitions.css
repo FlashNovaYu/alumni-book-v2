@@ -7,74 +7,74 @@
 
 /* 前进方向 */
 html[data-nav-dir=forward]::view-transition-old(page-main) {
-  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-left;
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-backward;
 }
 
 html[data-nav-dir=forward]::view-transition-new(page-main) {
-  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-right;
+  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-forward;
 }
 
 /* 后退方向 */
 html[data-nav-dir=back]::view-transition-old(page-main) {
-  animation: 0.28s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-right;
+  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-forward;
 }
 
 html[data-nav-dir=back]::view-transition-new(page-main) {
-  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-left;
+  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-backward;
 }
 
-@keyframes page-exit-left {
-  to { transform: translateX(-40px); opacity: 0; }
+@keyframes page-exit-backward {
+  to { transform: scale(0.92); opacity: 0; }
 }
 
-@keyframes page-enter-right {
-  from { transform: translateX(40px); opacity: 0; }
+@keyframes page-enter-forward {
+  from { transform: scale(1.08); opacity: 0; }
 }
 
-@keyframes page-exit-right {
-  to { transform: translateX(40px); opacity: 0; }
+@keyframes page-exit-forward {
+  to { transform: scale(1.08); opacity: 0; }
 }
 
-@keyframes page-enter-left {
-  from { transform: translateX(-40px); opacity: 0; }
+@keyframes page-enter-backward {
+  from { transform: scale(0.92); opacity: 0; }
 }
 
 /* Heading 过渡 */
 ::view-transition-group(page-heading) {
-  animation-duration: 0.34s;
+  animation-duration: 0.4s;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html[data-nav-dir='forward']::view-transition-old(page-heading) {
-  animation: 0.22s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-left;
+  animation: 0.3s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-backward;
 }
 
 html[data-nav-dir='forward']::view-transition-new(page-heading) {
-  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-right;
+  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-forward;
 }
 
 html[data-nav-dir='back']::view-transition-old(page-heading) {
-  animation: 0.22s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-right;
+  animation: 0.3s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-exit-forward;
 }
 
 html[data-nav-dir='back']::view-transition-new(page-heading) {
-  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-left;
+  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) both page-heading-enter-backward;
 }
 
-@keyframes page-heading-exit-left {
-  to { transform: translateX(-30px); opacity: 0; }
+@keyframes page-heading-exit-backward {
+  to { transform: scale(0.95); opacity: 0; }
 }
 
-@keyframes page-heading-enter-right {
-  from { transform: translateX(30px); opacity: 0; }
+@keyframes page-heading-enter-forward {
+  from { transform: scale(1.05); opacity: 0; }
 }
 
-@keyframes page-heading-exit-right {
-  to { transform: translateX(30px); opacity: 0; }
+@keyframes page-heading-exit-forward {
+  to { transform: scale(1.05); opacity: 0; }
 }
 
-@keyframes page-heading-enter-left {
-  from { transform: translateX(-30px); opacity: 0; }
+@keyframes page-heading-enter-backward {
+  from { transform: scale(0.95); opacity: 0; }
 }
 
 /* Heading sweep */
