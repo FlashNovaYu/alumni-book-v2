@@ -4,6 +4,17 @@ import path from 'path'
 
 const distDir = path.resolve(__dirname, '../dist')
 const assetsDir = path.join(distDir, 'assets')
+const stylesDir = path.resolve(__dirname, '../src/styles')
+
+function readPublicStyleEntrypoint() {
+  const globalCss = fs.readFileSync(path.join(stylesDir, 'global.css'), 'utf-8')
+  const imports = Array.from(globalCss.matchAll(/@import '\.\/([^']+\.css)';/g), ([, file]) => file)
+
+  return [
+    globalCss,
+    ...imports.map((file) => fs.readFileSync(path.join(stylesDir, file), 'utf-8')),
+  ].join('\n')
+}
 
 describe('Performance Static Constraints Test', () => {
   beforeAll(() => {
@@ -126,10 +137,10 @@ describe('Performance Static Constraints Test', () => {
   })
 
   it('museum hover motion has reduced-motion overrides', () => {
-    const globalCss = fs.readFileSync(path.resolve(__dirname, '../src/styles/global.css'), 'utf-8')
-    expect(globalCss).toContain('.museum-motion-soft')
-    expect(globalCss).toContain('@media (prefers-reduced-motion: reduce)')
-    expect(globalCss).toContain('.museum-motion-soft:hover')
+    const publicStyles = readPublicStyleEntrypoint()
+    expect(publicStyles).toContain('.museum-motion-soft')
+    expect(publicStyles).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(publicStyles).toContain('.museum-motion-soft:hover')
   })
 
   it('homepage cover flow stays CSS-first and does not ship heavy visual dependencies', () => {

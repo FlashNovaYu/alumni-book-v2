@@ -144,11 +144,20 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.text-input--error {
+  border-color: var(--error);
+}
+
+.text-input--error:focus {
+  box-shadow: 0 0 0 3px rgba(198, 69, 69, 0.12);
+}
+
 /* ── Badge ── */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  min-height: 20px;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--type-caption);
@@ -158,18 +167,25 @@
 
 .badge--default { background: var(--bg-soft); color: var(--text-secondary); }
 .badge--accent { background: var(--accent-soft); color: var(--accent); }
-.badge--success { background: rgba(93, 184, 114, 0.12); color: #3a8f52; }
-.badge--warning { background: rgba(212, 160, 23, 0.12); color: #a07810; }
-.badge--error { background: rgba(198, 69, 69, 0.12); color: #b03e3e; }
+.badge--success { background: rgba(93, 184, 114, 0.12); color: var(--success); }
+.badge--warning { background: rgba(212, 160, 23, 0.12); color: var(--warning); }
+.badge--error { background: rgba(198, 69, 69, 0.12); color: var(--error); }
 
 /* ── Tag ── */
 .tag {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
   color: var(--text-secondary);
   font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.tag:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
 }

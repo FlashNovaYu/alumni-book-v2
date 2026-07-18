@@ -78,17 +78,22 @@ html[data-nav-dir='back']::view-transition-new(page-heading) {
 }
 
 /* Heading sweep */
-.page-header__title-sweep {
+.page-header__title-wrap {
   position: relative;
-  overflow: hidden;
+  display: inline-block;
 }
 
-.page-header__title-sweep::after {
-  content: '';
+.page-header__title-sweep {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-  animation: pageHeadingSweep 1.8s var(--ease-out-expo) forwards;
+  right: 0;
+  bottom: -7px;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: pageHeadingSweep 0.68s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* 特殊过渡 */
@@ -119,8 +124,27 @@ html.theme-transition [data-page-heading] {
   view-transition-name: none !important;
 }
 
+html[data-theme='night'] .page-shell {
+  background-color: var(--color-paper-bg);
+}
+
+::view-transition-group(.student-avatar) {
+  animation-duration: 0.5s;
+  animation-timing-function: var(--ease-out-expo);
+}
+
+::view-transition-group(.student-name) {
+  animation-duration: 0.4s;
+  animation-timing-function: var(--ease-out-expo);
+}
+
 .student-page .detail-content-enter {
-  animation: pageFadeIn 0.5s var(--ease-out-expo) forwards;
+  animation: detail-content-enter 0.52s var(--ease-out-expo) 0.18s both;
+}
+
+@keyframes detail-content-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* View Transitions reduced motion */
