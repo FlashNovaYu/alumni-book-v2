@@ -68,12 +68,6 @@ npx wrangler d1 execute alumni-book-db --file=scripts/migration.sql
 
 ## 设计系统
 
-视觉风格遵循 Claude 设计系统，详见 `DESIGN-claude.md`。
-
-核心色彩:
-- 画布: `#faf9f5` (暖白)
-- 强调: `#cc785c` (珊瑚色)
-- 深色: `#181715` (海军蓝)
-- 文本: `#141413` (暖黑)
+视觉风格遵循 复古纸张风格
 
 字体: Cormorant Garamond (显示) + Inter (正文)
