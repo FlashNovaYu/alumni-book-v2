@@ -93,8 +93,8 @@ describe('头像与学生页 hydration 可靠性', () => {
   it('为年度册头像提供固定比例和无 JavaScript 的首字降级', () => {
     const yearbook = read('pages/yearbook.astro')
 
-    expect(yearbook).toContain('style="aspect-ratio: 1"')
-    expect(yearbook).toContain('<object')
+    expect(yearbook).toContain('width="72"')
+    expect(yearbook).toContain('loading="lazy"')
     expect(yearbook).toContain('<span class="mate-avatar-char">{mate.name.charAt(0)}</span>')
   })
 })
