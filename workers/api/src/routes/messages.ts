@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
+import { verifyClassmateSession } from '../lib/classmateSession'
 
 type Bindings = {
   DB: D1Database
@@ -9,49 +10,9 @@ type Bindings = {
 
 export const messagesRoutes = new Hono<{ Bindings: Bindings }>()
 
-function fromBase64url(str: string): string {
-  try {
-    return atob(str.replace(/-/g, '+').replace(/_/g, '/'))
-  } catch {
-    return ''
-  }
-}
-
-function base64url(str: string): string {
-  return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-}
-
-async function hmacSign(data: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(data))
-  return base64url(String.fromCharCode(...new Uint8Array(sig)))
-}
-
-async function verifyClassmateToken(token: string, secret: string): Promise<string | null> {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const slug = fromBase64url(parts[0])
-    const ts = parseInt(fromBase64url(parts[1]))
-    if (Date.now() - ts > 30 * 60 * 1000) return null
-    const derived = await hmacSign('classmate-auth', secret)
-    const expectedSig = await hmacSign(`${slug}:${ts}`, derived)
-    if (expectedSig !== parts[2]) return null
-    return slug
-  } catch {
-    return null
-  }
-}
-
-async function authClassmate(c: any, secret: string): Promise<string | null> {
+async function authClassmate(c: any): Promise<string | null> {
   const token = c.req.header('X-Classmate-Token')
-  if (!token) return null
-  return verifyClassmateToken(token, secret)
+  return verifyClassmateSession(c.env.DB, token)
 }
 
 // 公开获取所有已通过审核的留言列表
@@ -166,7 +127,7 @@ messagesRoutes.put('/messages/:id/reply', async (c) => {
     return c.json({ success: false, message: '回复内容必须在 1-500 字之间' }, 400)
   }
 
-  const authedSlug = await authClassmate(c, c.env.JWT_SECRET)
+  const authedSlug = await authClassmate(c)
   if (!authedSlug) {
     return c.json({ success: false, message: '未授权，请先验证身份' }, 401)
   }
