@@ -21,6 +21,7 @@ describe('生产发布单一写入者契约', () => {
     expect(workflow).toContain('--commit-hash "$GITHUB_SHA"')
     expect(workflow).toContain('--commit-dirty=false')
     expect(workflow).not.toContain('--commit-dirty=true')
+    expect(workflow).toContain('d1 migrations apply alumni-book-db --remote')
   })
 
   it('push 与 pull request 仅运行不含 Cloudflare 凭据的验证 CI', () => {

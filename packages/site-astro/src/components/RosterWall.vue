@@ -41,16 +41,26 @@
     </div>
 
     <!-- 同学列表网格 -->
-    <div v-else-if="filteredClassmates.length > 0" class="roster-grid">
-      <ArchiveRosterCard
-        v-for="mate in classmates"
+    <TransitionGroup v-else-if="filteredClassmates.length > 0" name="roster-list" tag="div" class="roster-grid">
+      <div
+        v-for="(mate, index) in classmates"
         :key="mate.slug"
         v-show="isCardVisible(mate)"
-        :card="toArchiveClassmateCard(mate, siteBase)"
-        :api-base="apiBase"
-        @identity-transition="rememberIdentityTransition"
-      />
-    </div>
+        class="roster-card-wrapper"
+        :class="{ 'is-hovered': getState(mate.slug).isHovered }"
+        :style="getTiltStyles(mate.slug, `rotateZ(${getStaticRotation(index)}deg) translateY(${getStaticY(index)}px)`)"
+        @mousemove="onMouseMove($event, mate.slug)"
+        @mouseenter="onMouseEnter(mate.slug)"
+        @mouseleave="onMouseLeave(mate.slug)"
+      >
+        <ArchiveRosterCard
+          :card="toArchiveClassmateCard(mate, siteBase)"
+          :api-base="apiBase"
+          @identity-transition="rememberIdentityTransition"
+        />
+        <div class="glare-layer" :style="{ opacity: getState(mate.slug).isHovered ? 1 : 0 }"></div>
+      </div>
+    </TransitionGroup>
 
     <!-- 空状态 -->
     <UiEmptyState
@@ -78,6 +88,7 @@ import UiSkeleton from './ui/UiSkeleton.vue'
 import UiEmptyState from './ui/UiEmptyState.vue'
 import UiPagination from './ui/UiPagination.vue'
 import { toArchiveClassmateCard } from '../utils/museumViewModels'
+import { useMouseTilt } from '../composables/useMouseTilt'
 
 interface Classmate {
   name: string
@@ -133,6 +144,15 @@ const props = defineProps<{
 
 const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
+
+const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
+
+function getStaticRotation(index: number) {
+  return (Math.sin(index * 1.5) * 1.5).toFixed(2);
+}
+function getStaticY(index: number) {
+  return (Math.cos(index * 2.1) * 4).toFixed(2);
+}
 const currentPage = ref(1)
 const isRestoringIdentityState = ref(false)
 const loading = ref(false)
@@ -343,13 +363,59 @@ onMounted(async () => {
   margin: 0;
 }
 
-/* Grid */
+/* Grid & Animations */
 .roster-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   grid-auto-rows: 1fr;
   align-items: stretch;
   gap: var(--space-5);
+  perspective: 1200px;
+}
+
+.roster-card-wrapper {
+  position: relative;
+  border-radius: var(--radius-lg);
+  transform-style: preserve-3d;
+  will-change: transform;
+  box-shadow: var(--shadow-skeuo-sm);
+  background: var(--bg-surface);
+}
+
+.roster-card-wrapper.is-hovered {
+  box-shadow: var(--shadow-skeuo-lg);
+  z-index: 10;
+}
+
+.glare-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 255, 255, 0.4) 0%,
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+.roster-list-move,
+.roster-list-enter-active,
+.roster-list-leave-active {
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.roster-list-enter-from,
+.roster-list-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
+.roster-list-leave-active {
+  position: absolute;
 }
 
 /* Pagination spacing */

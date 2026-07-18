@@ -55,13 +55,13 @@ describe('responsive vintage paper redesign static constraints', () => {
     expect(hero).not.toContain('ScrollTrigger')
   })
 
-  it('homepage cover has CSS-first geometric entrance and ambient floating motion', () => {
+  it('homepage cover has CSS-first geometric entrance and scroll-linked ambient motion', () => {
     const hero = read('components/MuseumHero.astro')
 
     expect(hero).toContain('home-cover__shape')
     expect(hero).toContain('home-cover__copy-reveal')
     expect(hero).toContain('@keyframes homeShapeEnter')
-    expect(hero).toContain('@keyframes homeShapeFloat')
+    expect(hero).toContain('data-parallax')
     expect(hero).toContain('@keyframes homeCopyReveal')
     expect(hero).toContain('animation-delay')
     expect(hero).toContain('--shape-rotate')
