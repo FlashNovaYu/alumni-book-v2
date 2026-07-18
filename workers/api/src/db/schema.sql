@@ -183,6 +183,14 @@ CREATE TABLE IF NOT EXISTS classmate_sessions (
 CREATE INDEX IF NOT EXISTS idx_classmate_sessions_slug ON classmate_sessions(student_slug);
 CREATE INDEX IF NOT EXISTS idx_classmate_sessions_expires ON classmate_sessions(expires_at);
 
+-- 公开写接口与访问去重的短窗口状态，键由服务端按操作、IP 与目标构造。
+CREATE TABLE IF NOT EXISTS public_request_limits (
+  limit_key TEXT PRIMARY KEY,
+  expires_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_public_request_limits_expires ON public_request_limits(expires_at);
+
 CREATE TABLE IF NOT EXISTS public_messages (
   id TEXT PRIMARY KEY,
   author_slug TEXT NOT NULL,

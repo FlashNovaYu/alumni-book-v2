@@ -298,7 +298,7 @@ describe('Messages API', () => {
   it('POST /api/messages/:slug preserves sticker card style', async () => {
     const req = new Request('http://localhost/api/messages/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.71' },
       body: JSON.stringify({
         authorName: '李四',
         content: '祝你毕业快乐',
@@ -611,7 +611,7 @@ describe('Admin Student API & Message Submission', () => {
     }
     const req = new Request('http://localhost/api/messages/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.72' },
       body: JSON.stringify(payload)
     })
     const ctx = createExecutionContext()

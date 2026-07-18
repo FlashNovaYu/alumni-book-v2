@@ -27,6 +27,7 @@ import { directConversationsRoutes } from './routes/directConversations'
 import { filesRoutes } from './routes/files'
 import { normalizeFileUrl } from './lib/fileUrl'
 import { audienceForStudent, filterStudentForAudience, type StudentViewer } from './lib/studentAudience'
+import { claimPublicRequestSlot, publicClientIp } from './lib/publicRequestLimit'
 
 
 type Bindings = {
@@ -45,6 +46,7 @@ type Variables = {
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const DEFAULT_CORS_ORIGIN = 'https://alumni-book.pages.dev'
+const VISIT_DEDUPE_WINDOW_SECONDS = 10 * 60
 
 function normalizeHttpsOrigin(value: string | undefined): string | null {
   if (!value || value === '*') return null
@@ -400,7 +402,14 @@ app.route('/api', classmateRoutes)
 app.post('/api/students/:slug/visit', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
-  await db.prepare('UPDATE students SET visit_count = visit_count + 1 WHERE slug = ?').bind(slug).run()
+  const limit = await claimPublicRequestSlot(
+    db,
+    `visit:${publicClientIp(c.req.raw)}:${slug}`,
+    VISIT_DEDUPE_WINDOW_SECONDS,
+  )
+  if (!limit.limited) {
+    await db.prepare('UPDATE students SET visit_count = visit_count + 1 WHERE slug = ?').bind(slug).run()
+  }
   const row = await db.prepare('SELECT visit_count FROM students WHERE slug = ?').bind(slug).first()
   return c.json({ success: true, data: { visitCount: (row as any)?.visit_count || 0 } })
 })

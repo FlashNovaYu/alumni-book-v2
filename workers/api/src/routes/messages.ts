@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 import { verifyClassmateSession } from '../lib/classmateSession'
+import { claimPublicRequestSlot, publicClientIp } from '../lib/publicRequestLimit'
 
 type Bindings = {
   DB: D1Database
@@ -10,9 +11,17 @@ type Bindings = {
 
 export const messagesRoutes = new Hono<{ Bindings: Bindings }>()
 
+const MESSAGE_SUBMISSION_WINDOW_SECONDS = 60
+const MESSAGE_REACTION_WINDOW_SECONDS = 15
+
 async function authClassmate(c: any): Promise<string | null> {
   const token = c.req.header('X-Classmate-Token')
   return verifyClassmateSession(c.env.DB, token)
+}
+
+function publicRateLimitResponse(c: any, retryAfterSeconds: number) {
+  c.header('Retry-After', String(retryAfterSeconds))
+  return c.json({ success: false, message: '操作过于频繁，请稍后再试' }, 429)
 }
 
 // 公开获取所有已通过审核的留言列表
@@ -80,6 +89,13 @@ messagesRoutes.post('/messages/:slug', async (c) => {
     return c.json({ success: false, message: '学生不存在' }, 404)
   }
 
+  const limit = await claimPublicRequestSlot(
+    db,
+    `message:${publicClientIp(c.req.raw)}:${slug}`,
+    MESSAGE_SUBMISSION_WINDOW_SECONDS,
+  )
+  if (limit.limited) return publicRateLimitResponse(c, limit.retryAfterSeconds)
+
   const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   await db.prepare(
     'INSERT INTO messages (id, student_slug, author_name, content, card_style, is_approved) VALUES (?, ?, ?, ?, ?, 0)'
@@ -98,6 +114,16 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
   if (!ALLOWED.includes(reaction)) {
     return c.json({ success: false, message: '不支持的表情' }, 400)
   }
+
+  const message = await db.prepare('SELECT id FROM messages WHERE id = ?').bind(id).first()
+  if (!message) return c.json({ success: false, message: '留言不存在' }, 404)
+
+  const limit = await claimPublicRequestSlot(
+    db,
+    `reaction:${publicClientIp(c.req.raw)}:${id}`,
+    MESSAGE_REACTION_WINDOW_SECONDS,
+  )
+  if (limit.limited) return publicRateLimitResponse(c, limit.retryAfterSeconds)
 
   // 原子更新避免并发覆盖（json_set 内 CRUD 为单条 SQL）
   const path = `$.${reaction}`

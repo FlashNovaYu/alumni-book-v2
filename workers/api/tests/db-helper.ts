@@ -364,6 +364,13 @@ export const testMigrations = [
       last_failed_at INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_cleanup ON auth_login_attempts(last_failed_at)`,
+  ]},
+  { name: '0016_public_request_limits', queries: [
+    `CREATE TABLE IF NOT EXISTS public_request_limits (
+      limit_key TEXT PRIMARY KEY,
+      expires_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_public_request_limits_expires ON public_request_limits(expires_at)`,
   ]}
 ]
 
