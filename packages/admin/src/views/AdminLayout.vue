@@ -151,7 +151,8 @@
 
       <!-- Router View -->
       <div class="admin-main__content">
-        <router-view />
+        <RouteLoadingSkeleton v-if="routeLoading" />
+        <router-view v-else />
       </div>
     </main>
   </div>
@@ -159,15 +160,20 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import type { AdminPermission } from '@alumni/shared'
 import { adminLogout, getCurrentAdmin } from '@/api/client'
+import RouteLoadingSkeleton from '@/components/RouteLoadingSkeleton.vue'
 
 const admin = computed(() => getCurrentAdmin())
 const isOwner = computed(() => !!admin.value?.isOwner)
 const route = useRoute()
+const router = useRouter()
 const mobileMenuOpen = ref(false)
 const isMobile = ref(false)
+const routeLoading = ref(false)
+let removeBeforeRouteHook: (() => void) | null = null
+let removeAfterRouteHook: (() => void) | null = null
 
 function can(permission: AdminPermission) {
   return !!admin.value && (admin.value.isOwner || admin.value.permissions.includes(permission))
@@ -209,10 +215,16 @@ function checkMobile() {
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  removeBeforeRouteHook = router.beforeEach(() => { routeLoading.value = true })
+  removeAfterRouteHook = router.afterEach(() => {
+    requestAnimationFrame(() => { routeLoading.value = false })
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  removeBeforeRouteHook?.()
+  removeAfterRouteHook?.()
 })
 </script>
 

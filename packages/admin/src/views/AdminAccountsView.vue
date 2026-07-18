@@ -89,16 +89,20 @@
         </tbody>
       </table>
     </div>
+    <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="load(false)">
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${accounts.length}/${total}）` }}
+    </button>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ADMIN_PERMISSIONS, type AdminAccountSummary, type AdminPermission } from '@alumni/shared'
 import {
   createAdminAccount, disableAdminAccount, listAccountCandidates, listAdminAccounts,
   resetAdminPassword, revokeAdminSessions, type CreateAdminAccountPayload, updateAdminAccount,
 } from '@/api/adminAccounts'
+import { isAbortError } from '@/api/network'
 
 const permissions = ADMIN_PERMISSIONS
 const accounts = ref<AdminAccountSummary[]>([])
@@ -108,6 +112,10 @@ const saving = ref(false)
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const error = ref('')
+const nextCursor = ref<string | null>(null)
+const total = ref(0)
+const loadingMore = ref(false)
+let loadController: AbortController | null = null
 
 const roleDefaults: Record<'content_admin' | 'moderator' | 'operator', AdminPermission[]> = {
   content_admin: ['dashboard.view', 'moderation.view', 'moderation.manage', 'content.manage', 'notifications.view', 'notifications.publish'],
@@ -154,10 +162,31 @@ function edit(account: AdminAccountSummary) {
   error.value = ''
   showForm.value = true
 }
-async function load() {
+async function load(reset = true) {
+  if (reset) {
+    loadController?.abort()
+    accounts.value = []
+    nextCursor.value = null
+  }
+  const controller = new AbortController()
+  loadController = controller
   loading.value = true
-  try { [accounts.value, candidates.value] = await Promise.all([listAdminAccounts(), listAccountCandidates()]) }
-  finally { loading.value = false }
+  loadingMore.value = !reset
+  try {
+    const [page, nextCandidates] = await Promise.all([
+      listAdminAccounts(reset ? null : nextCursor.value, controller.signal),
+      reset ? listAccountCandidates(controller.signal) : Promise.resolve(candidates.value),
+    ])
+    if (controller.signal.aborted) return
+    accounts.value = reset ? page.items : [...accounts.value, ...page.items]
+    candidates.value = nextCandidates
+    nextCursor.value = page.nextCursor
+    total.value = page.total
+  } catch (err) {
+    if (!isAbortError(err)) error.value = err instanceof Error ? err.message : '账号加载失败'
+  } finally {
+    if (loadController === controller) { loading.value = false; loadingMore.value = false }
+  }
 }
 async function submit() {
   saving.value = true; error.value = ''
@@ -167,7 +196,7 @@ async function submit() {
     } else {
       await createAdminAccount({ ...form, permissionOverrides: [...form.permissionOverrides] })
     }
-    closeForm(); await load()
+    closeForm(); await load(true)
   } catch (err: unknown) { error.value = err instanceof Error ? err.message : '保存失败' }
   finally { saving.value = false }
 }
@@ -178,26 +207,27 @@ async function resetPassword(account: AdminAccountSummary) {
   const reason = prompt('请填写重置密码的原因：')
   if (reason === null) return
   if (!reason.trim()) { window.alert('请填写重置密码的原因'); return }
-  await resetAdminPassword(account.id, password, reason.trim()); await load()
+  await resetAdminPassword(account.id, password, reason.trim()); await load(true)
 }
 async function revokeSessions(account: AdminAccountSummary) {
   if (!confirm(`确定撤销“${account.displayName}”的全部管理会话吗？`)) return
   const reason = prompt('请填写撤销会话的原因：')
   if (reason === null) return
   if (!reason.trim()) { window.alert('请填写撤销会话的原因'); return }
-  await revokeAdminSessions(account.id, reason.trim()); await load()
+  await revokeAdminSessions(account.id, reason.trim()); await load(true)
 }
 async function disable(account: AdminAccountSummary) {
   if (!confirm(`确定停用“${account.displayName}”吗？其所有管理会话将立即失效。`)) return
   const reason = prompt('请填写停用管理员的原因：')
   if (reason === null) return
   if (!reason.trim()) { window.alert('请填写停用管理员的原因'); return }
-  await disableAdminAccount(account.id, reason.trim()); await load()
+  await disableAdminAccount(account.id, reason.trim()); await load(true)
 }
 
-onMounted(load)
+onMounted(() => { void load(true) })
+onBeforeUnmount(() => { loadController?.abort() })
 </script>
 
 <style scoped>
-.governance-page{max-width:1180px}.governance-header{align-items:flex-start}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--color-primary);margin:0 0 4px}.intro{margin:8px 0 0;color:var(--color-muted);font-size:14px}.account-form{margin-bottom:var(--spacing-lg)}.form-heading{display:flex;justify-content:space-between;gap:var(--spacing-md);margin-bottom:var(--spacing-lg)}.form-heading h2{margin:0;font-size:20px}.close-button{font-size:26px;line-height:1;padding:0 6px;color:var(--color-muted)}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-md)}.form-group{display:grid;gap:6px;font-size:13px;font-weight:600}.permission-editor{margin-top:var(--spacing-lg);padding-top:var(--spacing-lg);border-top:1px solid var(--color-hairline)}.permission-heading h3,.effective-permissions h3{margin:0;font-size:16px}.permission-heading p,.effective-permissions p,.form-hint{margin:5px 0 0;color:var(--color-muted);font-size:13px;line-height:1.6}.permission-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:var(--spacing-md)}.permission-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid var(--color-hairline-soft);border-radius:var(--rounded-sm);font-size:13px}.permission-row select{max-width:116px;padding:6px 7px}.effective-permissions{margin-top:var(--spacing-md);padding:12px;background:var(--color-surface-cream);border-radius:var(--rounded-sm)}.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:var(--spacing-lg)}.table-card{overflow:auto}table{width:100%;min-width:920px;border-collapse:collapse}th,td{padding:13px 10px;border-bottom:1px solid var(--color-hairline);text-align:left;vertical-align:top;font-size:13px}th{color:var(--color-muted);font-weight:600}small{display:block;color:var(--color-muted);margin-top:3px}.status{font-weight:700}.status.active{color:var(--color-success)}.status.disabled{color:var(--color-error)}details{margin-top:6px;color:var(--color-muted)}summary{cursor:pointer;font-size:12px}details p{max-width:230px;margin:6px 0 0;font-size:12px;line-height:1.5}.action-cell{display:flex;flex-wrap:wrap;gap:6px;min-width:208px}.empty{padding:var(--spacing-xl);color:var(--color-muted)}@media(max-width:768px){.governance-header{gap:var(--spacing-md)}.form-grid,.permission-grid{grid-template-columns:1fr}.permission-row{align-items:flex-start;flex-direction:column}.permission-row select{width:100%;max-width:none}.table-card{padding:var(--spacing-sm)}.action-cell{min-width:260px}}
+.governance-page{max-width:1180px}.governance-header{align-items:flex-start}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--color-primary);margin:0 0 4px}.intro{margin:8px 0 0;color:var(--color-muted);font-size:14px}.account-form{margin-bottom:var(--spacing-lg)}.form-heading{display:flex;justify-content:space-between;gap:var(--spacing-md);margin-bottom:var(--spacing-lg)}.form-heading h2{margin:0;font-size:20px}.close-button{font-size:26px;line-height:1;padding:0 6px;color:var(--color-muted)}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--spacing-md)}.form-group{display:grid;gap:6px;font-size:13px;font-weight:600}.permission-editor{margin-top:var(--spacing-lg);padding-top:var(--spacing-lg);border-top:1px solid var(--color-hairline)}.permission-heading h3,.effective-permissions h3{margin:0;font-size:16px}.permission-heading p,.effective-permissions p,.form-hint{margin:5px 0 0;color:var(--color-muted);font-size:13px;line-height:1.6}.permission-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:var(--spacing-md)}.permission-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid var(--color-hairline-soft);border-radius:var(--rounded-sm);font-size:13px}.permission-row select{max-width:116px;padding:6px 7px}.effective-permissions{margin-top:var(--spacing-md);padding:12px;background:var(--color-surface-cream);border-radius:var(--rounded-sm)}.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:var(--spacing-lg)}.table-card{overflow:auto}table{width:100%;min-width:920px;border-collapse:collapse}th,td{padding:13px 10px;border-bottom:1px solid var(--color-hairline);text-align:left;vertical-align:top;font-size:13px}th{color:var(--color-muted);font-weight:600}small{display:block;color:var(--color-muted);margin-top:3px}.status{font-weight:700}.status.active{color:var(--color-success)}.status.disabled{color:var(--color-error)}details{margin-top:6px;color:var(--color-muted)}summary{cursor:pointer;font-size:12px}details p{max-width:230px;margin:6px 0 0;font-size:12px;line-height:1.5}.action-cell{display:flex;flex-wrap:wrap;gap:6px;min-width:208px}.empty{padding:var(--spacing-xl);color:var(--color-muted)}.load-more{display:block;margin:var(--spacing-lg) auto 0}@media(max-width:768px){.governance-header{gap:var(--spacing-md)}.form-grid,.permission-grid{grid-template-columns:1fr}.permission-row{align-items:flex-start;flex-direction:column}.permission-row select{width:100%;max-width:none}.table-card{padding:var(--spacing-sm)}.action-cell{min-width:260px}}
 </style>

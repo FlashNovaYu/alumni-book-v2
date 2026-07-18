@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite --port 3001",
     "build": "vue-tsc --noEmit && vite build",
-    "test": "pnpm run test:static && node tests/community-static.mjs && node tests/network-integration-static.mjs && pnpm run test:network && tsx --test tests/audit-summary.test.ts",
+    "test": "pnpm run test:static && node tests/community-static.mjs && node tests/network-integration-static.mjs && pnpm run test:network && tsx --test tests/audit-summary.test.ts tests/list-performance.test.mjs",
     "test:network": "tsx --test tests/network.test.ts",
     "verify:dist-network": "node tests/dist-network.mjs",
     "preview": "vite preview",

@@ -1,5 +1,6 @@
 import type { AdminAccountSummary, AdminAuditLog, AdminPermission, AdminPermissionOverride, AdminRoleId, ApiResponse } from '@alumni/shared'
 import { adminFetch } from './client'
+import { DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams, type PageResult } from './pagination'
 
 export type PermissionOverride = AdminPermissionOverride
 export type CreateAdminAccountPayload = {
@@ -21,13 +22,14 @@ export type AuditLogFilters = {
   to?: string
 }
 
-export async function listAdminAccounts() {
-  const response = await adminFetch<ApiResponse<AdminAccountSummary[]>>('/api/admin/accounts')
-  return response.data || []
+export async function listAdminAccounts(cursor?: string | null, signal?: AbortSignal): Promise<PageResult<AdminAccountSummary>> {
+  const query = pageSearchParams(DEFAULT_PAGE_SIZE, cursor)
+  const response = await adminFetch<ApiResponse<AdminAccountSummary[] | PageResult<AdminAccountSummary>>>(`/api/admin/accounts?${query}`, { signal })
+  return normalizePageResult(response.data, DEFAULT_PAGE_SIZE, cursor)
 }
 
-export async function listAccountCandidates() {
-  const response = await adminFetch<ApiResponse<Array<{ name: string; slug: string; avatarUrl: string | null }>>>('/api/admin/account-candidates')
+export async function listAccountCandidates(signal?: AbortSignal) {
+  const response = await adminFetch<ApiResponse<Array<{ name: string; slug: string; avatarUrl: string | null }>>>('/api/admin/account-candidates', { signal })
   return response.data || []
 }
 
@@ -53,12 +55,11 @@ export async function revokeAdminSessions(id: string, reason: string) {
   return adminFetch<ApiResponse>(`/api/admin/accounts/${id}/revoke-sessions`, { method: 'POST', body: JSON.stringify({ reason }) })
 }
 
-export async function listAuditLogs(filters: AuditLogFilters = {}) {
-  const query = new URLSearchParams()
+export async function listAuditLogs(filters: AuditLogFilters = {}, cursor?: string | null, signal?: AbortSignal): Promise<PageResult<AdminAuditLog>> {
+  const query = pageSearchParams(DEFAULT_PAGE_SIZE, cursor)
   for (const [key, value] of Object.entries(filters)) {
     if (value) query.set(key, value)
   }
-  const suffix = query.size ? `?${query.toString()}` : ''
-  const response = await adminFetch<ApiResponse<AdminAuditLog[]>>(`/api/admin/audit-logs${suffix}`)
-  return response.data || []
+  const response = await adminFetch<ApiResponse<AdminAuditLog[] | PageResult<AdminAuditLog>>>(`/api/admin/audit-logs?${query}`, { signal })
+  return normalizePageResult(response.data, DEFAULT_PAGE_SIZE, cursor)
 }

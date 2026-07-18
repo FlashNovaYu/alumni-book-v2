@@ -1,5 +1,6 @@
 import type { ApiResponse, Student } from '@alumni/shared'
 import { adminFetch } from './client'
+import { DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams, type PageResult } from './pagination'
 
 export type AdminGroupChatStatus = 'visible' | 'hidden' | 'recalled_by_author' | 'recalled_by_admin'
 
@@ -31,9 +32,16 @@ async function data<T>(path: string, options?: RequestInit): Promise<T> {
   return result.data
 }
 
-export function fetchGroupChatMessages(status?: AdminGroupChatStatus): Promise<AdminGroupChatMessage[]> {
-  const query = status ? `?status=${encodeURIComponent(status)}` : ''
-  return data(`/api/admin/group-chat/messages${query}`)
+export async function fetchGroupChatMessages(
+  status?: AdminGroupChatStatus,
+  cursor?: string | null,
+  signal?: AbortSignal,
+): Promise<PageResult<AdminGroupChatMessage>> {
+  const query = pageSearchParams(DEFAULT_PAGE_SIZE, cursor)
+  if (status) query.set('status', status)
+  const result = await data<PageResult<AdminGroupChatMessage> | AdminGroupChatMessage[]>(`/api/admin/group-chat/messages?${query}`, { signal })
+  const legacyFiltered = Array.isArray(result) && status ? result.filter((message) => message.status === status) : result
+  return normalizePageResult(legacyFiltered, DEFAULT_PAGE_SIZE, cursor)
 }
 
 export function setGroupChatHidden(id: string, hidden: boolean, reason: string): Promise<AdminGroupChatMessage> {

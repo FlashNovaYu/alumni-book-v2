@@ -27,12 +27,12 @@
         
         <div class="album-cover-preview-row mb-3" v-if="album.coverR2Key">
           <span class="text-xs text-muted">当前封面: </span>
-          <img :src="getPhotoUrl(album.coverR2Key)" class="cover-mini-thumb" />
+          <img :src="getPhotoUrl(album.coverR2Key)" class="cover-mini-thumb" width="56" height="56" loading="lazy" decoding="async" />
         </div>
 
         <div v-if="album.photos?.length" class="album-thumbs">
           <div v-for="photo in album.photos.slice(0, 6)" :key="photo.id" class="thumb">
-            <img :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" />
+            <img :src="getPhotoUrl(photo.r2Key)" :alt="photo.caption" width="72" height="72" loading="lazy" decoding="async" />
           </div>
           <div v-if="album.photos.length > 6" class="thumb-more">
             +{{ album.photos.length - 6 }}
@@ -40,6 +40,9 @@
         </div>
       </div>
     </div>
+    <button v-if="nextCursor" class="btn-secondary load-more" :disabled="loadingMore" @click="loadAlbums()">
+      {{ loadingMore ? '加载中…' : `加载更多（已显示 ${albums.length}/${total}）` }}
+    </button>
 
     <!-- 新建相册对话框 -->
     <Teleport to="body">
@@ -124,7 +127,7 @@
               <h3 class="title-sm mb-2">照片管理 (输入说明后失焦自动保存，点击▲▼调序)</h3>
               <div v-if="editAlbum.photos && editAlbum.photos.length" class="manage-photo-grid">
                 <div v-for="(photo, idx) in editAlbum.photos" :key="photo.id" class="manage-photo-item">
-                  <img :src="getPhotoUrl(photo.r2Key)" class="manage-photo-img" />
+                  <img :src="getPhotoUrl(photo.r2Key)" class="manage-photo-img" width="160" height="120" loading="lazy" decoding="async" />
                   <div class="photo-info">
                     <input v-model="photo.caption" type="text" class="text-input photo-caption-input" placeholder="输入说明..." @blur="updatePhotoCaption(photo)" />
                     <div class="photo-actions mt-1">
@@ -184,8 +187,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { adminFetch } from '@/api/client'
+import { isAbortError } from '@/api/network'
+import { DEFAULT_PAGE_SIZE, normalizePageResult, pageSearchParams } from '@/api/pagination'
 import { compressImage } from '@/utils/image'
 import type { Album, ApiResponse } from '@alumni/shared'
 
@@ -199,6 +204,10 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
 const creating = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
+const nextCursor = ref<string | null>(null)
+const total = ref(0)
+const loadingMore = ref(false)
+let listController: AbortController | null = null
 
 const editAlbum = ref<any | null>(null)
 const editForm = ref({
@@ -215,12 +224,28 @@ function getPhotoUrl(r2Key: string): string {
   return `${API_BASE}/api/files/${r2Key}`
 }
 
-async function loadAlbums() {
-  try {
-    const res = await adminFetch<ApiResponse<any[]>>('/api/albums')
-    albums.value = res.data || []
-  } catch {
+async function loadAlbums(reset = false) {
+  if (reset) {
+    listController?.abort()
     albums.value = []
+    nextCursor.value = null
+  }
+  const controller = new AbortController()
+  listController = controller
+  loadingMore.value = true
+  const query = pageSearchParams(DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
+  try {
+    const res = await adminFetch<ApiResponse<any[] | { items: any[]; nextCursor: string | null; total: number }>>(`/api/albums?${query}`, { signal: controller.signal })
+    if (controller.signal.aborted) return
+    const page = normalizePageResult(res.data, DEFAULT_PAGE_SIZE, reset ? null : nextCursor.value)
+    albums.value = reset ? page.items : [...albums.value, ...page.items]
+    nextCursor.value = page.nextCursor
+    total.value = page.total
+  } catch (error) {
+    if (isAbortError(error)) return
+    if (reset) albums.value = []
+  } finally {
+    if (listController === controller) loadingMore.value = false
   }
 }
 
@@ -243,7 +268,7 @@ async function handleCreate() {
     })
     showCreate.value = false
     newAlbum.value = { title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false }
-    await loadAlbums()
+    await loadAlbums(true)
   } catch (e: any) {
     alert(e.message || '创建失败')
   } finally {
@@ -287,7 +312,7 @@ async function uploadFiles(files: FileList) {
         headers: {},
       })
     }
-    await loadAlbums()
+    await loadAlbums(true)
     alert('上传成功')
   } catch (e: any) {
     alert(e.message || '上传失败')
@@ -301,7 +326,7 @@ async function handleDelete(album: any) {
   if (!confirm(`确定要删除相册 "${album.title}" 吗？`)) return
   try {
     await adminFetch(`/api/albums/${album.id}`, { method: 'DELETE' })
-    await loadAlbums()
+    await loadAlbums(true)
   } catch (e: any) {
     alert(e.message || '删除失败')
   }
@@ -406,7 +431,7 @@ async function handleSaveEdit() {
       })
     })
     closeEdit()
-    await loadAlbums()
+    await loadAlbums(true)
   } catch (e: any) {
     alert('保存修改失败: ' + e.message)
   } finally {
@@ -414,7 +439,8 @@ async function handleSaveEdit() {
   }
 }
 
-onMounted(loadAlbums)
+onMounted(() => { void loadAlbums(true) })
+onBeforeUnmount(() => { listController?.abort() })
 </script>
 
 <style scoped>
@@ -459,6 +485,8 @@ onMounted(loadAlbums)
   flex-direction: column;
   gap: var(--spacing-lg);
 }
+
+.load-more { display: block; margin: var(--spacing-lg) auto 0; }
 
 .album-header-row {
   display: flex;

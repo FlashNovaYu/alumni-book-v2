@@ -5,11 +5,31 @@ import {
 } from './network'
 import type { AdminIdentity, ApiResponse } from '@alumni/shared'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const API_BASE = import.meta.env?.VITE_API_BASE_URL || ''
 let currentAdmin: AdminIdentity | null = null
+let currentAdminToken: string | null = null
+let currentAdminExpiresAt = 0
+let currentAdminRequest: { token: string; promise: Promise<AdminIdentity> } | null = null
+const CURRENT_ADMIN_TTL_MS = 30_000
 
 function getToken(): string | null {
-  return sessionStorage.getItem('admin_token')
+  const token = sessionStorage.getItem('admin_token')
+  if (currentAdminToken && currentAdminToken !== token) clearCurrentAdminCache()
+  return token
+}
+
+export function clearCurrentAdminCache(): void {
+  currentAdmin = null
+  currentAdminToken = null
+  currentAdminExpiresAt = 0
+  currentAdminRequest = null
+}
+
+function setCurrentAdmin(admin: AdminIdentity, token: string): AdminIdentity {
+  currentAdmin = admin
+  currentAdminToken = token
+  currentAdminExpiresAt = Date.now() + CURRENT_ADMIN_TTL_MS
+  return admin
 }
 
 function authHeaders(): Record<string, string> {
@@ -19,8 +39,8 @@ function authHeaders(): Record<string, string> {
 
 function redirectToLogin(): void {
   sessionStorage.removeItem('admin_token')
-  currentAdmin = null
-  const adminBase = import.meta.env.BASE_URL || '/admin/'
+  clearCurrentAdminCache()
+  const adminBase = import.meta.env?.BASE_URL || '/admin/'
   window.location.href = `${adminBase}#/login`
 }
 
@@ -71,7 +91,8 @@ export async function adminLogin(username: string, password: string): Promise<{ 
   const admin = data.data?.admin as AdminIdentity | undefined
   if (!token || !admin) throw new Error(data.message || '登录响应异常，请重试')
   sessionStorage.setItem('admin_token', token)
-  currentAdmin = admin
+  clearCurrentAdminCache()
+  setCurrentAdmin(admin, token)
   return { needsSetup: false, admin }
 }
 
@@ -87,10 +108,23 @@ export async function adminSetup(payload: { username: string; displayName: strin
 }
 
 export async function fetchCurrentAdmin(): Promise<AdminIdentity> {
-  const data = await adminFetch<ApiResponse<{ admin: AdminIdentity }>>('/api/auth/me')
-  if (!data.data?.admin) throw new Error('管理身份加载失败')
-  currentAdmin = data.data.admin
-  return currentAdmin
+  const token = getToken()
+  if (!token) throw new Error('未授权')
+  if (currentAdmin && currentAdminToken === token && Date.now() < currentAdminExpiresAt) return currentAdmin
+  if (currentAdminRequest?.token === token) return currentAdminRequest.promise
+
+  const promise = adminFetch<ApiResponse<{ admin: AdminIdentity }>>('/api/auth/me')
+    .then((data) => {
+      if (!data.data?.admin) throw new Error('管理身份加载失败')
+      // 会话在请求过程中变化时，绝不能把旧身份写回缓存。
+      if (getToken() !== token) throw new Error('管理会话已变化')
+      return setCurrentAdmin(data.data.admin, token)
+    })
+    .finally(() => {
+      if (currentAdminRequest?.token === token) currentAdminRequest = null
+    })
+  currentAdminRequest = { token, promise }
+  return promise
 }
 
 export async function changeAdminPassword(oldPassword: string, newPassword: string, confirmPassword: string): Promise<void> {
@@ -108,8 +142,8 @@ export async function exchangeClassmateSession(): Promise<AdminIdentity> {
   }, { apiBase: API_BASE })
   if (!data.data?.token || !data.data?.admin) throw new Error(data.message || '进入管理后台失败')
   sessionStorage.setItem('admin_token', data.data.token)
-  currentAdmin = data.data.admin as AdminIdentity
-  return currentAdmin
+  clearCurrentAdminCache()
+  return setCurrentAdmin(data.data.admin as AdminIdentity, data.data.token)
 }
 
 export function getCurrentAdmin(): AdminIdentity | null {

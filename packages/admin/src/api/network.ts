@@ -19,6 +19,26 @@ interface RequestPolicy {
   fetchImpl?: typeof fetch
 }
 
+export function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+async function waitForRetry(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw new DOMException('请求已取消', 'AbortError')
+  await new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('请求已取消', 'AbortError'))
+    }
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, 250)
+    signal?.addEventListener('abort', abort, { once: true })
+  })
+}
+
 function buildUrl(apiBase: string, path: string): string {
   if (!apiBase) return path
   return `${apiBase.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
@@ -60,6 +80,7 @@ export async function requestJson<T>(
       const response = await fetchImpl(url, { ...options, signal: controller.signal })
 
       if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < maxAttempts) {
+        await waitForRetry(options.signal ?? undefined)
         continue
       }
 
@@ -73,8 +94,15 @@ export async function requestJson<T>(
 
       return body as T
     } catch (error) {
+      if (options.signal?.aborted || (isAbortError(error) && !timedOut)) {
+        throw new DOMException('请求已取消', 'AbortError')
+      }
+      if (timedOut) throw new ApiRequestError('请求超时，请稍后重试')
       if (error instanceof ApiRequestError) throw error
-      if (attempt < maxAttempts) continue
+      if (attempt < maxAttempts) {
+        await waitForRetry(options.signal ?? undefined)
+        continue
+      }
       throw new ApiRequestError(
         timedOut ? '请求超时，请稍后重试' : '网络连接失败，请检查网络后重试',
       )

@@ -1,12 +1,31 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ApiRequestError, requestJson } from '../src/api/network'
+import { adminFetch, clearCurrentAdminCache, fetchCurrentAdmin } from '../src/api/client'
+import type { AdminIdentity } from '@alumni/shared'
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+class MemoryStorage {
+  private readonly values = new Map<string, string>()
+  getItem(key: string) { return this.values.get(key) || null }
+  setItem(key: string, value: string) { this.values.set(key, value) }
+  removeItem(key: string) { this.values.delete(key) }
+  clear() { this.values.clear() }
+}
+
+const storage = new MemoryStorage()
+Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: storage })
+Object.defineProperty(globalThis, 'window', { configurable: true, value: { location: { href: '' } } })
+
+const admin: AdminIdentity = {
+  id: 'admin-1', displayName: '管理员', accountType: 'standalone', studentSlug: null,
+  isOwner: true, mustChangePassword: false, permissions: [],
 }
 
 test('空 API 基址保持同源请求路径', async () => {
@@ -25,6 +44,7 @@ test('空 API 基址保持同源请求路径', async () => {
 
 test('GET 网络异常后自动重试一次', async () => {
   let attempts = 0
+  const startedAt = performance.now()
   const data = await requestJson<{ ok: boolean }>('/api/health', {}, {
     fetchImpl: async () => {
       attempts += 1
@@ -35,6 +55,7 @@ test('GET 网络异常后自动重试一次', async () => {
 
   assert.equal(attempts, 2)
   assert.deepEqual(data, { ok: true })
+  assert.ok(performance.now() - startedAt >= 200)
 })
 
 test('GET 收到临时网关错误后自动重试一次', async () => {
@@ -107,4 +128,63 @@ test('请求超过时限时中止并返回超时错误', async () => {
   )
 
   assert.equal(attempts, 1)
+})
+
+test('同一管理令牌的并发身份读取只发起一次请求', async () => {
+  storage.clear()
+  storage.setItem('admin_token', 'token-a')
+  clearCurrentAdminCache()
+  let calls = 0
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async () => {
+    calls += 1
+    return jsonResponse({ success: true, data: { admin } })
+  }
+
+  try {
+    const results = await Promise.all([fetchCurrentAdmin(), fetchCurrentAdmin(), fetchCurrentAdmin()])
+    assert.equal(calls, 1)
+    assert.deepEqual(results, [admin, admin, admin])
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('管理令牌变化后不复用旧身份缓存', async () => {
+  storage.clear()
+  storage.setItem('admin_token', 'token-a')
+  clearCurrentAdminCache()
+  let calls = 0
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async () => {
+    calls += 1
+    return jsonResponse({ success: true, data: { admin: { ...admin, id: `admin-${calls}` } } })
+  }
+
+  try {
+    const first = await fetchCurrentAdmin()
+    storage.setItem('admin_token', 'token-b')
+    const second = await fetchCurrentAdmin()
+    assert.equal(calls, 2)
+    assert.notEqual(first.id, second.id)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('401 仍清空会话并跳转登录页', async () => {
+  storage.clear()
+  storage.setItem('admin_token', 'expired-token')
+  clearCurrentAdminCache()
+  ;(globalThis.window as { location: { href: string } }).location.href = ''
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async () => jsonResponse({ message: '登录已过期' }, 401)
+
+  try {
+    await assert.rejects(adminFetch('/api/auth/me'), /未授权/)
+    assert.equal(storage.getItem('admin_token'), null)
+    assert.match((globalThis.window as { location: { href: string } }).location.href, /#\/login$/)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
 })
