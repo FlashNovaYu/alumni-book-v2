@@ -10,7 +10,7 @@
     "verify:dist-network": "node tests/dist-network.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
-    "test:static": "node tests/permissions-static.test.mjs && node tests/change-password-view-static.test.mjs"
+    "test:static": "node tests/permissions-static.test.mjs && node tests/change-password-view-static.test.mjs && node tests/ui-components-static.test.mjs"
   },
   "dependencies": {
     "@alumni/shared": "workspace:*",
