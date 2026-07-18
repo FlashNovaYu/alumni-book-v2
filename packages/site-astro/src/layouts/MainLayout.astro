@@ -114,6 +114,27 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
       <script>
         let reinitAuxiliaryRuntime = () => {}
 
+        // Register the tiny direction handoff synchronously. The heavier auxiliary
+        // runtime is imported asynchronously and may not be ready before a fast
+        // click on the first navigation link after a cold load.
+        const earlyNavOrder = ['/', '/preface/', '/roster/', '/class-space/', '/yearbook/', '/more/']
+        const normalizeEarlyNavPath = (path: string) => {
+          const clean = path.replace(/\/index\.html$/, '/')
+          return clean.endsWith('/') ? clean : `${clean}/`
+        }
+        document.addEventListener('click', (event) => {
+          const mouse = event as MouseEvent
+          if (mouse.defaultPrevented || mouse.button !== 0 || mouse.metaKey || mouse.ctrlKey || mouse.shiftKey || mouse.altKey) return
+          const anchor = (event.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+          if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return
+          const url = new URL(anchor.href, window.location.href)
+          if (url.origin !== window.location.origin) return
+          const fromIndex = earlyNavOrder.indexOf(normalizeEarlyNavPath(window.location.pathname))
+          const toIndex = earlyNavOrder.indexOf(normalizeEarlyNavPath(url.pathname))
+          if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return
+          sessionStorage.setItem('vt-nav-dir', toIndex > fromIndex ? 'forward' : 'back')
+        }, { capture: true, passive: true })
+
         function restoreStudentIdentityTarget() {
           let slug = sessionStorage.getItem('vt-student-return-slug') || ''
           try {
