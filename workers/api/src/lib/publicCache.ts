@@ -44,11 +44,39 @@ function canonicalPublicCacheKey(request: Request): Request | null {
   return new Request(`${url.origin}${url.pathname}${url.search}`, { method: 'GET' })
 }
 
+function weakEtag(value: string): string {
+  return value.trim().replace(/^W\//i, '')
+}
+
+function matchesConditionalRequest(request: Request, cached: Response): boolean {
+  const requestTag = request.headers.get('If-None-Match')
+  const cachedTag = cached.headers.get('ETag')
+
+  // If-None-Match takes precedence over If-Modified-Since when both are sent.
+  if (requestTag !== null) {
+    if (!cachedTag) return false
+    return requestTag.split(',').some((tag) => tag.trim() === '*' || weakEtag(tag) === weakEtag(cachedTag))
+  }
+
+  const requestDate = request.headers.get('If-Modified-Since')
+  const cachedDate = cached.headers.get('Last-Modified')
+  if (!requestDate || !cachedDate) return false
+  const since = Date.parse(requestDate)
+  const modified = Date.parse(cachedDate)
+  return Number.isFinite(since) && Number.isFinite(modified) && modified <= since
+}
+
+function notModifiedResponse(cached: Response): Response {
+  return new Response(null, { status: 304, headers: new Headers(cached.headers) })
+}
+
 /** Cache failures must never change the API response. */
 export async function matchPublicCache(request: Request): Promise<Response | undefined> {
   const key = canonicalPublicCacheKey(request)
   if (!key) return undefined
-  return edgeCache().match(key).catch(() => undefined)
+  const cached = await edgeCache().match(key).catch(() => undefined)
+  if (!cached) return undefined
+  return matchesConditionalRequest(request, cached) ? notModifiedResponse(cached) : cached
 }
 
 export function storePublicCache(request: Request, response: Response, waitUntil: (promise: Promise<unknown>) => void) {

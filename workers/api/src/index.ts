@@ -180,6 +180,9 @@ app.use('/api/*', async (c, next) => {
   if (cached) return cached
   await next()
   clearPublicCache(c.req.raw, (promise) => c.executionCtx.waitUntil(promise))
+  if (isPublicStableGet(c.req.raw) && c.res.ok && !c.res.headers.has('Last-Modified')) {
+    c.res.headers.set('Last-Modified', new Date().toUTCString())
+  }
   storePublicCache(c.req.raw, c.res, (promise) => c.executionCtx.waitUntil(promise))
 })
 

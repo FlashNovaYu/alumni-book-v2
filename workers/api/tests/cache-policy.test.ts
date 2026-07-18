@@ -172,4 +172,32 @@ describe('dynamic API cache policy', () => {
     const timelineAfterWrite = await caches.default.match(new Request(`${edge}/api/timeline?type=event`))
     expect(timelineAfterWrite).toBeUndefined()
   })
+
+  it('returns 304 from a real HTTPS cache hit for both validators', async () => {
+    const edge = 'https://cache-conditional.test'
+    const cacheKey = new Request(`${edge}/api/config`)
+    await caches.default.delete(cacheKey)
+
+    const warmed = await requestAt(edge, '/api/config')
+    const etag = warmed.headers.get('etag')
+    const lastModified = warmed.headers.get('last-modified')
+    expect(etag).toBeTruthy()
+    expect(lastModified).toBeTruthy()
+
+    const byTag = await requestAt(edge, '/api/config', { headers: { 'If-None-Match': etag || '' } })
+    expect(byTag.status).toBe(304)
+    expect(byTag.headers.get('etag')).toBe(etag)
+    expect(byTag.headers.get('cache-control')).toContain('public')
+
+    const byDate = await requestAt(edge, '/api/config', { headers: { 'If-Modified-Since': lastModified || '' } })
+    expect(byDate.status).toBe(304)
+    expect(byDate.headers.get('last-modified')).toBe(lastModified)
+    expect(byDate.headers.get('cache-control')).toContain('public')
+
+    // An explicit ETag mismatch takes precedence over a matching date validator.
+    const full = await requestAt(edge, '/api/config', {
+      headers: { 'If-None-Match': '"stale"', 'If-Modified-Since': lastModified || '' },
+    })
+    expect(full.status).toBe(200)
+  })
 })
