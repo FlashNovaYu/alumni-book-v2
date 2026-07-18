@@ -175,7 +175,17 @@
               <strong>拖入照片至此</strong>
               <span>或点击选择文件</span>
             </div>
-            <div v-if="uploading" class="upload-progress">上传中...</div>
+            <div v-if="uploadTasks.length" class="upload-progress-list" aria-live="polite">
+              <div v-for="task in uploadTasks" :key="task.id" class="upload-progress-item">
+                <div class="upload-progress-heading">
+                  <span class="upload-progress-name">{{ task.file.name }}</span>
+                  <span class="upload-progress-stage">{{ task.stage }}</span>
+                  <button v-if="task.status === 'queued' || task.status === 'processing'" class="btn-secondary btn-action-sm" @click="cancelUpload(task.id)">取消</button>
+                </div>
+                <progress :value="task.progress" max="100" aria-label="上传进度"></progress>
+                <span v-if="task.error" class="upload-progress-error">{{ task.error }}</span>
+              </div>
+            </div>
             <div class="modal-actions">
               <button class="btn-secondary" :disabled="uploading" @click="uploadAlbum = null">关闭</button>
             </div>
@@ -197,10 +207,21 @@ import type { Album, ApiResponse } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
+type UploadTask = {
+  id: string
+  file: File
+  status: 'queued' | 'processing' | 'done' | 'failed' | 'cancelled'
+  stage: string
+  progress: number
+  error?: string
+  controller: AbortController
+}
+
 const albums = ref<any[]>([])
 const showCreate = ref(false)
 const uploadAlbum = ref<any | null>(null)
 const uploading = ref(false)
+const uploadTasks = ref<UploadTask[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
 const creating = ref(false)
@@ -308,25 +329,55 @@ async function uploadFiles(files: FileList) {
   uploadController?.abort()
   uploadController = new AbortController()
   const signal = uploadController.signal
-  const queue = Array.from(files)
+  const queue = Array.from(files).map((file, index): UploadTask => ({
+    id: `${Date.now()}-${index}-${file.name}`,
+    file,
+    status: 'queued',
+    stage: '等待中',
+    progress: 0,
+    controller: new AbortController(),
+  }))
+  uploadTasks.value = queue
   const failures: string[] = []
   let cursor = 0
   const worker = async () => {
     while (cursor < queue.length) {
       if (signal.aborted) return
-      const file = queue[cursor++]
+      const task = queue[cursor++]
+      if (task.status === 'cancelled' || task.controller.signal.aborted) continue
+      const file = task.file
+      task.status = 'processing'
       try {
+        task.stage = '压缩中'
+        task.progress = 10
         const compressed = await compressImage(file, 1280, 0.8)
-        const generated = await generateImageVariants(compressed, { signal })
+        if (signal.aborted || task.controller.signal.aborted) throw new DOMException('上传已取消', 'AbortError')
+        task.stage = '生成缩略图'
+        task.progress = 35
+        const generated = await generateImageVariants(compressed, { signal: task.controller.signal })
+        if (signal.aborted || task.controller.signal.aborted) throw new DOMException('上传已取消', 'AbortError')
         const formData = new FormData()
         formData.append('file', compressed)
         formData.append('type', 'photo')
         formData.append('albumId', uploadAlbum.value!.id)
         appendImageVariants(formData, generated, 'photos', uploadAlbum.value!.id)
-        await adminFetch('/api/upload', { method: 'POST', body: formData, headers: {}, signal })
+        task.stage = '上传中'
+        task.progress = 65
+        await adminFetch('/api/upload', { method: 'POST', body: formData, headers: {}, signal: task.controller.signal })
+        task.status = 'done'
+        task.stage = '已完成'
+        task.progress = 100
       } catch (error: any) {
         if (signal.aborted) return
-        failures.push(`${file.name}: ${error?.message || '上传失败'}`)
+        if (task.controller.signal.aborted || isAbortError(error)) {
+          task.status = 'cancelled'
+          task.stage = '已取消'
+          return
+        }
+        task.status = 'failed'
+        task.stage = '失败'
+        task.error = error?.message || '上传失败'
+        failures.push(`${file.name}: ${task.error}`)
       }
     }
   }
@@ -338,10 +389,20 @@ async function uploadFiles(files: FileList) {
   } catch (e: any) {
     if (!signal.aborted) alert(e.message || '上传失败')
   } finally {
-    uploading.value = false
-    uploadController = null
-    if (fileInput.value) fileInput.value.value = ''
+    if (uploadController?.signal === signal) {
+      uploading.value = false
+      uploadController = null
+      if (fileInput.value) fileInput.value.value = ''
+    }
   }
+}
+
+function cancelUpload(id: string) {
+  const task = uploadTasks.value.find((item) => item.id === id)
+  if (!task || task.status === 'done' || task.status === 'failed' || task.status === 'cancelled') return
+  task.status = 'cancelled'
+  task.stage = '已取消'
+  task.controller.abort()
 }
 
 async function handleDelete(album: any) {
@@ -582,6 +643,13 @@ onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 .modal h2 { margin-bottom: var(--spacing-lg); }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--spacing-sm); }
 .upload-progress { padding: var(--spacing-md); text-align: center; color: var(--color-muted); }
+.upload-progress-list { display: grid; gap: 8px; max-height: 220px; overflow: auto; padding: var(--spacing-sm) 0; }
+.upload-progress-item { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--color-paper-border); border-radius: var(--rounded-sm); }
+.upload-progress-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.upload-progress-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.upload-progress-stage { color: var(--color-muted); font-size: 11px; }
+.upload-progress-item progress { width: 100%; height: 5px; accent-color: var(--color-accent); }
+.upload-progress-error { color: var(--color-danger, #b53b32); font-size: 11px; }
 .upload-modal { max-width: 520px; }
 .upload-subtitle { margin: calc(var(--spacing-md) * -1) 0 var(--spacing-md); color: var(--color-muted); font-size: var(--type-body-sm-size); }
 .upload-dropzone { display: grid; min-height: 180px; place-content: center; gap: var(--spacing-xs); padding: var(--spacing-lg); color: var(--color-muted); text-align: center; border: 2px dashed var(--color-hairline); border-radius: var(--rounded-lg); background: var(--color-surface-cream); cursor: pointer; transition: border-color .2s ease, background-color .2s ease, color .2s ease; }

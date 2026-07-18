@@ -2,7 +2,7 @@
   <div class="photo-wall">
     <div
       v-for="(photo, idx) in photos"
-      :key="photo"
+      :key="photoKey(photo)"
       class="photo-item"
       :style="{ '--photo-index': idx }"
       @click="openLightbox(idx)"
@@ -65,7 +65,15 @@ import { onMounted, onUnmounted, ref, reactive, watch } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
 import { buildMediaSources, type MediaVariant } from '@alumni/shared'
 
-type PhotoInput = string | { r2Key: string; media?: { variants: MediaVariant[] } | null; width?: number; height?: number }
+type PhotoInput = string | {
+  r2Key?: string
+  url?: string
+  key?: string
+  media?: { variants?: MediaVariant[] } | null
+  variants?: MediaVariant[] | null
+  width?: number
+  height?: number
+}
 const props = defineProps<{ photos: PhotoInput[]; apiBase: string }>()
 
 const isMounted = ref(false)
@@ -77,15 +85,20 @@ const lightbox = reactive({
   index: 0
 })
 
-function photoKey(p: PhotoInput) { return typeof p === 'string' ? p : p.r2Key }
+function photoKey(p: PhotoInput) {
+  if (typeof p === 'string') return p
+  return String(p.r2Key || p.url || p.key || '')
+}
 function photoUrl(p: PhotoInput) {
   const value = photoKey(p)
   if (!value) return ''
   if (value.startsWith('http')) return value
-  return joinApiUrl(props.apiBase, value)
+  if (value.startsWith('/api/files/')) return joinApiUrl(props.apiBase, value)
+  return joinApiUrl(props.apiBase, `/api/files/${value.replace(/^\/+/, '')}`)
 }
 function photoMedia(p: PhotoInput) {
-  return buildMediaSources(photoUrl(p), typeof p === 'string' ? undefined : p.media?.variants, typeof p === 'string' ? 320 : (p.width || 320), typeof p === 'string' ? 320 : (p.height || 320))
+  const variants = typeof p === 'string' ? undefined : (p.media?.variants || p.variants || undefined)
+  return buildMediaSources(photoUrl(p), variants, typeof p === 'string' ? 320 : (p.width || 320), typeof p === 'string' ? 320 : (p.height || 320))
 }
 
 function openLightbox(index: number) {

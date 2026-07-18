@@ -7,7 +7,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "test": "pnpm run test:static && node tests/community-static.mjs && node tests/network-integration-static.mjs && pnpm run test:network && tsx --test tests/audit-summary.test.ts tests/list-performance.test.mjs tests/route-loading.test.mjs && pnpm run test:view",
     "test:network": "tsx --test tests/network.test.ts",
-    "test:view": "vitest run tests/view-behavior.test.ts",
+    "test:view": "vitest run tests/view-behavior.test.ts tests/albums-upload-queue.test.ts",
     "verify:dist-network": "node tests/dist-network.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
