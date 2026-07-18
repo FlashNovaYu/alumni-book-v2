@@ -34,6 +34,7 @@ type Bindings = {
   R2: R2Bucket
   JWT_SECRET: string
   CORS_ORIGIN: string
+  CORS_PREVIEW_ORIGINS?: string
 }
 
 type Variables = {
@@ -43,6 +44,43 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+const DEFAULT_CORS_ORIGIN = 'https://alumni-book.pages.dev'
+
+function normalizeHttpsOrigin(value: string | undefined): string | null {
+  if (!value || value === '*') return null
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'https:' && url.pathname === '/' && !url.search && !url.hash
+      ? url.origin
+      : null
+  } catch {
+    return null
+  }
+}
+
+function isLocalDevelopmentOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin)
+    return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+  } catch {
+    return false
+  }
+}
+
+function resolveCorsOrigin(origin: string, env: Bindings): string | undefined {
+  if (isLocalDevelopmentOrigin(origin)) return origin
+
+  const allowedOrigins = new Set([
+    normalizeHttpsOrigin(env.CORS_ORIGIN) || DEFAULT_CORS_ORIGIN,
+    ...(env.CORS_PREVIEW_ORIGINS || '')
+      .split(',')
+      .map(normalizeHttpsOrigin)
+      .filter((value): value is string => value !== null),
+  ])
+
+  return allowedOrigins.has(origin) ? origin : undefined
+}
+
 // Request ID
 app.use('*', async (c, next) => {
   const requestId = crypto.randomUUID()
@@ -51,23 +89,19 @@ app.use('*', async (c, next) => {
   c.header('X-Request-Id', requestId)
 })
 
+// API 仅返回数据，不应被嵌入或作为可执行文档加载。
+app.use('*', async (c, next) => {
+  await next()
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+  c.header('Content-Security-Policy', "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+})
+
 // CORS
 app.use('*', async (c, next) => {
-  const originVal = c.env.CORS_ORIGIN || '*'
   const corsMiddleware = cors({
-    origin: (origin) => {
-      if (!origin) return originVal
-      if (
-        origin === originVal ||
-        origin.endsWith('.pages.dev') ||
-        origin.endsWith('.github.io') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1')
-      ) {
-        return origin
-      }
-      return originVal
-    },
+    origin: (origin) => resolveCorsOrigin(origin, c.env),
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Classmate-Token'],
@@ -190,8 +224,6 @@ app.get('/api/classmates', async (c) => {
       school: row.school || info.school || '',
       className: row.class_name || info.class || '',
       mbti: row.mbti || info.mbti || '',
-      seatNo: info.seatNo || '',
-      dormNo: info.dormNo || '',
       groupName: info.groupName || '',
       completion: Math.round((filled / 16) * 100),
       tags,

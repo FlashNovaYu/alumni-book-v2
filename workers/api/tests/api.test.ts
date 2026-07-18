@@ -127,6 +127,26 @@ describe('Public API', () => {
     expect(Array.isArray(body.data[0].tags)).toBe(true)
   })
 
+  it('GET /api/classmates — 不公开座位号和宿舍号', async () => {
+    await env.DB.prepare(
+      "INSERT INTO students (id, name, slug, info) VALUES (?, ?, ?, ?)"
+    ).bind('test-private-directory', '隐私测试同学', 'private-directory', JSON.stringify({
+      seatNo: '3-2',
+      dormNo: 'A302',
+      groupName: '第一组',
+    })).run()
+
+    const res = await worker.fetch(new Request('http://localhost/api/classmates'), env, createExecutionContext())
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    const classmate = body.data.find((item: any) => item.slug === 'private-directory')
+
+    expect(classmate).toBeDefined()
+    expect(classmate).not.toHaveProperty('seatNo')
+    expect(classmate).not.toHaveProperty('dormNo')
+    expect(classmate.groupName).toBe('第一组')
+  })
+
   it('公开 API 将旧 Worker 文件地址规范化为同源路径', async () => {
     const legacyOrigin = 'https://alumni-book-api.chenyuhao2263.workers.dev'
     await env.DB.prepare(`

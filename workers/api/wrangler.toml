@@ -4,7 +4,10 @@ compatibility_date = "2024-10-22"
 workers_dev = true
 
 [vars]
-CORS_ORIGIN = "https://flashnovayu.github.io"
+# 正式站点唯一允许的跨域来源；缺失时 Worker 也会回退到此地址，绝不使用通配符。
+CORS_ORIGIN = "https://alumni-book.pages.dev"
+# 仅填写已审批预览环境的完整 HTTPS Origin，多个地址用逗号分隔；默认不开放预览跨域访问。
+CORS_PREVIEW_ORIGINS = ""
 
 [[d1_databases]]
 binding = "DB"

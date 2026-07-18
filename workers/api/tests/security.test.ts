@@ -36,6 +36,42 @@ describe('Security and Session Revocation', () => {
     expect(res.headers.get('access-control-allow-headers')?.toLowerCase()).toContain('x-classmate-token')
   })
 
+  it('allows only configured production, approved preview, and local origins', async () => {
+    const securedEnv = {
+      DB: env.DB,
+      R2: env.R2,
+      JWT_SECRET: env.JWT_SECRET,
+      CORS_ORIGIN: 'https://alumni-book.pages.dev',
+      CORS_PREVIEW_ORIGINS: 'https://preview.alumni-book.pages.dev',
+    } as any
+
+    async function requestFrom(origin: string, bindings = securedEnv) {
+      const response = await worker.fetch(new Request('http://localhost/api/health', {
+        headers: { Origin: origin },
+      }), bindings, createExecutionContext())
+      return response.headers.get('access-control-allow-origin')
+    }
+
+    await expect(requestFrom('https://alumni-book.pages.dev')).resolves.toBe('https://alumni-book.pages.dev')
+    await expect(requestFrom('https://preview.alumni-book.pages.dev')).resolves.toBe('https://preview.alumni-book.pages.dev')
+    await expect(requestFrom('http://localhost:4321')).resolves.toBe('http://localhost:4321')
+    await expect(requestFrom('https://unapproved.pages.dev')).resolves.toBeNull()
+    await expect(requestFrom('https://attacker.example', {
+      DB: env.DB,
+      R2: env.R2,
+      JWT_SECRET: env.JWT_SECRET,
+    } as any)).resolves.toBeNull()
+  })
+
+  it('adds defensive browser security headers to API responses', async () => {
+    const response = await worker.fetch(new Request('http://localhost/api/health'), env, createExecutionContext())
+
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+    expect(response.headers.get('permissions-policy')).toContain('camera=()')
+    expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
+  })
+
   it('Session Revocation Flow (Login -> Access Admin API -> Logout -> Rejected)', async () => {
     // 1. 登录
     const loginReq = new Request('http://localhost/api/auth/login', {
