@@ -18,7 +18,7 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
   await signInForNavigation(page)
   await page.goto('./roster/', { waitUntil: 'networkidle' })
 
-  const card = page.locator('.archive-card[href]:not([href="#"]):visible').first()
+  const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
   const href = await card.getAttribute('href')
   expect(href).not.toBeNull()
   const slug = href!.split('/').filter(Boolean).at(-1)!
@@ -27,15 +27,15 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
 
   await card.click()
   await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
-  await expect(page.locator('.hero-avatar')).toHaveCSS('view-transition-name', avatarName)
-  await expect(page.locator('.hero-name')).toHaveCSS('view-transition-name', nameName)
+  await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', avatarName)
+  await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', nameName)
 
   await page.evaluate(() => {
     document.addEventListener('astro:before-swap', (event) => {
       const targetDocument = (event as Event & { newDocument?: Document }).newDocument
       const card = targetDocument?.querySelector<HTMLElement>('[data-student-identity-card]')
-      const avatar = card?.querySelector<HTMLElement>('.archive-card__avatar')
-      const name = card?.querySelector<HTMLElement>('.archive-card__name')
+      const avatar = card?.querySelector<HTMLElement>('.roster-card__avatar')
+      const name = card?.querySelector<HTMLElement>('.roster-card__name')
       ;(window as Window & {
         __studentIdentityReturnTarget?: { avatar: string; name: string }
       }).__studentIdentityReturnTarget = {
@@ -59,7 +59,7 @@ test('从第二页进入详情后返回时恢复第二页中的身份目标', as
   await page.goto('./roster/', { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: '第 2 页' }).click()
 
-  const card = page.locator('.archive-card[href]:not([href="#"]):visible').first()
+  const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
   const href = await card.getAttribute('href')
   expect(href).not.toBeNull()
   const slug = href!.split('/').filter(Boolean).at(-1)!
@@ -76,8 +76,8 @@ test('从第二页进入详情后返回时恢复第二页中的身份目标', as
       ;(window as Window & {
         __studentIdentityPageTwoTarget?: { avatar: string; name: string }
       }).__studentIdentityPageTwoTarget = {
-        avatar: targetCard?.querySelector<HTMLElement>('.archive-card__avatar')?.style.viewTransitionName || '',
-        name: targetCard?.querySelector<HTMLElement>('.archive-card__name')?.style.viewTransitionName || '',
+        avatar: targetCard?.querySelector<HTMLElement>('.roster-card__avatar')?.style.viewTransitionName || '',
+        name: targetCard?.querySelector<HTMLElement>('.roster-card__name')?.style.viewTransitionName || '',
       }
     }, { once: true })
   }, slug)
@@ -99,10 +99,10 @@ test.describe('减少动态偏好', () => {
   test('个人页立即显示身份元素和辅助资料', async ({ page }) => {
     await signInForNavigation(page)
     await page.goto('./roster/', { waitUntil: 'networkidle' })
-    await page.locator('.archive-card[href]:not([href="#"])').first().click()
+    await page.locator('.roster-card[href]:not([href="#"])').first().click()
 
-    await expect(page.locator('.hero-avatar')).toHaveCSS('view-transition-name', 'none')
-    await expect(page.locator('.hero-name')).toHaveCSS('view-transition-name', 'none')
+    await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', 'none')
+    await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', 'none')
     await expect(page.locator('.hero-support')).toHaveCSS('opacity', '1')
     await expect(page.locator('.student-body')).toHaveCSS('opacity', '1')
   })
