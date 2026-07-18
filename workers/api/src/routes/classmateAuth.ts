@@ -1,4 +1,5 @@
 // workers/api/src/routes/classmateAuth.ts
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 // CCSwitch: 同学账号登录、获取当前身份、首次登录改密与登出的核心 API 路由实现。
 
 import { Hono } from 'hono'
@@ -23,7 +24,7 @@ type Bindings = {
 export const classmateAuthRoutes = new Hono<{ Bindings: Bindings }>()
 
 classmateAuthRoutes.post('/login', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as { slug?: string; password?: string }
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as { slug?: string; password?: string }
   const slug = String(body.slug || '').trim()
   const password = String(body.password || '')
   if (!slug || !password) return c.json({ success: false, message: '账号和密码必填' }, 400)
@@ -107,7 +108,7 @@ classmateAuthRoutes.post('/change-password', async (c) => {
   const slug = await verifyClassmateSession(c.env.DB, token)
   if (!slug) return c.json({ success: false, message: '登录已失效' }, 401)
 
-  const { oldPassword, newPassword } = await c.req.json()
+  const { oldPassword, newPassword } = await parseLimitedJson(c)
   if (!oldPassword || !newPassword) return c.json({ success: false, message: '原密码和新密码必填' }, 400)
   if (String(newPassword).length < 8) return c.json({ success: false, message: '新密码至少 8 位' }, 400)
 

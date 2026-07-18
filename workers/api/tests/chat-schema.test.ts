@@ -1,6 +1,6 @@
 import { applyD1Migrations, env } from 'cloudflare:test'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { testMigrations } from './db-helper'
+import { ensureTimestampTriggers, testMigrations } from './db-helper'
 
 beforeAll(async () => {
   const chatMigration = testMigrations.find((migration) => migration.name === '0012_chat_rework')
@@ -16,6 +16,7 @@ beforeAll(async () => {
     VALUES ('pm_chat_rework_migration_fixture', 'test_init', '测试同学', '迁移前审核通过的消息', 'approved')
   `).run()
   await applyD1Migrations(env.DB, [chatMigration])
+  await ensureTimestampTriggers(env.DB)
   await env.DB.prepare(`
     INSERT INTO public_messages (id, author_slug, author_name, content, status)
     VALUES ('pm_reaction_parent', 'test_init', '测试同学', '回应测试消息', 'visible')

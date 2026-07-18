@@ -4,6 +4,11 @@ export const GROUP_REACTIONS = ['❤️', '👍', '😂', '🎉'] as const
 
 type MessageRow = Record<string, any>
 
+function canonicalTimestamp(value: string): string {
+  const parsed = Date.parse(value.includes('T') ? value : `${value.replace(' ', 'T')}Z`)
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : value
+}
+
 type ListOptions = {
   before?: { timestamp: string; id: string }
   updatedAfter?: { timestamp: string; id: string }
@@ -89,21 +94,24 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
       : "pm.status = 'visible'"]
   const values: unknown[] = options.mine ? [viewerSlug] : []
   if (options.before) {
-    clauses.push('(julianday(pm.created_at) < julianday(?) OR (julianday(pm.created_at) = julianday(?) AND pm.id < ?))')
-    values.push(options.before.timestamp, options.before.timestamp, options.before.id)
+    clauses.push('(pm.created_at < ? OR (pm.created_at = ? AND pm.id < ?))')
+    const timestamp = canonicalTimestamp(options.before.timestamp)
+    values.push(timestamp, timestamp, options.before.id)
   }
   if (options.updatedAfter) {
-    clauses.push('(julianday(pm.updated_at) > julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id > ?))')
-    values.push(options.updatedAfter.timestamp, options.updatedAfter.timestamp, options.updatedAfter.id)
+    clauses.push('(pm.updated_at > ? OR (pm.updated_at = ? AND pm.id > ?))')
+    const timestamp = canonicalTimestamp(options.updatedAfter.timestamp)
+    values.push(timestamp, timestamp, options.updatedAfter.id)
   }
   if (options.updatedBefore) {
-    clauses.push('(julianday(pm.updated_at) < julianday(?) OR (julianday(pm.updated_at) = julianday(?) AND pm.id <= ?))')
-    values.push(options.updatedBefore.timestamp, options.updatedBefore.timestamp, options.updatedBefore.id)
+    clauses.push('(pm.updated_at < ? OR (pm.updated_at = ? AND pm.id <= ?))')
+    const timestamp = canonicalTimestamp(options.updatedBefore.timestamp)
+    values.push(timestamp, timestamp, options.updatedBefore.id)
   }
   values.push(options.limit)
   const orderBy = options.updatedAfter
-    ? 'julianday(pm.updated_at) ASC, pm.id ASC'
-    : 'julianday(pm.created_at) DESC, pm.id DESC'
+    ? 'pm.updated_at ASC, pm.id ASC'
+    : 'pm.created_at DESC, pm.id DESC'
   const result = await db.prepare(
     `SELECT pm.*, s.avatar_url,
        reply.id AS reply_id, reply.author_name AS reply_author_name, reply.content AS reply_content, reply.status AS reply_status
@@ -147,10 +155,10 @@ export async function listGroupMessages(db: D1Database, viewerSlug: string, opti
 
 export async function getActiveMute(db: D1Database, slug: string): Promise<{ reason: string; mutedUntil: string | null } | null> {
   await db.prepare(
-    "DELETE FROM group_chat_mutes WHERE student_slug = ? AND muted_until IS NOT NULL AND julianday(muted_until) <= julianday('now')"
+    "DELETE FROM group_chat_mutes WHERE student_slug = ? AND muted_until IS NOT NULL AND muted_until <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
   ).bind(slug).run()
   const row = await db.prepare(
-    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR julianday(muted_until) > julianday('now'))"
+    "SELECT reason, muted_until FROM group_chat_mutes WHERE student_slug = ? AND (muted_until IS NULL OR muted_until > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
   ).bind(slug).first() as any
   return row ? { reason: row.reason, mutedUntil: row.muted_until } : null
 }

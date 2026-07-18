@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { validateImageUpload } from '../lib/imageValidation'
@@ -92,7 +93,7 @@ async function authClassmate(c: any): Promise<string | null> {
 // POST /api/classmate/token — 获取编辑凭证
 classmateRoutes.post('/classmate/token', async (c) => {
   const db = c.env.DB
-  const body = await c.req.json().catch(() => ({})) as { name?: string; slug?: string; editSecret?: string }
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as { name?: string; slug?: string; editSecret?: string }
   const name = String(body.name || '').trim()
   const slug = String(body.slug || '').trim()
   const editSecret = String(body.editSecret || '')
@@ -162,7 +163,7 @@ classmateRoutes.put('/classmate/students/:slug', async (c) => {
     return c.json({ success: false, message: '只能编辑自己的资料' }, 403)
   }
 
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
   const fields: string[] = []
   const values: any[] = []
 

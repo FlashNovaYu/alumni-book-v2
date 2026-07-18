@@ -41,6 +41,16 @@ beforeEach(async () => {
 })
 
 describe('Direct Conversations API', () => {
+  it('uses the composite history index for canonical timestamp pagination', async () => {
+    const { results } = await env.DB.prepare(
+      `EXPLAIN QUERY PLAN
+       SELECT id FROM direct_messages
+       WHERE conversation_id = ? AND (created_at < ? OR (created_at = ? AND id < ?))
+       ORDER BY created_at DESC, id DESC LIMIT ?`
+    ).bind('query-plan-conversation', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', 'cursor', 30).all<any>()
+    expect((results || []).map((row: any) => row.detail).join('\n')).toContain('idx_direct_messages_history')
+  })
+
   it('loads ten conversations with at most three D1 reads', async () => {
     await env.DB.batch([
       env.DB.prepare('DELETE FROM direct_messages'),

@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import worker from '../src/index'
 import { initTestDb } from './db-helper'
 import { decodeCursor } from '../src/lib/cursor'
+import { OVERVIEW_CHAT_SCAN_LIMIT } from '../src/routes/classSpace'
 
 const CLASSMATE_NAME = '信箱测试同学'
 const CLASSMATE_SLUG = 'test-classmate-inbox'
@@ -90,6 +91,10 @@ beforeAll(async () => {
 })
 
 describe('Class space overview API', () => {
+  it('caps hidden-message history scanning at one hundred rows', () => {
+    expect(OVERVIEW_CHAT_SCAN_LIMIT).toBe(100)
+  })
+
   it('requires a classmate token', async () => {
     const ctx = createExecutionContext()
     const res = await worker.fetch(new Request('http://localhost/api/class-space/overview'), env, ctx)

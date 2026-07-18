@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { getAdminPrincipal, loadActiveAdmin, requireAdminSession } from '../lib/adminAuth'
 import { verifyClassmateSession } from '../lib/classmateSession'
@@ -83,7 +84,7 @@ async function createAdminSession(db: D1Database, accountId: string, secret: str
 }
 
 authRoutes.post('/login', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as { username?: string; password?: string }
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as { username?: string; password?: string }
   const rateLimitKey = {
     route: 'admin-login',
     ip: clientIp(c.req.raw),
@@ -137,7 +138,7 @@ authRoutes.post('/login', async (c) => {
 })
 
 authRoutes.post('/setup', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as {
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as {
     setupToken?: string; username?: string; displayName?: string; password?: string; confirmPassword?: string
   }
   const setup = body.setupToken ? await verifyToken(body.setupToken, c.env.JWT_SECRET) : null
@@ -199,7 +200,7 @@ authRoutes.post('/change-password', requireAdminSession, async (c) => {
   if (!principal || principal.accountType !== 'standalone') {
     return c.json({ success: false, message: '绑定同学账号不能在此修改密码' }, 400)
   }
-  const body = await c.req.json().catch(() => ({})) as { oldPassword?: string; newPassword?: string; confirmPassword?: string }
+  const body = await parseLimitedJson<any>(c, { fallback: {} }) as { oldPassword?: string; newPassword?: string; confirmPassword?: string }
   const oldPassword = String(body.oldPassword || '')
   const newPassword = String(body.newPassword || '')
   if (newPassword.length < 8 || newPassword !== body.confirmPassword) {

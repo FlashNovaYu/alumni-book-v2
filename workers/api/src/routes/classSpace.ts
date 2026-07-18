@@ -11,8 +11,8 @@ const parseJson = <T>(value: string | null, fallback: T): T => {
   try { return JSON.parse(value || '') as T } catch { return fallback }
 }
 
-const OVERVIEW_CHAT_WINDOW = 30
-const OVERVIEW_CHAT_SCAN_LIMIT = 120
+export const OVERVIEW_CHAT_WINDOW = 30
+export const OVERVIEW_CHAT_SCAN_LIMIT = 100
 
 classSpaceRoutes.get('/class-space/overview', async (c) => {
   const identity = await requireClassmate(c)

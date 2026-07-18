@@ -162,20 +162,6 @@ app.use('/api/*', async (c, next) => {
   return next()
 })
 
-// Reject declared oversized JSON before endpoint-specific parsers run. Streamed
-// bodies remain owned by route-level readLimitedJson users so cancellation keeps
-// propagating to the original request stream.
-app.use('/api/*', async (c, next) => {
-  const contentType = c.req.header('Content-Type') || ''
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && contentType.includes('application/json')) {
-    const contentLength = Number(c.req.header('Content-Length'))
-    if (Number.isFinite(contentLength) && contentLength > 16 * 1024) {
-      return c.json({ success: false, message: 'JSON 请求体超过 16KiB 限制' }, 413)
-    }
-  }
-  return next()
-})
-
 function isStudentAudienceGet(path: string, method: string) {
   return method === 'GET' && (path === '/api/students' || path.startsWith('/api/students/'))
 }

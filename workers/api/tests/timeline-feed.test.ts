@@ -40,4 +40,14 @@ describe('class-space curated timeline', () => {
     ]))
     expect(timeline.every((item) => item.type === 'event')).toBe(true)
   })
+
+  it('pushes the requested LIMIT into every timeline source query', async () => {
+    const statements: string[] = []
+    const countingDb = {
+      prepare(sql: string) { statements.push(sql); return env.DB.prepare(sql) },
+    } as unknown as D1Database
+    await getTimelineFeed(countingDb, { limit: 6 })
+    expect(statements).toHaveLength(4)
+    expect(statements.every((statement) => /LIMIT \?/i.test(statement))).toBe(true)
+  })
 })

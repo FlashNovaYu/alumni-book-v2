@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { jwt } from 'hono/jwt'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { buildAuditStatement, runAuditedBatch } from '../lib/adminAudit'
@@ -60,7 +61,7 @@ const normalizeBody = (val: unknown, max: number) => String(val || '').trim().sl
 adminMailRoutes.post('/admin/mail/send', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { recipientSlug, subject, body, allowReply } = await c.req.json()
+  const { recipientSlug, subject, body, allowReply } = await parseLimitedJson(c)
   const cleanSubject = normalizeBody(subject, 80)
   const cleanBody = normalizeBody(body, 2000)
   const cleanRecipient = String(recipientSlug || '').trim()
@@ -88,7 +89,7 @@ adminMailRoutes.post('/admin/mail/send', async (c) => {
 adminMailRoutes.post('/admin/mail/broadcast', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { subject, body, allowReply } = await c.req.json()
+  const { subject, body, allowReply } = await parseLimitedJson(c)
   const cleanSubject = normalizeBody(subject, 80)
   const cleanBody = normalizeBody(body, 2000)
 

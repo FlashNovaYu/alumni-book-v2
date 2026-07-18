@@ -325,7 +325,18 @@ describe('Group chat API', () => {
 
     expect(sql.length).toBeLessThanOrEqual(2)
     expect(sql.some((statement) => /group_chat_reactions[\s\S]*message_id IN/i.test(statement))).toBe(true)
+    expect(sql.join('\n')).not.toContain('julianday(pm.created_at)')
     expect(message).toMatchObject({ reactionCounts: { '👍': 3 }, myReaction: null })
+  })
+
+  it('keeps canonical timestamp cursors backed by the history index', async () => {
+    const { results } = await env.DB.prepare(
+      `EXPLAIN QUERY PLAN
+       SELECT id FROM public_messages
+       WHERE status = 'visible' AND (created_at < ? OR (created_at = ? AND id < ?))
+       ORDER BY created_at DESC, id DESC LIMIT ?`
+    ).bind('2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', 'cursor', 30).all<any>()
+    expect((results || []).map((row: any) => row.detail).join('\n')).toContain('idx_group_chat_history')
   })
 
   it('updates a reacted message so sync returns the old message change', async () => {

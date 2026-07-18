@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 
@@ -14,7 +15,7 @@ albumsRoutes.post('/albums', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
 
   if (!body.title) {
     return c.json({ success: false, message: '相册名称必填' }, 400)
@@ -43,7 +44,7 @@ albumsRoutes.put('/albums/:id', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
 
   const fields: string[] = []
   const values: any[] = []
@@ -75,7 +76,7 @@ albumsRoutes.delete('/albums/:id', async (c) => {
   const r2 = (c.env as any).R2
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除相册时请填写原因' }, 400)
   const album = await db.prepare('SELECT title FROM albums WHERE id = ?').bind(id).first()
@@ -110,7 +111,7 @@ albumsRoutes.put('/photos/:id', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
 
   const fields: string[] = []
   const values: any[] = []
@@ -137,7 +138,7 @@ albumsRoutes.delete('/photos/:id', async (c) => {
   const r2 = (c.env as any).R2
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { reason } = await c.req.json().catch(() => ({}))
+  const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
   const cleanReason = String(reason || '').trim()
   if (!cleanReason) return c.json({ success: false, message: '删除照片时请填写原因' }, 400)
 

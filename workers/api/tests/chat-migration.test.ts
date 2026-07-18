@@ -136,7 +136,7 @@ describe('Legacy Chat Migration Core', () => {
     const conv = convs.results[0] as any
     expect(conv.participant_a_slug).toBe(STUDENT_A)
     expect(conv.participant_b_slug).toBe(STUDENT_B)
-    expect(conv.updated_at).toBe('2026-01-01 10:10:00')
+    expect(conv.updated_at).toBe('2026-01-01T10:10:00.000Z')
 
     // 验证私聊消息排序/ID/nonce 正确
     const msgs = await env.DB.prepare("SELECT * FROM direct_messages WHERE conversation_id = 'conv_direct-student-a_direct-student-b' ORDER BY julianday(created_at) ASC, id ASC").all()

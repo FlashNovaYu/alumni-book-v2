@@ -28,7 +28,7 @@ describe('管理员上传补偿', () => {
       DB: {
         prepare: (query: string) => ({
           bind: () => query.startsWith('SELECT')
-            ? { first: async () => ({ avatar_url: null, music_url: null, background_url: null }) }
+            ? { first: async () => ({ avatar_url: '/api/files/avatars/old-avatar.png', music_url: null, background_url: null }) }
             : {},
         }),
         batch: async () => { throw new Error('D1 batch failed') },
@@ -42,5 +42,6 @@ describe('管理员上传补偿', () => {
 
     expect(response.status).toBe(500)
     expect(deletedKeys).toEqual([expect.stringMatching(/^avatars\/test_init_.*\.png$/)])
+    expect(deletedKeys).not.toContain('avatars/old-avatar.png')
   })
 })

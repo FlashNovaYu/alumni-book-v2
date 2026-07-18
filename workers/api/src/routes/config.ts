@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { getAdminPrincipal } from '../lib/adminAuth'
 import { runAuditedBatch } from '../lib/adminAudit'
 
@@ -14,7 +15,7 @@ configRoutes.put('/config', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const body = await c.req.json()
+  const body = await parseLimitedJson(c)
 
   if (body.museum) {
     const m = body.museum

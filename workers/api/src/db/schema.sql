@@ -233,6 +233,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_public_messages_nonce
 CREATE INDEX IF NOT EXISTS idx_group_chat_updated
   ON public_messages(updated_at, id);
 
+CREATE INDEX IF NOT EXISTS idx_group_chat_history
+  ON public_messages(status, created_at DESC, id DESC);
+
 CREATE TABLE IF NOT EXISTS group_chat_reactions (
   message_id TEXT NOT NULL,
   reactor_slug TEXT NOT NULL,
@@ -297,6 +300,51 @@ CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_cursor
 
 CREATE INDEX IF NOT EXISTS idx_direct_messages_conversation_unread
   ON direct_messages(conversation_id, recipient_slug, read_at, created_at DESC);
+
+-- Keep legacy SQLite timestamps compatible with text cursor comparisons.
+CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_created
+AFTER INSERT ON direct_messages
+WHEN NEW.created_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE direct_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at) WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_direct_messages_normalize_updated
+AFTER UPDATE OF created_at ON direct_messages
+WHEN NEW.created_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE direct_messages SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at) WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_direct_conversations_normalize_created
+AFTER INSERT ON direct_conversations
+WHEN NEW.created_at NOT LIKE '%T%Z' OR NEW.updated_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE direct_conversations
+  SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at),
+      updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at)
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_messages_normalize_timestamps
+AFTER INSERT ON public_messages
+WHEN NEW.created_at NOT LIKE '%T%Z' OR NEW.updated_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE public_messages
+  SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at),
+      updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at)
+  WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_messages_normalize_updates
+AFTER UPDATE OF created_at, updated_at ON public_messages
+WHEN NEW.created_at NOT LIKE '%T%Z' OR NEW.updated_at NOT LIKE '%T%Z'
+BEGIN
+  UPDATE public_messages
+  SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.created_at),
+      updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', NEW.updated_at)
+  WHERE id = NEW.id;
+END;
 
 CREATE TABLE IF NOT EXISTS content_reviews (
   id TEXT PRIMARY KEY,

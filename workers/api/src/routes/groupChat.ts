@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { compareCursorValues, decodeCursor, decodeSyncCursor, encodeCursor, encodeSyncCursor, type CursorValue } from '../lib/cursor'
 import { GROUP_REACTIONS, formatGroupMessage, getActiveMute, listGroupMessages } from '../lib/groupChat'
 import { createGroupChatMessage } from '../lib/groupChatCreate'
@@ -68,7 +69,7 @@ groupChatRoutes.get('/group-chat/sync', async (c) => {
 groupChatRoutes.post('/group-chat/messages', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
-  const input = await c.req.json().catch(() => null) as any
+  const input = await parseLimitedJson<any>(c, { fallback: null }) as any
   const result = await createGroupChatMessage(c.env.DB, identity, input || {})
   if (!result.ok) {
     const headers = result.retryAfter ? { 'Retry-After': String(result.retryAfter) } : undefined
@@ -83,7 +84,7 @@ groupChatRoutes.post('/group-chat/messages', async (c) => {
 groupChatRoutes.put('/group-chat/messages/:id/reaction', async (c) => {
   const identity = await requireClassmate(c)
   if (isClassmateResponse(identity)) return identity
-  const body = await c.req.json().catch(() => null) as any
+  const body = await parseLimitedJson<any>(c, { fallback: null }) as any
   const reaction = body?.reaction
   if (!GROUP_REACTIONS.includes(reaction)) return c.json({ success: false, message: '回应无效' }, 400)
 

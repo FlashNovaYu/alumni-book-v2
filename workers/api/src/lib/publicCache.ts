@@ -32,10 +32,7 @@ export function publicCacheControl(): string {
 }
 
 function mayUseEdgeCache(request: Request): boolean {
-  const { hostname } = new URL(request.url)
-  // Miniflare's shared test cache outlives database fixtures. Production edge
-  // hostnames retain cache behavior; local development remains deterministic.
-  return hostname !== 'localhost' && hostname !== '127.0.0.1'
+  return new URL(request.url).protocol === 'https:'
 }
 
 /** Cache failures must never change the API response. */
@@ -51,6 +48,22 @@ export function storePublicCache(request: Request, response: Response, waitUntil
 
 export function clearPublicCache(request: Request, waitUntil: (promise: Promise<unknown>) => void) {
   if (request.method === 'GET') return
-  const cacheKey = new Request(new URL(request.url), { method: 'GET' })
-  waitUntil(edgeCache().delete(cacheKey).catch(() => false))
+  const url = new URL(request.url)
+  const path = url.pathname
+  const targets = new Set<string>()
+  const add = (target: string, queries: string[] = ['']) => queries.forEach((query) => targets.add(`${url.origin}${target}${query}`))
+  if (path === '/api/config' || path.startsWith('/api/config/')) add('/api/config')
+  if (path.startsWith('/api/albums') || path.startsWith('/api/photos') || path.startsWith('/api/upload')) add('/api/albums')
+  if (path.startsWith('/api/timeline')) add('/api/timeline', ['', '?type=event', '?type=message', '?type=photo', '?type=join'])
+  if (path.startsWith('/api/students') || path.startsWith('/api/classmate/students') || path === '/api/classmate/upload') {
+    add('/api/classmates')
+    add('/api/rankings')
+    add('/api/timeline', ['', '?type=event', '?type=message', '?type=photo', '?type=join'])
+  }
+  if (path.startsWith('/api/messages') || path.startsWith('/api/public-messages')) {
+    add('/api/rankings')
+    add('/api/timeline', ['', '?type=event', '?type=message', '?type=photo', '?type=join'])
+  }
+  if (targets.size === 0) return
+  waitUntil(Promise.all([...targets].map((target) => edgeCache().delete(new Request(target, { method: 'GET' })).catch(() => false))))
 }
