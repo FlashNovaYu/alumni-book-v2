@@ -61,9 +61,10 @@
     <!-- 分页 -->
     <UiPagination
       v-if="totalPages > 1"
-      v-model="currentPage"
+      :model-value="currentPage"
       :total-pages="totalPages"
       aria-label="人物长廊分页"
+      @update:model-value="goToPage"
     />
   </div>
 </template>
@@ -174,6 +175,19 @@ watch(keyword, () => {
 watch(totalPages, () => {
   currentPage.value = Math.min(currentPage.value, totalPages.value)
 })
+
+function goToPage(page: number) {
+  if (page < 1 || page > totalPages.value || page === currentPage.value) return
+
+  currentPage.value = page
+  nextTick(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    rootRef.value?.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  })
+}
 
 function rememberIdentityTransition(slug: string) {
   try {

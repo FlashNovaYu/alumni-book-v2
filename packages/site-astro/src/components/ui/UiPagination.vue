@@ -2,6 +2,7 @@
   <nav v-if="totalPages > 1" class="ui-pagination" :aria-label="ariaLabel">
     <!-- Previous -->
     <button
+      type="button"
       class="ui-pagination__button"
       :disabled="modelValue <= 1"
       :aria-label="prevLabel"
@@ -17,10 +18,12 @@
       <template v-for="page in visiblePages" :key="page">
         <button
           v-if="page !== 'ellipsis'"
+          type="button"
           :class="[
             'ui-pagination__page',
             { 'ui-pagination__page--active': page === modelValue }
           ]"
+          :aria-label="`第 ${page} 页`"
           :aria-current="page === modelValue ? 'page' : undefined"
           @click="goToPage(page as number)"
         >
@@ -38,6 +41,7 @@
 
     <!-- Next -->
     <button
+      type="button"
       class="ui-pagination__button"
       :disabled="modelValue >= totalPages"
       :aria-label="nextLabel"
@@ -52,6 +56,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { buildPaginationItems } from '@alumni/shared'
 
 interface Props {
   modelValue: number
@@ -73,50 +78,11 @@ const emit = defineEmits<{
   'update:modelValue': [value: number]
 }>()
 
-const visiblePages = computed(() => {
-  const pages: (number | 'ellipsis')[] = []
-  const total = props.totalPages
-  const current = props.modelValue
-  const sibling = props.siblingCount
-
-  // Always show first page
-  pages.push(1)
-
-  // Calculate range
-  const leftSibling = Math.max(current - sibling, 2)
-  const rightSibling = Math.min(current + sibling, total - 1)
-
-  // Add ellipsis after first page if needed
-  if (leftSibling > 2) {
-    pages.push('ellipsis')
-  } else if (leftSibling === 2) {
-    pages.push(2)
-  }
-
-  // Add middle pages
-  for (let i = Math.max(leftSibling, 2); i <= rightSibling; i++) {
-    if (i > 1 && i < total) {
-      pages.push(i)
-    }
-  }
-
-  // Add ellipsis before last page if needed
-  if (rightSibling < total - 1) {
-    pages.push('ellipsis')
-  } else if (rightSibling === total - 1) {
-    pages.push(total - 1)
-  }
-
-  // Always show last page if more than 1
-  if (total > 1) {
-    // Remove duplicate if last page was already added
-    if (pages[pages.length - 1] !== total) {
-      pages.push(total)
-    }
-  }
-
-  return pages
-})
+const visiblePages = computed(() => buildPaginationItems(
+  props.modelValue,
+  props.totalPages,
+  props.siblingCount,
+))
 
 function goToPage(page: number) {
   if (page >= 1 && page <= props.totalPages && page !== props.modelValue) {
