@@ -33,6 +33,10 @@ export function filterStudentForAudience<T extends StudentRecord>(student: T, au
   }
 
   const filtered: StudentRecord = { ...student, info }
+  if (audience === 'public') {
+    delete info.seatNo
+    delete info.dormNo
+  }
   if (audience === 'public' || audience === 'classmates') {
     delete filtered.accountStatus
     delete filtered.accountLastLoginAt

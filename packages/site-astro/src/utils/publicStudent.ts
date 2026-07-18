@@ -8,5 +8,9 @@ export function toPublicStudent<T extends Record<string, unknown>>(
     accountLastLoginAt: _accountLastLoginAt,
     ...publicStudent
   } = student
-  return publicStudent
+  const info = publicStudent.info
+  if (!info || typeof info !== 'object') return publicStudent
+
+  const { seatNo: _seatNo, dormNo: _dormNo, ...publicInfo } = info as Record<string, unknown>
+  return { ...publicStudent, info: publicInfo }
 }

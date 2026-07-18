@@ -79,7 +79,7 @@ if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
       {museum.enabled && (museum.enableClassGraph || museum.enableSeatMap) && (
         <div class="lazy-highlights paper-highlight-grid">
           {museum.enableClassGraph && <ClassGraphPreview client:visible apiBase={CLIENT_API_BASE} sampleNames={classmates.slice(0, 5).map((c) => c.name)} />}
-          {museum.enableSeatMap && <SeatMapPreview client:visible apiBase={CLIENT_API_BASE} seats={classmates.map((c: any) => c.seatNo).filter(Boolean).slice(0, 8)} />}
+          {museum.enableSeatMap && <SeatMapPreview client:visible apiBase={CLIENT_API_BASE} />}
         </div>
       )}
     </div>

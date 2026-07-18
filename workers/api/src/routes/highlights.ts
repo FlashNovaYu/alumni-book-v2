@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { verifyClassmateSession } from '../lib/classmateSession'
 
 type Bindings = {
   DB: D1Database
@@ -76,5 +77,11 @@ highlightsRoutes.get('/seat-map', async (c) => {
     }]
   })
 
-  return c.json({ success: true, data: { seats, missingSeatCount } })
+  const totalSeatCount = seats.length
+  const viewerSlug = await verifyClassmateSession(c.env.DB, c.req.header('X-Classmate-Token'))
+  if (!viewerSlug) {
+    return c.json({ success: true, data: { totalSeatCount, missingSeatCount } })
+  }
+
+  return c.json({ success: true, data: { seats, totalSeatCount, missingSeatCount } })
 })

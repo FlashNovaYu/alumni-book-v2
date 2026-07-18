@@ -256,7 +256,7 @@
             <div id="highlights-anchor" :class="{ 'lazy-anchor': !highlightsVisible }" ref="highlightsAnchor" />
             <div v-if="highlightsVisible" class="profile-highlights paper-highlight-grid">
               <ClassGraphPreview v-if="classGraphEnabled" :api-base="apiBase" :sample-names="['张三', '李四', '王五']" />
-              <SeatMapPreview v-if="seatMapEnabled" :api-base="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
+              <SeatMapPreview v-if="seatMapEnabled" :api-base="apiBase" />
             </div>
           </div>
 
