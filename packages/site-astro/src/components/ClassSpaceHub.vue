@@ -1,22 +1,31 @@
 <template>
   <div class="class-space-hub">
+    <!-- Loading -->
     <div v-if="loading" class="hub-loading" aria-busy="true">
-      <div class="skeleton-line skeleton-line--short"></div>
-      <div class="skeleton-stage"></div>
-    </div>
-
-    <div v-else-if="error" class="hub-error">
-      <div class="error-card">
-        <h2>班级空间暂时无法打开</h2>
-        <p>{{ error }}</p>
-        <button class="retry-btn" type="button" @click="loadData">重新加载</button>
+      <UiSkeleton variant="text" :lines="2" />
+      <div class="hub-loading__grid">
+        <UiSkeleton v-for="i in 4" :key="i" variant="card" />
       </div>
     </div>
 
+    <!-- Error -->
+    <div v-else-if="error" class="hub-error">
+      <UiEmptyState
+        title="班级空间暂时无法打开"
+        :description="error"
+      >
+        <template #action>
+          <button class="btn-primary" type="button" @click="loadData">重新加载</button>
+        </template>
+      </UiEmptyState>
+    </div>
+
+    <!-- Content -->
     <div v-else-if="overviewData" class="class-space-workbench">
       <ClassSpaceSectionNav :sections="sections" />
 
       <main class="class-space-main">
+        <!-- Group Chat -->
         <section id="group-chat" class="hub-section">
           <GroupChatStage
             :api-base="apiBase"
@@ -26,24 +35,36 @@
           />
         </section>
 
+        <!-- Albums -->
         <section id="albums" class="hub-section">
           <div class="section-header">
             <div>
-              <p class="paper-kicker">CLASS ALBUMS</p>
-              <h2>精选影像</h2>
+              <p class="section-header__kicker">CLASS ALBUMS</p>
+              <h2 class="section-header__title">精选影像</h2>
             </div>
-            <a :href="href('album')">进入影像馆</a>
+            <a :href="href('album')" class="section-header__link">
+              进入影像馆
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
           </div>
           <ClassSpaceAlbumRail :albums="overviewData.albums" :api-base="apiBase" :site-base="siteBase" />
         </section>
 
+        <!-- Timeline -->
         <section id="timeline" class="hub-section">
           <div class="section-header">
             <div>
-              <p class="paper-kicker">CLASS TIMELINE</p>
-              <h2>班级大事</h2>
+              <p class="section-header__kicker">CLASS TIMELINE</p>
+              <h2 class="section-header__title">班级大事</h2>
             </div>
-            <a :href="href('timeline')">完整时间轴</a>
+            <a :href="href('timeline')" class="section-header__link">
+              完整时间轴
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
           </div>
           <ClassSpaceTimelineRail :timeline="overviewData.timeline" :api-base="apiBase" />
         </section>
@@ -60,6 +81,8 @@ import ClassSpaceAlbumRail from './ClassSpaceAlbumRail.vue'
 import ClassSpaceSectionNav from './ClassSpaceSectionNav.vue'
 import ClassSpaceTimelineRail from './ClassSpaceTimelineRail.vue'
 import GroupChatStage from './GroupChatStage.vue'
+import UiSkeleton from './ui/UiSkeleton.vue'
+import UiEmptyState from './ui/UiEmptyState.vue'
 
 const props = defineProps<{
   apiBase: string
@@ -69,6 +92,7 @@ const props = defineProps<{
 const overviewData = ref<ClassSpaceOverview | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+
 const sections = computed(() => overviewData.value ? [
   { id: 'group-chat', index: '01', label: '班级群聊', description: '此刻的对话', count: overviewData.value.counts.groupMessages },
   { id: 'albums', index: '02', label: '精选影像', description: '值得翻看的照片', count: overviewData.value.counts.albums },
@@ -84,42 +108,126 @@ async function loadData() {
   loading.value = true
   error.value = null
   try {
-    overviewData.value = await fetchClassSpaceOverview(props.apiBase)
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : '加载班级数据失败，请重试'
+    const data = await fetchClassSpaceOverview(props.apiBase)
+    overviewData.value = data
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>
-.class-space-hub { width: 100%; }
-.class-space-workbench { display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg); align-items: start; }
-.class-space-main { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--spacing-xxl); }
-.hub-section { min-width: 0; scroll-margin-top: calc(var(--nav-height) + var(--spacing-lg)); }
-.section-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--spacing-md); margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-paper-border); }
-.section-header h2 { margin: 2px 0 0; color: var(--color-paper-ink); font-family: var(--font-display); font-size: 26px; }
-.section-header a { color: var(--color-paper-brown); font-size: 13px; text-decoration: none; white-space: nowrap; }
-.hub-loading { display: grid; gap: var(--spacing-md); padding: var(--spacing-xl) 0; }
-.skeleton-line, .skeleton-stage { background: rgba(110, 88, 61, 0.08); animation: hub-pulse 1.2s ease-in-out infinite; }
-.skeleton-line--short { width: 140px; height: 22px; }
-.skeleton-stage { height: 520px; }
-.hub-error { display: grid; min-height: 360px; place-items: center; }
-.error-card { width: min(420px, 100%); padding: var(--spacing-xl); color: var(--color-paper-ink); background: var(--color-paper-card); border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 38%, var(--color-paper-border)); text-align: center; }
-.error-card h2, .error-card p { margin: 0; }
-.error-card p { margin-top: var(--spacing-sm); color: var(--color-paper-muted); }
-.retry-btn { min-height: 44px; margin-top: var(--spacing-lg); padding: 0 var(--spacing-lg); color: #fffaf2; background: var(--color-paper-brown); border: 0; font: inherit; font-weight: 700; cursor: pointer; }
-@keyframes hub-pulse { 50% { opacity: 0.45; } }
+.class-space-hub {
+  min-height: 100vh;
+}
 
-@media (min-width: 1100px) {
-  .class-space-workbench { grid-template-columns: 176px minmax(0, 1fr); gap: var(--spacing-xl); }
+/* Loading */
+.hub-loading {
+  padding: var(--space-7) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.hub-loading__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+/* Error */
+.hub-error {
+  padding: var(--space-9) var(--space-5);
+}
+
+/* Workbench */
+.class-space-workbench {
+  display: grid;
+  grid-template-columns: 176px 1fr;
+  gap: var(--space-6);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5);
+}
+
+.class-space-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* Section Header */
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-header__kicker {
+  font-size: var(--type-caption-uppercase);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.section-header__title {
+  font-family: var(--font-display);
+  font-size: var(--type-title-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  line-height: var(--leading-snug);
+  margin: 0;
+}
+
+.section-header__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+  text-decoration: none;
+  transition: gap var(--duration-fast) var(--ease-out-expo);
+}
+
+.section-header__link:hover {
+  gap: var(--space-3);
+}
+
+/* Hub Section */
+.hub-section {
+  position: relative;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .class-space-workbench {
+    grid-template-columns: 1fr;
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 768px) {
-  .section-header h2 { font-size: 23px; }
-  .section-header { align-items: flex-start; }
+  .hub-loading__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

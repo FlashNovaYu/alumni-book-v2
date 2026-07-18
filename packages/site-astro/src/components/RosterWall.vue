@@ -1,83 +1,70 @@
 <template>
   <div ref="rootRef">
-    <div class="archive-search paper-panel">
-      <p class="museum-kicker">人物长廊</p>
-      <input v-model="keyword" type="text" class="text-input search-input" aria-label="档案检索" placeholder="档案检索：姓名、昵称、学校、座右铭、MBTI" autocomplete="off" />
-      <p class="search-count">{{ keyword.trim() ? `找到 ${filteredClassmates.length} 位同学` : '浏览所有同学档案（若 TA 的页面待完善，欢迎联系管理员补全资料）' }}</p>
+    <!-- 搜索区域 -->
+    <div class="roster-search">
+      <div class="roster-search__header">
+        <p class="roster-search__kicker">人物长廊</p>
+        <h2 class="roster-search__title">同学档案</h2>
+      </div>
+      <div class="roster-search__input-wrapper">
+        <svg class="roster-search__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5" />
+          <path d="M14.5 14.5L18 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <input
+          v-model="keyword"
+          type="text"
+          class="roster-search__input"
+          aria-label="档案检索"
+          placeholder="档案检索：姓名、昵称、学校、座右铭、MBTI"
+          autocomplete="off"
+        />
+        <button
+          v-if="keyword"
+          class="roster-search__clear"
+          aria-label="清除搜索"
+          @click="keyword = ''"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 3L13 13M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <p class="roster-search__count">
+        {{ searchCountText }}
+      </p>
+    </div>
+
+    <!-- 骨架屏 -->
+    <div v-if="loading" class="roster-grid">
+      <UiSkeleton v-for="i in 6" :key="`skeleton-${i}`" variant="card" />
     </div>
 
     <!-- 同学列表网格 -->
-    <div class="archive-grid">
+    <div v-else-if="filteredClassmates.length > 0" class="roster-grid">
       <ArchiveRosterCard
-        v-for="mate in classmates"
+        v-for="mate in paginatedClassmates"
         :key="mate.slug"
-        v-show="isCardVisible(mate)"
         :card="toArchiveClassmateCard(mate, siteBase)"
         :api-base="apiBase"
         @identity-transition="rememberIdentityTransition"
       />
     </div>
 
-    <nav v-if="totalPages > 1" class="roster-pagination" aria-label="人物长廊分页">
-      <!-- 上一页 -->
-      <button type="button" class="page-btn page-btn--arrow" :disabled="currentPage === 1" aria-label="上一页" @click="goToPage(currentPage - 1)">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg>
-      </button>
-
-      <!-- 第一页 -->
-      <template v-if="showLeftEllipsis">
-        <button
-          type="button"
-          class="page-btn"
-          :class="{ 'is-active': currentPage === 1 }"
-          aria-label="第 1 页"
-          :aria-current="currentPage === 1 ? 'page' : undefined"
-          @click="goToPage(1)"
-        >
-          1
-        </button>
-        <span class="page-ellipsis" aria-hidden="true">…</span>
-      </template>
-
-      <!-- 中间页码 -->
-      <button
-        v-for="page in pages"
-        :key="page"
-        type="button"
-        class="page-btn"
-        :class="{ 'is-active': currentPage === page }"
-        :aria-label="`第 ${page} 页`"
-        :aria-current="currentPage === page ? 'page' : undefined"
-        @click="goToPage(page)"
-      >
-        {{ page }}
-      </button>
-
-      <!-- 最后一页 -->
-      <template v-if="showRightEllipsis">
-        <span class="page-ellipsis" aria-hidden="true">…</span>
-        <button
-          type="button"
-          class="page-btn"
-          :class="{ 'is-active': currentPage === totalPages }"
-          :aria-label="`第 ${totalPages} 页`"
-          :aria-current="currentPage === totalPages ? 'page' : undefined"
-          @click="goToPage(totalPages)"
-        >
-          {{ totalPages }}
-        </button>
-      </template>
-
-      <!-- 下一页 -->
-      <button type="button" class="page-btn page-btn--arrow" :disabled="currentPage === totalPages" aria-label="下一页" @click="goToPage(currentPage + 1)">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 5 7 7-7 7" /></svg>
-      </button>
-    </nav>
-
     <!-- 空状态 -->
-    <div v-if="filteredClassmates.length === 0" class="empty-state">
-      <p>未找到匹配的同学</p>
-    </div>
+    <UiEmptyState
+      v-else
+      title="未找到匹配的同学"
+      description="尝试使用不同的关键词搜索，或联系管理员补全资料。"
+    />
+
+    <!-- 分页 -->
+    <UiPagination
+      v-if="totalPages > 1"
+      v-model="currentPage"
+      :total-pages="totalPages"
+      aria-label="人物长廊分页"
+    />
   </div>
 </template>
 
@@ -85,6 +72,9 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 import ArchiveRosterCard from './ArchiveRosterCard.vue'
+import UiSkeleton from './ui/UiSkeleton.vue'
+import UiEmptyState from './ui/UiEmptyState.vue'
+import UiPagination from './ui/UiPagination.vue'
 import { toArchiveClassmateCard } from '../utils/museumViewModels'
 
 interface Classmate {
@@ -143,6 +133,7 @@ const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
 const currentPage = ref(1)
 const isRestoringIdentityState = ref(false)
+const loading = ref(false)
 const PAGE_SIZE = 9
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -169,50 +160,11 @@ const paginatedClassmates = computed(() => {
   return filteredClassmates.value.slice(start, start + PAGE_SIZE)
 })
 
-const visibleClassmateSlugs = computed(() => new Set(paginatedClassmates.value.map((mate) => mate.slug)))
-
-function isCardVisible(mate: Classmate) {
-  return visibleClassmateSlugs.value.has(mate.slug)
-}
-
-const paginationItemsToDisplay = 5
-
-const showLeftEllipsis = computed(() => totalPages.value > paginationItemsToDisplay && currentPage.value - 1 > paginationItemsToDisplay / 2)
-const showRightEllipsis = computed(() => totalPages.value > paginationItemsToDisplay && totalPages.value - currentPage.value + 1 > paginationItemsToDisplay / 2)
-
-const pages = computed<number[]>(() => {
-  const total = totalPages.value
-  const current = currentPage.value
-  const displayCount = paginationItemsToDisplay
-
-  if (total <= displayCount) {
-    return Array.from({ length: total }, (_, i) => i + 1)
+const searchCountText = computed(() => {
+  if (keyword.value.trim()) {
+    return `找到 ${filteredClassmates.value.length} 位同学`
   }
-
-  const halfDisplay = Math.floor(displayCount / 2)
-  const startVal = current - halfDisplay
-  const endVal = current + halfDisplay
-
-  const adjustedStart = Math.max(1, startVal)
-  const adjustedEnd = Math.min(total, endVal)
-
-  let start = adjustedStart
-  let end = adjustedEnd
-
-  if (adjustedStart === 1) {
-    end = displayCount
-  }
-  if (adjustedEnd === total) {
-    start = total - displayCount + 1
-  }
-
-  if (showLeftEllipsis.value) start++
-  if (showRightEllipsis.value) end--
-
-  return Array.from(
-    { length: end - start + 1 },
-    (_, i) => start + i
-  )
+  return '浏览所有同学档案（若 TA 的页面待完善，欢迎联系管理员补全资料）'
 })
 
 watch(keyword, () => {
@@ -222,12 +174,6 @@ watch(keyword, () => {
 watch(totalPages, () => {
   currentPage.value = Math.min(currentPage.value, totalPages.value)
 })
-
-function goToPage(page: number) {
-  if (page < 1 || page > totalPages.value || page === currentPage.value) return
-  currentPage.value = page
-  rootRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 function rememberIdentityTransition(slug: string) {
   try {
@@ -250,7 +196,7 @@ onMounted(async () => {
     isRestoringIdentityState.value = false
   }
 
-  // 避免首屏高并发阻塞，改为 idle 空闲时静默刷新 SWR 数据
+  // SWR 数据刷新
   runWhenIdle(async () => {
     try {
       const { data } = await fetchJsonIfChanged(
@@ -268,100 +214,141 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.archive-search {
+/* Search section */
+.roster-search {
   max-width: 760px;
-  margin: 0 auto var(--spacing-xl);
-  padding: var(--spacing-lg) var(--spacing-xl);
+  margin: 0 auto var(--space-7);
+  padding: var(--space-6) var(--space-5);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
-.search-input {
+.roster-search__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.roster-search__kicker {
+  font-size: var(--type-caption-uppercase);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.roster-search__title {
+  font-family: var(--font-display);
+  font-size: var(--type-display-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+.roster-search__input-wrapper {
+  position: relative;
   width: 100%;
-  text-align: center;
-  font-size: 15px;
-  min-height: 44px;
-  background: var(--color-paper-bg-soft);
-  border: 1px solid var(--color-paper-border);
-  color: var(--color-paper-ink);
+  max-width: 560px;
 }
 
-.search-input:focus {
-  border-color: var(--color-paper-brown);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-paper-brown) 16%, transparent);
+.roster-search__icon {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
-.search-count {
-  font-size: var(--type-body-sm-size);
-  color: var(--color-paper-muted);
+.roster-search__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-4) 0 calc(var(--space-4) + 24px);
+  font-size: var(--type-body-md);
+  font-weight: var(--weight-regular);
+  color: var(--text-primary);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  outline: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-out-expo);
 }
 
-.archive-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  grid-auto-rows: 1fr;
-  align-items: stretch;
-  gap: var(--spacing-lg);
+.roster-search__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.empty-state {
-  text-align: center;
-  padding: var(--spacing-xxl);
-  color: var(--color-muted);
+.roster-search__input::placeholder {
+  color: var(--text-dim);
 }
 
-.roster-pagination {
+.roster-search__clear {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-top: var(--spacing-xl);
-}
-
-.page-btn {
-  display: inline-grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  padding: 0;
-  color: var(--color-paper-muted);
-  background: var(--color-paper-card);
-  border: 1px solid var(--color-paper-border);
-  font: inherit;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: color var(--duration-fast) var(--ease-out-expo);
 }
 
-.page-btn:hover:not(:disabled),
-.page-btn:focus-visible {
-  color: var(--color-paper-ink);
-  border-color: var(--color-paper-brown);
-  outline: none;
+.roster-search__clear:hover {
+  color: var(--text-primary);
 }
 
-.page-btn.is-active {
-  color: #fffaf2;
-  background: var(--color-paper-brown);
-  border-color: var(--color-paper-brown);
+.roster-search__count {
+  font-size: var(--type-body-sm);
+  color: var(--text-muted);
+  margin: 0;
 }
 
-.page-btn:disabled { opacity: 0.38; cursor: not-allowed; }
-.page-btn--arrow svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-.page-ellipsis { width: 20px; color: var(--color-paper-muted); font-size: 16px; line-height: 1; text-align: center; }
+/* Grid */
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+/* Pagination spacing */
+:deep(.ui-pagination) {
+  margin-top: var(--space-7);
+}
 
 @media (max-width: 768px) {
-  .archive-search {
-    padding: var(--spacing-lg);
+  .roster-search {
+    padding: var(--space-5);
+    margin-bottom: var(--space-5);
   }
 
-  .archive-grid {
+  .roster-search__title {
+    font-size: var(--type-title-lg);
+  }
+
+  .roster-grid {
     grid-template-columns: 1fr;
-    gap: var(--spacing-md);
+    gap: var(--space-4);
   }
 }
 </style>

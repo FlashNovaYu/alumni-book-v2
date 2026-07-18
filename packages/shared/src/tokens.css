@@ -1,172 +1,392 @@
 /**
- * 同学录 v2 · Claude 设计系统令牌
- * 参考: DESIGN-claude.md
+ * 同学录 v2 · 设计系统令牌 (Design System Tokens)
+ * "静谧编辑暖意" (Quiet Editorial Warmth)
+ *
+ * 统一令牌架构：Primitive → Semantic → Component
+ * 所有颜色、间距、字体、阴影、动效均由此文件定义
  */
 
 :root {
-  /* ── 色彩: 品牌 & 强调 ── */
-  --color-primary: #cc785c;
-  --color-primary-active: #a9583e;
-  --color-primary-disabled: #e6dfd8;
-  --color-accent-teal: #5db8a6;
-  --color-accent-amber: #e8a55a;
+  /* ═══════════════════════════════════════════════════════════════════════
+     PRIMITIVE TOKENS — 基础色板
+     ══════════════════════════════════════════════════════════════════════ */
 
-  /* ── 色彩: 表面 ── */
-  --color-canvas: #faf9f5;
-  --color-surface-soft: #f5f0e8;
-  --color-surface-card: #efe9de;
-  --color-surface-cream: #faf9f5;
-  --color-surface-cream-strong: #e8e0d2;
-  --color-surface-dark: #181715;
-  --color-surface-dark-elevated: #252320;
-  --color-surface-dark-soft: #1f1e1b;
+  /* 基础色彩 */
+  --_bg: #f7f4ed;
+  --_surface: #fffdf8;
+  --_surface-raised: #ffffff;
+  --_surface-soft: #f5f0e8;
+  --_ink: #1c1917;
+  --_ink-soft: #44403c;
+  --_muted: #78716c;
+  --_dim: #d6d3cd;
+  --_accent: #b4532a;
+  --_accent-active: #9a3d1a;
+  --_accent-soft: rgba(180, 83, 42, 0.08);
+  --_border: rgba(28, 25, 23, 0.08);
+  --_border-strong: rgba(28, 25, 23, 0.14);
 
-  /* ── 色彩: 文本 ── */
-  --color-ink: #141413;
-  --color-body-strong: #252523;
-  --color-body: #3d3d3a;
-  --color-muted: #6c6a64;
-  --color-muted-soft: #8e8b82;
-  --color-on-primary: #ffffff;
-  --color-on-dark: #faf9f5;
-  --color-on-dark-soft: #a09d96;
+  /* 语义色彩 — 成功/警告/错误 */
+  --_success: #5db872;
+  --_warning: #d4a017;
+  --_error: #c64545;
+  --_info: #5db8a6;
 
-  /* ── 色彩: 边框 ── */
-  --color-hairline: #e6dfd8;
-  --color-hairline-soft: #ebe6df;
+  /* 装饰色 — 保留温暖的金/银/铜 */
+  --_gold: #c8a96a;
+  --_gold-soft: #ead9a6;
+  --_silver: #c0c0c0;
+  --_bronze: #cd7f32;
 
-  /* ── 色彩: 语义 ── */
-  --color-success: #5db872;
-  --color-warning: #d4a017;
-  --color-error: #c64545;
-  --color-gold: #ffd700;
-  --color-silver: #c0c0c0;
-  --color-bronze: #cd7f32;
+  /* ═══════════════════════════════════════════════════════════════════════
+     SEMANTIC TOKENS — 语义层（组件引用这一层）
+     ═══════════════════════════════════════════════════════════════════════ */
 
-  /* ── Museum hybrid redesign tokens ── */
-  --color-museum-ink: #26303a;
-  --color-museum-ink-soft: #52606c;
-  --color-museum-gold: #c8a96a;
-  --color-museum-gold-soft: #ead9a6;
-  --color-museum-paper: #fbf6ec;
-  --color-museum-paper-strong: #f0e3cf;
-  --color-museum-film-blue: #8aa2b6;
-  --color-museum-stamp-red: #a84f3d;
-  --shadow-museum-panel: 0 18px 46px rgba(38, 48, 58, 0.14);
-  --shadow-museum-paper: 0 10px 28px rgba(92, 74, 48, 0.12);
-  --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
+  /* 背景 */
+  --bg: var(--_bg);
+  --bg-surface: var(--_surface);
+  --bg-raised: var(--_surface-raised);
+  --bg-soft: var(--_surface-soft);
+  --bg-inverse: var(--_ink);
 
-  /* ── 圆角 ── */
-  --rounded-xs: 4px;
-  --rounded-sm: 6px;
-  --rounded-md: 8px;
-  --rounded-lg: 12px;
-  --rounded-xl: 16px;
-  --rounded-pill: 9999px;
+  /* 文字 */
+  --text-primary: var(--_ink);
+  --text-secondary: var(--_ink-soft);
+  --text-muted: var(--_muted);
+  --text-dim: var(--_dim);
+  --text-inverse: var(--_surface);
+  --text-accent: var(--_accent);
 
-  /* ── 间距 ── */
-  --spacing-xxs: 4px;
-  --spacing-xs: 8px;
-  --spacing-sm: 12px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-xxl: 48px;
-  --spacing-section: 96px;
+  /* 边框 */
+  --border: var(--_border);
+  --border-strong: var(--_border-strong);
+  --border-accent: var(--_accent);
 
-  /* ── 字体 ── */
+  /* 强调色 */
+  --accent: var(--_accent);
+  --accent-active: var(--_accent-active);
+  --accent-soft: var(--_accent-soft);
+
+  /* 语义状态 */
+  --success: var(--_success);
+  --warning: var(--_warning);
+  --error: var(--_error);
+  --info: var(--_info);
+
+  /* 装饰 */
+  --gold: var(--_gold);
+  --gold-soft: var(--_gold-soft);
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     SHADOW SYSTEM — 阴影系统
+     ═══════════════════════════════════════════════════════════════════════ */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
+  --shadow-lg: 0 12px 32px rgba(28, 25, 23, 0.08);
+  --shadow-xl: 0 24px 48px rgba(28, 25, 23, 0.10);
+  --shadow-card-hover: 0 8px 24px rgba(28, 25, 23, 0.10);
+  --shadow-elevated: 0 12px 40px rgba(28, 25, 23, 0.12);
+  --shadow-nav-scroll: 0 2px 12px rgba(28, 25, 23, 0.06);
+  --shadow-subtle: 0 1px 3px rgba(20, 20, 19, 0.08);
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     TYPOGRAPHY — 字体系统
+     ═══════════════════════════════════════════════════════════════════════ */
   --font-display: 'Cormorant Garamond', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-code: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* ── 排版: 显示 ── */
-  --type-display-xl-size: 64px;
-  --type-display-xl-weight: 500;
-  --type-display-xl-line-height: 1.05;
-  --type-display-xl-letter-spacing: -1.5px;
+  /* Display 字号（响应式 clamp） */
+  --type-display-xl: clamp(48px, 8vw, 96px);
+  --type-display-lg: clamp(36px, 6vw, 72px);
+  --type-display-md: clamp(28px, 4vw, 48px);
+  --type-display-sm: clamp(22px, 3vw, 32px);
 
-  --type-display-lg-size: 48px;
-  --type-display-lg-weight: 500;
-  --type-display-lg-line-height: 1.1;
-  --type-display-lg-letter-spacing: -1px;
+  /* 标题字号 */
+  --type-title-lg: 24px;
+  --type-title-md: 18px;
+  --type-title-sm: 16px;
 
-  --type-display-md-size: 36px;
-  --type-display-md-weight: 500;
-  --type-display-md-line-height: 1.15;
-  --type-display-md-letter-spacing: -0.5px;
+  /* 正文字号 */
+  --type-body-lg: 16px;
+  --type-body-md: 14px;
+  --type-body-sm: 13px;
 
-  --type-display-sm-size: 28px;
-  --type-display-sm-weight: 500;
-  --type-display-sm-line-height: 1.2;
-  --type-display-sm-letter-spacing: -0.3px;
+  /* 辅助字号 */
+  --type-caption: 12px;
+  --type-caption-uppercase: 11px;
 
-  /* ── 排版: 标题 ── */
-  --type-title-lg-size: 22px;
-  --type-title-lg-weight: 500;
-  --type-title-lg-line-height: 1.3;
+  /* 字重 */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
 
-  --type-title-md-size: 18px;
-  --type-title-md-weight: 500;
-  --type-title-md-line-height: 1.4;
+  /* 行高 */
+  --leading-tight: 1.1;
+  --leading-snug: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
 
-  --type-title-sm-size: 16px;
-  --type-title-sm-weight: 500;
-  --type-title-sm-line-height: 1.4;
+  /* 字距 */
+  --tracking-tight: -0.03em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.12em;
 
-  /* ── 排版: 正文 ── */
-  --type-body-md-size: 16px;
-  --type-body-md-weight: 400;
-  --type-body-md-line-height: 1.55;
+  /* ═══════════════════════════════════════════════════════════════════════
+     SPACING — 间距系统 (4px 基准)
+     ═══════════════════════════════════════════════════════════════════════ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
 
-  --type-body-sm-size: 14px;
-  --type-body-sm-weight: 400;
-  --type-body-sm-line-height: 1.55;
+  /* 兼容旧变量名 */
+  --spacing-xxs: var(--space-1);
+  --spacing-xs: var(--space-2);
+  --spacing-sm: var(--space-3);
+  --spacing-md: var(--space-4);
+  --spacing-lg: var(--space-5);
+  --spacing-xl: var(--space-6);
+  --spacing-xxl: var(--space-7);
+  --spacing-section: var(--space-9);
 
-  --type-caption-size: 13px;
-  --type-caption-weight: 500;
-  --type-caption-line-height: 1.4;
+  /* ═══════════════════════════════════════════════════════════════════════
+     RADIUS — 圆角系统
+     ═══════════════════════════════════════════════════════════════════════ */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+  --radius-full: 50%;
 
-  --type-caption-uppercase-size: 12px;
-  --type-caption-uppercase-weight: 500;
-  --type-caption-uppercase-line-height: 1.4;
-  --type-caption-uppercase-letter-spacing: 1.5px;
+  /* 兼容旧变量名 */
+  --rounded-xs: 4px;
+  --rounded-sm: var(--radius-sm);
+  --rounded-md: var(--radius-md);
+  --rounded-lg: var(--radius-lg);
+  --rounded-xl: var(--radius-xl);
+  --rounded-pill: var(--radius-pill);
 
-  /* ── 排版: 按钮/导航 ── */
-  --type-button-size: 14px;
-  --type-button-weight: 500;
-  --type-button-line-height: 1;
-
-  --type-nav-link-size: 14px;
-  --type-nav-link-weight: 500;
-  --type-nav-link-line-height: 1.4;
-
-  /* ── 组件: 顶部导航 ── */
-  --nav-height: 64px;
-
-  /* ── 阴影 ── */
-  --shadow-subtle: 0 1px 3px rgba(20, 20, 19, 0.08);
-  --shadow-card-hover: 0 8px 24px rgba(20, 20, 19, 0.10);
-  --shadow-elevated: 0 12px 40px rgba(20, 20, 19, 0.12);
-  --shadow-nav-scroll: 0 2px 12px rgba(20, 20, 19, 0.06);
-
-  /* ── Transition timing ── */
+  /* ═══════════════════════════════════════════════════════════════════════
+     MOTION — 动效系统
+     ═══════════════════════════════════════════════════════════════════════ */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --duration-instant: 100ms;
   --duration-fast: 150ms;
-  --duration-normal: 200ms;
-  --duration-slow: 300ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
   --duration-reveal: 600ms;
 
-  /* ── Z-index ── */
+  /* ═══════════════════════════════════════════════════════════════════════
+     Z-INDEX — 层级系统
+     ═══════════════════════════════════════════════════════════════════════ */
   --z-nav: 100;
+  --z-drawer: 200;
   --z-lightbox: 200;
   --z-modal: 300;
   --z-toast: 400;
+  --z-cursor: 500;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     COMPONENT TOKENS — 组件层（向后兼容）
+     ═══════════════════════════════════════════════════════════════════════ */
+  /* 按钮 */
+  --btn-height: 44px;
+  --btn-height-sm: 32px;
+  --btn-padding: var(--space-5);
+  --btn-padding-sm: var(--space-4);
+  --btn-radius: var(--radius-md);
+  --btn-radius-sm: var(--radius-sm);
+
+  /* 输入框 */
+  --input-height: 44px;
+  --input-padding: var(--space-4);
+  --input-radius: var(--radius-md);
+
+  /* 卡片 */
+  --card-padding: var(--space-5);
+  --card-padding-lg: var(--space-6);
+  --card-radius: var(--radius-lg);
+  --card-radius-sm: var(--radius-md);
+
+  /* 导航 */
+  --nav-height: 64px;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LEGACY COMPATIBILITY — 向后兼容旧变量名
+     ═══════════════════════════════════════════════════════════════════════ */
+  /* 旧品牌色 → 新语义色 */
+  --color-primary: var(--accent);
+  --color-primary-active: var(--accent-active);
+  --color-primary-disabled: #e6dfd8;
+  --color-accent-teal: var(--info);
+  --color-accent-amber: #e8a55a;
+
+  /* 旧表面色 → 新语义色 */
+  --color-canvas: var(--bg);
+  --color-surface-soft: var(--bg-soft);
+  --color-surface-card: var(--bg-surface);
+  --color-surface-cream: var(--bg);
+  --color-surface-cream-strong: #e8e0d2;
+  --color-surface-dark: #181715;
+  --color-surface-dark-elevated: #252320;
+  --color-surface-dark-soft: #1f1e1b;
+
+  /* 旧文字色 → 新语义色 */
+  --color-ink: var(--text-primary);
+  --color-body-strong: var(--text-secondary);
+  --color-body: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-muted-soft: #8e8b82;
+  --color-on-primary: var(--bg-raised);
+  --color-on-dark: var(--bg);
+  --color-on-dark-soft: #a09d96;
+
+  /* 旧边框色 */
+  --color-hairline: var(--border);
+  --color-hairline-soft: var(--border);
+
+  /* 旧语义色 */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-gold: var(--gold);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
+
+  /* 旧 Museum tokens → 映射到新的统一系统 */
+  --color-museum-ink: #26303a;
+  --color-museum-ink-soft: #52606c;
+  --color-museum-gold: var(--gold);
+  --color-museum-gold-soft: var(--gold-soft);
+  --color-museum-paper: var(--bg);
+  --color-museum-paper-strong: #f0e3cf;
+  --color-museum-film-blue: #8aa2b6;
+  --color-museum-stamp-red: #a84f3d;
+  --shadow-museum-panel: var(--shadow-lg);
+  --shadow-museum-paper: var(--shadow-md);
+  --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
+
+  /* 旧 Paper tokens → 映射到新的统一系统 */
+  --color-paper-bg: var(--bg);
+  --color-paper-bg-soft: var(--bg-soft);
+  --color-paper-card: var(--bg-surface);
+  --color-paper-card-muted: #f8f1e6;
+  --color-paper-border: var(--border-strong);
+  --color-paper-border-soft: var(--border);
+  --color-paper-ink: var(--text-primary);
+  --color-paper-ink-soft: var(--text-secondary);
+  --color-paper-muted: var(--text-muted);
+  --color-paper-brown: #ad8051;
+  --color-paper-brown-active: #8f653c;
+  --color-paper-brown-soft: #d8ceb8;
+  --color-paper-gold: var(--gold);
+  --color-paper-stamp-red: #bc4f3c;
+  --shadow-paper-panel: var(--shadow-lg);
+  --shadow-paper-card: var(--shadow-md);
+  --texture-paper-fiber:
+    radial-gradient(circle at 20% 20%, rgba(80, 62, 42, 0.035), transparent 22%),
+    radial-gradient(circle at 80% 0%, rgba(173, 128, 81, 0.045), transparent 26%),
+    linear-gradient(rgba(80, 62, 42, 0.035) 1px, transparent 1px);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE — 暗色模式
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-theme='night'] {
+  /* Primitive */
+  --_bg: #1c1917;
+  --_surface: #292524;
+  --_surface-raised: #44403c;
+  --_surface-soft: #252320;
+  --_ink: #f5f2eb;
+  --_ink-soft: #d7d3cb;
+  --_muted: #a8a29e;
+  --_dim: #57534e;
+  --_accent: #d4714a;
+  --_accent-active: #e88a63;
+  --_accent-soft: rgba(212, 113, 74, 0.12);
+  --_border: rgba(245, 242, 235, 0.08);
+  --_border-strong: rgba(245, 242, 235, 0.14);
+
+  /* Semantic re-mapping */
+  --bg: var(--_bg);
+  --bg-surface: var(--_surface);
+  --bg-raised: var(--_surface-raised);
+  --bg-soft: var(--_surface-soft);
+  --text-primary: var(--_ink);
+  --text-secondary: var(--_ink-soft);
+  --text-muted: var(--_muted);
+  --text-dim: var(--_dim);
+  --text-inverse: var(--_bg);
+  --text-accent: var(--_accent);
+  --border: var(--_border);
+  --border-strong: var(--_border-strong);
+  --accent: var(--_accent);
+  --accent-active: var(--_accent-active);
+  --accent-soft: var(--_accent-soft);
+
+  /* Shadows with darker base */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.5);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --shadow-nav-scroll: 0 2px 12px rgba(0, 0, 0, 0.25);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  /* Legacy compatibility */
+  --color-canvas: var(--bg);
+  --color-surface-soft: var(--bg-soft);
+  --color-surface-card: var(--bg-surface);
+  --color-surface-cream: var(--bg);
+  --color-surface-cream-strong: #34404d;
+  --color-ink: var(--text-primary);
+  --color-body-strong: var(--text-secondary);
+  --color-body: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-muted-soft: #938876;
+  --color-hairline: var(--border);
+  --color-hairline-soft: var(--border);
+  --color-paper-bg: var(--bg);
+  --color-paper-bg-soft: var(--bg-soft);
+  --color-paper-card: var(--bg-surface);
+  --color-paper-card-muted: #303b47;
+  --color-paper-border: var(--border-strong);
+  --color-paper-border-soft: var(--border);
+  --color-paper-ink: var(--text-primary);
+  --color-paper-ink-soft: var(--text-secondary);
+  --color-paper-muted: var(--text-muted);
+  --color-paper-brown: #d2a56d;
+  --color-paper-brown-active: #e2bd88;
+  --color-paper-brown-soft: #7c6a55;
+  --color-paper-gold: #ddbd78;
+  --color-paper-stamp-red: #d37a67;
+  --shadow-paper-panel: var(--shadow-lg);
+  --shadow-paper-card: var(--shadow-md);
+  --texture-paper-fiber:
+    radial-gradient(circle at 20% 20%, rgba(225, 189, 120, 0.05), transparent 24%),
+    linear-gradient(rgba(244, 234, 217, 0.028) 1px, transparent 1px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION — 减少动效偏好
+   ═══════════════════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-instant: 0ms;

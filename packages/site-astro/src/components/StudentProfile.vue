@@ -1,17 +1,19 @@
 <template>
   <div ref="rootRef">
+    <!-- Loading -->
     <div v-if="loading" class="student-loading-container">
-      <div class="skeleton-avatar"></div>
-      <div class="skeleton-line" style="width: 120px; height: 24px; margin-top: 16px;"></div>
-      <div class="skeleton-line" style="width: 180px; height: 16px; margin-top: 12px;"></div>
-      <div style="display: none;">
-        <span>档案展柜</span>
-        <span>资料完整度</span>
-      </div>
+      <UiSkeleton variant="avatar" :avatar-size="96" />
+      <UiSkeleton variant="text" :lines="3" />
     </div>
+
+    <!-- Error -->
     <div v-else-if="!student" class="student-error-container">
-      <p>未能加载学生资料</p>
+      <UiEmptyState
+        title="未能加载学生资料"
+        description="请稍后重试，或联系管理员。"
+      />
     </div>
+
     <div v-else>
       <!-- 专属页面 iframe 渲染 -->
       <div v-if="student.isOwner && student.customHtml" class="owner-page">
@@ -25,171 +27,266 @@
 
       <!-- 标准个人页模板 -->
       <div v-else class="student-page page-shell">
-        <!-- Student Hero Section -->
-        <section class="student-archive-hero paper-panel">
-          <div class="hero-bg" :style="bgStyle"></div>
-          <div class="hero-content container">
-            <div class="hero-avatar" :style="avatarTransitionStyle">
-              <img v-if="avatarSrc && !avatarError" :src="avatarSrc" :alt="student.name" loading="eager" decoding="async" style="aspect-ratio: 1" @error="avatarError = true" />
-              <span v-else class="avatar-char">{{ student.name.charAt(0) }}</span>
-            </div>
-            <h1 class="hero-name display-md" :style="nameTransitionStyle">{{ student.name }}</h1>
-            <div class="hero-support detail-content-enter">
-              <p v-if="student.info?.nickname" class="hero-nickname">「 {{ student.info.nickname }} 」</p>
-              <p class="museum-kicker">档案展柜</p>
-              <ProfileCompleteness
-                :completion="museumSummary.completion"
-                :missing-fields="museumSummary.missingFields"
+        <!-- Hero Section -->
+        <section class="student-hero" :style="heroBgStyle">
+          <div class="student-hero__overlay" />
+          <div class="student-hero__content container">
+            <div class="student-hero__avatar" :style="avatarTransitionStyle">
+              <img
+                v-if="avatarSrc && !avatarError"
+                :src="avatarSrc"
+                :alt="student.name"
+                loading="eager"
+                decoding="async"
+                @error="avatarError = true"
               />
-              <p v-if="student.info?.motto" class="hero-motto">「 {{ student.info.motto }} 」</p>
-              <div v-if="museumSummary.tags.length" class="hero-tags">
-                <span v-for="tag in museumSummary.tags" :key="tag">{{ tag }}</span>
+              <span v-else class="student-hero__avatar-fallback">{{ student.name.charAt(0) }}</span>
+              <div v-if="student.isOwner" class="student-hero__owner-badge" title="专属页面">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
               </div>
-              <div class="profile-mail-actions">
-                <a class="btn-secondary" :href="siteUrl('mailbox/?to=' + encodeURIComponent(studentSlug))">给 TA 写信</a>
-                <a v-if="isCurrentOwner" class="btn-secondary" :href="siteUrl('mailbox/')">查看我的邮箱</a>
+            </div>
+
+            <div class="student-hero__info">
+              <h1 class="student-hero__name" :style="nameTransitionStyle">{{ student.name }}</h1>
+              <p v-if="student.info?.nickname" class="student-hero__nickname">{{ student.info.nickname }}</p>
+              <p v-if="student.info?.motto" class="student-hero__motto">「 {{ student.info.motto }} 」</p>
+
+              <div v-if="museumSummary.tags.length" class="student-hero__tags">
+                <span v-for="tag in museumSummary.tags" :key="tag" class="student-hero__tag">{{ tag }}</span>
               </div>
-              <span v-if="student.isOwner" class="owner-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                专属页面
-              </span>
+
+              <div class="student-hero__actions">
+                <a
+                  class="student-hero__action"
+                  :href="siteUrl('mailbox/?to=' + encodeURIComponent(studentSlug))"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  给 TA 写信
+                </a>
+                <a v-if="isCurrentOwner" class="student-hero__action student-hero__action--secondary" :href="siteUrl('mailbox/')">
+                  查看我的邮箱
+                </a>
+                <button class="student-hero__action student-hero__action--secondary" @click="openShareModal">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
+                  分享
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- Student Body Content -->
-        <div class="student-body container detail-content-enter">
-          <!-- 基础信息 -->
-          <section v-if="hasFields(basicFields)" class="profile-section fade-in" data-info-section="身份档案">
-            <h2 class="section-title display-sm">身份档案</h2>
+        <!-- Body Content -->
+        <div class="student-body container">
+          <!-- 身份档案 -->
+          <section v-if="hasFields(basicFields)" class="profile-section profile-section--identity" data-info-section="身份档案">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">身份档案</h2>
+            </div>
             <div class="info-grid">
               <div v-for="f in basicFields" :key="f.key" v-show="f.value" class="info-item">
-                <span class="info-label">{{ f.label }}</span>
-                <span class="info-value">{{ f.value }}</span>
+                <span class="info-item__label">{{ f.label }}</span>
+                <span class="info-item__value">{{ f.value }}</span>
               </div>
             </div>
           </section>
 
           <!-- 联系方式 -->
-          <section v-if="hasFields(contactFields)" class="profile-section fade-in" data-info-section="联系方式">
-            <h2 class="section-title display-sm">联系方式</h2>
-            <div class="info-grid">
-              <div v-for="f in contactFields" :key="f.key" v-show="f.value" class="info-item">
-                <span class="info-label">{{ f.label }}</span>
-                <span class="info-value">{{ f.value }}</span>
+          <section v-if="hasFields(contactFields)" class="profile-section profile-section--contact" data-info-section="联系方式">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">联系方式</h2>
+            </div>
+            <div class="info-grid info-grid--cards">
+              <div v-for="f in contactFields" :key="f.key" v-show="f.value" class="info-card">
+                <span class="info-card__label">{{ f.label }}</span>
+                <span class="info-card__value">{{ f.value }}</span>
               </div>
             </div>
           </section>
 
           <!-- 个性标签 -->
-          <section v-if="hasFields(personalityFields)" class="profile-section fade-in" data-info-section="个性标签">
-            <h2 class="section-title display-sm">个性标签</h2>
-            <div class="info-grid">
-              <div v-for="f in personalityFields" :key="f.key" v-show="f.value" class="info-item">
-                <span class="info-label">{{ f.label }}</span>
-                <span class="info-value">{{ f.value }}</span>
+          <section v-if="hasFields(personalityFields)" class="profile-section profile-section--personality" data-info-section="个性标签">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">个性标签</h2>
+            </div>
+            <div class="tag-cloud">
+              <div v-for="f in personalityFields" :key="f.key" v-show="f.value" class="tag-cloud__item">
+                <span class="tag-cloud__label">{{ f.label }}</span>
+                <span class="tag-cloud__value">{{ f.value }}</span>
               </div>
             </div>
           </section>
 
-          <!-- 兴趣爱好 -->
-          <section v-if="hasFields(interestFields)" class="profile-section fade-in" data-info-section="兴趣馆藏">
-            <h2 class="section-title display-sm">兴趣馆藏</h2>
-            <div class="info-grid">
-              <div v-for="f in interestFields" :key="f.key" v-show="f.value" class="info-item">
-                <span class="info-label">{{ f.label }}</span>
-                <span class="info-value">{{ f.value }}</span>
+          <!-- 兴趣馆藏 -->
+          <section v-if="hasFields(interestFields)" class="profile-section profile-section--interests" data-info-section="兴趣馆藏">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">兴趣馆藏</h2>
+            </div>
+            <div class="interest-chips">
+              <div v-for="f in interestFields" :key="f.key" v-show="f.value" class="interest-chip">
+                <span class="interest-chip__label">{{ f.label }}</span>
+                <span class="interest-chip__value">{{ f.value }}</span>
               </div>
             </div>
           </section>
 
           <!-- 校园回忆 -->
-          <section v-if="hasFields(memoryFields)" class="profile-section fade-in" data-info-section="校园回忆">
-            <h2 class="section-title display-sm">校园回忆</h2>
+          <section v-if="hasFields(memoryFields)" class="profile-section profile-section--memories" data-info-section="校园回忆">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">校园回忆</h2>
+            </div>
             <div class="memory-list">
-              <div v-for="f in memoryFields" :key="f.key" v-show="f.value" class="info-item">
-                <span class="info-label">{{ f.label }}</span>
-                <span class="info-value">{{ f.value }}</span>
+              <div v-for="f in memoryFields" :key="f.key" v-show="f.value" class="memory-quote">
+                <div class="memory-quote__accent" />
+                <div class="memory-quote__content">
+                  <p class="memory-quote__label">{{ f.label }}</p>
+                  <p class="memory-quote__value">{{ f.value }}</p>
+                </div>
               </div>
             </div>
           </section>
 
-          <!-- 未来规划 -->
-          <section v-if="hasFields(futureFields)" class="profile-section fade-in" data-info-section="时间胶囊">
-            <h2 class="section-title display-sm">时间胶囊</h2>
-            <div class="info-grid">
-              <div v-for="f in futureFields" :key="f.key" v-show="f.value" class="info-item">
-                <span class="info-label">{{ f.label }}</span>
-                <span class="info-value">{{ f.value }}</span>
+          <!-- 时间胶囊 -->
+          <section v-if="hasFields(futureFields)" class="profile-section profile-section--future" data-info-section="时间胶囊">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">时间胶囊</h2>
+            </div>
+            <div class="timeline-list">
+              <div v-for="f in futureFields" :key="f.key" v-show="f.value" class="timeline-item">
+                <div class="timeline-item__dot" />
+                <div class="timeline-item__content">
+                  <span class="timeline-item__label">{{ f.label }}</span>
+                  <span class="timeline-item__value">{{ f.value }}</span>
+                </div>
               </div>
             </div>
           </section>
 
-          <!-- 个人小传模块 -->
-          <section v-if="student.info?.profileModules?.length" class="profile-section fade-in">
-            <h2 class="section-title display-sm">个人小传</h2>
-            <div class="profile-modules-list">
-              <div v-for="(mod, idx) in student.info.profileModules" :key="idx" class="profile-module-item card mb-4 p-4">
-                <h3 class="font-display text-lg mb-2">{{ mod.title }}</h3>
-                <p class="whitespace-pre-wrap">{{ mod.content }}</p>
+          <!-- 个人小传 -->
+          <section v-if="student.info?.profileModules?.length" class="profile-section">
+            <div class="profile-section__header">
+              <div class="profile-section__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+              </div>
+              <h2 class="profile-section__title">个人小传</h2>
+            </div>
+            <div class="profile-modules">
+              <div v-for="(mod, idx) in student.info.profileModules" :key="idx" class="profile-module">
+                <h3 class="profile-module__title">{{ mod.title }}</h3>
+                <p class="profile-module__content">{{ mod.content }}</p>
               </div>
             </div>
           </section>
 
-          <!-- 照片墙，视口可见后加载 -->
+          <!-- 照片墙 -->
           <div ref="photoWallAnchor" id="photo-wall-anchor" class="lazy-anchor">
-            <section v-if="student.photos?.length && photoWallVisible" class="profile-section fade-in">
-              <h2 class="section-title display-sm">照片墙</h2>
-              <PhotoWall :photos="student.photos" :apiBase="apiBase" />
+            <section v-if="student.photos?.length && photoWallVisible" class="profile-section">
+              <div class="profile-section__header">
+                <div class="profile-section__icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </div>
+                <h2 class="profile-section__title">照片墙</h2>
+              </div>
+              <PhotoWall :photos="student.photos" :api-base="apiBase" />
             </section>
           </div>
 
-          <!-- 留言板，视口可见后加载 -->
+          <!-- 留言板 -->
           <div ref="messageWallAnchor" id="message-wall-anchor" class="lazy-anchor">
-            <MessageWall v-if="messageWallVisible" :studentSlug="student.slug" :apiBase="apiBase" />
+            <MessageWall v-if="messageWallVisible" :student-slug="student.slug" :api-base="apiBase" />
           </div>
 
-          <!-- 延迟加载亮点入口，视口可见后加载 -->
+          <!-- 亮点入口 -->
           <div v-if="anyHighlightEnabled">
-            <div id="highlights-anchor" :class="{ 'lazy-anchor': !highlightsVisible }" ref="highlightsAnchor"></div>
+            <div id="highlights-anchor" :class="{ 'lazy-anchor': !highlightsVisible }" ref="highlightsAnchor" />
             <div v-if="highlightsVisible" class="profile-highlights paper-highlight-grid">
-              <ClassGraphPreview v-if="classGraphEnabled" :apiBase="apiBase" :sampleNames="['张三', '李四', '王五']" />
-              <SeatMapPreview v-if="seatMapEnabled" :apiBase="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
+              <ClassGraphPreview v-if="classGraphEnabled" :api-base="apiBase" :sample-names="['张三', '李四', '王五']" />
+              <SeatMapPreview v-if="seatMapEnabled" :api-base="apiBase" :seats="['1-1', '1-2', '2-1', '2-2']" />
             </div>
           </div>
 
           <!-- 底部签章 -->
-          <div class="seal-area fade-in">
+          <div class="seal-area">
             <span class="visits">浏览 <span>{{ student.visitCount || 0 }}</span> 次</span>
             <span class="seal">留念</span>
           </div>
         </div>
 
-        <!-- 自助编辑入口 -->
-        <SelfEditPanel :studentSlug="student.slug" :studentName="student.name" :apiBase="apiBase" />
-
-        <!-- 分享按钮触发器 -->
-        <div class="share-trigger-container no-print">
-          <button class="share-trigger-btn" @click="openShareModal">分享 TA</button>
-        </div>
-
-        <!-- 异步加载的分享卡组件，点击时懒加载 -->
-        <StudentShareCard
-          v-if="shareOpen"
-          :studentName="student.name"
-          :avatarSrc="avatarSrc"
-          :motto="student.info?.motto"
-          @close="closeShareModal"
-        />
+        <!-- 自助编辑 -->
+        <SelfEditPanel :student-slug="student.slug" :student-name="student.name" :api-base="apiBase" />
       </div>
 
-      <!-- 背景音乐播放组件 -->
+      <!-- 分享卡 -->
+      <StudentShareCard
+        v-if="shareOpen"
+        :student-name="student.name"
+        :avatar-src="avatarSrc"
+        :motto="student.info?.motto"
+        @close="closeShareModal"
+      />
+
+      <!-- 背景音乐 -->
       <StudentMusicPlayer
         v-if="student.musicUrl"
-        :musicUrl="student.musicUrl"
-        :musicTitle="student.musicTitle"
-        :musicAutoplay="student.musicAutoplay"
-        :apiBase="apiBase"
+        :music-url="student.musicUrl"
+        :music-title="student.musicTitle"
+        :music-autoplay="student.musicAutoplay"
+        :api-base="apiBase"
       />
     </div>
   </div>
@@ -200,12 +297,13 @@ import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } fr
 import SelfEditPanel from './SelfEditPanel.vue'
 import StudentMusicPlayer from './StudentMusicPlayer.vue'
 import ProfileCompleteness from './ProfileCompleteness.vue'
+import UiSkeleton from './ui/UiSkeleton.vue'
+import UiEmptyState from './ui/UiEmptyState.vue'
 import { toStudentMuseumSummary } from '../utils/museumViewModels'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 import { joinApiUrl } from '../utils/apiBase'
 import { getClassmateToken, getClassmateStudent } from '@alumni/shared'
 
-// 异步载入较重组件以剔除首屏打包体积与减少 hydration 开销
 const PhotoWall = defineAsyncComponent(() => import('./PhotoWall.vue'))
 const MessageWall = defineAsyncComponent(() => import('./MessageWall.vue'))
 const StudentShareCard = defineAsyncComponent(() => import('./StudentShareCard.vue'))
@@ -250,7 +348,6 @@ const avatarError = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
 let disposed = false
 
-// 视口观察器延迟加载的 anchor 和状态
 const photoWallAnchor = ref<HTMLElement | null>(null)
 const photoWallVisible = ref(false)
 const messageWallAnchor = ref<HTMLElement | null>(null)
@@ -308,19 +405,21 @@ const nameTransitionStyle = computed(() => {
   }
 })
 
-watch(() => student.value?.avatarUrl, () => { avatarError.value = false })
-
-const bgStyle = computed(() => {
-  if (!student.value) return ''
+const heroBgStyle = computed(() => {
+  if (!student.value) return {}
   const bgUrl = student.value.backgroundUrl
     ? (student.value.backgroundUrl.startsWith('http') ? student.value.backgroundUrl : `${props.apiBase}${student.value.backgroundUrl}`)
     : null
-  return bgUrl
-    ? `background-image: url(${bgUrl}); background-size: cover; background-position: center;`
-    : student.value.backgroundColor
-    ? `background-color: ${student.value.backgroundColor};`
-    : ''
+  return {
+    backgroundImage: bgUrl
+      ? `linear-gradient(180deg, rgba(28,25,23,0.3) 0%, rgba(28,25,23,0.7) 100%), url(${bgUrl})`
+      : 'linear-gradient(180deg, #292524 0%, #1c1917 100%)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }
 })
+
+watch(() => student.value?.avatarUrl, () => { avatarError.value = false })
 
 const processedHtml = computed(() => {
   if (!student.value?.customHtml) return ''
@@ -387,8 +486,6 @@ const futureFields = computed(() => getFields(student.value?.info, [
 function openShareModal() { shareOpen.value = true }
 function closeShareModal() { shareOpen.value = false }
 
-
-
 onMounted(() => {
   disposed = false
   const current = getClassmateStudent<{ slug: string }>()
@@ -399,7 +496,7 @@ onMounted(() => {
     return
   }
 
-  // 访问计数（同一会话内同一页面只计一次）
+  // Visit count
   const visitKey = `visited_${slugVal.value}`
   if (!sessionStorage.getItem(visitKey)) {
     sessionStorage.setItem(visitKey, '1')
@@ -415,9 +512,7 @@ onMounted(() => {
     }, 1200)
   }
 
-
-
-  // 避免首屏主线程抢占，将 SWR 状态水合改为 idle 空闲时进行
+  // SWR sync
   runWhenIdle(async () => {
     try {
       const classmateToken = getClassmateToken()
@@ -448,7 +543,7 @@ onMounted(() => {
     }
   })
 
-  // 视口观察器延迟加载非关键岛屿
+  // Intersection observers
   if (typeof window !== 'undefined' && 'IntersectionObserver' in window) {
     if (photoWallAnchor.value) {
       pObserver = new IntersectionObserver((entries) => {
@@ -480,7 +575,6 @@ onMounted(() => {
       hObserver.observe(highlightsAnchor.value)
     }
   } else {
-    // 降级，不支持观察器时直接展示
     photoWallVisible.value = true
     messageWallVisible.value = true
     highlightsVisible.value = true
@@ -495,259 +589,596 @@ onUnmounted(() => {
   pObserver = null
   mObserver = null
   hObserver = null
-
 })
 </script>
 
 <style scoped>
-.lazy-anchor {
-  min-height: 200px;
-}
-
+/* ── Loading & Error ── */
 .student-loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px 20px;
-}
-.skeleton-avatar {
-  width: 96px; height: 96px;
-  border-radius: 50%;
-  background: var(--color-hairline);
-  animation: pulse 1.5s infinite ease-in-out;
-}
-.skeleton-line {
-  background: var(--color-hairline);
-  border-radius: 4px;
-  animation: pulse 1.5s infinite ease-in-out;
-}
-@keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 0.3; }
-  100% { opacity: 0.6; }
+  gap: var(--space-5);
+  padding: var(--space-9) var(--space-5);
 }
 
 .student-error-container {
-  text-align: center;
-  padding: 80px 20px;
-  color: var(--color-error);
+  padding: var(--space-9) var(--space-5);
 }
 
+/* ── Owner Page ── */
 .owner-page {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100vh;
 }
+
 .owner-iframe {
   width: 100%;
   height: 100%;
   border: none;
 }
 
-.student-page {
-  color: var(--color-paper-ink);
-}
-
-.student-archive-hero {
+/* ── Hero Section ── */
+.student-hero {
   position: relative;
-  width: min(1120px, calc(100% - 2 * var(--spacing-lg)));
-  margin: calc(var(--nav-height) + var(--spacing-xl)) auto 0;
-  padding: var(--spacing-xl);
+  min-height: 50vh;
+  display: flex;
+  align-items: flex-end;
+  padding: calc(var(--nav-height) + var(--space-7)) 0 var(--space-7);
   overflow: hidden;
-  background: var(--color-paper-card);
 }
 
-.student-archive-hero .hero-bg {
-  opacity: 0.1;
-}
-
-.hero-content {
-  position: relative;
+.student-hero__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(28, 25, 23, 0.8) 100%);
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-sm);
 }
 
-.hero-support {
+.student-hero__content {
+  position: relative;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--space-6);
   width: 100%;
 }
 
-.hero-avatar {
-  width: 96px; height: 96px;
+.student-hero__avatar {
+  position: relative;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   overflow: hidden;
+  flex-shrink: 0;
+  border: 4px solid var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.student-hero__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.student-hero__avatar-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--color-paper-border);
-  background: var(--color-paper-card-muted);
-  margin-bottom: var(--spacing-sm);
-}
-.hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-char { font-family: var(--font-display); font-size: 40px; font-weight: 500; color: var(--color-muted); }
-
-.hero-name,
-.section-title {
-  color: var(--color-paper-ink);
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
 }
 
-.hero-nickname,
-.hero-motto {
-  color: var(--color-paper-muted);
-  font-size: var(--type-body-md-size);
+.student-hero__owner-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--gold), #a07830);
+  border-radius: 50%;
+  color: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.student-hero__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text-inverse);
+}
+
+.student-hero__name {
+  font-family: var(--font-display);
+  font-size: var(--type-display-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  color: var(--bg-raised);
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.student-hero__nickname {
+  font-size: var(--type-body-lg);
+  font-weight: var(--weight-medium);
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.student-hero__motto {
+  font-size: var(--type-body-md);
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  max-width: 480px;
+}
+
+.student-hero__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.student-hero__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  backdrop-filter: blur(4px);
+}
+
+.student-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.student-hero__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--bg-raised);
+  font-size: var(--type-body-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+  backdrop-filter: blur(4px);
+}
+
+.student-hero__action:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.student-hero__action--secondary {
+  background: transparent;
+}
+
+/* ── Body ── */
+.student-body {
+  padding-top: var(--space-7);
+  padding-bottom: var(--space-9);
+}
+
+/* ── Profile Sections ── */
+.profile-section {
+  margin-bottom: var(--space-7);
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--duration-normal) var(--ease-out-expo),
+    border-color var(--duration-normal) var(--ease-out-expo);
+}
+
+.profile-section:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.profile-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-section__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.profile-section__title {
+  font-size: var(--type-title-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  line-height: var(--leading-snug);
+  margin: 0;
+}
+
+/* ── Identity (clean grid) ── */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--bg-soft);
+  border-radius: var(--radius-md);
+  transition: background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.info-item:hover {
+  background: var(--accent-soft);
+}
+
+.info-item__label {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.info-item__value {
+  font-size: var(--type-body-md);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+/* ── Contact (cards) ── */
+.info-grid--cards {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.info-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--bg-soft);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent);
+  transition: transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.info-card:hover {
+  transform: translateY(-2px);
+}
+
+.info-card__label {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.info-card__value {
+  font-size: var(--type-body-md);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+/* ── Personality (tag cloud) ── */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.tag-cloud__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-soft);
+  border-radius: var(--radius-lg);
+  flex: 1;
+  min-width: 160px;
+  max-width: 280px;
+}
+
+.tag-cloud__label {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.tag-cloud__value {
+  font-size: var(--type-body-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* ── Interests (chips) ── */
+.interest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.interest-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-soft);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  transition: border-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.interest-chip:hover {
+  border-color: var(--accent);
+}
+
+.interest-chip__label {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.interest-chip__value {
+  font-size: var(--type-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+/* ── Memories (quotes) ── */
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.memory-quote {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-soft);
+  border-radius: var(--radius-md);
+}
+
+.memory-quote__accent {
+  width: 3px;
+  background: linear-gradient(180deg, var(--accent), var(--gold));
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.memory-quote__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.memory-quote__label {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+}
+
+.memory-quote__value {
+  font-size: var(--type-body-md);
+  color: var(--text-primary);
+  line-height: var(--leading-relaxed);
   font-style: italic;
 }
 
-.owner-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 14px;
-  background: linear-gradient(135deg, rgba(201,168,76,0.25), rgba(122,74,30,0.18));
-  border: 1px solid rgba(201,168,76,0.35);
-  border-radius: var(--rounded-pill);
-  font-size: var(--type-caption-size);
-  color: var(--color-primary);
-  margin-top: var(--spacing-xs);
+/* ── Future (timeline) ── */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border);
 }
 
-.student-body {
-  padding-top: var(--spacing-xl);
-  padding-bottom: var(--spacing-section);
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  position: relative;
+  padding-left: var(--space-3);
 }
 
-.profile-section {
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-xl);
-  background: var(--color-paper-card);
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-lg);
-  box-shadow: var(--shadow-paper-card);
+.timeline-item__dot {
+  position: absolute;
+  left: calc(var(--space-4) * -1 - 5px);
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
 }
 
-.section-title {
-  margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-paper-border);
+.timeline-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md); }
-.memory-list { display: flex; flex-direction: column; gap: var(--spacing-md); }
-.info-item {
-  padding: var(--spacing-sm);
-  border-radius: var(--rounded-sm);
-  background: var(--color-paper-bg-soft);
-}
-.info-label { display: block; font-size: var(--type-body-sm-size); font-weight: 500; color: var(--color-paper-muted); margin-bottom: var(--spacing-xxs); }
-.info-value { font-size: var(--type-body-md-size); color: var(--color-paper-ink); }
-
-.profile-module-item {
-  background: var(--color-paper-card);
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-md);
+.timeline-item__label {
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
 }
 
+.timeline-item__value {
+  font-size: var(--type-body-md);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+/* ── Profile Modules ── */
+.profile-modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.profile-module {
+  padding: var(--space-5);
+  background: var(--bg-soft);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--gold);
+}
+
+.profile-module__title {
+  font-size: var(--type-title-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.profile-module__content {
+  font-size: var(--type-body-md);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* ── Seal Area ── */
 .seal-area {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--spacing-xxl);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--color-paper-border);
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
 }
-.visits { font-size: var(--type-body-sm-size); color: var(--color-muted); }
+
+.visits {
+  font-size: var(--type-body-sm);
+  color: var(--text-muted);
+}
+
+.visits span {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
 .seal {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 600;
-  color: var(--color-paper-stamp-red);
-  border: 2px solid var(--color-paper-stamp-red);
+  font-weight: var(--weight-semibold);
+  color: var(--error);
+  border: 2px solid var(--error);
   padding: 4px 12px;
-  border-radius: var(--rounded-sm);
+  border-radius: var(--radius-sm);
   transform: rotate(-12deg);
   opacity: 0.75;
 }
 
-.share-trigger-container {
-  position: fixed;
-  right: var(--spacing-lg);
-  bottom: var(--spacing-lg);
-  z-index: 99;
+/* ── Lazy Anchor ── */
+.lazy-anchor {
+  min-height: 200px;
 }
-.share-trigger-btn {
-  padding: 10px 20px;
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(204,120,92,0.3);
-  cursor: pointer;
-  transition: transform 0.2s;
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .student-hero {
+    min-height: auto;
+    padding: calc(var(--nav-height) + var(--space-5)) 0 var(--space-5);
+  }
+
+  .student-hero__content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .student-hero__avatar {
+    width: 96px;
+    height: 96px;
+  }
+
+  .student-hero__name {
+    font-size: var(--type-title-lg);
+  }
+
+  .student-hero__actions {
+    justify-content: center;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-grid--cards {
+    grid-template-columns: 1fr;
+  }
+
+  .tag-cloud__item {
+    min-width: auto;
+    max-width: none;
+  }
+
+  .profile-section {
+    padding: var(--space-5);
+  }
+
+  .seal-area {
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: center;
+  }
 }
-.share-trigger-btn:hover { transform: scale(1.05); }
 
 @media (min-width: 960px) {
   .student-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
-}
-
-@media (max-width: 768px) {
-  .student-archive-hero {
-    width: calc(100% - 2 * var(--spacing-md));
-    margin-top: calc(var(--nav-height) + var(--spacing-lg));
-    padding: var(--spacing-lg);
-  }
-
-  .profile-section {
-    padding: var(--spacing-lg);
-  }
-
-  .info-grid { grid-template-columns: 1fr; }
-
-  .share-trigger-container {
-    right: var(--spacing-md);
-    bottom: var(--spacing-md);
-  }
-}
-
-.profile-highlights {
-  margin-top: var(--spacing-xl);
-}
-
-.hero-tags {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: var(--spacing-sm);
-}
-
-.hero-tags span {
-  padding: 4px 10px;
-  border-radius: var(--rounded-sm);
-  background: rgba(200, 169, 106, 0.18);
-  color: var(--color-museum-ink);
-  font-size: 12px;
-  max-width: 150px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.profile-mail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
 }
 </style>
