@@ -1,8 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const siteBase = process.env.SITE_BASE
-  ? `/${process.env.SITE_BASE.replace(/^\/+|\/+$/g, '')}/`
-  : '/';
+const rawSiteBase = process.env.SITE_BASE ?? '/';
+const siteBase = rawSiteBase === '/'
+  ? '/'
+  : `/${rawSiteBase.replace(/^\/+|\/+$/g, '')}/`;
 const previewHost = '127.0.0.1';
 const previewPort = Number(process.env.PLAYWRIGHT_PORT ?? '4321');
 const previewBaseURL = `http://${previewHost}:${previewPort}${siteBase}`;
