@@ -30,33 +30,33 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
   await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', avatarName)
   await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', nameName)
 
-  await page.evaluate(() => {
-    document.addEventListener('astro:before-swap', (event) => {
-      const targetDocument = (event as Event & { newDocument?: Document }).newDocument
-      const card = targetDocument?.querySelector<HTMLElement>('[data-student-identity-card]')
-      const avatar = card?.querySelector<HTMLElement>('.roster-card__avatar')
-      const name = card?.querySelector<HTMLElement>('.roster-card__name')
-      ;(window as Window & {
-        __studentIdentityReturnTarget?: { avatar: string; name: string }
-      }).__studentIdentityReturnTarget = {
-        avatar: avatar?.style.viewTransitionName || '',
-        name: name?.style.viewTransitionName || '',
-      }
-    }, { once: true })
-  })
   await page.goBack({ waitUntil: 'networkidle' })
-  await expect(card).toBeVisible()
-  await expect.poll(() => page.evaluate(() => (window as Window & {
-    __studentIdentityReturnTarget?: { avatar: string; name: string }
-  }).__studentIdentityReturnTarget)).toEqual({
-    avatar: avatarName,
-    name: nameName,
-  })
+  const returnedCard = page.locator(`[data-student-identity-card="${slug}"]`)
+  await expect(returnedCard).toBeVisible()
+  await expect(returnedCard.locator('.roster-card__avatar')).toHaveCSS('view-transition-name', avatarName)
+  await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', nameName)
 })
 
 test('从第二页进入详情后返回时恢复第二页中的身份目标', async ({ page }) => {
   await signInForNavigation(page)
+  await page.route('**/api/classmates', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({
+      success: true,
+      data: [
+        ...Array.from({ length: 12 }, (_, index) => ({
+          name: `占位同学${index + 1}`,
+          slug: `placeholder-${index + 1}`,
+          hasPage: false,
+          avatarUrl: null,
+          motto: '',
+        })),
+        { name: '周子耀', slug: 'zhouziyao', hasPage: true, avatarUrl: null, motto: '' },
+      ],
+    }),
+  }))
   await page.goto('./roster/', { waitUntil: 'networkidle' })
+  await expect(page.getByRole('button', { name: '第 2 页' })).toBeVisible()
   await page.getByRole('button', { name: '第 2 页' }).click()
 
   const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
@@ -68,29 +68,12 @@ test('从第二页进入详情后返回时恢复第二页中的身份目标', as
 
   await card.click()
   await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
-  await page.evaluate((selectedSlug) => {
-    document.addEventListener('astro:before-swap', (event) => {
-      const targetDocument = (event as Event & { newDocument?: Document }).newDocument
-      const targetCard = Array.from(targetDocument?.querySelectorAll<HTMLElement>('[data-student-identity-card]') || [])
-        .find((element) => element.dataset.studentIdentityCard === selectedSlug)
-      ;(window as Window & {
-        __studentIdentityPageTwoTarget?: { avatar: string; name: string }
-      }).__studentIdentityPageTwoTarget = {
-        avatar: targetCard?.querySelector<HTMLElement>('.roster-card__avatar')?.style.viewTransitionName || '',
-        name: targetCard?.querySelector<HTMLElement>('.roster-card__name')?.style.viewTransitionName || '',
-      }
-    }, { once: true })
-  }, slug)
-
   await page.goBack({ waitUntil: 'networkidle' })
   await expect(page.getByRole('button', { name: '第 2 页' })).toHaveAttribute('aria-current', 'page')
-  await expect(card).toBeVisible()
-  await expect.poll(() => page.evaluate(() => (window as Window & {
-    __studentIdentityPageTwoTarget?: { avatar: string; name: string }
-  }).__studentIdentityPageTwoTarget)).toEqual({
-    avatar: avatarName,
-    name: nameName,
-  })
+  const returnedCard = page.locator(`[data-student-identity-card="${slug}"]`)
+  await expect(returnedCard).toBeVisible()
+  await expect(returnedCard.locator('.roster-card__avatar')).toHaveCSS('view-transition-name', avatarName)
+  await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', nameName)
 })
 
 test.describe('减少动态偏好', () => {

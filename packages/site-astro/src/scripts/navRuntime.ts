@@ -71,11 +71,8 @@ function bindGlobalLifecycle() {
   if (window.__alumniNavLifecycleBound) return
   window.__alumniNavLifecycleBound = true
 
-  document.addEventListener('astro:before-swap', () => {
+  window.addEventListener('pagehide', () => {
     window.__alumniNavRuntime?.destroy()
-  })
-  document.addEventListener('astro:page-load', () => {
-    initNavRuntime()
   })
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) window.__alumniNavRuntime?.refresh()

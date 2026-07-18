@@ -96,6 +96,6 @@ describe('responsive vintage paper redesign static constraints', () => {
 
     expect(nav).toContain('mobile-page-title')
     expect(runtime).toContain('window.__alumniNavRuntime')
-    expect(runtime).toContain('astro:before-swap')
+    expect(runtime).toContain("window.addEventListener('pagehide'")
   })
 })

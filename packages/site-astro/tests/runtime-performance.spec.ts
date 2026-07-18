@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const src = resolve(__dirname, '../src')
+const read = (file: string) => readFileSync(resolve(src, file), 'utf8')
+
+describe('公开站点原生运行时性能约束', () => {
+  it('使用跨文档原生导航，不加载 Astro ClientRouter', () => {
+    const layout = read('layouts/MainLayout.astro')
+    expect(layout).not.toContain("from 'astro:transitions'")
+    expect(layout).not.toContain('<ClientRouter')
+    expect(layout).toContain("import { initNavSession } from '../runtime/navSession'")
+    expect(layout).toContain("import { initVolumeToggle } from '../runtime/volumeToggle'")
+  })
+
+  it('公共运行时只绑定页面生命周期，并在离页时清理资源', () => {
+    const nav = read('scripts/navRuntime.ts')
+    expect(nav).not.toContain("astro:before-swap")
+    expect(nav).not.toContain("astro:page-load")
+    expect(nav).toContain("pagehide")
+    expect(nav).toContain('cancelAnimationFrame')
+  })
+
+  it('音效上下文延迟到首次交互且复用噪声缓冲', () => {
+    const audio = read('runtime/audioSynth.ts')
+    const volume = read('runtime/volumeToggle.ts')
+    expect(audio).toContain("new AudioContextClass()")
+    expect(audio).toContain('createNoiseBuffer')
+    expect(audio).toContain('noiseBuffer')
+    expect(audio).not.toContain('onMounted')
+    expect(volume).toContain('toggleAudioMuted()')
+  })
+
+  it('纯静态页面不包含 Vue runtime 或 ClientRouter 关键词', () => {
+    const layout = read('layouts/MainLayout.astro')
+    expect(layout).not.toContain('client:load')
+    expect(layout).not.toContain('ClientRouter')
+  })
+
+  it('首页、时间轴、更多和年度册构建产物不输出 Vue islands', () => {
+    const dist = resolve(__dirname, '../dist')
+    for (const route of ['index.html', 'timeline/index.html', 'more/index.html', 'yearbook/index.html']) {
+      const html = readFileSync(resolve(dist, route), 'utf8')
+      expect(html).not.toContain('astro:transitions')
+      expect(html).not.toContain('client="load"')
+      expect(html).not.toMatch(/component-url="[^"]*vue/i)
+    }
+  })
+})

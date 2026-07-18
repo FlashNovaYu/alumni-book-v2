@@ -1,7 +1,6 @@
 ---
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
-import { ClientRouter } from 'astro:transitions'
 import '../styles/global.css'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || ''
@@ -28,7 +27,7 @@ const classLabel = [siteConfig.identity.className, siteConfig.identity.classYear
 const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).join(' · ') || '同学录 · 青春回忆'
 ---
 
-<html lang="zh-CN">
+<html lang="zh-CN" data-api-base={apiBase}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -47,8 +46,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'night' ? '#20252d' : '#f4eddf')
       })()
     </script>
-    <ClientRouter />
-    <script define:vars={{ apiBase }}>
+    <script is:inline define:vars={{ apiBase }}>
       (async function () {
         document.documentElement.classList.add('js')
         const path = window.location.pathname
@@ -117,247 +115,114 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         import { initGlobalReveal } from '../scripts/globalReveal'
         import { initNavRuntime } from '../scripts/navRuntime'
         import { initThemeRuntime } from '../scripts/themeRuntime'
+        import { initNavSession } from '../runtime/navSession'
+        import { initVolumeToggle } from '../runtime/volumeToggle'
 
+        function restoreStudentIdentityTarget() {
+          let slug = ''
+          try {
+            const state = JSON.parse(sessionStorage.getItem('vt-student-identity-state') || 'null') as { slug?: unknown } | null
+            if (typeof state?.slug === 'string') slug = state.slug
+          } catch {}
+          if (!slug) return
+          const apply = () => {
+            const card = Array.from(document.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
+              .find((element) => element.dataset.studentIdentityCard === slug)
+            card?.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')?.style.setProperty('view-transition-name', `student-avatar-${slug}`)
+            card?.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')?.style.setProperty('view-transition-name', `student-name-${slug}`)
+          }
+          apply()
+          requestAnimationFrame(() => requestAnimationFrame(apply))
+        }
+
+        restoreStudentIdentityTarget()
         initGlobalReveal(true)
         initNavRuntime()
         initThemeRuntime()
+        initNavSession(document.documentElement.dataset.apiBase || '')
+        initVolumeToggle()
 
-        const studentIdentityTransitionKey = 'vt-student-identity-state'
-
-        type StudentIdentityTransitionState = {
-          slug: string
-          keyword: string
-          page: number
-          visibleSlugs: string[]
+        const order = ['/', '/preface/', '/roster/', '/class-space/', '/yearbook/', '/more/']
+        const cleanPath = (path: string) => {
+          const clean = path.replace(/\/index\.html$/, '/')
+          return clean.endsWith('/') ? clean : clean + '/'
         }
-
-        function readStudentIdentityTransitionState(): StudentIdentityTransitionState | null {
-          try {
-            const raw = sessionStorage.getItem(studentIdentityTransitionKey)
-            if (!raw) return null
-            const state = JSON.parse(raw) as Partial<StudentIdentityTransitionState>
-            if (
-              typeof state.slug !== 'string' ||
-              typeof state.keyword !== 'string' ||
-              typeof state.page !== 'number' ||
-              !Number.isInteger(state.page) ||
-              state.page < 1 ||
-              !Array.isArray(state.visibleSlugs) ||
-              !state.visibleSlugs.every((slug) => typeof slug === 'string')
-            ) return null
-            return state as StudentIdentityTransitionState
-          } catch {
-            return null
+        const setNavigationState = (target: string, click?: MouseEvent) => {
+          const from = cleanPath(window.location.pathname)
+          const to = cleanPath(new URL(target, window.location.href).pathname)
+          const fromIndex = order.indexOf(from)
+          const toIndex = order.indexOf(to)
+          if (fromIndex !== -1 && toIndex !== -1 && from !== to) {
+            const direction = toIndex > fromIndex ? 'forward' : 'back'
+            document.documentElement.dataset.navDir = direction
+            sessionStorage.setItem('vt-nav-dir', direction)
           }
-        }
-
-        function restoreStudentIdentityTarget(event: Event) {
-          try {
-            const state = readStudentIdentityTransitionState()
-            const targetDocument = (event as Event & { newDocument?: Document }).newDocument
-            if (!state || !targetDocument) return
-
-            const cards = Array.from(targetDocument.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
-            const card = cards.find((element) => element.dataset.studentIdentityCard === state.slug)
-            if (!card) {
-              const fromPath = (event as Event & { from?: URL }).from?.pathname || ''
-              if (fromPath.includes('/student/')) sessionStorage.removeItem(studentIdentityTransitionKey)
-              return
-            }
-
-            const visibleSlugs = new Set(state.visibleSlugs)
-            cards.forEach((element) => {
-              element.style.display = visibleSlugs.has(element.dataset.studentIdentityCard || '') ? '' : 'none'
-            })
-
-            const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
-            const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
-            if (!avatar || !name) return
-
-            avatar.style.viewTransitionName = 'student-avatar-' + state.slug
-            avatar.style.setProperty('view-transition-class', 'student-avatar')
-            name.style.viewTransitionName = 'student-name-' + state.slug
-            name.style.setProperty('view-transition-class', 'student-name')
-          } catch {}
-        }
-
-        document.addEventListener('astro:before-swap', (event) => {
-          window.__alumniThemeRuntime?.destroy()
-          restoreStudentIdentityTarget(event)
-        })
-        document.addEventListener('astro:page-load', () => {
-          initThemeRuntime()
-        })
-
-        // 导航方向感知滑动逻辑
-        document.addEventListener('astro:before-preparation', (ev) => {
-          const from = window.location.pathname
-          const to = new URL(ev.to).pathname
-
-          const order = ['/', '/preface/', '/roster/', '/class-space/', '/yearbook/', '/more/']
-          const getCleanPath = (p: string) => {
-            let clean = p.replace(/\/index\.html$/, '/')
-            if (!clean.endsWith('/')) clean += '/'
-            return clean
-          }
-          const cleanFrom = getCleanPath(from)
-          const cleanTo = getCleanPath(to)
-
-          const fromIdx = order.indexOf(cleanFrom)
-          const toIdx = order.indexOf(cleanTo)
-
-          if (fromIdx !== -1 && toIdx !== -1 && cleanFrom !== cleanTo) {
-            const dir = toIdx > fromIdx ? 'forward' : 'back'
-            document.documentElement.setAttribute('data-nav-dir', dir)
-            sessionStorage.setItem('vt-nav-dir', dir) // 缓存方向防止 swap 时被冲走
-          } else {
-            document.documentElement.removeAttribute('data-nav-dir')
-            sessionStorage.removeItem('vt-nav-dir')
-          }
-        })
-
-        // 监听信箱跳转点击坐标
-        document.addEventListener('click', (e) => {
-          const target = e.target as HTMLElement
-          const trigger = target.closest('[data-mailbox-trigger]') || target.closest('a[href*="/mailbox"]')
-          if (trigger) {
-            sessionStorage.setItem('vt-click-x', e.clientX.toString())
-            sessionStorage.setItem('vt-click-y', e.clientY.toString())
-          }
-        })
-
-        // 在路由准备阶段，如果目的地是信箱，则标记 html.vt-mailbox
-        document.addEventListener('astro:before-preparation', (ev) => {
-          const to = new URL(ev.to).pathname
           if (to.includes('/mailbox/')) {
             document.documentElement.classList.add('vt-mailbox')
-          } else {
-            document.documentElement.classList.remove('vt-mailbox')
-          }
-        })
-
-        // 当页面 DOM 被替换 (swap) 时，重新将滑移方向与信箱状态写回新页面的 html 元素上
-        document.addEventListener('astro:after-swap', () => {
-          const dir = sessionStorage.getItem('vt-nav-dir')
-          if (dir) {
-            document.documentElement.setAttribute('data-nav-dir', dir)
-          }
-          const to = window.location.pathname
-          if (to.includes('/mailbox')) {
-            document.documentElement.classList.add('vt-mailbox')
-          }
-        })
-
-        // 页面渲染加载后执行圆形水波剪裁扩散动画，并清理标记
-        document.addEventListener('astro:page-load', () => {
-          const xStr = sessionStorage.getItem('vt-click-x')
-          const yStr = sessionStorage.getItem('vt-click-y')
-
-          if (xStr && yStr && document.documentElement.classList.contains('vt-mailbox')) {
-            const x = parseInt(xStr, 10)
-            const y = parseInt(yStr, 10)
-            const radius = Math.hypot(
-              Math.max(x, window.innerWidth - x),
-              Math.max(y, window.innerHeight - y)
-            )
-
-            document.documentElement.animate(
-              {
-                clipPath: [
-                  `circle(0px at ${x}px ${y}px)`,
-                  `circle(${radius}px at ${x}px ${y}px)`
-                ]
-              },
-              {
-                duration: 580,
-                easing: 'cubic-bezier(0.86, 0, 0.07, 1)',
-                pseudoElement: '::view-transition-new(root)'
-              }
-            )
-            sessionStorage.removeItem('vt-click-x')
-            sessionStorage.removeItem('vt-click-y')
-          }
-
-          document.documentElement.removeAttribute('data-nav-dir')
-          document.documentElement.classList.remove('vt-mailbox')
-          sessionStorage.removeItem('vt-nav-dir')
-        })
-
-        // 自定义复古钢笔水滴光标初始化逻辑
-        function initCustomCursor() {
-          if (window.matchMedia('(pointer: coarse)').matches) return;
-          if (document.querySelector('.custom-cursor')) return;
-
-          const cursor = document.createElement('div');
-          cursor.className = 'custom-cursor';
-          cursor.setAttribute('data-cursor', '');
-          cursor.innerHTML = `
-            <div class="custom-cursor__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:100%; height:100%;">
-                <path d="M12 20h9"></path>
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-              </svg>
-            </div>
-          `;
-          document.body.appendChild(cursor);
-          document.documentElement.setAttribute('data-custom-cursor', 'true');
-
-          let mouseX = 0;
-          let mouseY = 0;
-          let cursorX = 0;
-          let cursorY = 0;
-          let isVisible = false;
-
-          const onMouseMove = (e: MouseEvent) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-            if (!isVisible) {
-              cursor.classList.add('is-visible');
-              isVisible = true;
+            if (click) {
+              sessionStorage.setItem('vt-click-x', String(click.clientX))
+              sessionStorage.setItem('vt-click-y', String(click.clientY))
             }
-          };
-
-          const onMouseOver = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            if (target && target.closest('a, button, [role="button"], .btn, .archive-card, .profile-mail-actions a, [data-mailbox-trigger]')) {
-              cursor.classList.add('is-hovered');
-            } else {
-              cursor.classList.remove('is-hovered');
-            }
-          };
-
-          const onMouseLeave = () => {
-            cursor.classList.remove('is-visible');
-            isVisible = false;
-          };
-
-          document.addEventListener('mousemove', onMouseMove);
-          document.addEventListener('mouseover', onMouseOver);
-          document.addEventListener('mouseleave', onMouseLeave);
-
-          let animationFrameId: number;
-          const updatePosition = () => {
-            const dx = mouseX - cursorX;
-            const dy = mouseY - cursorY;
-            cursorX += dx * 0.16;
-            cursorY += dy * 0.16;
-            cursor.style.transform = `translate3d(${cursorX}px, ${cursorY}px, 0)`;
-            animationFrameId = requestAnimationFrame(updatePosition);
-          };
-          updatePosition();
-
-          document.addEventListener('astro:before-preparation', () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseover', onMouseOver);
-            document.removeEventListener('mouseleave', onMouseLeave);
-            cancelAnimationFrame(animationFrameId);
-            cursor.remove();
-          }, { once: true });
+          }
+          document.documentElement.classList.add('is-navigating')
         }
 
-        document.addEventListener('astro:page-load', () => {
-          initCustomCursor();
-        })
+        const onDocumentClick = (event: MouseEvent) => {
+          if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+          const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
+          if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return
+          const url = new URL(anchor.href, window.location.href)
+          if (url.origin !== window.location.origin) return
+          setNavigationState(url.href, event)
+        }
+        document.addEventListener('click', onDocumentClick, { capture: true, passive: true })
+        window.addEventListener('pageshow', () => {
+          document.documentElement.classList.remove('is-navigating')
+          const direction = sessionStorage.getItem('vt-nav-dir')
+          if (direction) document.documentElement.dataset.navDir = direction
+          sessionStorage.removeItem('vt-nav-dir')
+          const x = Number(sessionStorage.getItem('vt-click-x'))
+          const y = Number(sessionStorage.getItem('vt-click-y'))
+          if (x && y && document.documentElement.classList.contains('vt-mailbox') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+            document.documentElement.animate({ clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] }, { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' })
+          }
+          sessionStorage.removeItem('vt-click-x')
+          sessionStorage.removeItem('vt-click-y')
+          document.documentElement.classList.remove('vt-mailbox')
+        }, { once: true })
+        window.addEventListener('pagehide', () => {
+          document.removeEventListener('click', onDocumentClick, true)
+          window.__alumniNavRuntime?.destroy()
+          window.__alumniThemeRuntime?.destroy()
+          window.__alumniVolumeRuntime?.destroy()
+        }, { once: true })
+
+        function initCustomCursor() {
+          if (matchMedia('(pointer: coarse)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+          const cursor = document.createElement('div')
+          cursor.className = 'custom-cursor'
+          cursor.setAttribute('data-cursor', '')
+          cursor.innerHTML = '<div class="custom-cursor__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>'
+          document.body.appendChild(cursor)
+          document.documentElement.dataset.customCursor = 'true'
+          let mouseX = 0
+          let mouseY = 0
+          let cursorX = 0
+          let cursorY = 0
+          let frame = 0
+          const onMove = (event: MouseEvent) => { mouseX = event.clientX; mouseY = event.clientY; cursor.classList.add('is-visible') }
+          const onOver = (event: MouseEvent) => cursor.classList.toggle('is-hovered', Boolean((event.target as HTMLElement).closest('a,button,[role="button"]')))
+          const tick = () => { cursorX += (mouseX - cursorX) * 0.16; cursorY += (mouseY - cursorY) * 0.16; cursor.style.transform = `translate3d(${cursorX}px,${cursorY}px,0)`; frame = requestAnimationFrame(tick) }
+          const cleanupCursor = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseover', onOver); cancelAnimationFrame(frame); cursor.remove(); document.documentElement.removeAttribute('data-custom-cursor') }
+          document.addEventListener('mousemove', onMove, { passive: true })
+          document.addEventListener('mouseover', onOver, { passive: true })
+          tick()
+          window.addEventListener('pagehide', cleanupCursor, { once: true })
+        }
+        initCustomCursor()
+
+        // Native cross-document navigation is intentionally handled above.
       </script>
       <AppFooter initialText={footerText} />
     </div>

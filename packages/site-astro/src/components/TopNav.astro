@@ -27,7 +27,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
         <span class="brand-mark"><IconBrand size={22} /></span>
         <span class="brand-text">同学录</span>
       </a>
-      <button class="mobile-nav-button" type="button" data-nav-open aria-label="打开目录">
+      <button class="mobile-nav-button" type="button" data-nav-open data-audio-hover aria-label="打开目录">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
     </div>
@@ -47,6 +47,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
             href={href(item.href)}
             class={`nav-link ${isActive(item.href) ? 'is-active' : ''}`}
             data-nav-item
+            data-audio-hover
             aria-current={isActive(item.href) ? 'page' : undefined}
           >
             {item.label}
@@ -62,6 +63,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       <div class="nav-utilities">
         <button class="nav-theme-button nav-theme-button--desktop" type="button" data-theme-toggle aria-label="切换为夜读模式" aria-pressed="false" title="切换夜读模式">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.64 5.64l1.77 1.77M16.59 16.59l1.77 1.77M18.36 5.64l-1.77 1.77M7.41 16.59l-1.77 1.77" /><circle cx="12" cy="12" r="3.5" /></svg>
+        </button>
+        <button class="nav-volume-button" type="button" data-volume-toggle data-audio-hover aria-label="关闭页面音效" aria-pressed="false" title="关闭页面音效">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z" /><path d="M17 9.5a4 4 0 0 1 0 5M19.5 7a7 7 0 0 1 0 10" /></svg>
         </button>
         <a href={adminHref} class="nav-admin-button" data-nav-admin-entry>管理</a>
         <a
@@ -113,7 +117,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 
   <div class="drawer-links">
     {navItems.map((item) => (
-      <a href={href(item.href)} class={`drawer-link ${isActive(item.href) ? 'is-active' : ''}`}>
+      <a href={href(item.href)} data-audio-hover class={`drawer-link ${isActive(item.href) ? 'is-active' : ''}`}>
         <span>{item.label}</span>
         {isActive(item.href) && <span class="drawer-active-mark" aria-hidden="true"></span>}
       </a>
@@ -317,6 +321,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-account-button,
   .nav-mailbox-button,
   .nav-theme-button,
+  .nav-volume-button,
   .mobile-nav-button,
   .drawer-icon-button {
     display: inline-grid;
@@ -335,6 +340,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-mailbox-button:hover,
   .nav-mailbox-button.is-active,
   .nav-theme-button:hover,
+  .nav-volume-button:hover,
   .mobile-nav-button:hover,
   .drawer-icon-button:hover {
     color: var(--color-paper-ink);

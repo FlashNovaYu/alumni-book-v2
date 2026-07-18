@@ -63,7 +63,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
       <p>输入自己的同学账号与密码。首次登录后，系统会引导你把初始密码换成专属密码。</p>
     </div>
     <div class="home-login-section__pass home-scroll-reveal">
-      <VisitorPass client:load apiBase={apiBase} />
+      <VisitorPass client:visible apiBase={apiBase} />
     </div>
   </div>
 </section>
