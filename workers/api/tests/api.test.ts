@@ -404,6 +404,91 @@ describe('Museum Gallery & Timeline API', () => {
     }
   })
 
+  it('GET /api/albums batches photo loading without changing album order or photo fields', async () => {
+    const albumIds = ['albums-batch-a', 'albums-batch-b']
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM photos WHERE album_id IN (?, ?)').bind(...albumIds),
+      env.DB.prepare('DELETE FROM albums WHERE id IN (?, ?)').bind(...albumIds),
+      env.DB.prepare(
+        `INSERT INTO albums (id, title, description, frame_style, sort_order, cover_r2_key, tags, featured, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(albumIds[0], '批量相册甲', '相册甲说明', 'paper', 10, 'covers/batch-a.jpg', '["甲"]', 1, '2026-07-18 00:00:01'),
+      env.DB.prepare(
+        `INSERT INTO albums (id, title, description, frame_style, sort_order, cover_r2_key, tags, featured, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(albumIds[1], '批量相册乙', '相册乙说明', 'film', 20, null, '["乙"]', 0, '2026-07-18 00:00:02'),
+      env.DB.prepare(
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-1', albumIds[0], '甲-1.jpg', '甲-1', 'photos/batch-a-1.jpg', 2, '2026-07-18 00:00:03'),
+      env.DB.prepare(
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-2', albumIds[0], '甲-2.jpg', '甲-2', 'photos/batch-a-2.jpg', 1, '2026-07-18 00:00:04'),
+      env.DB.prepare(
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-3', albumIds[1], '乙-1.jpg', '乙-1', 'photos/batch-b-1.jpg', 1, '2026-07-18 00:00:05'),
+    ])
+
+    const preparedQueries: string[] = []
+    const countingDb = new Proxy(env.DB, {
+      get(target, property, receiver) {
+        if (property !== 'prepare') return Reflect.get(target, property, receiver)
+        return (query: string) => {
+          preparedQueries.push(query)
+          return target.prepare(query)
+        }
+      },
+    }) as unknown as D1Database
+    const bindings = new Proxy(env, {
+      get(target, property, receiver) {
+        return property === 'DB' ? countingDb : Reflect.get(target, property, receiver)
+      },
+    })
+
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(new Request('http://localhost/api/albums'), bindings, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+
+    expect(res.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(body.data.filter((album: any) => albumIds.includes(album.id))).toEqual([
+      {
+        id: albumIds[0],
+        title: '批量相册甲',
+        description: '相册甲说明',
+        frameStyle: 'paper',
+        sortOrder: 10,
+        coverR2Key: 'covers/batch-a.jpg',
+        tags: ['甲'],
+        featured: true,
+        photos: [
+          { id: 'albums-batch-photo-2', albumId: albumIds[0], filename: '甲-2.jpg', caption: '甲-2', r2Key: 'photos/batch-a-2.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:04' },
+          { id: 'albums-batch-photo-1', albumId: albumIds[0], filename: '甲-1.jpg', caption: '甲-1', r2Key: 'photos/batch-a-1.jpg', sortOrder: 2, createdAt: '2026-07-18 00:00:03' },
+        ],
+        createdAt: '2026-07-18 00:00:01',
+      },
+      {
+        id: albumIds[1],
+        title: '批量相册乙',
+        description: '相册乙说明',
+        frameStyle: 'film',
+        sortOrder: 20,
+        coverR2Key: null,
+        tags: ['乙'],
+        featured: false,
+        photos: [
+          { id: 'albums-batch-photo-3', albumId: albumIds[1], filename: '乙-1.jpg', caption: '乙-1', r2Key: 'photos/batch-b-1.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:05' },
+        ],
+        createdAt: '2026-07-18 00:00:02',
+      },
+    ])
+    expect(preparedQueries.filter(query => /SELECT \* FROM photos WHERE album_id = \?/.test(query))).toHaveLength(0)
+    expect(preparedQueries.filter(query => /FROM photos/.test(query))).toHaveLength(1)
+  })
+
   it('GET /api/timeline — 包含 eventType 且为合法值', async () => {
     const req = new Request('http://localhost/api/timeline')
     const ctx = createExecutionContext()

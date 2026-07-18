@@ -353,34 +353,41 @@ app.get('/api/albums', async (c) => {
     'SELECT * FROM albums ORDER BY sort_order, created_at'
   ).all()
 
-  const albumsWithPhotos = await Promise.all(
-    (albums || []).map(async (album: any) => {
-      const { results: photos } = await db.prepare(
-        'SELECT * FROM photos WHERE album_id = ? ORDER BY sort_order'
-      ).bind(album.id).all()
+  const photosByAlbum = new Map<string, any[]>()
+  const albumIds = (albums || []).map((album: any) => album.id)
+  if (albumIds.length > 0) {
+    const placeholders = albumIds.map(() => '?').join(', ')
+    const { results: photos } = await db.prepare(
+      `SELECT * FROM photos WHERE album_id IN (${placeholders}) ORDER BY album_id, sort_order`
+    ).bind(...albumIds).all()
 
-      return {
-        id: album.id,
-        title: album.title,
-        description: album.description,
-        frameStyle: album.frame_style,
-        sortOrder: album.sort_order,
-        coverR2Key: album.cover_r2_key,
-        tags: JSON.parse(album.tags || '[]'),
-        featured: !!album.featured,
-        photos: (photos || []).map((p: any) => ({
-          id: p.id,
-          albumId: p.album_id,
-          filename: p.filename,
-          caption: p.caption,
-          r2Key: p.r2_key,
-          sortOrder: p.sort_order,
-          createdAt: p.created_at,
-        })),
-        createdAt: album.created_at,
-      }
-    })
-  )
+    for (const photo of photos || []) {
+      const albumPhotos = photosByAlbum.get((photo as any).album_id) || []
+      albumPhotos.push(photo as any)
+      photosByAlbum.set((photo as any).album_id, albumPhotos)
+    }
+  }
+
+  const albumsWithPhotos = (albums || []).map((album: any) => ({
+    id: album.id,
+    title: album.title,
+    description: album.description,
+    frameStyle: album.frame_style,
+    sortOrder: album.sort_order,
+    coverR2Key: album.cover_r2_key,
+    tags: JSON.parse(album.tags || '[]'),
+    featured: !!album.featured,
+    photos: (photosByAlbum.get(album.id) || []).map((p: any) => ({
+      id: p.id,
+      albumId: p.album_id,
+      filename: p.filename,
+      caption: p.caption,
+      r2Key: p.r2_key,
+      sortOrder: p.sort_order,
+      createdAt: p.created_at,
+    })),
+    createdAt: album.created_at,
+  }))
 
   c.header('Cache-Control', 'public, max-age=60')
   return c.json({ success: true, data: albumsWithPhotos })
