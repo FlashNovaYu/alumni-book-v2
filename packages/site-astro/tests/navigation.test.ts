@@ -114,7 +114,7 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
       expect(content).toContain('aria-label')
 
       // 移动端中栏标题
-      expect(content).toContain('mobile-nav-title')
+      expect(content).toContain('mobile-page-title')
 
       // 退出登录按钮
       expect(content).toContain('nav-logout-btn')

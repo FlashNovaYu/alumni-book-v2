@@ -204,6 +204,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import { handleClassmateUnauthorized } from '../api/classmateSession'
 
 const props = defineProps<{
   studentSlug: string
@@ -277,7 +278,7 @@ async function openEditor() {
 async function openEditorAfterAuthed() {
   try {
     const url = joinApiUrl(props.apiBase, `/api/students/${props.studentSlug}`)
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: authHeaders() })
     const data = await res.json()
     if (data.success && data.data) {
       const s = data.data as Student
@@ -343,6 +344,7 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
       headers: authHeaders(),
       body: fd,
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       if (type === 'avatar') form.avatarUrl = data.data.url
@@ -381,6 +383,7 @@ async function save() {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success) {
       saveMsg.value = { type: 'success', text: '保存成功' }
@@ -390,14 +393,6 @@ async function save() {
         needSetup.value = false
       }
       setTimeout(() => closeEditor(), 1500)
-    } else if (res.status === 401) {
-      token.value = ''
-      sessionStorage.removeItem(`classmate_token_${props.studentSlug}`)
-      if (await ensureToken()) {
-        saving.value = false
-        return save()
-      }
-      saveMsg.value = { type: 'error', text: '身份验证失败，请关闭后重新打开编辑' }
     } else {
       saveMsg.value = { type: 'error', text: data.message || '保存失败' }
     }
