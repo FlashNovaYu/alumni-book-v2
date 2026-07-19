@@ -6,6 +6,9 @@ import { createLocalStorage, type LocalStorage } from './localStorage'
 import { createNodeRuntime, type NodeRuntime } from './nodeEnv'
 import { createNodeFetch } from '../node-server'
 import { matchPublicCache } from '../lib/publicCache'
+import { initializeLocalDatabase } from '../db/init-local'
+import { createOwnerAccount } from '../db/create-admin'
+import { verifyPassword } from '../lib/password'
 import { createSqliteDatabase, type SqliteDatabase } from './sqlite'
 
 const openDatabases: SqliteDatabase[] = []
@@ -143,5 +146,44 @@ describe('Node 运行时绑定', () => {
 
   it('在 Node 没有 Cache API 时跳过 HTTPS 公共缓存读取', async () => {
     await expect(matchPublicCache(new Request('https://example.test/api/config'))).resolves.toBeUndefined()
+  })
+})
+
+describe('新实例数据库初始化', () => {
+  it('执行全部迁移、建立角色基线并且重复执行安全', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'alumni-book-db-init-'))
+    storageDirectories.push(directory)
+    const databasePath = join(directory, 'data', 'alumni.sqlite')
+    const database = initializeLocalDatabase(databasePath)
+    openDatabases.push(database)
+
+    const firstRun = await database.prepare('SELECT COUNT(*) AS count FROM _alumni_migrations').first<{ count: number }>()
+    const students = await database.prepare('SELECT COUNT(*) AS count FROM students').first<{ count: number }>()
+    const roles = await database.prepare('SELECT COUNT(*) AS count FROM admin_roles').first<{ count: number }>()
+    expect(firstRun?.count).toBe(20)
+    expect(students?.count).toBe(0)
+    expect(roles?.count).toBe(4)
+
+    database.close()
+    const secondDatabase = initializeLocalDatabase(databasePath)
+    openDatabases.push(secondDatabase)
+    const secondRun = await secondDatabase.prepare('SELECT COUNT(*) AS count FROM _alumni_migrations').first<{ count: number }>()
+    expect(secondRun?.count).toBe(20)
+  })
+
+  it('创建唯一的主管理员并保存 PBKDF2 密码哈希', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'alumni-book-admin-'))
+    storageDirectories.push(directory)
+    const database = initializeLocalDatabase(join(directory, 'data', 'alumni.sqlite'))
+    openDatabases.push(database)
+
+    await createOwnerAccount(database, 'owner', 'local-admin-password-123', '班级管理员')
+    const account = await database.prepare('SELECT username, display_name, password_hash, role_id, is_owner FROM admin_accounts').first<{ username: string; display_name: string; password_hash: string; role_id: string; is_owner: number }>()
+    expect(account?.username).toBe('owner')
+    expect(account?.display_name).toBe('班级管理员')
+    expect(account?.role_id).toBe('owner')
+    expect(account?.is_owner).toBe(1)
+    expect(await verifyPassword('local-admin-password-123', account?.password_hash || '')).toBe(true)
+    await expect(createOwnerAccount(database, 'another-owner', 'another-password-123', '第二个管理员')).rejects.toThrow('主管理员已初始化')
   })
 })

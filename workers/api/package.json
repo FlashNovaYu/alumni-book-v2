@@ -9,6 +9,9 @@
     "deploy": "wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply alumni-book-db",
     "db:seed": "tsx src/db/seed.ts",
+    "db:init:local": "tsx src/db/init-local.ts",
+    "db:create-admin": "tsx src/db/create-admin.ts",
+    "typecheck": "tsc --noEmit",
     "start:node": "node dist/node-server.js",
     "test:node": "vitest --config vitest.node.config.ts run"
   },
