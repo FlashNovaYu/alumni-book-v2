@@ -7,6 +7,11 @@ on:
         description: '输入 DEPLOY_PRODUCTION 确认发布生产环境'
         required: true
         type: string
+      d1_migrations_preapplied:
+        description: '仅在已使用受信任运维凭据应用并核验全部 D1 迁移时启用'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -46,7 +51,11 @@ jobs:
           echo "JWT_SECRET=alumni-book-jwt-secret-dev-only-2026" > workers/api/.dev.vars
           echo "CORS_ORIGIN=http://localhost:4321" >> workers/api/.dev.vars
       - run: pnpm verify:all
+      - name: Record pre-applied D1 migration acknowledgement
+        if: ${{ inputs.d1_migrations_preapplied }}
+        run: echo "D1 migrations were pre-applied and verified before this protected deployment."
       - name: Apply remote D1 migrations
+        if: ${{ !inputs.d1_migrations_preapplied }}
         working-directory: workers/api
         run: npx wrangler d1 migrations apply alumni-book-db --remote --config wrangler.toml
         env:
