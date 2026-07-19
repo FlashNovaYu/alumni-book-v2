@@ -50,6 +50,13 @@ function switchFrom(button: HTMLButtonElement) {
   void transition.finished.finally(() => document.documentElement.classList.remove('theme-transition'))
 }
 
+function syncTheme() {
+  const current = readTheme()
+  if (document.documentElement.dataset.theme !== current) {
+    applyTheme(current, false)
+  }
+}
+
 export function initThemeRuntime() {
   window.__alumniThemeRuntime?.destroy()
   applyTheme(readTheme(), false)
@@ -58,9 +65,27 @@ export function initThemeRuntime() {
   const onClick = (event: Event) => switchFrom(event.currentTarget as HTMLButtonElement)
   buttons.forEach((button) => button.addEventListener('click', onClick))
 
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === themeStorageKey) syncTheme()
+  }
+  window.addEventListener('storage', onStorage)
+
+  const onPrerenderingChange = () => {
+    if (!document.prerendering) syncTheme()
+  }
+  document.addEventListener('prerenderingchange', onPrerenderingChange)
+
+  const onVisibilityChange = () => {
+    if (!document.hidden) syncTheme()
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+
   window.__alumniThemeRuntime = {
     destroy() {
       buttons.forEach((button) => button.removeEventListener('click', onClick))
+      window.removeEventListener('storage', onStorage)
+      document.removeEventListener('prerenderingchange', onPrerenderingChange)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     },
   }
 }
