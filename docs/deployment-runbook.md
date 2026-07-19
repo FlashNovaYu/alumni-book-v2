@@ -52,3 +52,68 @@ pnpm media:backfill --input=media-export.json --assets-dir=./assets --execute --
 - 文件响应必须保留 Content-Type、ETag、immutable 缓存和 Range 行为；上线前使用 Node smoke 检查至少验证一个 WebP 变体。
 - 本阶段不把阿里云 AccessKey、OSS endpoint 或服务器私钥写入仓库。未来接入 OSS/CDN 时，只替换存储/文件服务适配层，数据库中的相对 key 和前端组件保持不变。
 - ECS 备份需同时覆盖 SQLite 和上传目录；清理旧对象前先生成只读引用报告，不能仅按文件扩展名删除。
+
+## 阿里云 ECS IP 预发布（当前部署）
+
+备案完成前，访问入口为 `http://118.178.88.227`。本实例不导入 Cloudflare D1/R2 数据，数据库和上传目录均从空目录开始。
+
+服务器关键路径：
+
+- 应用：`/opt/alumni-book/app`
+- SQLite：`/var/lib/alumni-book/data/alumni.sqlite`
+- 上传：`/var/lib/alumni-book/uploads`
+- 备份：`/var/backups/alumni-book`
+- 静态站点：`/www/wwwroot/alumni-book`
+- aaPanel Nginx：`/www/server/panel/vhost/nginx/alumni-book.conf`
+
+日常巡检（通过 Workbench 或 SSH 以 `admin` 执行）：
+
+```bash
+cd /opt/alumni-book/app
+podman-compose ps
+systemctl is-active alumni-book-api.service alumni-book-backup.timer alumni-book-cleanup.timer
+df -h /var/lib/alumni-book /var/backups/alumni-book
+curl -fsS http://127.0.0.1:8787/api/health
+curl -fsS http://127.0.0.1:8787/api/readiness
+```
+
+从本地验收公网入口：
+
+```powershell
+node scripts/smoke-selfhosted.mjs --base-url http://118.178.88.227
+```
+
+重启 API（不会删除 SQLite 或上传文件）：
+
+```bash
+sudo systemctl restart alumni-book-api.service
+podman-compose ps
+```
+
+如果通过 Windows 工具上传运维脚本，安装 systemd unit 前要确保脚本使用 Unix LF 换行并可执行；否则会出现 `203/EXEC`：
+
+```bash
+sudo sed -i 's/\r$//' /opt/alumni-book/app/scripts/backup-selfhosted.sh
+sudo chmod 755 /opt/alumni-book/app/scripts/backup-selfhosted.sh
+```
+
+备份由 `alumni-book-backup.timer` 每日 UTC 04:00 执行，过期会话清理由 `alumni-book-cleanup.timer` 每日 UTC 03:00 执行。查看最近记录：
+
+```bash
+systemctl list-timers 'alumni-book-*'
+journalctl -u alumni-book-backup.service -n 50 --no-pager
+journalctl -u alumni-book-cleanup.service -n 50 --no-pager
+ls -lh /var/backups/alumni-book
+```
+
+恢复前先停止 API，并确认目标备份文件；恢复后重新启动服务并运行 health/readiness 及公网 smoke。不要删除现有备份作为“清理”步骤：
+
+```bash
+sudo systemctl stop alumni-book-api.service
+sudo tar -xzf /var/backups/alumni-book/alumni-book-YYYYMMDDTHHMMSSZ.tar.gz \\
+  -C /var/lib --overwrite
+sudo chown -R admin:admin /var/lib/alumni-book
+sudo systemctl start alumni-book-api.service
+```
+
+备案完成后的切换顺序：先将域名 A 记录指向 `118.178.88.227`，再在 aaPanel 配置 HTTPS；更新服务器 `deploy/.env` 的 `CORS_ORIGIN`，以正式域名重新执行自托管构建并运行域名 smoke。域名验收完成前不要停用 Cloudflare 旧生产。

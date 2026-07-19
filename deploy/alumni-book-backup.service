@@ -9,4 +9,4 @@ User=admin
 Group=admin
 Environment=XDG_RUNTIME_DIR=/run/user/1001
 WorkingDirectory=/opt/alumni-book/app
-ExecStart=/opt/alumni-book/app/scripts/backup-selfhosted.sh
+ExecStart=/usr/bin/bash /opt/alumni-book/app/scripts/backup-selfhosted.sh

@@ -42,3 +42,27 @@ OPS_ADMIN_TOKEN=... OPS_BASE_URL=https://alumni-book.pages.dev npx tsx scripts/r
 ## 定时清理
 
 Worker 的每日 `0 3 * * *`（UTC）触发器调用 `cleanupExpiredSessions`，只清理已过期的 `classmate_sessions`、`admin_sessions` 和 `auth_login_attempts`，不会删除仍有效的会话或 R2 对象。每次执行输出结构化 `scheduled_cleanup` 日志，便于核对清理数量。
+
+## 阿里云 ECS 自托管备份与恢复
+
+当前 ECS 使用 SQLite 和本地文件目录，不使用 OSS。备份脚本通过 SQLite 在线备份生成一致性快照，再将数据库快照和上传目录打包到 `/var/backups/alumni-book`，默认保留最近 7 份；可用空间低于 5 GiB 时会拒绝继续备份。
+
+手动演练：
+
+```bash
+cd /opt/alumni-book/app
+sudo systemctl start alumni-book-backup.service
+ls -lh /var/backups/alumni-book
+```
+
+恢复必须在 Workbench 中人工确认备份文件后进行。先停止 API，再解压选定归档，恢复 `admin:admin` 所有权并启动服务；最后检查 `/api/health`、`/api/readiness` 和公网 smoke。恢复操作不会从 Cloudflare 导入数据，也不会自动覆盖未确认的目录。
+
+```bash
+sudo systemctl stop alumni-book-api.service
+sudo tar -xzf /var/backups/alumni-book/alumni-book-YYYYMMDDTHHMMSSZ.tar.gz \\
+  -C /var/lib --overwrite
+sudo chown -R admin:admin /var/lib/alumni-book
+sudo systemctl start alumni-book-api.service
+```
+
+会话清理由 `alumni-book-cleanup.timer` 每日 UTC 03:00 执行，仅删除过期的 SQLite 会话和登录限流记录；不会删除上传对象。备份由 `alumni-book-backup.timer` 每日 UTC 04:00 执行。两者均以 rootless Podman 的 `admin` 用户运行，勿改为 root 容器。
