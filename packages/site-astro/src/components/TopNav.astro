@@ -24,7 +24,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 ---
 
 <nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
-  <div class="nav-inner container ticket-container">
+  <div class="nav-inner ticket-container">
     <!-- 左侧：票根存根 (Logo区) -->
     <div class="ticket-stub-left">
       <div class="ticket-punch-top"></div>
@@ -168,10 +168,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     display: flex;
     align-items: stretch;
     background: var(--color-paper-card);
-    border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
-    border-radius: 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
     filter: drop-shadow(0 4px 15px rgba(96, 65, 35, 0.08));
-    margin: 8px auto; /* Slightly detached from absolute top */
+    margin: 0;
     padding: 0;
     transition: filter var(--duration-normal) ease;
   }
@@ -180,7 +179,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     position: relative;
     display: flex;
     align-items: center;
-    padding: 0 var(--spacing-md);
+    padding: 0 var(--spacing-lg);
   }
 
   .ticket-stub-left {
@@ -196,7 +195,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .ticket-main {
     flex: 1;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
   }
 
@@ -537,8 +536,8 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   @media (max-width: 768px) {
-    .top-nav { min-height: calc(52px + 8px); }
-    .ticket-container { margin: 4px 12px; }
+    .top-nav { min-height: 52px; }
+    .ticket-container { margin: 0; }
     .nav-inner {
       min-height: 52px;
       padding: 0;
