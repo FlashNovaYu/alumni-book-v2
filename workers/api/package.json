@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:node": "tsx src/node-server.ts",
     "deploy": "wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply alumni-book-db",
     "db:seed": "tsx src/db/seed.ts",
+    "start:node": "node dist/node-server.js",
     "test:node": "vitest --config vitest.node.config.ts run"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.7",
     "better-sqlite3": "^11.10.0",
     "hono": "^4.12.29"
   },

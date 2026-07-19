@@ -29,7 +29,7 @@ export type LocalStorage = {
   get(key: string, options?: { range?: Headers }): Promise<LocalStorageObject | null>
   head(key: string): Promise<LocalStorageObject | null>
   delete(key: string): Promise<void>
-  list(prefix?: string): Promise<{ objects: Array<{ key: string; size: number; httpEtag: string }> }>
+  list(prefixOrOptions?: string | { prefix?: string; limit?: number }): Promise<{ objects: Array<{ key: string; size: number; httpEtag: string }> }>
   close(): void
 }
 
@@ -141,7 +141,8 @@ export function createLocalStorage(root: string): LocalStorage {
         rm(paths.metadataPath, { force: true }),
       ])
     },
-    async list(prefix = '') {
+    async list(prefixOrOptions = '') {
+      const prefix = typeof prefixOrOptions === 'string' ? prefixOrOptions : (prefixOrOptions.prefix || '')
       const start = prefix ? safePath(prefix).filePath : rootPath
       const objects: Array<{ key: string; size: number; httpEtag: string }> = []
       async function visit(directory: string) {

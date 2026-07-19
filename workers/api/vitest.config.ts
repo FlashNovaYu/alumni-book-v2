@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config'
 import { cloudflareTest } from '@cloudflare/vitest-pool-workers'
 
 export default defineConfig({
+  test: {
+    exclude: ['**/node_modules/**', '**/.git/**', 'src/runtime/node-runtime.test.ts'],
+  },
   plugins: [
     cloudflareTest({
       wrangler: { configPath: './wrangler.toml' },

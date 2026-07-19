@@ -17,7 +17,8 @@ function hasIdentityHeaders(request: Request): boolean {
   )
 }
 
-function edgeCache(): Cache {
+function edgeCache(): Cache | null {
+  if (typeof caches === 'undefined') return null
   return (caches as unknown as { default: Cache }).default
 }
 
@@ -73,16 +74,18 @@ function notModifiedResponse(cached: Response): Response {
 /** Cache failures must never change the API response. */
 export async function matchPublicCache(request: Request): Promise<Response | undefined> {
   const key = canonicalPublicCacheKey(request)
-  if (!key) return undefined
-  const cached = await edgeCache().match(key).catch(() => undefined)
+  const cache = edgeCache()
+  if (!key || !cache) return undefined
+  const cached = await cache.match(key).catch(() => undefined)
   if (!cached) return undefined
   return matchesConditionalRequest(request, cached) ? notModifiedResponse(cached) : cached
 }
 
 export function storePublicCache(request: Request, response: Response, waitUntil: (promise: Promise<unknown>) => void) {
   const key = canonicalPublicCacheKey(request)
-  if (!key || !response.ok || response.headers.get('Cache-Control') !== PUBLIC_CACHE_CONTROL) return
-  waitUntil(edgeCache().put(key, response.clone()).catch(() => undefined))
+  const cache = edgeCache()
+  if (!key || !cache || !response.ok || response.headers.get('Cache-Control') !== PUBLIC_CACHE_CONTROL) return
+  waitUntil(cache.put(key, response.clone()).catch(() => undefined))
 }
 
 export function clearPublicCache(request: Request, waitUntil: (promise: Promise<unknown>) => void) {
@@ -104,5 +107,7 @@ export function clearPublicCache(request: Request, waitUntil: (promise: Promise<
     add('/api/timeline', ['', '?type=event', '?type=message', '?type=photo', '?type=join'])
   }
   if (targets.size === 0) return
-  waitUntil(Promise.all([...targets].map((target) => edgeCache().delete(new Request(target, { method: 'GET' })).catch(() => false))))
+  const cache = edgeCache()
+  if (!cache) return
+  waitUntil(Promise.all([...targets].map((target) => cache.delete(new Request(target, { method: 'GET' })).catch(() => false))))
 }
