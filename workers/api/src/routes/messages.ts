@@ -132,7 +132,7 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
     `reaction:${requestIdentifier}:${id}:${reaction}`,
     100 * 365 * 24 * 60 * 60,
   )
-  if (limit.limited) return c.json({ success: false, message: '您已经点过赞了' }, 429)
+  if (limit.limited) return publicRateLimitResponse(c, limit.retryAfterSeconds)
 
   // 原子更新避免并发覆盖（json_set 内 CRUD 为单条 SQL）
   const path = `$.${reaction}`
