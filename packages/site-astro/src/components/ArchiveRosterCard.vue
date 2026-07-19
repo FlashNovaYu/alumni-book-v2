@@ -4,11 +4,13 @@
     class="roster-card"
     :data-student-identity-card="card.slug"
     @click="handleTransition"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-    @mousemove="handleMouseMove"
+    @mouseenter="onMouseEnter(card.slug); playPaperSlide()"
+    @mouseleave="onMouseLeave(card.slug)"
+    @mousemove="onMouseMove($event, card.slug)"
+    @touchstart="playPaperSlide()"
+    :style="getTiltStyles(card.slug, baseTransform)"
   >
-    <div class="roster-card__inner" :style="tiltStyle">
+    <div class="roster-card__inner">
       <!-- 头像 -->
       <div class="roster-card__avatar" :style="avatarTransitionStyle">
         <img
@@ -38,6 +40,9 @@
         </div>
         <div v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</div>
       </div>
+      
+      <!-- 光晕层完全封装在卡片内部并利用 overflow:hidden 绝不漏光 -->
+      <div class="glare-layer" :style="{ opacity: getState(card.slug).isHovered ? 1 : 0 }"></div>
     </div>
   </a>
 </template>
@@ -46,50 +51,22 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { ArchiveClassmateCard } from '../utils/museumViewModels'
 import { buildMediaSources } from '@alumni/shared'
+import { useMouseTilt } from '../composables/useMouseTilt'
+import { useAudioSynth } from '../composables/useAudioSynth'
 
-const props = defineProps<{ card: ArchiveClassmateCard; apiBase: string }>()
+const props = withDefaults(defineProps<{ 
+  card: ArchiveClassmateCard; 
+  apiBase: string;
+  baseTransform?: string;
+}>(), { baseTransform: '' })
 const emit = defineEmits<{ 'identity-transition': [slug: string] }>()
 
 const avatarError = ref(false)
 const avatarImage = ref<HTMLImageElement | null>(null)
 const isTransitioning = ref(false)
 
-// 3D Tilt 效果
-const tiltX = ref(0)
-const tiltY = ref(0)
-const isHovered = ref(false)
-
-const tiltStyle = computed(() => {
-  if (!isHovered.value) {
-    return {
-      transform: 'perspective(800px) rotateX(0deg) rotateY(0deg)',
-      transition: 'transform 0.3s var(--ease-out-expo)',
-    }
-  }
-  return {
-    transform: `perspective(800px) rotateX(${tiltY.value}deg) rotateY(${tiltX.value}deg)`,
-    transition: 'transform 0.1s ease-out',
-  }
-})
-
-function handleMouseEnter() {
-  isHovered.value = true
-}
-
-function handleMouseLeave() {
-  isHovered.value = false
-  tiltX.value = 0
-  tiltY.value = 0
-}
-
-function handleMouseMove(e: MouseEvent) {
-  const target = e.currentTarget as HTMLElement
-  const rect = target.getBoundingClientRect()
-  const x = (e.clientX - rect.left) / rect.width - 0.5
-  const y = (e.clientY - rect.top) / rect.height - 0.5
-  tiltX.value = x * 16  // max ±8°
-  tiltY.value = -y * 16
-}
+const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
+const { playPaperSlide } = useAudioSynth()
 
 const avatarTransitionStyle = computed(() => {
   if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
@@ -146,10 +123,19 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card {
   display: block;
   text-decoration: none;
-  perspective: 800px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  /* Ensure a high z-index when hovered for 3d effect */
+  position: relative;
+  z-index: 1;
+}
+
+.roster-card:hover {
+  z-index: 10;
 }
 
 .roster-card__inner {
+  position: relative;
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
   gap: var(--space-4);
@@ -157,16 +143,32 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-skeuo-sm, var(--shadow-sm));
   transition:
     box-shadow var(--duration-normal) var(--ease-out-expo),
     border-color var(--duration-normal) var(--ease-out-expo);
-  will-change: transform;
+  /* Absolute glare clip */
+  overflow: hidden;
+  height: 100%;
 }
 
 .roster-card:hover .roster-card__inner {
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: var(--shadow-skeuo-lg, var(--shadow-card-hover));
   border-color: var(--border-strong);
+}
+
+.glare-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle 200px at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 255, 255, 0.12) 0%,
+    transparent 100%
+  );
+  mix-blend-mode: plus-lighter;
+  transition: opacity 0.3s ease;
+  z-index: 5;
 }
 
 /* Avatar */
@@ -202,7 +204,6 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   background: linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
 }
 
-/* Avatar glow for photos */
 .roster-card__avatar-glow {
   position: absolute;
   inset: -4px;
