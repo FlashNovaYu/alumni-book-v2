@@ -541,7 +541,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 
   @media (max-width: 768px) {
     .top-nav { min-height: 52px; }
-    .ticket-container { margin: 0; }
+    .ticket-container { margin: 0; border: none; border-bottom: 1px solid color-mix(in srgb, var(--color-paper-brown) 15%, var(--color-paper-border)); filter: none; }
+    .ticket-stub-left, .ticket-stub-right { border: none; background: transparent; padding: 0 12px; }
+    .ticket-punch-top, .ticket-punch-bottom { display: none; }
     .nav-inner {
       min-height: 52px;
       padding: 0;

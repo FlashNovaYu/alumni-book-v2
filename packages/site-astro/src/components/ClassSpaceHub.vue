@@ -229,5 +229,9 @@ onMounted(() => {
   .hub-loading__grid {
     grid-template-columns: 1fr;
   }
+  
+  .section-header__title {
+    font-size: var(--type-title-md);
+  }
 }
 </style>
