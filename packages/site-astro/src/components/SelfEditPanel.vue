@@ -202,7 +202,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import { getSessionName, compressImage, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
+import { appendImageVariants, compressImage, generateImageVariants, getSessionName, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 import { handleClassmateUnauthorized } from '../api/classmateSession'
 
@@ -332,11 +332,16 @@ async function uploadFile(e: Event, type: 'avatar' | 'background') {
 
   uploading.value = true
   try {
-    const compressed = await compressImage(file, type === 'avatar' ? 400 : 1920, 0.85)
+    const compressed = await compressImage(file, type === 'avatar' ? 400 : 1600, 0.82)
+    const variants = await generateImageVariants(compressed, {
+      widths: type === 'avatar' ? [128, 256, 320] : [320, 960],
+      quality: 0.82,
+    })
     const fd = new FormData()
     fd.append('file', compressed)
     fd.append('type', type)
     fd.append('slug', props.studentSlug)
+    appendImageVariants(fd, variants, type === 'avatar' ? 'avatars' : 'backgrounds', props.studentSlug)
 
     const url = joinApiUrl(props.apiBase, '/api/classmate/upload')
     const res = await fetch(url, {

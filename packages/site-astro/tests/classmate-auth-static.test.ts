@@ -52,4 +52,13 @@ describe('classmate account login frontend', () => {
     expect(selfEdit).toContain('第 ${idx + 1} 个小传标题')
     expect(messageWall).toContain('aria-label="留言内容"')
   })
+
+  it('为同学自助图片上传提交压缩后的响应式变体', () => {
+    const selfEditPath = path.resolve(__dirname, '../src/components/SelfEditPanel.vue')
+    const selfEdit = fs.readFileSync(selfEditPath, 'utf-8')
+
+    expect(selfEdit).toContain('generateImageVariants')
+    expect(selfEdit).toContain('appendImageVariants')
+    expect(selfEdit).toMatch(/appendImageVariants\(fd, variants, type === 'avatar' \? 'avatars' : 'backgrounds', props\.studentSlug\)/)
+  })
 })

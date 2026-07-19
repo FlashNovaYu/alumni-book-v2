@@ -88,7 +88,7 @@ function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number | u
 
 /** Generate immutable responsive image derivatives in the browser. */
 export async function generateImageVariants(file: File, options: ImageVariantOptions = {}): Promise<GeneratedImageVariant[]> {
-  if (!file.type.startsWith('image/') || file.type === SVG_TYPE) {
+  if (!file.type.startsWith('image/') || file.type === SVG_TYPE || file.type === 'image/gif') {
     return [{ kind: 'original', blob: file, width: 0, height: 0, contentType: file.type || 'application/octet-stream' }]
   }
   const widths = [...new Set(options.widths || [128, 256, 320, 960])].filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b)

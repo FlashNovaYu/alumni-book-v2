@@ -31,6 +31,12 @@ function installCanvas(toBlob: (callback: BlobCallback, type?: string) => void) 
 }
 
 describe('generateImageVariants', () => {
+  it('GIF 仅保留原文件，避免把动画降成单帧变体', async () => {
+    const gif = new File(['gif'], 'animated.gif', { type: 'image/gif' })
+    const result = await generateImageVariants(gif)
+    expect(result).toEqual([{ kind: 'original', blob: gif, width: 0, height: 0, contentType: 'image/gif' }])
+  })
+
   it('在 WebP 编码不可用时回退 JPEG，并释放每个 canvas', async () => {
     const canvases = installCanvas((callback, type) => callback(new Blob(['variant'], { type: type === 'image/webp' ? 'image/png' : 'image/jpeg' })))
     Object.assign(globalThis, {
