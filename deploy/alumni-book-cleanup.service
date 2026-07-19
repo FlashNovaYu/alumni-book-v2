@@ -5,5 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+User=admin
+Group=admin
 WorkingDirectory=/opt/alumni-book/app
 ExecStart=/usr/bin/podman-compose -f /opt/alumni-book/app/docker-compose.yml exec -T api pnpm --filter worker cleanup:local
