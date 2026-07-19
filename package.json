@@ -31,6 +31,7 @@
     "verify:site": "pnpm build:admin && pnpm --filter site-astro typecheck && pnpm --filter site-astro test:with-build && pnpm --filter site-astro test:perf-network",
     "verify:all": "pnpm verify:worker && pnpm verify:shared && pnpm verify:admin && pnpm verify:site",
     "prepare:pages": "node scripts/prepare-pages-deploy.mjs",
+    "build:selfhosted": "node scripts/build-selfhosted.mjs",
     "verify:pages": "pnpm verify:all && pnpm prepare:pages",
     "smoke:pages": "node scripts/smoke-pages.mjs"
   },

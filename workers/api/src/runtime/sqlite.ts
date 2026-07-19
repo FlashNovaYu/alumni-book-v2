@@ -10,14 +10,14 @@ export type SqliteRunResult = {
 
 export type SqliteBoundStatement = {
   first<T = Record<string, unknown>>(): T | undefined
-  all<T = Record<string, unknown>>(): { results: T[] }
+  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>
   run(): SqliteRunResult
 }
 
 export type SqlitePreparedStatement = {
   bind(...values: unknown[]): SqliteBoundStatement
   first<T = Record<string, unknown>>(): T | undefined
-  all<T = Record<string, unknown>>(): { results: T[] }
+  all<T = Record<string, unknown>>(): Promise<{ results: T[] }>
   run(): SqliteRunResult
 }
 
@@ -33,7 +33,7 @@ function createBoundStatement(statement: Database.Statement, values: unknown[]):
     first<T = Record<string, unknown>>() {
       return statement.get(...values) as T | undefined
     },
-    all<T = Record<string, unknown>>() {
+    async all<T = Record<string, unknown>>() {
       return { results: statement.all(...values) as T[] }
     },
     run() {

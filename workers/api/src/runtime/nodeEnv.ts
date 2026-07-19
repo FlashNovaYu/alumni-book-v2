@@ -1,7 +1,8 @@
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createLocalStorage, type LocalStorage } from './localStorage'
-import { createSqliteDatabase, type SqliteDatabase } from './sqlite'
+import { initializeLocalDatabase } from '../db/init-local'
+import type { SqliteDatabase } from './sqlite'
 
 export type NodeRuntimeConfig = {
   databasePath?: string
@@ -42,7 +43,7 @@ export function createNodeRuntime(config: NodeRuntimeConfig = {}): NodeRuntime {
   mkdirSync(dirname(databasePath), { recursive: true })
   mkdirSync(uploadRoot, { recursive: true })
 
-  const database = createSqliteDatabase(databasePath)
+  const database = initializeLocalDatabase(databasePath)
   const storage = createLocalStorage(uploadRoot)
   return {
     env: {
