@@ -4,7 +4,11 @@ WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
-RUN apt-get update \
+RUN sed -i \
+      -e 's|http://deb.debian.org/debian|https://mirrors.aliyun.com/debian|g' \
+      -e 's|http://deb.debian.org/debian-security|https://mirrors.aliyun.com/debian-security|g' \
+      /etc/apt/sources.list.d/debian.sources \
+  && apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
