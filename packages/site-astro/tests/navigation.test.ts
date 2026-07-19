@@ -117,7 +117,7 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
       expect(content).toContain('mobile-page-title')
 
       // 退出登录按钮
-      expect(content).toContain('nav-logout-btn')
+      expect(content).toContain('drawer-logout-button')
     }
   })
 })
