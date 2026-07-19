@@ -42,25 +42,15 @@
 
     <!-- 同学列表网格 -->
     <TransitionGroup v-else-if="filteredClassmates.length > 0" name="roster-list" tag="div" class="roster-grid">
-      <div
+      <ArchiveRosterCard
         v-for="(mate, index) in classmates"
         :key="mate.slug"
         v-show="isCardVisible(mate)"
-        class="roster-card-wrapper"
-        :class="{ 'is-hovered': getState(mate.slug).isHovered }"
-        :style="getTiltStyles(mate.slug, `rotateZ(${getStaticRotation(index)}deg) translateY(${getStaticY(index)}px)`)"
-        @mousemove="onMouseMove($event, mate.slug)"
-        @mouseenter="onMouseEnter(mate.slug); playPaperSlide()"
-        @mouseleave="onMouseLeave(mate.slug)"
-        @touchstart="playPaperSlide()"
-      >
-        <ArchiveRosterCard
-          :card="toArchiveClassmateCard(mate, siteBase)"
-          :api-base="apiBase"
-          @identity-transition="rememberIdentityTransition"
-        />
-        <div class="glare-layer" :style="{ opacity: getState(mate.slug).isHovered ? 1 : 0 }"></div>
-      </div>
+        :card="toArchiveClassmateCard(mate, siteBase)"
+        :api-base="apiBase"
+        :base-transform="`rotateZ(${getStaticRotation(index)}deg) translateY(${getStaticY(index)}px)`"
+        @identity-transition="rememberIdentityTransition"
+      />
     </TransitionGroup>
 
     <!-- 空状态 -->
@@ -89,8 +79,6 @@ import UiSkeleton from './ui/UiSkeleton.vue'
 import UiEmptyState from './ui/UiEmptyState.vue'
 import UiPagination from './ui/UiPagination.vue'
 import { toArchiveClassmateCard } from '../utils/museumViewModels'
-import { useMouseTilt } from '../composables/useMouseTilt'
-import { useAudioSynth } from '../composables/useAudioSynth'
 
 interface Classmate {
   name: string
@@ -146,9 +134,6 @@ const props = defineProps<{
 
 const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
-
-const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
-const { playPaperSlide } = useAudioSynth()
 
 function getStaticRotation(index: number) {
   return (Math.sin(index * 1.5) * 1.5).toFixed(2);
@@ -374,36 +359,6 @@ onMounted(async () => {
   align-items: stretch;
   gap: var(--space-5);
   perspective: 1200px;
-}
-
-.roster-card-wrapper {
-  position: relative;
-  transform-style: preserve-3d;
-  will-change: transform;
-  display: flex;
-}
-
-.roster-card-wrapper > :first-child {
-  flex: 1;
-}
-
-.roster-card-wrapper.is-hovered {
-  z-index: 10;
-}
-
-.glare-layer {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  pointer-events: none;
-  background: radial-gradient(
-    circle at var(--glare-x, 50%) var(--glare-y, 50%),
-    rgba(255, 255, 255, 0.4) 0%,
-    transparent 60%
-  );
-  mix-blend-mode: overlay;
-  transition: opacity 0.3s ease;
-  z-index: 5;
 }
 
 .roster-list-move,

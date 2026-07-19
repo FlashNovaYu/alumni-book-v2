@@ -144,12 +144,16 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 </aside>
 
 <style>
+  :global([data-theme="dark"]) {
+    --color-body-bg: var(--bg-surface, #1e1b18);
+  }
+
   .top-nav {
     position: sticky;
     top: 0;
     z-index: var(--z-nav);
     min-height: calc(var(--nav-height) + 16px);
-    background-color: var(--color-body-bg, #fdfbf7);
+    background-color: transparent;
   }
 
   .top-nav.is-scrolled .ticket-container {

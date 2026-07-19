@@ -1,4 +1,7 @@
 import { hasAudioContext, isAudioMuted, playCrystalTick, toggleAudioMuted } from './audioSynth'
+import { useMouseTilt } from '../composables/useMouseTilt'
+
+const { initDeviceOrientation } = useMouseTilt()
 
 interface VolumeRuntime { destroy(): void }
 
@@ -24,6 +27,9 @@ export function initVolumeToggle() {
   const onClick = () => {
     toggleAudioMuted()
     updateButtons()
+    if (!isAudioMuted()) {
+      initDeviceOrientation?.()
+    }
   }
   const onHover = () => {
     const now = performance.now()
