@@ -148,6 +148,8 @@ export async function compressImage(
   quality = 0.8
 ): Promise<File> {
   if (!file.type.startsWith('image/') || file.type === SVG_TYPE) return file
+  // GIF 动画不能通过单帧 Canvas 重编码，否则会丢失动画帧。
+  if (file.type === 'image/gif') return file
 
   return new Promise((resolve, _reject) => {
     const img = new Image()
@@ -167,7 +169,7 @@ export async function compressImage(
       }
 
       const isPng = file.type === 'image/png'
-      const outputType = isPng ? 'image/png' : 'image/jpeg'
+      const outputTypes = isPng ? ['image/webp', 'image/png'] : ['image/webp', 'image/jpeg']
 
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
@@ -182,18 +184,30 @@ export async function compressImage(
       }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
 
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return resolve(file)
-          const compressed = new File([blob], file.name, {
-            type: outputType,
-            lastModified: Date.now(),
-          })
-          resolve(compressed)
-        },
-        outputType,
-        isPng ? undefined : quality
-      )
+      let outputIndex = 0
+      const tryEncode = () => {
+        const outputType = outputTypes[outputIndex++]
+        if (!outputType) {
+          canvas.width = 1
+          canvas.height = 1
+          return resolve(file)
+        }
+
+        canvas.toBlob((blob) => {
+          const validType = blob && (blob.type === outputType || (outputType === 'image/jpeg' && blob.type === 'image/jpg'))
+          if (validType && blob.size < file.size) {
+            canvas.width = 1
+            canvas.height = 1
+            return resolve(new File([blob], file.name, {
+              type: outputType === 'image/jpg' ? 'image/jpeg' : outputType,
+              lastModified: Date.now(),
+            }))
+          }
+          tryEncode()
+        }, outputType, outputType === 'image/png' ? undefined : quality)
+      }
+
+      tryEncode()
     }
 
     img.onerror = () => {
