@@ -7,6 +7,10 @@
           v-if="selectedRecipient.avatarUrl"
           :src="getAvatarUrl(selectedRecipient.avatarUrl)"
           :alt="selectedRecipient.name"
+          width="40"
+          height="40"
+          loading="lazy"
+          decoding="async"
           @error="handleAvatarError"
         />
         <div v-else class="avatar-fallback">{{ selectedRecipient.name[0] }}</div>
@@ -60,6 +64,10 @@
                   v-if="classmate.avatarUrl"
                   :src="getAvatarUrl(classmate.avatarUrl)"
                   :alt="classmate.name"
+                  width="40"
+                  height="40"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div v-else class="avatar-fallback">{{ classmate.name[0] }}</div>
               </div>

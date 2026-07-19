@@ -103,6 +103,29 @@ describe('Performance Static Constraints Test', () => {
     }
   })
 
+  it('小头像与后台预览声明稳定尺寸、异步解码和懒加载', () => {
+    const imageSources = [
+      'components/AccountCenter.vue',
+      'components/DirectConversationList.vue',
+      'components/DirectConversationView.vue',
+      'components/GroupChatMessage.vue',
+      'components/RankingsPanel.vue',
+      'components/RecipientPicker.vue',
+      'components/PrefaceWall.vue',
+      '../../admin/src/views/StudentEditView.vue',
+    ]
+
+    for (const relativePath of imageSources) {
+      const source = fs.readFileSync(path.resolve(__dirname, '../src', relativePath), 'utf-8')
+      const imgTags = source.match(/<img[^>]+>/g) || []
+      for (const tag of imgTags) {
+        expect(tag, relativePath).toContain('width=')
+        expect(tag, relativePath).toContain('height=')
+        expect(tag, relativePath).toContain('decoding="async"')
+      }
+    }
+  })
+
   it('静态打包的所有 JS 体积不应严重超限', () => {
     const assets = fs.readdirSync(assetsDir)
     const jsFiles = assets.filter((file: string) => file.endsWith('.js'))

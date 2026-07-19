@@ -25,6 +25,10 @@
             v-if="conversation.peer.avatarUrl && !failedAvatarIds.has(conversation.id)"
             :src="avatarUrl(conversation.peer.avatarUrl)"
             alt=""
+            width="38"
+            height="38"
+            loading="lazy"
+            decoding="async"
             @error="failedAvatarIds.add(conversation.id)"
           />
           <span v-else>{{ conversation.peer.name.slice(0, 1) }}</span>

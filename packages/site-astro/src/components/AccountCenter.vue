@@ -14,7 +14,7 @@
       <!-- 身份展示区 -->
       <div class="profile-summary">
         <div class="avatar-container">
-          <img v-if="student.avatarUrl && !avatarError" :src="student.avatarUrl" class="user-avatar" alt="头像" @error="avatarError = true" />
+          <img v-if="student.avatarUrl && !avatarError" :src="student.avatarUrl" class="user-avatar" alt="头像" width="64" height="64" loading="lazy" decoding="async" @error="avatarError = true" />
           <div v-else class="avatar-fallback">{{ student.name.charAt(0) }}</div>
         </div>
         <div class="profile-info">

@@ -6,7 +6,7 @@
     :data-message-state="message.deliveryState"
   >
     <div class="message-avatar" aria-hidden="true">
-      <img v-if="message.author.avatarUrl" :src="message.author.avatarUrl" alt="" />
+      <img v-if="message.author.avatarUrl" :src="message.author.avatarUrl" alt="" width="34" height="34" loading="lazy" decoding="async" />
       <span v-else>{{ message.author.name.slice(0, 1) }}</span>
     </div>
     <div class="message-content">

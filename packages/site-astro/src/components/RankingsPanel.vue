@@ -30,7 +30,7 @@
             {{ index + 1 }}
           </div>
           <div class="rank-avatar-wrapper">
-            <img v-if="item.avatarUrl" :src="avatarUrl(item.avatarUrl)" class="rank-avatar" />
+            <img v-if="item.avatarUrl" :src="avatarUrl(item.avatarUrl)" class="rank-avatar" width="48" height="48" loading="lazy" decoding="async" />
             <span v-else class="rank-avatar-char">{{ item.name.charAt(0) }}</span>
           </div>
           <div class="rank-name">{{ item.name }}</div>

@@ -3,7 +3,7 @@
     <header class="conversation-header">
       <div class="peer-identity">
         <span class="peer-avatar" aria-hidden="true">
-          <img v-if="peer.avatarUrl" :src="peer.avatarUrl" alt="" />
+          <img v-if="peer.avatarUrl" :src="peer.avatarUrl" alt="" width="44" height="44" loading="lazy" decoding="async" />
           <span v-else>{{ peer.name.slice(0, 1) }}</span>
         </span>
         <div><p class="paper-kicker">DIRECT CONVERSATION</p><h2>{{ peer.name }}</h2></div>

@@ -11,7 +11,7 @@
       <div class="ack-grid">
         <div v-for="ack in activeAcknowledgments" :key="ack.name" class="ack-person paper-note">
           <div class="ack-avatar">
-            <img v-if="ack.avatarUrl" :src="getAvatarUrl(ack.avatarUrl)" :alt="ack.name" loading="lazy" decoding="async" />
+            <img v-if="ack.avatarUrl" :src="getAvatarUrl(ack.avatarUrl)" :alt="ack.name" width="56" height="56" loading="lazy" decoding="async" />
             <span v-else class="avatar-placeholder">{{ ack.name.charAt(0) }}</span>
           </div>
           <div class="ack-name title-sm">{{ ack.name }}</div>

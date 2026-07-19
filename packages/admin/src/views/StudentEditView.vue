@@ -26,7 +26,7 @@
         <div class="form-group">
           <label class="form-label">头像</label>
           <input type="file" accept="image/*" @change="handleAvatarUpload" />
-          <img v-if="student.avatarUrl" :src="fileUrl(student.avatarUrl)" class="avatar-preview" />
+          <img v-if="student.avatarUrl" :src="avatarMedia.src" :srcset="avatarMedia.srcset || undefined" :sizes="avatarMedia.sizes" class="avatar-preview" width="80" height="80" loading="lazy" decoding="async" />
         </div>
         <div class="form-group">
           <label>
@@ -44,7 +44,7 @@
           <label class="form-label">背景图片</label>
           <input type="file" accept="image/*" @change="handleBackgroundUpload" />
           <div v-if="student.backgroundUrl" class="background-preview">
-            <img :src="fileUrl(student.backgroundUrl)" alt="背景预览" />
+            <img :src="backgroundMedia.src" :srcset="backgroundMedia.srcset || undefined" :sizes="backgroundMedia.sizes" alt="背景预览" width="300" height="150" loading="lazy" decoding="async" />
             <button class="btn-danger btn-sm" @click="student.backgroundUrl = null">移除</button>
           </div>
         </div>
@@ -253,11 +253,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminFetch } from '@/api/client'
 import { compressImage } from '@/utils/image'
-import { appendImageVariants, generateImageVariants, type Student, type StudentInfo, type ApiResponse } from '@alumni/shared'
+import { appendImageVariants, buildMediaSources, generateImageVariants, type Student, type StudentInfo, type ApiResponse } from '@alumni/shared'
 import CalendarDatePicker from '@/components/CalendarDatePicker.vue'
 
 const route = useRoute()
@@ -290,6 +290,19 @@ const student = ref<Student>({
   createdAt: '',
   updatedAt: '',
 })
+
+const avatarMedia = computed(() => buildMediaSources(
+  fileUrl(student.value.avatarUrl),
+  student.value.media?.avatar?.variants,
+  80,
+  80,
+))
+const backgroundMedia = computed(() => buildMediaSources(
+  fileUrl(student.value.backgroundUrl),
+  student.value.media?.background?.variants,
+  300,
+  150,
+))
 
 function showToast(type: 'success' | 'error', message: string) {
   toast.value = { type, message }
