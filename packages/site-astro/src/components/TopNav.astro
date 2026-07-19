@@ -169,6 +169,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
 
   /* Ticket styles */
   .ticket-container {
+    position: relative;
     display: flex;
     align-items: stretch;
     background: var(--color-paper-card);
@@ -532,7 +533,13 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .top-nav--home:not(.has-session) .mobile-nav-button,
   .top-nav--home:not(.has-session) .mobile-page-title { display: none; }
   .top-nav--home:not(.has-session) .nav-brand--stub { display: none; }
-  .top-nav--home:not(.has-session) .nav-brand--center { display: inline-flex; }
+  .top-nav--home:not(.has-session) .nav-brand--center {
+    display: inline-flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
 
   @media (max-width: 980px) {
     .nav-link { min-width: 0; padding: 0 9px; font-size: 13px; }

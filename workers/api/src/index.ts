@@ -342,8 +342,13 @@ app.get('/api/students/:slug', async (c) => {
     return c.json({ success: false, message: '学生不存在' }, 404)
   }
 
-  const student = formatStudent(row)
   const viewer = await resolveStudentViewer(c)
+  if (viewer.kind === 'classmate') {
+    const checkin = await db.prepare('SELECT 1 FROM student_checkins WHERE student_slug = ? AND visitor_slug = ?').bind(slug, viewer.slug).first()
+    row.has_checked_in = !!checkin
+  }
+
+  const student = formatStudent(row)
   const filtered = filterStudentForAudience(student, audienceForStudent(viewer, slug))
   return c.json({ success: true, data: filtered })
 })
@@ -491,6 +496,79 @@ app.post('/api/students/:slug/visit', async (c) => {
     'UPDATE students SET visit_count = visit_count + ? WHERE slug = ? RETURNING visit_count'
   ).bind(limit.limited ? 0 : 1, slug).first()
   return c.json({ success: true, data: { visitCount: (row as any)?.visit_count || 0 } })
+})
+
+// 主页打卡留念
+app.post('/api/students/:slug/checkin', async (c) => {
+  const slug = c.req.param('slug')
+  const db = c.env.DB
+  const token = c.req.header('X-Classmate-Token')
+  
+  if (!token) {
+    return c.json({ success: false, message: '请先登录' }, 401)
+  }
+  const visitorSlug = await verifyClassmateSession(db, token)
+  if (!visitorSlug) {
+    return c.json({ success: false, message: '会话已过期' }, 401)
+  }
+  if (slug === visitorSlug) {
+    return c.json({ success: false, message: '不能对自己打卡' }, 400)
+  }
+
+  // 获取访客信息
+  const visitorRow = await db.prepare('SELECT name, avatar_url FROM students WHERE slug = ?').bind(visitorSlug).first()
+  if (!visitorRow) {
+    return c.json({ success: false, message: '访客信息不存在' }, 404)
+  }
+
+  // 插入打卡记录并增加计数
+  const insertRes = await db.prepare(
+    'INSERT OR IGNORE INTO student_checkins (student_slug, visitor_slug) VALUES (?, ?)'
+  ).bind(slug, visitorSlug).run()
+  
+  if (insertRes.meta.changes > 0) {
+    await db.prepare('UPDATE students SET checkin_count = checkin_count + 1 WHERE slug = ?').bind(slug).run()
+    
+    // 聚合通知逻辑
+    const existingNotification = await db.prepare(
+      "SELECT id, related_id FROM notifications WHERE recipient_slug = ? AND type = 'profile_checkin' AND read_at IS NULL"
+    ).bind(slug).first()
+
+    const visitorData = {
+      slug: visitorSlug,
+      name: visitorRow.name,
+      avatarUrl: visitorRow.avatar_url,
+      timestamp: new Date().toISOString()
+    }
+
+    if (existingNotification) {
+      // 存在未读通知，追加访客
+      let visitors = []
+      try {
+        visitors = JSON.parse(existingNotification.related_id as string || '[]')
+      } catch (e) {}
+      
+      // 去重，以防万一
+      visitors = visitors.filter((v: any) => v.slug !== visitorSlug)
+      visitors.unshift(visitorData)
+      
+      // 限制最多保存10个人
+      if (visitors.length > 10) visitors = visitors.slice(0, 10)
+
+      await db.prepare(
+        "UPDATE notifications SET related_id = ?, created_at = datetime('now') WHERE id = ?"
+      ).bind(JSON.stringify(visitors), existingNotification.id).run()
+    } else {
+      // 不存在未读通知，创建新通知
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      await db.prepare(
+        "INSERT INTO notifications (id, recipient_slug, type, title, body, related_type, related_id) VALUES (?, ?, 'profile_checkin', '你被打卡了', '有同学在你的主页留念', 'checkin_visitors', ?)"
+      ).bind(notificationId, slug, JSON.stringify([visitorData])).run()
+    }
+  }
+
+  const checkinCountRow = await db.prepare('SELECT checkin_count FROM students WHERE slug = ?').bind(slug).first()
+  return c.json({ success: true, data: { checkinCount: (checkinCountRow as any)?.checkin_count || 0 } })
 })
 
 // 人气排行
@@ -802,6 +880,8 @@ function formatStudent(row: any) {
     photos: JSON.parse(row.photos || '[]'),
     media: parseStudentMedia(row.media_json),
     visitCount: row.visit_count || 0,
+    checkinCount: row.checkin_count || 0,
+    hasCheckedIn: !!row.has_checked_in,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

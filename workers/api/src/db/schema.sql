@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS students (
   school TEXT DEFAULT '',
   class_name TEXT DEFAULT '',
   visit_count INTEGER DEFAULT 0,
+  checkin_count INTEGER DEFAULT 0,
   edit_secret_hash TEXT,
   edit_secret_updated_at TEXT,
   privacy_level TEXT DEFAULT 'classmates',
@@ -29,6 +30,15 @@ CREATE TABLE IF NOT EXISTS students (
   account_last_login_at TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS student_checkins (
+  student_slug TEXT NOT NULL,
+  visitor_slug TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (student_slug, visitor_slug),
+  FOREIGN KEY (student_slug) REFERENCES students(slug) ON DELETE CASCADE,
+  FOREIGN KEY (visitor_slug) REFERENCES students(slug) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS site_config (

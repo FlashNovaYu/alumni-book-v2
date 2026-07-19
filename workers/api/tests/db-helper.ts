@@ -4,6 +4,7 @@ import { hashPassword } from '../src/lib/password'
 import performanceIndexesMigration from '../migrations/0017_performance_indexes.sql?raw'
 import normalizeTimestampsMigration from '../migrations/0018_normalize_timestamps.sql?raw'
 import mediaVariantsMigration from '../migrations/0019_media_variants.sql?raw'
+import studentCheckinsMigration from '../migrations/0020_student_checkins.sql?raw'
 
 function migrationQueries(source: string) {
   return source.replace(/^\uFEFF/, '').trim().split(/;\s*\r?\n\s*\r?\n/).map((query) => query.trim()).filter(Boolean)
@@ -381,7 +382,8 @@ export const testMigrations = [
   ]},
   { name: '0017_performance_indexes', queries: migrationQueries(performanceIndexesMigration) },
   { name: '0018_normalize_timestamps', queries: migrationQueries(normalizeTimestampsMigration) },
-  { name: '0019_media_variants', queries: migrationQueries(mediaVariantsMigration) }
+  { name: '0019_media_variants', queries: migrationQueries(mediaVariantsMigration) },
+  { name: '0020_student_checkins', queries: migrationQueries(studentCheckinsMigration) }
 ]
 
 export const TEST_LEGACY_ADMIN_PASSWORD = 'test-legacy-admin-password'

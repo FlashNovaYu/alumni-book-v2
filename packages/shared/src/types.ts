@@ -15,6 +15,8 @@ export interface Student {
   photos: string[]
   media?: StudentMediaAssets | null
   visitCount: number
+  checkinCount?: number
+  hasCheckedIn?: boolean
   createdAt: string
   updatedAt: string
   privacyLevel?: string

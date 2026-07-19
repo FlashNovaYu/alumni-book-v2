@@ -428,6 +428,36 @@ onMounted(async () => {
   color: #3e2723;
 }
 
+/* Dark mode overrides for card skins */
+:global(html[data-theme='night']) .style-paper,
+:global(html[data-theme='night']) .msg-textarea.style-preview-paper {
+  background: #2c2724;
+  border-color: #4a3e35;
+  color: #d1c7bd;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+:global(html[data-theme='night']) .style-photoback,
+:global(html[data-theme='night']) .msg-textarea.style-preview-photoback {
+  background: #242424;
+  border-color: #383838;
+  color: #d4d4d4;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+:global(html[data-theme='night']) .style-letter,
+:global(html[data-theme='night']) .msg-textarea.style-preview-letter {
+  background: #2a2522;
+  background-image: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 27px, #403630 28px);
+  border-color: #403630;
+  color: #d1c5bb;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+:global(html[data-theme='night']) .style-chalkboard {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
 .fade-in-msg {
   opacity: 0;
   animation: msgFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;

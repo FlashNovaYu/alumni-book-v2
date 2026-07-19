@@ -263,7 +263,18 @@
           <!-- 底部签章 -->
           <div class="seal-area">
             <span class="visits">浏览 <span>{{ student.visitCount || 0 }}</span> 次</span>
-            <span class="seal">留念</span>
+            <button 
+              v-if="!isCurrentOwner"
+              class="seal" 
+              :class="{ 'is-stamped': student.hasCheckedIn }" 
+              @click="handleCheckin"
+              :disabled="student.hasCheckedIn || checkingIn"
+            >
+              {{ student.hasCheckedIn ? `已留念 ${student.checkinCount || 0}` : '留念' }}
+            </button>
+            <span v-else class="seal is-stamped">
+              留念 {{ student.checkinCount || 0 }}
+            </span>
           </div>
         </div>
 
@@ -325,6 +336,8 @@ interface Student {
   info: any
   photos: any[]
   visitCount: number
+  checkinCount?: number
+  hasCheckedIn?: boolean
 }
 
 const props = defineProps<{
@@ -344,6 +357,7 @@ const student = ref<Student | null>(props.initialStudent)
 const loading = ref(!props.initialStudent)
 const shareOpen = ref(false)
 const avatarError = ref(false)
+const checkingIn = ref(false)
 
 const rootRef = ref<HTMLElement | null>(null)
 let disposed = false
@@ -485,6 +499,31 @@ const futureFields = computed(() => getFields(student.value?.info, [
 
 function openShareModal() { shareOpen.value = true }
 function closeShareModal() { shareOpen.value = false }
+
+async function handleCheckin() {
+  if (!student.value || student.value.hasCheckedIn || checkingIn.value) return
+  if (isCurrentOwner.value) return
+
+  checkingIn.value = true
+  try {
+    const token = getClassmateToken()
+    if (!token) return
+
+    const res = await fetch(`${props.apiBase}/api/students/${slugVal.value}/checkin`, {
+      method: 'POST',
+      headers: { 'X-Classmate-Token': token }
+    })
+    const data = await res.json()
+    if (data.success && student.value) {
+      student.value.hasCheckedIn = true
+      student.value.checkinCount = data.data.checkinCount
+    }
+  } catch (e) {
+    console.error('Checkin failed', e)
+  } finally {
+    checkingIn.value = false
+  }
+}
 
 onMounted(() => {
   disposed = false
@@ -1125,6 +1164,29 @@ onUnmounted(() => {
   border-radius: var(--radius-sm);
   transform: rotate(-12deg);
   opacity: 0.75;
+}
+
+button.seal {
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button.seal:not(:disabled):hover {
+  opacity: 1;
+  transform: rotate(-12deg) scale(1.1);
+}
+
+button.seal:disabled {
+  cursor: not-allowed;
+}
+
+button.seal.is-stamped,
+span.seal.is-stamped {
+  opacity: 1;
+}
+button.seal.is-stamped {
+  background: color-mix(in srgb, var(--error) 10%, transparent);
 }
 
 /* ── Lazy Anchor ── */

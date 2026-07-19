@@ -13,7 +13,27 @@
         @click="$emit('select', notification)"
       >
         <span class="notification-title"><strong>{{ notification.title }}</strong><time>{{ formatTime(notification.createdAt) }}</time></span>
-        <span>{{ notification.body }}</span>
+        
+        <template v-if="notification.type === 'profile_checkin'">
+          <span>{{ notification.body }}</span>
+          <div v-if="getVisitors(notification).length > 0" class="visitor-stack">
+            <img 
+              v-for="(visitor, i) in getVisitors(notification).slice(0, 5)" 
+              :key="visitor.slug"
+              :src="getAvatarUrl(visitor.avatarUrl)"
+              :alt="visitor.name"
+              class="visitor-avatar"
+              :style="{ zIndex: 10 - i }"
+              :title="visitor.name"
+            />
+            <span v-if="getVisitors(notification).length > 5" class="visitor-more" :style="{ zIndex: 0 }">
+              +{{ getVisitors(notification).length - 5 }}
+            </span>
+          </div>
+        </template>
+        <template v-else>
+          <span>{{ notification.body }}</span>
+        </template>
       </button>
     </div>
   </section>
@@ -25,8 +45,25 @@ import type { NotificationItem } from '@alumni/shared'
 defineProps<{ items: NotificationItem[]; selectedId?: string | null }>()
 defineEmits<{ select: [notification: NotificationItem] }>()
 
+const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+
 function formatTime(value: string) {
   return new Date(value).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+}
+
+function getVisitors(notification: NotificationItem) {
+  if (notification.type !== 'profile_checkin' || !notification.relatedId) return []
+  try {
+    return JSON.parse(notification.relatedId)
+  } catch (e) {
+    return []
+  }
+}
+
+function getAvatarUrl(url: string | null) {
+  if (!url) return '' // Browser will show broken image icon or we can use empty string
+  if (url.startsWith('http')) return url
+  return `${apiBase}${url.startsWith('/') ? url : '/' + url}`
 }
 </script>
 
@@ -44,4 +81,9 @@ header h2 { margin-top: 2px; color: var(--color-paper-ink); font-family: var(--f
 .notification-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notification-title time { flex: 0 0 auto; font-size: 11px; }
 .empty-state { margin: 0; padding: var(--spacing-xl) var(--spacing-md); color: var(--color-paper-muted); font-size: 13px; text-align: center; }
+
+.visitor-stack { display: flex; margin-top: 6px; padding-left: 2px; }
+.visitor-avatar { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-paper-card, #fff); object-fit: cover; margin-left: -8px; background: var(--color-paper-bg-soft); position: relative; }
+.visitor-stack .visitor-avatar:first-child { margin-left: 0; }
+.visitor-more { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-paper-card, #fff); background: var(--color-paper-muted); color: var(--color-paper-card, #fff); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; margin-left: -8px; position: relative; }
 </style>
