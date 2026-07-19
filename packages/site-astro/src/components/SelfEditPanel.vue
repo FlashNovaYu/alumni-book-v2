@@ -26,7 +26,7 @@
               <section class="edit-section">
                 <h3 class="section-label">头像</h3>
                 <div class="avatar-row">
-                  <img v-if="form.avatarUrl" :src="form.avatarUrl" class="avatar-preview" />
+                  <img v-if="form.avatarUrl" :src="form.avatarUrl" class="avatar-preview" width="60" height="60" loading="lazy" decoding="async" />
                   <span v-else class="avatar-empty">无头像</span>
                   <label class="btn-sm btn-secondary upload-label">
                     上传<input type="file" accept="image/*" class="file-input" @change="uploadAvatar" :disabled="uploading" />

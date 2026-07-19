@@ -5,13 +5,13 @@
       <button class="share-close-btn" type="button" aria-label="关闭分享窗口" @click="$emit('close')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
       <div class="share-card-content">
         <div class="share-avatar-wrapper">
-          <img v-if="avatarSrc" :src="avatarSrc" class="share-avatar" :alt="studentName" />
+          <img v-if="avatarSrc" :src="avatarSrc" class="share-avatar" :alt="studentName" width="96" height="96" loading="lazy" decoding="async" />
           <span v-else class="avatar-char share-avatar-placeholder">{{ studentName.charAt(0) }}</span>
         </div>
         <h3 class="share-name">{{ studentName }}</h3>
         <p class="share-motto">{{ motto || '一句话故事' }}</p>
         <div class="share-qr-wrapper">
-          <img :src="qrCodeSrc" class="share-qr" alt="二维码" />
+          <img :src="qrCodeSrc" class="share-qr" alt="二维码" width="180" height="180" decoding="async" />
           <p class="share-qr-tip">扫码访问 TA 的主页</p>
         </div>
       </div>

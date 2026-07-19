@@ -23,6 +23,10 @@
               :src="getAvatarUrl(visitor.avatarUrl)"
               :alt="visitor.name"
               class="visitor-avatar"
+              width="32"
+              height="32"
+              loading="lazy"
+              decoding="async"
               :style="{ zIndex: 10 - i }"
               :title="visitor.name"
             />

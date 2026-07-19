@@ -23,7 +23,7 @@ const avatarSrc = student.avatarUrl
   <div class="hero-content container">
     <div class="hero-avatar">
       {avatarSrc ? (
-        <img src={avatarSrc} alt={student.name} loading="lazy" decoding="async" style="aspect-ratio: 1" />
+        <img src={avatarSrc} alt={student.name} width="96" height="96" loading="lazy" decoding="async" style="aspect-ratio: 1" />
       ) : (
         <span class="avatar-char">{student.name.charAt(0)}</span>
       )}

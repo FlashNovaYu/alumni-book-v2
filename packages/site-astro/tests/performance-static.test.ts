@@ -112,6 +112,10 @@ describe('Performance Static Constraints Test', () => {
       'components/RankingsPanel.vue',
       'components/RecipientPicker.vue',
       'components/PrefaceWall.vue',
+      'components/NotificationList.vue',
+      'components/StudentShareCard.vue',
+      'components/SelfEditPanel.vue',
+      'components/StudentHero.astro',
       '../../admin/src/views/StudentEditView.vue',
     ]
 
