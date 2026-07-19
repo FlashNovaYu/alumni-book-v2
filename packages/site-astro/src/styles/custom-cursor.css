@@ -14,49 +14,80 @@
 
   .custom-cursor {
     position: fixed;
-    top: 0;
     left: 0;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--accent);
-    opacity: 0;
+    top: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
     pointer-events: none;
-    z-index: var(--z-cursor);
-    transform: translate3d(0, 0, 0) translate(-50%, -50%);
+    z-index: var(--z-cursor, 9999);
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.96);
+    background: var(--accent);
+    will-change: transform, width, height, opacity;
     mix-blend-mode: difference;
     transition:
-      width 0.28s var(--ease-out-expo),
-      height 0.28s var(--ease-out-expo),
-      background-color 0.28s var(--ease-out-expo),
-      border 0.28s var(--ease-out-expo),
-      opacity 0.2s ease;
+      width 120ms cubic-bezier(0.22, 1.18, 0.32, 1),
+      height 120ms cubic-bezier(0.22, 1.18, 0.32, 1),
+      border-radius 100ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 90ms ease,
+      background-color 100ms ease;
+  }
+
+  .custom-cursor::before {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border-radius: inherit;
+    border: 1.5px solid var(--accent);
+    opacity: 0;
+    transform: scale(0.8);
+    transition:
+      opacity 100ms ease,
+      transform 130ms cubic-bezier(0.22, 1.18, 0.32, 1),
+      border-color 100ms ease;
   }
 
   .custom-cursor.is-visible {
-    opacity: 0.9;
+    opacity: 1;
   }
 
-  .custom-cursor.is-hovered {
-    width: 46px;
-    height: 46px;
-    background-color: transparent;
-    border: 1.5px solid var(--accent);
+  .custom-cursor.is-clickable {
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
     mix-blend-mode: normal;
   }
 
-  .custom-cursor__icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 16px;
-    height: 16px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+  .custom-cursor.is-clickable::before {
+    opacity: 1;
+    transform: scale(1);
   }
 
-  .custom-cursor.is-hovered .custom-cursor__icon {
-    opacity: 1;
+  .custom-cursor.is-text {
+    width: 3px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--accent);
+    mix-blend-mode: difference;
+  }
+
+  .custom-cursor.is-text::before {
+    opacity: 0;
+  }
+
+  .custom-cursor.is-pressed {
+    width: 7px;
+    height: 7px;
+  }
+
+  .custom-cursor.is-clickable.is-pressed {
+    width: 10px;
+    height: 10px;
+  }
+
+  .custom-cursor.is-text.is-pressed {
+    width: 3px;
+    height: 17px;
   }
 }
