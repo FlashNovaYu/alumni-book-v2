@@ -159,6 +159,32 @@ describe('Node 运行时绑定', () => {
     expect(readinessBody.data.ready).toBe(true)
   })
 
+  it('通过 Node 文件入口提供变体的缓存与 Range 读取', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'alumni-book-media-fetch-'))
+    storageDirectories.push(directory)
+    const runtime = createNodeRuntime({
+      databasePath: join(directory, 'data', 'alumni.sqlite'),
+      uploadRoot: join(directory, 'uploads'),
+      jwtSecret: 'node-media-test-secret',
+      corsOrigin: 'http://127.0.0.1:4321',
+    })
+    openRuntimes.push(runtime)
+    await runtime.env.R2.put('photos/sample_320.webp', new Uint8Array([0, 1, 2, 3]), {
+      httpMetadata: { contentType: 'image/webp' },
+    })
+    const fetch = createNodeFetch(runtime)
+
+    const response = await fetch(new Request('http://127.0.0.1:8787/api/files/photos/sample_320.webp'))
+    const ranged = await fetch(new Request('http://127.0.0.1:8787/api/files/photos/sample_320.webp', { headers: { Range: 'bytes=1-2' } }))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('image/webp')
+    expect(response.headers.get('Cache-Control')).toContain('immutable')
+    expect(ranged.status).toBe(206)
+    expect(ranged.headers.get('Content-Range')).toBe('bytes 1-2/4')
+    expect(new Uint8Array(await ranged.arrayBuffer())).toEqual(new Uint8Array([1, 2]))
+  })
+
   it('在 Node 没有 Cache API 时跳过 HTTPS 公共缓存读取', async () => {
     await expect(matchPublicCache(new Request('https://example.test/api/config'))).resolves.toBeUndefined()
   })
