@@ -7,12 +7,15 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply alumni-book-db",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "test:node": "vitest --config vitest.node.config.ts run"
   },
   "dependencies": {
+    "better-sqlite3": "^11.10.0",
     "hono": "^4.12.29"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@cloudflare/vitest-pool-workers": "^0.18.4",
     "@cloudflare/workers-types": "^5.20260712.1",
     "tsx": "^4.23.0",
