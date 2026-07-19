@@ -100,4 +100,24 @@ describe('Astro Site Base Path Link & Navigation Smoke Test', () => {
     const maps = readdirSync(adminAssets).filter((name: string) => name.endsWith('.map'))
     expect(maps).toEqual([])
   })
+
+  it('verifies paper navigation HTML markers and contract structures in generated html', () => {
+    const prefaceHtmlPath = join(distDir, 'preface/index.html')
+    if (existsSync(prefaceHtmlPath)) {
+      const content = readFileSync(prefaceHtmlPath, 'utf-8')
+      
+      // 必须包含活动项和墨线标记
+      expect(content).toContain('nav-active-paper')
+      expect(content).toContain('nav-active-ink')
+
+      // 图标按钮必须具有 aria-label 属性
+      expect(content).toContain('aria-label')
+
+      // 移动端中栏标题
+      expect(content).toContain('mobile-nav-title')
+
+      // 退出登录按钮
+      expect(content).toContain('nav-logout-btn')
+    }
+  })
 })
