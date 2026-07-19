@@ -12,19 +12,19 @@
      ══════════════════════════════════════════════════════════════════════ */
 
   /* 基础色彩 */
-  --_bg: #f7f4ed;
-  --_surface: #fffdf8;
+  --_bg: #EBE7DF;
+  --_surface: #FDFDFB;
   --_surface-raised: #ffffff;
-  --_surface-soft: #f5f0e8;
-  --_ink: #1c1917;
-  --_ink-soft: #44403c;
-  --_muted: #78716c;
-  --_dim: #d6d3cd;
-  --_accent: #b4532a;
-  --_accent-active: #9a3d1a;
-  --_accent-soft: rgba(180, 83, 42, 0.08);
-  --_border: rgba(28, 25, 23, 0.08);
-  --_border-strong: rgba(28, 25, 23, 0.14);
+  --_surface-soft: #F4EFE9;
+  --_ink: #1A1816;
+  --_ink-soft: #423D38;
+  --_muted: #6A635B;
+  --_dim: #A8A19A;
+  --_accent: #8C3A21;
+  --_accent-active: #732D18;
+  --_accent-soft: rgba(140, 58, 33, 0.08);
+  --_border: rgba(26, 24, 22, 0.12);
+  --_border-strong: rgba(26, 24, 22, 0.18);
 
   /* 语义色彩 — 成功/警告/错误 */
   --_success: #5db872;
@@ -128,8 +128,8 @@
   /* 字重 */
   --weight-regular: 400;
   --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
+  --weight-semibold: 700;
+  --weight-bold: 900;
 
   /* 行高 */
   --leading-tight: 1.1;

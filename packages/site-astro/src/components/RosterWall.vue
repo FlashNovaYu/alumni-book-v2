@@ -5,6 +5,15 @@
       <div class="roster-search__header">
         <p class="roster-search__kicker">人物长廊</p>
         <h2 class="roster-search__title">同学档案</h2>
+        <button
+          v-if="!gyroActivated"
+          class="roster-gyro-btn mobile-only"
+          @click="activateGyro"
+          aria-label="开启 3D 光影"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          开启 3D 光影
+        </button>
       </div>
       <div class="roster-search__input-wrapper">
         <svg class="roster-search__icon" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -79,6 +88,7 @@ import UiSkeleton from './ui/UiSkeleton.vue'
 import UiEmptyState from './ui/UiEmptyState.vue'
 import UiPagination from './ui/UiPagination.vue'
 import { toArchiveClassmateCard } from '../utils/museumViewModels'
+import { initDeviceOrientation } from '../composables/useMouseTilt'
 
 interface Classmate {
   name: string
@@ -134,6 +144,12 @@ const props = defineProps<{
 
 const classmates = ref<Classmate[]>([...props.initialClassmates])
 const keyword = ref('')
+const gyroActivated = ref(false)
+
+const activateGyro = async () => {
+  await initDeviceOrientation()
+  gyroActivated.value = true
+}
 
 function getStaticRotation(index: number) {
   return (Math.sin(index * 1.5) * 1.5).toFixed(2);
@@ -283,6 +299,26 @@ onMounted(async () => {
   margin: 0;
 }
 
+.roster-gyro-btn {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) auto 0;
+  padding: 6px 12px;
+  font-size: var(--type-caption);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+}
+
+.roster-gyro-btn:hover {
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
 .roster-search__input-wrapper {
   position: relative;
   width: 100%;
@@ -384,17 +420,31 @@ onMounted(async () => {
 
 @media (max-width: 768px) {
   .roster-search {
-    padding: var(--space-5);
+    padding: var(--space-4);
     margin-bottom: var(--space-5);
+  }
+
+  .roster-search__input {
+    font-size: 16px; /* 防止 iOS 自动放大缩放 */
   }
 
   .roster-search__title {
     font-size: var(--type-title-lg);
   }
 
+  .roster-gyro-btn.mobile-only {
+    display: inline-flex;
+  }
+
   .roster-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+  }
+}
+
+@media (max-width: 400px) {
+  .roster-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

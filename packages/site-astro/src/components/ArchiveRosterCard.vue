@@ -262,6 +262,10 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   font-size: var(--type-caption);
   font-weight: var(--weight-medium);
   transition: background-color var(--duration-fast) var(--ease-out-expo);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .roster-card:hover .roster-card__tag {
@@ -278,6 +282,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 @media (max-width: 768px) {
   .roster-card__inner {
+    grid-template-columns: 60px minmax(0, 1fr);
     padding: var(--space-4);
     gap: var(--space-3);
   }
