@@ -28,7 +28,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"${COMPOSE[@]}" --project-directory "$APP_DIR" exec -T api \
+cd "$APP_DIR"
+"${COMPOSE[@]}" exec -T api \
   pnpm --filter worker db:backup:local -- --destination "$snapshot"
 tar -C "$(dirname "$DATA_ROOT")" -czf "$archive" "$(basename "$DATA_ROOT")/data" "$(basename "$DATA_ROOT")/uploads"
 
