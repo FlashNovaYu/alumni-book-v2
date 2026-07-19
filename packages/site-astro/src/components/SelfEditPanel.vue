@@ -464,7 +464,7 @@ function moveModule(index: number, direction: number) {
 .edit-trigger {
   padding: 10px 20px;
   background: var(--color-primary, #cc785c);
-  color: #fff;
+  color: var(--text-inverse);
   border: none;
   border-radius: var(--rounded-md);
   font-size: 14px;
@@ -486,7 +486,7 @@ function moveModule(index: number, direction: number) {
 .editor-panel {
   width: 100%; max-width: 640px; max-height: 85vh;
   overflow: hidden; display: flex; flex-direction: column;
-  background: var(--color-surface-card, #fff);
+  background: var(--bg-surface);
   border-radius: var(--rounded-lg);
 }
 .editor-header {
@@ -568,7 +568,7 @@ function moveModule(index: number, direction: number) {
 /* Secret Dialog CSS */
 .secret-panel {
   width: 100%; max-width: 380px;
-  background: var(--color-surface-card, #fff);
+  background: var(--bg-surface);
   border-radius: var(--rounded-lg);
   padding: 24px;
   display: flex;
@@ -603,7 +603,7 @@ function moveModule(index: number, direction: number) {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: #fff8e1;
+  background: color-mix(in srgb, var(--color-warning) 15%, var(--bg-surface));
   border: 1px solid #ffe082;
   border-radius: var(--rounded-sm);
   padding: 12px 16px;
@@ -667,7 +667,7 @@ function moveModule(index: number, direction: number) {
   .editor-footer {
     position: sticky !important;
     bottom: 0 !important;
-    background: var(--color-surface-card, #fff) !important;
+    background: var(--bg-surface) !important;
     border-top: 1px solid var(--color-hairline) !important;
     padding: 16px 24px !important;
     z-index: 10 !important;

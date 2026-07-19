@@ -293,7 +293,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     z-index: -1;
     border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
     background: var(--color-paper-bg-soft);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    box-shadow: inset 0 1px 0 var(--glass-panel);
   }
 
   .nav-link.is-active::after {
@@ -322,7 +322,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     z-index: 0;
     border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
     background: var(--color-paper-bg-soft);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    box-shadow: inset 0 1px 0 var(--glass-panel);
     transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
   }
 
@@ -414,7 +414,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #fffaf2;
+    color: var(--text-inverse);
     background: var(--color-paper-stamp-red);
     border-radius: 9px;
     font-size: 10px;

@@ -238,8 +238,8 @@ onUnmounted(() => {
 /* ── Sidebar ── */
 .sidebar {
   width: 260px;
-  background: #181715;
-  color: var(--text-inverse);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -257,7 +257,7 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-5) var(--space-5);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar__brand-mark {
@@ -269,7 +269,7 @@ onUnmounted(() => {
   font-family: var(--font-display);
   font-size: var(--type-title-md);
   font-weight: var(--weight-semibold);
-  color: var(--text-inverse);
+  color: var(--text-primary);
 }
 
 .sidebar__nav {
@@ -282,7 +282,8 @@ onUnmounted(() => {
 
 .sidebar__group-label {
   margin: var(--space-2) var(--space-3) var(--space-1);
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
+
   font-size: var(--type-caption);
   font-weight: var(--weight-medium);
   letter-spacing: var(--tracking-wider);
@@ -295,7 +296,7 @@ onUnmounted(() => {
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   font-size: var(--type-body-md);
   font-weight: var(--weight-medium);
   text-decoration: none;
@@ -319,13 +320,13 @@ onUnmounted(() => {
 }
 
 .sidebar__item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--bg-soft);
+  color: var(--text-primary);
 }
 
 .sidebar__item.router-link-active {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-inverse);
+  background: var(--bg-raised);
+  color: var(--accent);
 }
 
 .sidebar__item.router-link-active::before {
@@ -345,7 +346,7 @@ onUnmounted(() => {
 /* Footer */
 .sidebar__footer {
   padding: var(--space-4) var(--space-5);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -361,7 +362,7 @@ onUnmounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #d4714a);
+  background: linear-gradient(135deg, var(--accent), var(--accent-active));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -381,7 +382,7 @@ onUnmounted(() => {
 .sidebar__identity-name {
   font-size: var(--type-body-sm);
   font-weight: var(--weight-medium);
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -389,7 +390,7 @@ onUnmounted(() => {
 
 .sidebar__identity-role {
   font-size: var(--type-caption);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
 }
 
 .sidebar__logout {
@@ -399,9 +400,9 @@ onUnmounted(() => {
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: var(--type-body-sm);
   font-weight: var(--weight-medium);
@@ -413,9 +414,9 @@ onUnmounted(() => {
 }
 
 .sidebar__logout:hover {
-  color: rgba(255, 255, 255, 0.8);
-  border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--bg-soft);
 }
 
 /* ── Mobile Menu Toggle ── */

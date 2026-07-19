@@ -501,7 +501,14 @@ onMounted(() => {
   if (!sessionStorage.getItem(visitKey)) {
     sessionStorage.setItem(visitKey, '1')
     runWhenIdle(() => {
-      fetch(`${props.apiBase}/api/students/${slugVal.value}/visit`, { method: 'POST' })
+      const token = getClassmateToken()
+      const headers: Record<string, string> = {}
+      if (token) headers['X-Classmate-Token'] = token
+
+      fetch(`${props.apiBase}/api/students/${slugVal.value}/visit`, { 
+        method: 'POST',
+        headers
+      })
         .then(r => r.json())
         .then(d => {
           if (d.success && student.value) {
@@ -711,14 +718,14 @@ onUnmounted(() => {
 .student-hero__nickname {
   font-size: var(--type-body-lg);
   font-weight: var(--weight-medium);
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-primary);
   margin: 0;
 }
 
 .student-hero__motto {
   font-size: var(--type-body-md);
   font-style: italic;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   margin: 0;
   max-width: 480px;
 }
@@ -734,10 +741,10 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-sm);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--glass-panel);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
   font-size: var(--type-caption);
   font-weight: var(--weight-medium);
   backdrop-filter: blur(4px);
@@ -755,8 +762,8 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--glass-panel);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   color: var(--bg-raised);
   font-size: var(--type-body-sm);
@@ -770,8 +777,8 @@ onUnmounted(() => {
 }
 
 .student-hero__action:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--bg-soft);
+  border-color: var(--glass-border);
 }
 
 .student-hero__action--secondary {

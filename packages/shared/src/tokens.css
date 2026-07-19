@@ -12,19 +12,19 @@
      ══════════════════════════════════════════════════════════════════════ */
 
   /* 基础色彩 */
-  --_bg: #EBE7DF;
-  --_surface: #FDFDFB;
+  --_bg: #DCD6CD;
+  --_surface: #FFFFFF;
   --_surface-raised: #ffffff;
-  --_surface-soft: #F4EFE9;
-  --_ink: #1A1816;
-  --_ink-soft: #423D38;
-  --_muted: #6A635B;
-  --_dim: #A8A19A;
+  --_surface-soft: #EFEBE4;
+  --_ink: #11100F;
+  --_ink-soft: #383431;
+  --_muted: #5C554F;
+  --_dim: #99918A;
   --_accent: #8C3A21;
   --_accent-active: #732D18;
   --_accent-soft: rgba(140, 58, 33, 0.08);
-  --_border: rgba(26, 24, 22, 0.12);
-  --_border-strong: rgba(26, 24, 22, 0.18);
+  --_border: rgba(17, 16, 15, 0.15);
+  --_border-strong: rgba(17, 16, 15, 0.22);
 
   /* 语义色彩 — 成功/警告/错误 */
   --_success: #5db872;
@@ -80,14 +80,14 @@
   /* ═══════════════════════════════════════════════════════════════════════
      SHADOW SYSTEM — 阴影系统
      ═══════════════════════════════════════════════════════════════════════ */
-  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
-  --shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
-  --shadow-lg: 0 12px 32px rgba(28, 25, 23, 0.08);
-  --shadow-xl: 0 24px 48px rgba(28, 25, 23, 0.10);
-  --shadow-card-hover: 0 8px 24px rgba(28, 25, 23, 0.10);
-  --shadow-elevated: 0 12px 40px rgba(28, 25, 23, 0.12);
-  --shadow-nav-scroll: 0 2px 12px rgba(28, 25, 23, 0.06);
-  --shadow-subtle: 0 1px 3px rgba(20, 20, 19, 0.08);
+  --shadow-sm: 0 1px 2px rgba(17, 16, 15, 0.06);
+  --shadow-md: 0 4px 12px rgba(17, 16, 15, 0.12);
+  --shadow-lg: 0 12px 32px rgba(17, 16, 15, 0.16);
+  --shadow-xl: 0 24px 48px rgba(17, 16, 15, 0.20);
+  --shadow-card-hover: 0 8px 24px rgba(17, 16, 15, 0.18);
+  --shadow-elevated: 0 12px 40px rgba(17, 16, 15, 0.22);
+  --shadow-nav-scroll: 0 2px 12px rgba(17, 16, 15, 0.10);
+  --shadow-subtle: 0 1px 3px rgba(17, 16, 15, 0.08);
 
   /* 拟物阴影层次 (Skeuomorphic Shadows) */
   --shadow-skeuo-1: 0 1px 3px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -97,6 +97,7 @@
   /* 毛玻璃效果变量 (Glassmorphism) */
   --glass-panel: rgba(255, 255, 255, 0.65);
   --glass-border: rgba(255, 255, 255, 0.4);
+  --starfield-opacity: 1;
 
   /* ═══════════════════════════════════════════════════════════════════════
      TYPOGRAPHY — 字体系统
@@ -319,6 +320,7 @@
    DARK MODE — 暗色模式
    ═══════════════════════════════════════════════════════════════════════════ */
 html[data-theme='night'] {
+  --starfield-opacity: 1;
   /* Primitive */
   --_bg: #1c1917;
   --_surface: #292524;

@@ -120,12 +120,19 @@ messagesRoutes.put('/messages/:id/react', async (c) => {
   const message = await db.prepare('SELECT id FROM messages WHERE id = ?').bind(id).first()
   if (!message) return c.json({ success: false, message: '留言不存在' }, 404)
 
+  let requestIdentifier = publicClientIp(c.req.raw)
+  const token = c.req.header('X-Classmate-Token')
+  if (token) {
+    const userSlug = await authClassmate(c)
+    if (userSlug) requestIdentifier = userSlug
+  }
+
   const limit = await claimPublicRequestSlot(
     db,
-    `reaction:${publicClientIp(c.req.raw)}:${id}`,
-    MESSAGE_REACTION_WINDOW_SECONDS,
+    `reaction:${requestIdentifier}:${id}:${reaction}`,
+    100 * 365 * 24 * 60 * 60,
   )
-  if (limit.limited) return publicRateLimitResponse(c, limit.retryAfterSeconds)
+  if (limit.limited) return c.json({ success: false, message: '您已经点过赞了' }, 429)
 
   // 原子更新避免并发覆盖（json_set 内 CRUD 为单条 SQL）
   const path = `$.${reaction}`

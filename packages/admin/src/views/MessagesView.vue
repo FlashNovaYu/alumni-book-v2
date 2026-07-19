@@ -378,7 +378,7 @@ onBeforeUnmount(() => { requestLifecycle.abort(); if (toastTimer) clearTimeout(t
 .msg-meta { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); color: var(--color-muted); font-size: var(--type-caption-size); }
 .msg-content { margin: 0 0 var(--spacing-sm); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
 .msg-reply-inline { margin: 0 0 var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); color: var(--color-muted); background: var(--color-surface-cream-strong); border-left: 3px solid var(--color-primary); font-size: var(--type-body-sm-size); overflow-wrap: anywhere; }
-.badge { padding: 2px 7px; color: #fff; background: var(--color-muted); border-radius: var(--rounded-sm); font-size: 11px; }
+.badge { padding: 2px 7px; color: var(--text-inverse); background: var(--color-muted); border-radius: var(--rounded-sm); font-size: 11px; }
 .badge-pending { background: var(--color-warning); }.badge-visible { background: var(--color-success); }.badge-hidden { background: var(--color-muted); }.badge-recalled_by_admin, .badge-recalled_by_author, .badge-rejected { background: var(--color-error); }.badge-approved { background: var(--color-success); }
 .modal-backdrop { position: fixed; inset: 0; z-index: var(--z-modal); display: grid; padding: var(--spacing-lg); place-items: center; background: rgba(25, 21, 17, 0.4); }
 .modal { display: grid; width: min(520px, 100%); gap: var(--spacing-md); padding: var(--spacing-xl); background: var(--color-surface-card); border-radius: var(--rounded-md); box-shadow: var(--shadow-elevated); }

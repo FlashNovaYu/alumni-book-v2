@@ -531,7 +531,7 @@ onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
   display: inline-block;
   padding: 1px 6px;
   background: var(--color-accent-amber);
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 10px;
   font-weight: bold;
   border-radius: var(--rounded-xs);
@@ -611,7 +611,7 @@ onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
   width: 80px;
   height: 80px;
   border-radius: var(--rounded-sm);
-  background: var(--color-surface-cream-strong);
+  background: var(--bg-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -622,7 +622,7 @@ onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--glass-panel);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -700,7 +700,7 @@ onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 .manage-photo-item {
   display: flex;
   gap: var(--spacing-xs);
-  background: #fff;
+  background: var(--bg-surface);
   border: 1px solid var(--color-hairline);
   padding: var(--spacing-xs);
   border-radius: var(--rounded-sm);
@@ -738,7 +738,7 @@ onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 
 .btn-active-cover {
   background: var(--color-primary) !important;
-  color: #fff !important;
+  color: var(--text-inverse) !important;
   border-color: var(--color-primary) !important;
 }
 

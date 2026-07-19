@@ -71,7 +71,7 @@ async function handleLogout() {
 
 .btn-logout:hover {
   background: var(--color-paper-stamp-red);
-  color: var(--color-body-bg, #fff);
+  color: var(--bg-surface);
 }
 
 @media (max-width: 768px) {

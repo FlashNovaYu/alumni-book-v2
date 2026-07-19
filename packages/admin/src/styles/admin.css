@@ -65,7 +65,7 @@ img { max-width: 100%; display: block; }
   height: 40px;
   padding: 12px 20px;
   background-color: var(--color-error);
-  color: #fff;
+  color: var(--text-inverse);
   font-size: var(--type-button-size);
   font-weight: var(--type-button-weight);
   border-radius: var(--rounded-md);
@@ -176,8 +176,8 @@ img { max-width: 100%; display: block; }
   opacity: 0;
   transform: translateY(-10px);
 }
-.toast-success { background-color: var(--color-success); color: #fff; }
-.toast-error { background-color: var(--color-error); color: #fff; }
+.toast-success { background-color: var(--color-success); color: var(--text-inverse); }
+.toast-error { background-color: var(--color-error); color: var(--text-inverse); }
 
 /* Modal transitions */
 .modal-enter-active {
@@ -265,7 +265,7 @@ img { max-width: 100%; display: block; }
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border-top-color: var(--text-inverse);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   margin-left: 6px;

@@ -49,7 +49,7 @@ type Variables = {
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const DEFAULT_CORS_ORIGIN = 'https://alumni-book.pages.dev'
-const VISIT_DEDUPE_WINDOW_SECONDS = 10 * 60
+const VISIT_DEDUPE_WINDOW_SECONDS = 60 * 60
 
 function normalizeHttpsOrigin(value: string | undefined): string | null {
   if (!value || value === '*') return null
@@ -474,9 +474,17 @@ app.route('/api', classmateRoutes)
 app.post('/api/students/:slug/visit', async (c) => {
   const slug = c.req.param('slug')
   const db = c.env.DB
+  
+  let requestIdentifier = publicClientIp(c.req.raw)
+  const token = c.req.header('X-Classmate-Token')
+  if (token) {
+    const userSlug = await verifyClassmateSession(db, token)
+    if (userSlug) requestIdentifier = userSlug
+  }
+
   const limit = await claimPublicRequestSlot(
     db,
-    `visit:${publicClientIp(c.req.raw)}:${slug}`,
+    `visit:${requestIdentifier}:${slug}`,
     VISIT_DEDUPE_WINDOW_SECONDS,
   )
   const row = await db.prepare(

@@ -174,16 +174,22 @@ async function react(msgId: string, emoji: string) {
   if (reactingKeys.value.has(key)) return
   reactingKeys.value.add(key)
   try {
+    const tokenVal = await ensureClassmateToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (tokenVal) headers['X-Classmate-Token'] = tokenVal
+
     const url = joinApiUrl(props.apiBase, `/api/messages/${msgId}/react`)
     const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ reaction: emoji }),
     })
     const data = await res.json()
     if (data.success) {
       const msg = messages.value.find(m => m.id === msgId)
       if (msg) msg.reactions = data.data.reactions
+    } else {
+      if (data.message) alert(data.message)
     }
   } catch {} finally {
     reactingKeys.value.delete(key)
@@ -314,7 +320,7 @@ onMounted(async () => {
 .pinned-badge {
   display: inline-block;
   font-size: 11px;
-  background-color: color-mix(in srgb, var(--color-warning) 16%, #fff);
+  background-color: color-mix(in srgb, var(--color-warning) 16%, var(--bg-surface));
   color: var(--color-warning);
   padding: 2px var(--spacing-xs);
   border-radius: var(--rounded-sm);
@@ -347,7 +353,7 @@ onMounted(async () => {
 .style-select-btn.active {
   background-color: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 /* Card skin styles */
@@ -385,7 +391,7 @@ onMounted(async () => {
   color: #e0f2f1;
 }
 .style-photoback {
-  background: #ffffff;
+  background: var(--bg-surface);
   border: 1px solid #e0e0e0;
   color: #212121;
   box-shadow: 0 8px 20px rgba(0,0,0,0.06);
@@ -412,7 +418,7 @@ onMounted(async () => {
   color: #f5f5f5;
 }
 .msg-textarea.style-preview-photoback {
-  background: #ffffff;
+  background: var(--bg-surface);
   color: #212121;
 }
 .msg-textarea.style-preview-letter {

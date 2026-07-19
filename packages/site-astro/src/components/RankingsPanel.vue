@@ -157,7 +157,7 @@ onMounted(async () => {
 }
 
 .tab-btn.active {
-  background: #fff;
+  background: var(--bg-surface);
   color: var(--color-primary);
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
@@ -196,9 +196,9 @@ onMounted(async () => {
   color: var(--color-muted);
 }
 
-.rank-1 { background: var(--color-gold); color: #fff; }
-.rank-2 { background: var(--color-silver); color: #fff; }
-.rank-3 { background: var(--color-bronze); color: #fff; }
+.rank-1 { background: var(--color-gold); color: var(--text-inverse); }
+.rank-2 { background: var(--color-silver); color: var(--text-inverse); }
+.rank-3 { background: var(--color-bronze); color: var(--text-inverse); }
 
 .rank-avatar-wrapper {
   width: 32px;

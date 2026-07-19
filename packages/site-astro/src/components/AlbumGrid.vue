@@ -280,7 +280,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .tag-filter-btn.active {
   border-color: var(--color-paper-brown);
   background: var(--color-paper-brown);
-  color: #fffaf2;
+  color: var(--text-inverse);
 }
 
 .album-section {
@@ -353,11 +353,10 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   pointer-events: none;
   background: radial-gradient(
     circle at var(--glare-x, 50%) var(--glare-y, 50%),
-    rgba(255, 255, 255, 0.4) 0%,
-    transparent 60%
+    var(--glass-border) 0%,
+    transparent 100%
   );
-  mix-blend-mode: soft-light;
-  transition: opacity 0.3s ease;
+  box-shadow: inset 0 1px 0 var(--glass-panel);transition: opacity 0.3s ease;
   z-index: 5;
 }
 
@@ -392,7 +391,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .frame-film .photo-item { padding: 12px; padding-bottom: 12px; background: #1c1c1c; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 .frame-film .photo-caption { color: #aaa; bottom: 16px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); padding: 8px; opacity: 0; }
 .frame-film .photo-item:hover .photo-caption { opacity: 1; color: #eee; }
-.frame-polaroid .photo-item { padding: 16px; padding-bottom: 56px; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.15); border-radius: 2px; }
+.frame-polaroid .photo-item { padding: 16px; padding-bottom: 56px; background: var(--bg-surface); box-shadow: var(--shadow-lg); border-radius: 2px; }
 .frame-polaroid .photo-caption { bottom: 16px; font-size: 14px; color: #444; }
 
 /* FLIP Animations */
