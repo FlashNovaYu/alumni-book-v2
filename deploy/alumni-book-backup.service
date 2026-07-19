@@ -1,0 +1,9 @@
+[Unit]
+Description=Alumni Book SQLite and upload backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/alumni-book/app
+ExecStart=/opt/alumni-book/app/scripts/backup-selfhosted.sh

@@ -68,6 +68,21 @@ describe('本地 SQLite D1 适配器', () => {
     ])).rejects.toThrow()
     expect((await database.prepare('SELECT COUNT(*) AS count FROM notes').first<{ count: number }>())?.count).toBe(2)
   })
+
+  it('可以生成一致性的 SQLite 备份文件', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'alumni-book-db-backup-'))
+    storageDirectories.push(directory)
+    const database = createSqliteDatabase(join(directory, 'source.sqlite'))
+    openDatabases.push(database)
+    await database.exec('CREATE TABLE notes (body TEXT NOT NULL)')
+    await database.prepare('INSERT INTO notes (body) VALUES (?)').bind('backup').run()
+    const destination = join(directory, 'backup.sqlite')
+
+    await database.backup(destination)
+    const backup = createSqliteDatabase(destination)
+    openDatabases.push(backup)
+    expect(await backup.prepare('SELECT body FROM notes').first<{ body: string }>()).toEqual({ body: 'backup' })
+  })
 })
 
 describe('本地文件存储适配器', () => {

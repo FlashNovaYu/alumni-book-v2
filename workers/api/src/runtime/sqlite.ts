@@ -25,6 +25,7 @@ export type SqliteDatabase = {
   exec(sql: string): void
   prepare(sql: string): SqlitePreparedStatement
   batch(statements: SqliteBoundStatement[]): Promise<SqliteRunResult[]>
+  backup(destination: string): Promise<void>
   close(): void
 }
 
@@ -68,6 +69,9 @@ export function createSqliteDatabase(filename: string): SqliteDatabase {
     async batch(statements) {
       const runBatch = database.transaction(() => statements.map((statement) => statement.run()))
       return runBatch()
+    },
+    backup(destination) {
+      return database.backup(destination)
     },
     close() {
       database.close()

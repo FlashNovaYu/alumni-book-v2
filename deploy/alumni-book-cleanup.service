@@ -1,0 +1,9 @@
+[Unit]
+Description=Alumni Book expired session cleanup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/alumni-book/app
+ExecStart=/usr/bin/docker compose exec -T api pnpm --filter worker cleanup:local
