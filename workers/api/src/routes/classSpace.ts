@@ -3,6 +3,7 @@ import { encodeCursor, type CursorValue } from '../lib/cursor'
 import { getActiveMute, listGroupMessages } from '../lib/groupChat'
 import { isClassmateResponse, requireClassmate } from '../lib/classmateGuard'
 import { getTimelineFeed } from '../lib/timelineFeed'
+import { parseMediaVariants } from '../lib/mediaJson'
 
 type Bindings = { DB: D1Database }
 export const classSpaceRoutes = new Hono<{ Bindings: Bindings }>()
@@ -44,6 +45,9 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     c.env.DB.prepare(
       `SELECT a.id, a.title, a.tags,
         COALESCE(a.cover_r2_key, (SELECT p.r2_key FROM photos p WHERE p.album_id = a.id ORDER BY p.sort_order, p.created_at LIMIT 1)) AS cover_r2_key,
+        (SELECT p.media_json FROM photos p
+          WHERE p.album_id = a.id AND (a.cover_r2_key IS NULL OR p.r2_key = a.cover_r2_key)
+          ORDER BY p.sort_order, p.created_at LIMIT 1) AS cover_media_json,
         (SELECT COUNT(*) FROM photos p WHERE p.album_id = a.id) AS photo_count
        FROM albums a ORDER BY a.featured DESC, a.sort_order, a.created_at DESC LIMIT 4`
     ).all(),
@@ -58,6 +62,7 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     id: row.id,
     title: row.title,
     coverR2Key: row.cover_r2_key || null,
+    ...(parseMediaVariants(row.cover_media_json) ? { media: parseMediaVariants(row.cover_media_json) } : {}),
     photoCount: Number(row.photo_count || 0),
     tags: parseJson(row.tags, []),
   }))

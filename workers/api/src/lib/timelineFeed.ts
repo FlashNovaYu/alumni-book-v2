@@ -1,4 +1,5 @@
 import { normalizeFileUrl } from './fileUrl'
+import { parseMediaVariants } from './mediaJson'
 
 export type TimelineFeedType = 'event' | 'message' | 'photo' | 'join'
 
@@ -13,9 +14,14 @@ export async function getTimelineFeed(
 
   if (!type || type === 'event') {
     queries.push(
-      db.prepare('SELECT * FROM timeline_events ORDER BY event_date DESC, sort_order LIMIT ?').bind(sourceLimit).all()
+      db.prepare(
+        `SELECT e.*,
+          (SELECT p.media_json FROM photos p WHERE p.r2_key = e.photo_r2_key LIMIT 1) AS photo_media_json
+         FROM timeline_events e ORDER BY e.event_date DESC, e.sort_order LIMIT ?`
+      ).bind(sourceLimit).all()
         .then(({ results }) => {
           for (const e of (results || [])) {
+            const media = parseMediaVariants((e as any).photo_media_json)
             timeline.push({
               type: 'event',
               id: (e as any).id,
@@ -23,6 +29,7 @@ export async function getTimelineFeed(
               description: (e as any).description,
               date: (e as any).event_date,
               photoUrl: (e as any).photo_r2_key ? `/api/files/${(e as any).photo_r2_key}` : null,
+              ...(media ? { media } : {}),
               isMilestone: !!(e as any).is_milestone,
               eventType: (e as any).event_type || 'class_event',
             })
@@ -54,6 +61,7 @@ export async function getTimelineFeed(
       db.prepare("SELECT p.*, a.title as album_title FROM photos p JOIN albums a ON p.album_id = a.id ORDER BY p.created_at DESC LIMIT ?").bind(sourceLimit).all()
         .then(({ results }) => {
           for (const p of (results || [])) {
+            const media = parseMediaVariants((p as any).media_json)
             timeline.push({
               type: 'photo',
               id: `photo_${(p as any).id}`,
@@ -61,6 +69,7 @@ export async function getTimelineFeed(
               description: (p as any).caption,
               date: (p as any).created_at,
               photoUrl: `/api/files/${(p as any).r2_key}`,
+              ...(media ? { media } : {}),
             })
           }
         })

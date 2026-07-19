@@ -376,6 +376,7 @@ export interface ClassSpaceAlbumPreview {
   coverR2Key: string | null
   photoCount: number
   tags: string[]
+  media?: { variants: MediaVariant[] } | null
 }
 
 export interface ClassSpaceTimelinePreview {
@@ -386,6 +387,7 @@ export interface ClassSpaceTimelinePreview {
   date: string
   photoUrl?: string | null
   eventType?: string
+  media?: { variants: MediaVariant[] } | null
 }
 
 export interface ClassSpaceOverview {

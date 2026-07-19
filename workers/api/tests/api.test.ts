@@ -418,9 +418,9 @@ describe('Museum Gallery & Timeline API', () => {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(albumIds[1], '批量相册乙', '相册乙说明', 'film', 20, null, '["乙"]', 0, '2026-07-18 00:00:02'),
       env.DB.prepare(
-        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).bind('albums-batch-photo-1', albumIds[0], '甲-1.jpg', '甲-1', 'photos/batch-a-1.jpg', 2, '2026-07-18 00:00:03'),
+        `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at, media_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind('albums-batch-photo-1', albumIds[0], '甲-1.jpg', '甲-1', 'photos/batch-a-1.jpg', 2, '2026-07-18 00:00:03', JSON.stringify({ variants: [{ key: 'photos/batch-a-1_320.webp', contentType: 'image/webp', width: 320, height: 213, kind: '320' }] })),
       env.DB.prepare(
         `INSERT INTO photos (id, album_id, filename, caption, r2_key, sort_order, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -466,7 +466,7 @@ describe('Museum Gallery & Timeline API', () => {
         featured: true,
         photos: [
           { id: 'albums-batch-photo-2', albumId: albumIds[0], filename: '甲-2.jpg', caption: '甲-2', r2Key: 'photos/batch-a-2.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:04' },
-          { id: 'albums-batch-photo-1', albumId: albumIds[0], filename: '甲-1.jpg', caption: '甲-1', r2Key: 'photos/batch-a-1.jpg', sortOrder: 2, createdAt: '2026-07-18 00:00:03' },
+          { id: 'albums-batch-photo-1', albumId: albumIds[0], filename: '甲-1.jpg', caption: '甲-1', r2Key: 'photos/batch-a-1.jpg', sortOrder: 2, createdAt: '2026-07-18 00:00:03', media: { variants: [{ key: 'photos/batch-a-1_320.webp', contentType: 'image/webp', width: 320, height: 213, kind: '320' }] } },
         ],
         createdAt: '2026-07-18 00:00:01',
       },
@@ -487,6 +487,13 @@ describe('Museum Gallery & Timeline API', () => {
     ])
     expect(preparedQueries.filter(query => /SELECT \* FROM photos WHERE album_id = \?/.test(query))).toHaveLength(0)
     expect(preparedQueries.filter(query => /FROM photos/.test(query))).toHaveLength(1)
+
+    const timelineCtx = createExecutionContext()
+    const timelineRes = await worker.fetch(new Request('http://localhost/api/timeline?type=photo'), env, timelineCtx)
+    await waitOnExecutionContext(timelineCtx)
+    const timelineBody = await timelineRes.json() as any
+    const timelinePhoto = timelineBody.data.find((item: any) => item.id === 'photo_albums-batch-photo-1')
+    expect(timelinePhoto.media.variants[0]).toMatchObject({ key: 'photos/batch-a-1_320.webp', width: 320 })
   })
 
   it('GET /api/timeline — 包含 eventType 且为合法值', async () => {

@@ -82,8 +82,8 @@ beforeAll(async () => {
       'INSERT OR REPLACE INTO albums (id, title, description, frame_style, sort_order, featured) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(`album-overview-${index + 1}`, `相册 ${index + 1}`, '毕业那天', 'polaroid', index, index === 0 ? 1 : 0)),
     env.DB.prepare(
-      "INSERT OR REPLACE INTO photos (id, album_id, filename, caption, r2_key, sort_order) VALUES ('photo-overview', 'album-overview-1', 'cover.jpg', '合照', 'photos/cover.jpg', 0)"
-    ),
+      "INSERT OR REPLACE INTO photos (id, album_id, filename, caption, r2_key, sort_order, media_json) VALUES ('photo-overview', 'album-overview-1', 'cover.jpg', '合照', 'photos/cover.jpg', 0, ?)"
+    ).bind(JSON.stringify({ variants: [{ key: 'photos/cover_320.webp', contentType: 'image/webp', width: 320, height: 240, kind: '320' }] })),
     ...Array.from({ length: 9 }, (_, index) => env.DB.prepare(
       'INSERT OR REPLACE INTO timeline_events (id, title, description, event_date, event_type) VALUES (?, ?, ?, ?, ?)'
     ).bind(`event-overview-${index + 1}`, `事件 ${index + 1}`, '班级活动', `2026-06-${String(index + 1).padStart(2, '0')}`, 'graduation')),
@@ -163,6 +163,7 @@ describe('Class space overview API', () => {
     expect(body.data.timeline.length).toBeLessThanOrEqual(6)
     expect(body.data.albums[0]).not.toHaveProperty('photos')
     expect(body.data.albums[0].coverR2Key).toBe('photos/cover.jpg')
+    expect(body.data.albums[0].media.variants[0]).toMatchObject({ key: 'photos/cover_320.webp', width: 320 })
     expect(body.data.counts).toEqual({ groupMessages: 32, albums: 5, timelineItems: 6 })
     expect(body.data).not.toHaveProperty('messages')
     expect(res.headers.get('Cache-Control')).toBe('private, no-store')
