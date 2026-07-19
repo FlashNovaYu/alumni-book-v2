@@ -6,6 +6,12 @@ DATA_ROOT="${ALUMNI_BOOK_DATA_ROOT:-/var/lib/alumni-book}"
 BACKUP_DIR="${ALUMNI_BOOK_BACKUP_DIR:-/var/backups/alumni-book}"
 MIN_FREE_KIB="${ALUMNI_BOOK_MIN_FREE_KIB:-5242880}"
 
+if command -v podman-compose >/dev/null 2>&1; then
+  COMPOSE=(podman-compose)
+else
+  COMPOSE=(docker compose)
+fi
+
 available_kib="$(df -Pk "$DATA_ROOT" | awk 'NR == 2 {print $4}')"
 if [[ -z "$available_kib" || "$available_kib" -lt "$MIN_FREE_KIB" ]]; then
   echo "磁盘剩余空间不足，停止备份：${available_kib:-unknown} KiB" >&2
@@ -22,7 +28,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker compose --project-directory "$APP_DIR" exec -T api \
+"${COMPOSE[@]}" --project-directory "$APP_DIR" exec -T api \
   pnpm --filter worker db:backup:local -- --destination "$snapshot"
 tar -C "$(dirname "$DATA_ROOT")" -czf "$archive" "$(basename "$DATA_ROOT")/data" "$(basename "$DATA_ROOT")/uploads"
 

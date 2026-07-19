@@ -6,4 +6,4 @@ Requires=docker.service
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/alumni-book/app
-ExecStart=/usr/bin/docker compose exec -T api pnpm --filter worker cleanup:local
+ExecStart=/usr/bin/podman-compose -f /opt/alumni-book/app/docker-compose.yml exec -T api pnpm --filter worker cleanup:local
