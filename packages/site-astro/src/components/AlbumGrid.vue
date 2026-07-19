@@ -84,6 +84,7 @@
             :src="getPhotoUrl(lightbox.photos[lightbox.index]?.r2Key)"
             class="lightbox-img placeholder-blur"
             alt="Loading..."
+            decoding="async"
           />
           <!-- 高清大图 -->
           <img
@@ -91,6 +92,7 @@
             class="lightbox-img real-img"
             :class="{ 'loaded': highResLoaded }"
             :alt="lightbox.photos[lightbox.index]?.caption"
+            decoding="async"
             @load="onHighResLoad"
           />
           <!-- 精致 Spinner 指示器 -->
@@ -117,7 +119,7 @@ import { joinApiUrl } from '../utils/apiBase'
 import { runWhenIdle, isDeepEqual } from '../utils/deferredFetch'
 import { useMouseTilt } from '../composables/useMouseTilt'
 import { useAudioSynth } from '../composables/useAudioSynth'
-import { buildMediaSources, type MediaVariant } from '@alumni/shared'
+import { buildMediaSources, resolveMediaUrl, type MediaVariant } from '@alumni/shared'
 
 const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 10, scale: 1.05 })
 const { playPaperSlide, playCrystalTick } = useAudioSynth()
@@ -150,6 +152,12 @@ function getPhotoUrl(r2Key: string) {
 
 function getMedia(photo: { r2Key: string; media?: { variants: MediaVariant[] } | null }) {
   return buildMediaSources(getPhotoUrl(photo.r2Key), photo.media?.variants, 320, 320)
+}
+
+function preloadUrl(photo: { r2Key: string; media?: { variants: MediaVariant[] } | null }) {
+  const media = getMedia(photo)
+  const variant = media.variants?.find((item) => item.width >= 960) || media.variants?.[media.variants.length - 1]
+  return variant ? resolveMediaUrl(getPhotoUrl(photo.r2Key), variant.key) : getPhotoUrl(photo.r2Key)
 }
 
 // 标签过滤
@@ -228,11 +236,11 @@ function preloadImages() {
   const prevIdx = lightbox.index - 1
   if (nextIdx < lightbox.photos.length) {
     const img = new Image()
-    img.src = getPhotoUrl(lightbox.photos[nextIdx].r2Key)
+    img.src = preloadUrl(lightbox.photos[nextIdx])
   }
   if (prevIdx >= 0) {
     const img = new Image()
-    img.src = getPhotoUrl(lightbox.photos[prevIdx].r2Key)
+    img.src = preloadUrl(lightbox.photos[prevIdx])
   }
 }
 

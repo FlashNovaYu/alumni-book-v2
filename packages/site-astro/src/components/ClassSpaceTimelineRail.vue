@@ -8,7 +8,17 @@
           <p class="timeline-rail-type">{{ typeLabel(item.type) }}</p>
           <h3>{{ item.title }}</h3>
           <p v-if="item.description" class="timeline-rail-description">{{ item.description }}</p>
-          <img v-if="item.photoUrl" :src="photoUrl(item.photoUrl)" :alt="item.title" loading="lazy" decoding="async" />
+          <img
+            v-if="item.photoUrl"
+            :src="photoMedia(item).src"
+            :srcset="photoMedia(item).srcset || undefined"
+            :sizes="photoMedia(item).sizes"
+            :alt="item.title"
+            width="640"
+            height="480"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
       </article>
     </div>
@@ -18,7 +28,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ClassSpaceOverview } from '@alumni/shared'
+import { buildMediaSources, type ClassSpaceOverview } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
 type TimelineItem = ClassSpaceOverview['timeline'][number]
@@ -42,6 +52,10 @@ function photoUrl(value: string) {
   if (value.startsWith('http')) return value
   if (value.startsWith('/api/files/')) return joinApiUrl(props.apiBase, value)
   return joinApiUrl(props.apiBase, `/api/files/${value.replace(/^\/+/, '')}`)
+}
+
+function photoMedia(item: TimelineItem) {
+  return buildMediaSources(photoUrl(item.photoUrl || ''), item.media?.variants, 640, 480)
 }
 </script>
 

@@ -1,6 +1,6 @@
 // @ts-nocheck — Vitest is provided by the workspace test runner, not the shared package runtime.
 import { describe, expect, it } from 'vitest'
-import { buildMediaSources } from './media'
+import { buildMediaSources, resolveMediaUrl } from './media'
 
 describe('buildMediaSources', () => {
   it('creates sorted srcset URLs from variants', () => {
@@ -19,5 +19,10 @@ describe('buildMediaSources', () => {
       srcset: '',
       sizes: '100vw',
     })
+  })
+
+  it('resolves a single derivative URL for lightbox neighbour preloads', () => {
+    expect(resolveMediaUrl('/api/files/photos/original.jpg', 'photos/960.webp')).toBe('/api/files/photos/960.webp')
+    expect(resolveMediaUrl('https://cdn.example.test/api/files/photos/original.jpg', 'https://img.example.test/960.webp')).toBe('https://img.example.test/960.webp')
   })
 })

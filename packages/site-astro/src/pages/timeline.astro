@@ -2,6 +2,7 @@
 import MainLayout from '../layouts/MainLayout.astro'
 import PageHeader from '../components/PageHeader.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
+import { buildMediaSources } from '@alumni/shared'
 
 const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
@@ -48,6 +49,11 @@ function serializeForHtmlScript(value: unknown) {
 }
 
 const serializedItems = serializeForHtmlScript(items)
+
+function timelineMedia(item: any) {
+  const source = item.photoUrl?.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl || ''}`
+  return buildMediaSources(source, item.media?.variants, 640, 480)
+}
 ---
 
 <MainLayout>
@@ -73,7 +79,18 @@ const serializedItems = serializeForHtmlScript(items)
               <h3 class="tl-title">{item.title}</h3>
               {item.description && <p class="tl-desc">{item.description}</p>}
               {item.photoUrl && (
-                <img src={item.photoUrl.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl}`} alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />
+                <img
+                  src={timelineMedia(item).src}
+                  srcset={timelineMedia(item).srcset || undefined}
+                  sizes={timelineMedia(item).sizes}
+                  width={timelineMedia(item).width || 640}
+                  height={timelineMedia(item).height || 480}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  style="aspect-ratio: 4/3"
+                  class="tl-photo"
+                />
               )}
               {item.type === 'join' && item.slug && (
                 <a href={href(`/student/${item.slug}`)} class="tl-link">查看 TA 的主页 →</a>
@@ -125,6 +142,24 @@ const serializedItems = serializeForHtmlScript(items)
     })[character]!)
   }
 
+  function mediaAttributes(item: any) {
+    const original = item.photoUrl?.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl || ''}`
+    const variants = Array.isArray(item.media?.variants)
+      ? item.media.variants.filter((variant: any) => variant && variant.key && Number(variant.width) > 0).sort((a: any, b: any) => Number(a.width) - Number(b.width))
+      : []
+    const toUrl = (key: string) => {
+      if (/^(?:https?:)?\/\//.test(key) || key.startsWith('/')) return key
+      const marker = '/api/files/'
+      const index = original.indexOf(marker)
+      return index >= 0 ? `${original.slice(0, index + marker.length)}${key.replace(/^\/+/, '')}` : key
+    }
+    return {
+      src: variants.length ? toUrl(variants[0].key) : original,
+      srcset: variants.map((variant: any) => `${toUrl(variant.key)} ${variant.width}w`).join(', '),
+      sizes: '640px',
+    }
+  }
+
   function renderTimeline(type: string) {
     const filtered = type === 'all' ? allItems : allItems.filter((item: any) => item.type === type)
     const lineEl = document.querySelector('.timeline-line')
@@ -141,8 +176,8 @@ const serializedItems = serializeForHtmlScript(items)
       let extraHtml = ''
       
       if (item.photoUrl) {
-        const fullPhoto = item.photoUrl.startsWith('http') ? item.photoUrl : `${API_BASE}${item.photoUrl}`
-        extraHtml += `<img src="${escapeHtml(fullPhoto)}" alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />`
+        const media = mediaAttributes(item)
+        extraHtml += `<img src="${escapeHtml(media.src)}" srcset="${escapeHtml(media.srcset)}" sizes="${media.sizes}" width="640" height="480" alt="" loading="lazy" decoding="async" style="aspect-ratio: 4/3" class="tl-photo" />`
       }
       if (item.type === 'join' && item.slug) {
         extraHtml += `<a href="${escapeHtml(href(`/student/${item.slug}`))}" class="tl-link">查看 TA 的主页 →</a>`

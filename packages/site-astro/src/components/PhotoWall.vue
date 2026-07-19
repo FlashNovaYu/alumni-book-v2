@@ -43,6 +43,7 @@
               v-if="!lightboxErrors[lightbox.index]"
               :src="photoUrl(photos[lightbox.index])"
               class="lightbox-img"
+              decoding="async"
               @error="lightboxErrors[lightbox.index] = true"
             />
             <div v-else class="lightbox-error-placeholder">⚠️ 无法加载大图</div>
@@ -63,7 +64,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, reactive, watch } from 'vue'
 import { joinApiUrl } from '../utils/apiBase'
-import { buildMediaSources, type MediaVariant } from '@alumni/shared'
+import { buildMediaSources, resolveMediaUrl, type MediaVariant } from '@alumni/shared'
 
 type PhotoInput = string | {
   r2Key?: string
@@ -101,6 +102,12 @@ function photoMedia(p: PhotoInput) {
   return buildMediaSources(photoUrl(p), variants, typeof p === 'string' ? 320 : (p.width || 320), typeof p === 'string' ? 320 : (p.height || 320))
 }
 
+function preloadUrl(p: PhotoInput) {
+  const media = photoMedia(p)
+  const variant = media.variants?.find((item) => item.width >= 960) || media.variants?.[media.variants.length - 1]
+  return variant ? resolveMediaUrl(photoUrl(p), variant.key) : photoUrl(p)
+}
+
 function openLightbox(index: number) {
   lightbox.index = index
   lightbox.open = true
@@ -128,11 +135,11 @@ function preloadImages() {
   const prevIdx = lightbox.index - 1
   if (nextIdx < props.photos.length) {
     const img = new Image()
-    img.src = photoUrl(props.photos[nextIdx])
+    img.src = preloadUrl(props.photos[nextIdx])
   }
   if (prevIdx >= 0) {
     const img = new Image()
-    img.src = photoUrl(props.photos[prevIdx])
+    img.src = preloadUrl(props.photos[prevIdx])
   }
 }
 

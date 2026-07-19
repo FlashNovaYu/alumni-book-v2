@@ -11,9 +11,14 @@
           <div class="album-cover-wrapper">
             <img
               v-if="album.coverR2Key"
-              :src="getPhotoUrl(album.coverR2Key)"
+              :src="coverMedia(album).src"
+              :srcset="coverMedia(album).srcset || undefined"
+              :sizes="coverMedia(album).sizes"
               :alt="album.title"
+              width="292"
+              height="195"
               loading="lazy"
+              decoding="async"
               class="album-cover"
             />
             <div v-else class="album-cover-placeholder">暂无封面</div>
@@ -34,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ClassSpaceAlbumPreview } from '@alumni/shared'
+import { buildMediaSources, type ClassSpaceAlbumPreview } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 
 const props = defineProps<{
@@ -47,6 +52,10 @@ function getPhotoUrl(r2Key: string | null) {
   if (!r2Key) return ''
   if (r2Key.startsWith('http')) return r2Key
   return joinApiUrl(props.apiBase, `/api/files/${r2Key.replace(/^\/+/, '')}`)
+}
+
+function coverMedia(album: ClassSpaceAlbumPreview) {
+  return buildMediaSources(getPhotoUrl(album.coverR2Key), album.media?.variants, 292, 195)
 }
 
 function albumHref(albumId: string) {

@@ -1,6 +1,6 @@
 import type { MediaAsset, MediaVariant } from './types'
 
-function toUrl(source: string, key: string): string {
+export function resolveMediaUrl(source: string, key: string): string {
   if (/^(?:https?:)?\/\//.test(key) || key.startsWith('/')) return key
   const marker = '/api/files/'
   const index = source.indexOf(marker)
@@ -20,10 +20,10 @@ export function buildMediaSources(
     .filter((variant) => variant && Number.isFinite(variant.width) && variant.width > 0 && variant.key)
     .slice()
     .sort((a, b) => a.width - b.width)
-  const srcset = valid.map((variant) => `${toUrl(original, variant.key)} ${variant.width}w`).join(', ')
+  const srcset = valid.map((variant) => `${resolveMediaUrl(original, variant.key)} ${variant.width}w`).join(', ')
   const smallest = valid[0]
   return {
-    src: smallest ? toUrl(original, smallest.key) : toUrl(original, original),
+    src: smallest ? resolveMediaUrl(original, smallest.key) : resolveMediaUrl(original, original),
     srcset,
     sizes: width && width > 0 ? `${Math.round(width)}px` : '100vw',
     width: width || smallest?.width,

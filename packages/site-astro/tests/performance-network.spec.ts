@@ -45,7 +45,13 @@ test.beforeEach(async ({ page }) => {
             id: "photo-1",
             filename: "test.jpg",
             caption: "测试照片",
-            r2Key: "photos/test.jpg"
+            r2Key: "photos/test.jpg",
+            media: {
+              variants: [
+                { key: "photos/test_320.webp", contentType: "image/webp", width: 320, height: 320, kind: "320" },
+                { key: "photos/test_960.webp", contentType: "image/webp", width: 960, height: 960, kind: "960" }
+              ]
+            }
           }
         ],
         visitCount: 1,
@@ -262,6 +268,24 @@ test('student page: loads PhotoWall, MessageWall, ClassGraphPreview, SeatMapPrev
 
   const hasScrollTrigger = hasRequestedChunk(requests, 'scrolltrigger')
   expect(hasScrollTrigger, 'Student page should not load ScrollTrigger after CSS-first profile redesign').toBe(false)
+})
+
+test('student photo wall requests a derivative before the original lightbox image', async ({ page }) => {
+  const imageRequests: string[] = []
+  page.on('request', request => {
+    if (request.url().includes('/api/files/photos/test')) imageRequests.push(request.url())
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./student/template/', { waitUntil: 'networkidle' })
+  await page.locator('#photo-wall-anchor').scrollIntoViewIfNeeded()
+  await expect(page.locator('.photo-item')).toHaveCount(1)
+
+  await expect.poll(() => imageRequests.some(url => /test_(?:320|960)\.webp/.test(url))).toBe(true)
+  expect(imageRequests.some(url => /\/photos\/test\.jpg(?:$|\?)/.test(url))).toBe(false)
+
+  await page.locator('.photo-item').click()
+  await expect.poll(() => imageRequests.some(url => /\/photos\/test\.jpg(?:$|\?)/.test(url))).toBe(true)
 })
 
 test('class space and mailbox stop their five-second sync after navigation away', async ({ page }) => {

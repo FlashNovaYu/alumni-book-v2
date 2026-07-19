@@ -34,8 +34,12 @@
             <div class="student-hero__avatar" :style="avatarTransitionStyle">
               <img
                 v-if="avatarSrc && !avatarError"
-                :src="avatarSrc"
+                :src="avatarMedia.src"
+                :srcset="avatarMedia.srcset || undefined"
+                :sizes="avatarMedia.sizes"
                 :alt="student.name"
+                width="120"
+                height="120"
                 loading="eager"
                 decoding="async"
                 @error="avatarError = true"
@@ -313,7 +317,7 @@ import UiEmptyState from './ui/UiEmptyState.vue'
 import { toStudentMuseumSummary } from '../utils/museumViewModels'
 import { runWhenIdle, isDeepEqual, fetchJsonIfChanged } from '../utils/deferredFetch'
 import { joinApiUrl } from '../utils/apiBase'
-import { getClassmateToken, getClassmateStudent } from '@alumni/shared'
+import { buildMediaSources, getClassmateToken, getClassmateStudent, type StudentMediaAssets } from '@alumni/shared'
 
 const PhotoWall = defineAsyncComponent(() => import('./PhotoWall.vue'))
 const MessageWall = defineAsyncComponent(() => import('./MessageWall.vue'))
@@ -335,6 +339,7 @@ interface Student {
   customHtml: string | null
   info: any
   photos: any[]
+  media?: StudentMediaAssets | null
   visitCount: number
   checkinCount?: number
   hasCheckedIn?: boolean
@@ -403,6 +408,13 @@ const avatarSrc = computed(() => {
   return `${props.apiBase}${student.value.avatarUrl}`
 })
 
+const avatarMedia = computed(() => buildMediaSources(
+  avatarSrc.value,
+  student.value?.media?.avatar?.variants,
+  120,
+  120,
+))
+
 const avatarTransitionStyle = computed(() => {
   if (!student.value) return undefined
   return {
@@ -424,9 +436,10 @@ const heroBgStyle = computed(() => {
   const bgUrl = student.value.backgroundUrl
     ? (student.value.backgroundUrl.startsWith('http') ? student.value.backgroundUrl : `${props.apiBase}${student.value.backgroundUrl}`)
     : null
+  const backgroundMedia = buildMediaSources(bgUrl, student.value.media?.background?.variants, 960, 540)
   return {
-    backgroundImage: bgUrl
-      ? `linear-gradient(180deg, rgba(28,25,23,0.3) 0%, rgba(28,25,23,0.7) 100%), url(${bgUrl})`
+    backgroundImage: backgroundMedia.src
+      ? `linear-gradient(180deg, rgba(28,25,23,0.3) 0%, rgba(28,25,23,0.7) 100%), url(${backgroundMedia.src})`
       : 'linear-gradient(180deg, #292524 0%, #1c1917 100%)',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
