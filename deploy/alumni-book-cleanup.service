@@ -7,5 +7,6 @@ Wants=network-online.target
 Type=oneshot
 User=admin
 Group=admin
+Environment=XDG_RUNTIME_DIR=/run/user/1001
 WorkingDirectory=/opt/alumni-book/app
 ExecStart=/usr/bin/podman-compose -f /opt/alumni-book/app/docker-compose.yml exec -T api pnpm --filter worker cleanup:local

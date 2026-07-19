@@ -8,6 +8,7 @@ Type=oneshot
 RemainAfterExit=yes
 User=admin
 Group=admin
+Environment=XDG_RUNTIME_DIR=/run/user/1001
 WorkingDirectory=/opt/alumni-book/app
 ExecStart=/usr/bin/podman-compose up -d api
 ExecStop=/usr/bin/podman-compose stop api
