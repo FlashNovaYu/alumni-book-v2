@@ -1,0 +1,15 @@
+[Unit]
+Description=Alumni Book API container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/alumni-book/app
+ExecStart=/usr/bin/podman-compose up -d api
+ExecStop=/usr/bin/podman-compose stop api
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
