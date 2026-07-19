@@ -71,7 +71,7 @@ export function initThemeRuntime() {
   window.addEventListener('storage', onStorage)
 
   const onPrerenderingChange = () => {
-    if (!document.prerendering) syncTheme()
+    if (!(document as Document & { prerendering?: boolean }).prerendering) syncTheme()
   }
   document.addEventListener('prerenderingchange', onPrerenderingChange)
 
