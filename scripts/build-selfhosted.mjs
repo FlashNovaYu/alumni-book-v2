@@ -10,6 +10,10 @@ const adminDist = join(rootDir, 'packages', 'admin', 'dist')
 const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.xml', '.map'])
 const forbiddenHosts = ['alumni-book.pages.dev', 'alumni-book-api.chenyuhao2263.workers.dev']
 
+export function getSelfHostedClientApiBase() {
+  return ''
+}
+
 export function assertSelfHostedArtifact(content, source) {
   if (forbiddenHosts.some((host) => content.includes(host))) {
     throw new Error(`自托管产物仍包含 Cloudflare 地址：${source}`)
@@ -42,7 +46,7 @@ export function buildSelfHosted({ apiBase = process.env.SELF_HOST_API_BASE || 'h
     ...process.env,
     NODE_ENV: 'production',
     VITE_WORKER_URL: apiBase,
-    VITE_API_BASE_URL: '/api',
+    VITE_API_BASE_URL: getSelfHostedClientApiBase(),
   }
   execFileSync(pnpmCommand, [...pnpmPrefix, '--filter', 'admin', 'build'], { cwd: rootDir, env, stdio: 'inherit' })
   execFileSync(pnpmCommand, [...pnpmPrefix, '--filter', 'site-astro', 'build'], { cwd: rootDir, env, stdio: 'inherit' })

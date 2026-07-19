@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { assertSelfHostedArtifact } from './build-selfhosted.mjs'
+import { assertSelfHostedArtifact, getSelfHostedClientApiBase } from './build-selfhosted.mjs'
 
 test('自托管产物拒绝残留 Cloudflare 生产地址', () => {
   assert.doesNotThrow(() => assertSelfHostedArtifact('fetch("/api/health")', 'index.html'))
@@ -12,4 +12,8 @@ test('自托管产物拒绝残留 Cloudflare 生产地址', () => {
     () => assertSelfHostedArtifact('https://alumni-book-api.chenyuhao2263.workers.dev/api/health', 'main.js'),
     /自托管产物仍包含 Cloudflare 地址/,
   )
+})
+
+test('自托管客户端使用同源 API 路径，避免重复 /api 前缀', () => {
+  assert.equal(getSelfHostedClientApiBase(), '')
 })
