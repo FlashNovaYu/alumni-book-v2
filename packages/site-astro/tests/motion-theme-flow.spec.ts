@@ -14,16 +14,28 @@ test.beforeEach(async ({ page }) => {
   await mockClassmateInboxSummary(page)
 })
 
-test('一级栏目在路由切换中保留唯一共享标题锚点', async ({ page }) => {
+test('一级栏目切换时不再启用跨文档共享标题转场', async ({ page }) => {
   await signInForNavigation(page)
   await page.goto('./roster/', { waitUntil: 'networkidle' })
   await expect(page.locator('[data-page-heading]')).toHaveCount(1)
-  await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'page-heading')
+  await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'none')
 
   await page.getByRole('link', { name: '班级空间', exact: true }).click()
   await expect(page).toHaveURL(/\/class-space\/?$/)
   await expect(page.locator('[data-page-heading] h1')).toHaveText('班级空间')
-  await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'page-heading')
+  await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'none')
+})
+
+test('从同学档案进入周子耀个人页时保持完整布局和字体', async ({ page }) => {
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  await page.getByRole('link', { name: '周子耀', exact: true }).click()
+  await expect(page).toHaveURL(/\/student\/zhou-zi-yao\/?$/)
+  await expect(page.locator('.student-page')).toBeVisible()
+  await expect(page.locator('.student-hero')).toHaveCSS('display', 'flex')
+  await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', 'none')
+  await expect(page.locator('html')).not.toHaveCSS('font-family', 'Times New Roman')
 })
 
 test('夜读按钮以根级水波切换并持久化选择', async ({ page }) => {

@@ -88,9 +88,13 @@ describe('夜读主题基础层', () => {
 
   it('关闭跨文档页面转场，避免新文档在样式完成前被合成为纯文本', () => {
     const viewTransitions = read('styles/view-transitions.css')
+    const globalStyles = read('styles/global.css')
 
     expect(viewTransitions).not.toMatch(/@view-transition\s*\{[\s\S]*?navigation:\s*auto\s*;/)
     expect(viewTransitions).toContain('navigation: none;')
+    expect(viewTransitions).toMatch(/html \.page-shell,[\s\S]*?html \[style\*="view-transition-name"\][\s\S]*?view-transition-name:\s*none !important;/)
+    expect(globalStyles).toContain('font-family: var(--font-body)')
+    expect(globalStyles).not.toContain('font-family: var(--font-sans)')
   })
 
   it('将主题与共享标题浏览器回归纳入预览测试命令', () => {

@@ -11,6 +11,13 @@
   navigation: none;
 }
 
+/* 页面导航已关闭转场，所有遗留的共享元素名称也必须保持失效。 */
+html .page-shell,
+html [data-page-heading],
+html [style*="view-transition-name"] {
+  view-transition-name: none !important;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   background-color: var(--bg);
