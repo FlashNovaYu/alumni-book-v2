@@ -1,6 +1,7 @@
 import { clearClassmateSession, getClassmateStudent, getClassmateToken } from '@alumni/shared'
 import { fetchInboxSummary } from '../api/inbox'
 import { fetchClassmateAdminEntry } from '../api/classmateAuth'
+import { playBookSettle } from '../runtime/audioSynth'
 
 interface NavRuntime {
   destroy(): void
@@ -106,6 +107,7 @@ export function initNavRuntime(): void {
 
   const closeDrawer = () => {
     const wasOpen = document.documentElement.classList.contains('nav-open')
+    if (wasOpen) playBookSettle()
     document.documentElement.classList.remove('nav-open')
     drawer?.setAttribute('aria-hidden', 'true')
     if (drawer) drawer.inert = true

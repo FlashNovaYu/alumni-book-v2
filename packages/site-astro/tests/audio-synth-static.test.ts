@@ -42,4 +42,20 @@ describe('温润青春档案音效契约', () => {
       expect(existsSync(resolve(audioAssets, file))).toBe(true)
     }
   })
+
+  it('交互使用语义化 cue 并避免旧音效命名回流', () => {
+    const files = [
+      'runtime/volumeToggle.ts',
+      'composables/useAudioSynth.ts',
+      'components/ArchiveRosterCard.vue',
+      'components/AlbumGrid.vue',
+      'scripts/navRuntime.ts',
+    ]
+    const source = files.map(read).join('\n')
+    expect(source).toContain('playArchiveHover')
+    expect(source).toContain('playArchiveSlide')
+    expect(source).toContain('playAlbumOpen')
+    expect(source).toContain('playBookSettle')
+    expect(source).not.toMatch(/playCrystalTick|playPaperSlide|playDeepWhoosh/)
+  })
 })

@@ -34,12 +34,12 @@
             :class="{ 'is-hovered': getState(photo.id).isHovered }"
             :style="getTiltStyles(photo.id, `rotateZ(${getStaticRotation(i)}deg) translateY(${getStaticY(i)}px)`)"
             @pointermove="onPointerMove($event, photo.id)"
-            @pointerenter="onMouseEnter(photo.id); playPaperSlide()"
+            @pointerenter="handlePointerEnter($event, photo.id)"
             @pointerleave="onMouseLeave(photo.id)"
             @pointerup="onPointerEnd($event, photo.id)"
             @pointercancel="onPointerEnd($event, photo.id)"
-            @touchstart="playPaperSlide()"
-            @click="openLightbox(album.photos, i); playCrystalTick()"
+            @pointerdown="handlePointerDown"
+            @click="handlePhotoClick(album.photos, i)"
           >
             <div class="glare-layer" :style="{ opacity: getState(photo.id).isHovered || getState(photo.id).isOrientationActive ? 1 : 0 }"></div>
             <img
@@ -124,7 +124,26 @@ import { useAudioSynth } from '../composables/useAudioSynth'
 import { buildMediaSources, resolveMediaUrl, type MediaVariant } from '@alumni/shared'
 
 const { onPointerMove, onPointerEnd, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 10, scale: 1.05 })
-const { playPaperSlide, playCrystalTick } = useAudioSynth()
+const { playArchiveSlide, playAlbumOpen } = useAudioSynth()
+let lastTouchAt = 0
+
+function handlePointerEnter(event: PointerEvent, photoId: string) {
+  onMouseEnter(photoId)
+  if (event.pointerType !== 'touch') playArchiveSlide()
+}
+
+function handlePointerDown(event: PointerEvent) {
+  if (event.pointerType !== 'touch') return
+  const now = performance.now()
+  if (now - lastTouchAt < 220) return
+  lastTouchAt = now
+  playArchiveSlide()
+}
+
+function handlePhotoClick(photos: any[], index: number) {
+  openLightbox(photos, index)
+  playAlbumOpen()
+}
 
 function getStaticRotation(index: number) {
   return (Math.sin(index * 1.5) * 2).toFixed(2);

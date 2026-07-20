@@ -4,12 +4,12 @@
     class="roster-card"
     :data-student-identity-card="card.slug"
     @click="handleTransition"
-    @pointerenter="onMouseEnter(card.slug); playPaperSlide()"
+    @pointerenter="handlePointerEnter($event, card.slug)"
     @pointerleave="onMouseLeave(card.slug)"
     @pointermove="onPointerMove($event, card.slug)"
     @pointerup="onPointerEnd($event, card.slug)"
     @pointercancel="onPointerEnd($event, card.slug)"
-    @touchstart="playPaperSlide()"
+    @pointerdown="handlePointerDown"
     :style="getTiltStyles(card.slug, baseTransform)"
   >
     <div class="roster-card__inner">
@@ -70,7 +70,21 @@ const avatarImage = ref<HTMLImageElement | null>(null)
 const isTransitioning = ref(false)
 
 const { onPointerMove, onPointerEnd, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
-const { playPaperSlide } = useAudioSynth()
+const { playArchiveSlide } = useAudioSynth()
+let lastTouchAt = 0
+
+function handlePointerEnter(event: PointerEvent, slug: string) {
+  onMouseEnter(slug)
+  if (event.pointerType !== 'touch') playArchiveSlide()
+}
+
+function handlePointerDown(event: PointerEvent) {
+  if (event.pointerType !== 'touch') return
+  const now = performance.now()
+  if (now - lastTouchAt < 220) return
+  lastTouchAt = now
+  playArchiveSlide()
+}
 
 const avatarTransitionStyle = computed(() => {
   if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined

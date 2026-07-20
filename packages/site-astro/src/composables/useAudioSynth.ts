@@ -1,5 +1,13 @@
-import { ref } from 'vue';
-import { isAudioMuted, toggleAudioMuted, playCrystalTick, playPaperSlide, playDeepWhoosh } from '../runtime/audioSynth';
+import { ref } from 'vue'
+import {
+  isAudioMuted,
+  toggleAudioMuted,
+  playArchiveHover,
+  playArchiveSlide,
+  playAlbumOpen,
+  playBookSettle,
+  playArchiveConfirm,
+} from '../runtime/audioSynth'
 
 export function useAudioSynth() {
   const isMuted = ref(isAudioMuted());
@@ -11,8 +19,10 @@ export function useAudioSynth() {
   return {
     isMuted,
     toggleMute,
-    playCrystalTick,
-    playPaperSlide,
-    playDeepWhoosh
+    playArchiveHover,
+    playArchiveSlide,
+    playAlbumOpen,
+    playBookSettle,
+    playArchiveConfirm,
   };
 }

@@ -1,4 +1,4 @@
-import { hasAudioContext, isAudioMuted, playCrystalTick, toggleAudioMuted } from './audioSynth'
+import { hasAudioContext, isAudioMuted, playArchiveHover, toggleAudioMuted } from './audioSynth'
 import { initDeviceOrientation } from '../composables/useMouseTilt'
 
 interface VolumeRuntime { destroy(): void }
@@ -33,7 +33,7 @@ export function initVolumeToggle() {
     const now = performance.now()
     if (now - lastHoverAt < 100) return
     lastHoverAt = now
-    if (hasAudioContext()) playCrystalTick()
+    if (hasAudioContext()) playArchiveHover()
   }
   buttons.forEach((button) => button.addEventListener('click', onClick))
   hoverTargets.forEach((target) => target.addEventListener('pointerenter', onHover, { passive: true }))
