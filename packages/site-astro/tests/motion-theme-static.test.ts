@@ -79,6 +79,13 @@ describe('夜读主题基础层', () => {
     expect(layout).toContain("'/more/'")
   })
 
+  it('为跨文档根转场提供主题背景，避免透明根层露出白色闪屏', () => {
+    const viewTransitions = read('styles/view-transitions.css')
+
+    expect(viewTransitions).toMatch(/::view-transition-old\(root\)[\s\S]*?background-color:\s*var\(--bg\)/)
+    expect(viewTransitions).toMatch(/::view-transition-new\(root\)[\s\S]*?background-color:\s*var\(--bg\)/)
+  })
+
   it('将主题与共享标题浏览器回归纳入预览测试命令', () => {
     const scripts = packageJson().scripts
 

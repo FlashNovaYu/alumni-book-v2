@@ -5,6 +5,16 @@
   navigation: auto;
 }
 
+/*
+ * 跨文档转场的 root 图层默认是透明的。page-main 缩放退出时，透明区域
+ * 会露出浏览器默认白色背景，尤其在新文档样式尚未完成合成的首帧更明显。
+ * 固定为当前主题背景，让所有转场阶段都落在同一张“纸面”上。
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  background-color: var(--bg);
+}
+
 html::before {
   position: fixed;
   inset: 0 auto auto 0;
