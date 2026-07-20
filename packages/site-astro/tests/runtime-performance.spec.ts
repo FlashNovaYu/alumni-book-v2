@@ -25,15 +25,18 @@ describe('公开站点原生运行时性能约束', () => {
     expect(nav).toContain('cancelAnimationFrame')
   })
 
-  it('音效上下文延迟到首次交互且复用噪声缓冲', () => {
+  it('音效上下文延迟到首次交互且经统一音频总线输出', () => {
     const audio = read('runtime/audioSynth.ts')
     const volume = read('runtime/volumeToggle.ts')
     expect(audio).toContain("new AudioContextClass()")
     expect(audio).toContain('createNoiseBuffer')
     expect(audio).toContain('noiseBuffer')
+    expect(audio).toContain('masterGain')
+    expect(audio).toContain('masterGain.connect(context.destination)')
+    expect(audio).toContain("import { loadUiAudio }")
     expect(audio).not.toContain('onMounted')
     expect(volume).toContain('toggleAudioMuted()')
-    expect(volume).toContain('if (hasAudioContext()) playCrystalTick()')
+    expect(volume).toContain('if (hasAudioContext()) playArchiveHover()')
     expect(audio).toContain("document.addEventListener('visibilitychange'")
   })
 
