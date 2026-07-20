@@ -35,6 +35,18 @@ async function seedClassmateSession(page: any) {
   })
 }
 
+async function transitionXEndpoints(locator: any) {
+  return locator.evaluate((element: Element) => {
+    const values = element.getAnimations().flatMap((animation) => {
+      const effect = animation.effect as KeyframeEffect | null
+      return effect?.getKeyframes()
+        .filter((frame) => typeof frame.transform === 'string')
+        .map((frame) => new DOMMatrix(String(frame.transform)).m41) ?? []
+    })
+    return { min: Math.min(...values), max: Math.max(...values) }
+  })
+}
+
 test.beforeEach(async ({ page }) => {
   await mockClassmateAdminEntry(page)
   await mockClassmateInboxSummary(page)
@@ -69,6 +81,73 @@ test('roster paginates twelve cards, resets search to the first page, and hides 
   const pagination = page.getByRole('navigation', { name: '人物长廊分页' })
   await expect(pagination.locator('.ui-pagination__page[aria-current="page"]')).toHaveText('1')
   await expect(page.locator('.roster-card:visible').getByText('分页同学 1', { exact: true })).toBeVisible()
+})
+
+test('roster switches whole pages horizontally without collapsing the grid or changing scroll position', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/api/classmates**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: classmates }),
+    })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const viewport = page.locator('.roster-page-viewport')
+  const firstPage = page.locator('[data-roster-page="1"]')
+  const pagination = page.getByRole('navigation', { name: '人物长廊分页' })
+  await expect(firstPage.locator('.roster-card')).toHaveCount(12)
+  await pagination.scrollIntoViewIfNeeded()
+
+  const initialHeight = await viewport.evaluate((element) => element.getBoundingClientRect().height)
+  const initialScrollY = await page.evaluate(() => window.scrollY)
+  await page.getByRole('button', { name: '第 2 页' }).click()
+
+  const secondPage = page.locator('[data-roster-page="2"]')
+  await Promise.all([
+    expect(firstPage).toHaveClass(/roster-page-forward-leave-active/),
+    expect(secondPage).toHaveClass(/roster-page-forward-enter-active/),
+  ])
+
+  const [outgoingEndpoints, incomingEndpoints, transitionHeight] = await Promise.all([
+    transitionXEndpoints(firstPage),
+    transitionXEndpoints(secondPage),
+    viewport.evaluate((element) => element.getBoundingClientRect().height),
+  ])
+  expect(outgoingEndpoints.min).toBeLessThanOrEqual(-95)
+  expect(incomingEndpoints.max).toBeGreaterThanOrEqual(95)
+  expect(transitionHeight).toBeGreaterThanOrEqual(initialHeight - 1)
+
+  await expect(firstPage).toHaveCount(0)
+  await expect(secondPage.locator('.roster-card')).toHaveCount(1)
+  const finalHeight = await viewport.evaluate((element) => element.getBoundingClientRect().height)
+  const finalScrollY = await page.evaluate(() => window.scrollY)
+  expect(finalHeight).toBeGreaterThanOrEqual(initialHeight - 1)
+  expect(Math.abs(finalScrollY - initialScrollY)).toBeLessThanOrEqual(2)
+
+  await page.getByRole('button', { name: '第 1 页' }).click()
+  await Promise.all([
+    expect(secondPage).toHaveClass(/roster-page-backward-leave-active/),
+    expect(firstPage).toHaveClass(/roster-page-backward-enter-active/),
+  ])
+
+  const [backwardOutgoingEndpoints, backwardIncomingEndpoints] = await Promise.all([
+    transitionXEndpoints(secondPage),
+    transitionXEndpoints(firstPage),
+  ])
+  expect(backwardOutgoingEndpoints.max).toBeGreaterThanOrEqual(95)
+  expect(backwardIncomingEndpoints.min).toBeLessThanOrEqual(-95)
+  await expect(secondPage).toHaveCount(0)
+  await expect(firstPage.locator('.roster-card')).toHaveCount(12)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: '第 2 页' }).click()
+  await expect(secondPage).toHaveClass(/roster-page-forward-enter-active/)
+  const desktopIncomingEndpoints = await transitionXEndpoints(secondPage)
+  expect(desktopIncomingEndpoints.max).toBeCloseTo(280, 0)
 })
 
 test('roster only renders ellipses when pagination omits page numbers', async ({ page }) => {
