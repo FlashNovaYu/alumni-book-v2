@@ -215,6 +215,39 @@ test('API promotion 后公网 smoke 失败会恢复旧静态和旧 API', async (
   }
 })
 
+test('首次启用的外部 symlink 目标可恢复，且静态恢复失败仍调用 API rollback', async () => {
+  const paths = await fixture()
+  const preAtomicTarget = join(paths.root, 'alumni-book-pre-atomic')
+  const apiEvents = []
+  let switchCalls = 0
+  try {
+    await createRelease(preAtomicTarget, oldReleaseShas[0], '2026-07-16T14:00:00.000Z')
+    await rm(paths.livePath, { force: true })
+    await symlink(preAtomicTarget, paths.livePath, 'junction')
+    await assert.rejects(() => atomicDeploySelfHosted({
+      releaseSha, artifactDir: paths.artifactDir, releasesRoot: paths.releasesRoot, livePath: paths.livePath,
+      candidateApiBaseUrl: 'http://127.0.0.1:8788', startStaging: injectedStaging, smoke: async () => undefined,
+      promoteApi: async () => { apiEvents.push('promote') }, rollbackApi: async ({ previousLiveTarget }) => { apiEvents.push(previousLiveTarget) },
+      switchCurrent: ({ releaseDir }) => {
+        switchCalls += 1
+        if (switchCalls === 2) {
+          assert.equal(releaseDir, preAtomicTarget)
+          throw new Error('static restore failed')
+        }
+      },
+      liveBaseUrl: 'http://live.test', liveSmoke: async () => { throw new Error('public smoke failed') },
+    }), (error) => {
+      assert.equal(error instanceof AggregateError, true)
+      assert.match(String(error.errors[0]), /public smoke failed/)
+      assert.match(String(error.errors[1]), /static restore failed/)
+      return true
+    })
+    assert.deepEqual(apiEvents, ['promote', preAtomicTarget])
+  } finally {
+    await rm(paths.root, { recursive: true, force: true })
+  }
+})
+
 test('真实 HTTP staging 服务最终 release 目录并代理隔离候选 API', async () => {
   const paths = await fixture()
   const api = await startFakeCandidateApi(releaseSha)

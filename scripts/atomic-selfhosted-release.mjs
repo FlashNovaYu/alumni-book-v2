@@ -92,12 +92,17 @@ export function pruneSelfHostedReleases({ releasesRoot, activeSha, protectedShas
 }
 
 export function resolveLiveReleaseSha({ livePath, releasesRoot }) {
-  if (!existsSync(livePath) || !lstatSync(livePath).isSymbolicLink()) return undefined
-  const target = resolve(dirname(livePath), readlinkSync(livePath))
+  const target = resolveLiveSymlinkTarget(livePath)
+  if (!target) return undefined
   const root = `${resolve(releasesRoot)}${sep}`
   if (!target.startsWith(root)) return undefined
   const sha = basename(target)
   return releaseShaPattern.test(sha) ? sha : undefined
+}
+
+export function resolveLiveSymlinkTarget(livePath) {
+  if (!existsSync(livePath) || !lstatSync(livePath).isSymbolicLink()) return undefined
+  return resolve(dirname(livePath), readlinkSync(livePath))
 }
 
 function contentType(file) {
@@ -168,6 +173,7 @@ export async function atomicDeploySelfHosted({
   if (!Number.isInteger(retain) || retain < 3) throw new Error('原子发布至少保留 3 个版本（当前版本和两个旧版本）')
   const { releaseDir, created } = prepareReleaseDirectory({ artifactDir, releasesRoot, releaseSha })
   const previousLiveSha = resolveLiveReleaseSha({ livePath, releasesRoot })
+  const previousLiveTarget = resolveLiveSymlinkTarget(livePath)
 
   let staging
   try {
@@ -188,8 +194,14 @@ export async function atomicDeploySelfHosted({
     staticSwitched = true
     if (liveBaseUrl) await liveSmoke({ baseUrl: liveBaseUrl, expectedSha: releaseSha })
   } catch (error) {
-    if (staticSwitched && previousLiveSha) await switchCurrent({ livePath, releaseDir: join(resolve(releasesRoot), previousLiveSha) })
-    if (apiPromoted) await rollbackApi({ previousLiveSha })
+    const compensationErrors = []
+    if (staticSwitched && previousLiveTarget) {
+      try { await switchCurrent({ livePath, releaseDir: previousLiveTarget }) } catch (restoreError) { compensationErrors.push(restoreError) }
+    }
+    if (apiPromoted) {
+      try { await rollbackApi({ previousLiveSha, previousLiveTarget }) } catch (rollbackError) { compensationErrors.push(rollbackError) }
+    }
+    if (compensationErrors.length) throw new AggregateError([error, ...compensationErrors], '发布失败且补偿未完全成功', { cause: error })
     throw error
   }
 
@@ -227,6 +239,7 @@ export async function rollbackSelfHostedRelease({
     await staging.close()
   }
   const previousLiveSha = resolveLiveReleaseSha({ livePath, releasesRoot })
+  const previousLiveTarget = resolveLiveSymlinkTarget(livePath)
   let promoted = false
   let switched = false
   try {
@@ -236,8 +249,14 @@ export async function rollbackSelfHostedRelease({
     switched = true
     if (liveBaseUrl) await liveSmoke({ baseUrl: liveBaseUrl, expectedSha: releaseSha })
   } catch (error) {
-    if (switched && previousLiveSha) await switchCurrent({ livePath, releaseDir: join(resolve(releasesRoot), previousLiveSha) })
-    if (promoted) await rollbackApi({ previousLiveSha })
+    const compensationErrors = []
+    if (switched && previousLiveTarget) {
+      try { await switchCurrent({ livePath, releaseDir: previousLiveTarget }) } catch (restoreError) { compensationErrors.push(restoreError) }
+    }
+    if (promoted) {
+      try { await rollbackApi({ previousLiveSha, previousLiveTarget }) } catch (rollbackError) { compensationErrors.push(rollbackError) }
+    }
+    if (compensationErrors.length) throw new AggregateError([error, ...compensationErrors], '回滚失败且补偿未完全成功', { cause: error })
     throw error
   }
   return { releaseSha, releaseDir }
