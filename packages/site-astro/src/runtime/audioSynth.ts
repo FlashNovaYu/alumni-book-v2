@@ -48,18 +48,36 @@ export function playCrystalTick() {
   const context = getAudioContext()
   if (!context) return
   resumeContext(context)
-  const oscillator = context.createOscillator()
-  const gain = context.createGain()
+  
   const now = context.currentTime
-  oscillator.type = 'sine'
-  oscillator.frequency.setValueAtTime(1200, now)
-  oscillator.frequency.exponentialRampToValueAtTime(300, now + 0.05)
-  gain.gain.setValueAtTime(0.001, now)
-  gain.gain.linearRampToValueAtTime(0.5, now + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05)
-  oscillator.connect(gain).connect(context.destination)
-  oscillator.start(now)
-  oscillator.stop(now + 0.05)
+  
+  // Layer 1: The body of the tick (Sine)
+  const osc1 = context.createOscillator()
+  const gain1 = context.createGain()
+  osc1.type = 'sine'
+  osc1.frequency.setValueAtTime(1400, now)
+  osc1.frequency.exponentialRampToValueAtTime(600, now + 0.04)
+  gain1.gain.setValueAtTime(0, now)
+  gain1.gain.linearRampToValueAtTime(0.4, now + 0.005)
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+  
+  // Layer 2: The crisp click edge (Triangle)
+  const osc2 = context.createOscillator()
+  const gain2 = context.createGain()
+  osc2.type = 'triangle'
+  osc2.frequency.setValueAtTime(4000, now)
+  osc2.frequency.exponentialRampToValueAtTime(1000, now + 0.02)
+  gain2.gain.setValueAtTime(0, now)
+  gain2.gain.linearRampToValueAtTime(0.15, now + 0.002)
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.02)
+  
+  osc1.connect(gain1).connect(context.destination)
+  osc2.connect(gain2).connect(context.destination)
+  
+  osc1.start(now)
+  osc2.start(now)
+  osc1.stop(now + 0.04)
+  osc2.stop(now + 0.02)
 }
 
 export function playPaperSlide() {
@@ -67,20 +85,27 @@ export function playPaperSlide() {
   const context = getAudioContext()
   if (!context) return
   resumeContext(context)
+  
+  const now = context.currentTime
+  
+  // A soft airy sweep using noise and a moving filter
   const source = context.createBufferSource()
   source.buffer = createNoiseBuffer(context)
+  
   const filter = context.createBiquadFilter()
   filter.type = 'bandpass'
-  filter.frequency.value = 800
-  filter.Q.value = 1.5
+  filter.Q.value = 1.2
+  filter.frequency.setValueAtTime(3000, now)
+  filter.frequency.exponentialRampToValueAtTime(600, now + 0.15)
+  
   const gain = context.createGain()
-  const now = context.currentTime
-  gain.gain.setValueAtTime(0.001, now)
-  gain.gain.linearRampToValueAtTime(0.3, now + 0.02)
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1)
+  gain.gain.setValueAtTime(0, now)
+  gain.gain.linearRampToValueAtTime(0.2, now + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  
   source.connect(filter).connect(gain).connect(context.destination)
   source.start(now)
-  source.stop(now + 0.1)
+  source.stop(now + 0.15)
 }
 
 export function playDeepWhoosh() {
@@ -88,18 +113,43 @@ export function playDeepWhoosh() {
   const context = getAudioContext()
   if (!context) return
   resumeContext(context)
-  const oscillator = context.createOscillator()
-  const gain = context.createGain()
+  
   const now = context.currentTime
-  oscillator.type = 'sine'
-  oscillator.frequency.setValueAtTime(100, now)
-  oscillator.frequency.exponentialRampToValueAtTime(30, now + 0.4)
-  gain.gain.setValueAtTime(0.001, now)
-  gain.gain.linearRampToValueAtTime(0.4, now + 0.1)
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4)
-  oscillator.connect(gain).connect(context.destination)
-  oscillator.start(now)
-  oscillator.stop(now + 0.4)
+  
+  // Layer 1: Deep sub bass (Sine)
+  const sub = context.createOscillator()
+  const gainSub = context.createGain()
+  sub.type = 'sine'
+  sub.frequency.setValueAtTime(120, now)
+  sub.frequency.exponentialRampToValueAtTime(40, now + 0.5)
+  gainSub.gain.setValueAtTime(0, now)
+  gainSub.gain.linearRampToValueAtTime(0.5, now + 0.1)
+  gainSub.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+  
+  // Layer 2: Subtle mid-low warmth (Triangle)
+  const mid = context.createOscillator()
+  const gainMid = context.createGain()
+  mid.type = 'triangle'
+  mid.frequency.setValueAtTime(200, now)
+  mid.frequency.exponentialRampToValueAtTime(60, now + 0.3)
+  
+  // Lowpass filter for the mid layer to make it muffled
+  const filter = context.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(800, now)
+  filter.frequency.linearRampToValueAtTime(200, now + 0.3)
+  
+  gainMid.gain.setValueAtTime(0, now)
+  gainMid.gain.linearRampToValueAtTime(0.15, now + 0.05)
+  gainMid.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+  
+  sub.connect(gainSub).connect(context.destination)
+  mid.connect(filter).connect(gainMid).connect(context.destination)
+  
+  sub.start(now)
+  mid.start(now)
+  sub.stop(now + 0.5)
+  mid.stop(now + 0.3)
 }
 
 export function toggleAudioMuted() {
