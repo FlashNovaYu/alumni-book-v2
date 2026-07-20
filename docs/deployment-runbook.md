@@ -95,21 +95,21 @@ pnpm build:selfhosted -- --api-base http://118.178.88.227
 Remove-Item Env:RELEASE_SHA
 ```
 
-服务器上的 `deploy/.env` 必须由发布系统写入相同的完整 `RELEASE_SHA`。候选静态产物由 `container-nginx` profile 在 `127.0.0.1:8080` 提供 staging 访问；API 重启时的 `ExecStartPre` 会先核对候选 `release.json.source`：
+服务器上的候选 API 必须先在独立 loopback 端口启动，并使用独立的候选数据库和上传目录；staging 前禁止重启或替换监听 `127.0.0.1:8787` 的线上 API。原子发布脚本会直接从最终 `/www/wwwroot/releases/$RELEASE_SHA` 启动临时 HTTP staging，并把 `/api` 代理到候选 API，因此不再使用服务 `deploy/selfhosted` 的固定 staging 容器：
 
 ```bash
 cd /opt/alumni-book/app
 export RELEASE_SHA='<本次完整 40 位提交 SHA>'
-sudo systemctl restart alumni-book-api.service
-podman-compose --profile container-nginx up -d web
+# 先以受控发布工具在 127.0.0.1:8788 启动候选 API；不得占用线上 8787，
+# DATABASE_PATH 与 UPLOAD_ROOT 必须指向候选专用目录。
 pnpm release:selfhosted:atomic -- deploy \
   --release-sha "$RELEASE_SHA" \
   --artifact-dir /opt/alumni-book/app/deploy/selfhosted \
-  --staging-base-url http://127.0.0.1:8080 \
+  --candidate-api-base-url http://127.0.0.1:8788 \
   --retain 3
 ```
 
-脚本先把候选产物准备到 `/www/wwwroot/releases/$RELEASE_SHA`，再对 staging 执行完整 smoke，并强制静态清单、API health 和 expected SHA 三者一致。只有 smoke 成功后才会在 `/www/wwwroot` 内创建临时 symlink 并以 rename 原子替换 `alumni-book`；失败不会触碰当前 symlink。成功后至少保留当前版本和两个历史版本。
+脚本先把候选产物准备到 `/www/wwwroot/releases/$RELEASE_SHA`，再由 loopback staging 对该最终目录和隔离候选 API 执行完整 smoke，并强制静态清单、API health 和 expected SHA 三者一致。只有 smoke 成功后才会在 `/www/wwwroot` 内创建临时 symlink 并以 rename 原子替换 `alumni-book`；staging 失败不会触碰当前 symlink 或线上 API。成功后清理旧版时会显式保护切换前 live symlink 指向的版本，即使它是刚回滚到的较老版本，也至少保留当前版本和两个历史版本。
 
 首次启用前，如果 `/www/wwwroot/alumni-book` 仍是实体目录，需要在维护窗口把它移动到独立的 pre-atomic 备份目录并立即用指向该备份的 symlink 替代。由于旧线上版本当前无法证明完整 SHA，不得把它伪装成 `/releases/<SHA>`；在积累三个已验证版本前保留这份备份。此一次性迁移不是后续原子发布脚本的一部分。
 
@@ -117,7 +117,9 @@ pnpm release:selfhosted:atomic -- deploy \
 
 ```bash
 cd /opt/alumni-book/app
-pnpm release:selfhosted:atomic -- rollback --release-sha '<目标完整 40 位提交 SHA>'
+pnpm release:selfhosted:atomic -- rollback \
+  --release-sha '<目标完整 40 位提交 SHA>' \
+  --candidate-api-base-url http://127.0.0.1:8788
 node scripts/smoke-selfhosted.mjs \
   --base-url http://118.178.88.227 \
   --expected-sha '<目标完整 40 位提交 SHA>'

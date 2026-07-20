@@ -6,11 +6,13 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  readlinkSync,
   rmSync,
   statSync,
   symlinkSync,
 } from 'node:fs'
-import { basename, dirname, join, relative, resolve } from 'node:path'
+import { createServer } from 'node:http'
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertSelfHostedReleasePreflight } from './preflight-selfhosted-release.mjs'
 import { smokeSelfHosted } from './smoke-selfhosted.mjs'
@@ -71,17 +73,74 @@ export function switchCurrentSymlinkAtomically({ livePath, releaseDir }) {
   }
 }
 
-export function pruneSelfHostedReleases({ releasesRoot, activeSha, retain = 3 }) {
+export function pruneSelfHostedReleases({ releasesRoot, activeSha, protectedShas = [], retain = 3 }) {
   if (!Number.isInteger(retain) || retain < 3) throw new Error('原子发布至少保留 3 个版本（当前版本和两个旧版本）')
   const releases = readdirSync(releasesRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && releaseShaPattern.test(entry.name))
     .map((entry) => ({ name: entry.name, builtAt: releaseBuiltAt(join(releasesRoot, entry.name)) }))
     .sort((left, right) => right.builtAt - left.builtAt)
-  const kept = new Set([activeSha, ...releases.filter((release) => release.name !== activeSha).slice(0, retain - 1).map((release) => release.name)])
+  const kept = new Set([activeSha, ...protectedShas])
+  for (const release of releases) {
+    if (kept.size >= retain) break
+    kept.add(release.name)
+  }
   for (const release of releases) {
     if (!kept.has(release.name)) rmSync(join(releasesRoot, release.name), { recursive: true, force: true })
   }
   return [...kept]
+}
+
+export function resolveLiveReleaseSha({ livePath, releasesRoot }) {
+  if (!existsSync(livePath) || !lstatSync(livePath).isSymbolicLink()) return undefined
+  const target = resolve(dirname(livePath), readlinkSync(livePath))
+  const root = `${resolve(releasesRoot)}${sep}`
+  if (!target.startsWith(root)) return undefined
+  const sha = basename(target)
+  return releaseShaPattern.test(sha) ? sha : undefined
+}
+
+function contentType(file) {
+  return ({ '.html': 'text/html; charset=utf-8', '.json': 'application/json; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' })[extname(file)] || 'application/octet-stream'
+}
+
+export async function startCandidateStagingServer({ releaseDir, candidateApiBaseUrl, host = '127.0.0.1', port = 0 }) {
+  if (!candidateApiBaseUrl) throw new Error('必须提供隔离的 candidate-api-base-url')
+  const staticRoot = resolve(releaseDir)
+  const server = createServer(async (request, response) => {
+    try {
+      const url = new URL(request.url || '/', 'http://staging.local')
+      if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+        const upstream = await fetch(new URL(`${url.pathname}${url.search}`, candidateApiBaseUrl))
+        response.writeHead(upstream.status, Object.fromEntries(upstream.headers.entries()))
+        response.end(Buffer.from(await upstream.arrayBuffer()))
+        return
+      }
+      const decoded = decodeURIComponent(url.pathname)
+      const requested = decoded.endsWith('/') ? `${decoded}index.html` : decoded
+      let file = resolve(staticRoot, `.${requested}`)
+      if (!file.startsWith(`${staticRoot}${sep}`) && file !== staticRoot) throw new Error('非法 staging 路径')
+      if (!existsSync(file) || statSync(file).isDirectory()) {
+        file = join(staticRoot, decoded.startsWith('/admin/') ? 'admin/index.html' : 'index.html')
+      }
+      if (!existsSync(file)) {
+        response.writeHead(404).end('Not Found')
+        return
+      }
+      response.writeHead(200, { 'Content-Type': contentType(file) })
+      response.end(readFileSync(file))
+    } catch (error) {
+      response.writeHead(502).end(String(error))
+    }
+  })
+  await new Promise((resolveListen, reject) => {
+    server.once('error', reject)
+    server.listen(port, host, resolveListen)
+  })
+  const address = server.address()
+  return {
+    baseUrl: `http://${host}:${address.port}`,
+    close: () => new Promise((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose())),
+  }
 }
 
 export async function atomicDeploySelfHosted({
@@ -89,28 +148,34 @@ export async function atomicDeploySelfHosted({
   artifactDir = defaultArtifactDir,
   releasesRoot = '/www/wwwroot/releases',
   livePath = '/www/wwwroot/alumni-book',
-  stagingBaseUrl,
+  candidateApiBaseUrl,
   retain = 3,
   smoke = ({ baseUrl, expectedSha }) => smokeSelfHosted({ baseUrl, expectedSha }),
+  startStaging = startCandidateStagingServer,
   switchCurrent = switchCurrentSymlinkAtomically,
 } = {}) {
   assertReleaseSha(releaseSha)
-  if (!stagingBaseUrl) throw new Error('原子发布必须提供 staging-base-url')
+  if (!candidateApiBaseUrl) throw new Error('原子发布必须提供 candidate-api-base-url')
   if (!Number.isInteger(retain) || retain < 3) throw new Error('原子发布至少保留 3 个版本（当前版本和两个旧版本）')
   const { releaseDir, created } = prepareReleaseDirectory({ artifactDir, releasesRoot, releaseSha })
+  const previousLiveSha = resolveLiveReleaseSha({ livePath, releasesRoot })
 
+  let staging
   try {
-    await smoke({ baseUrl: stagingBaseUrl, expectedSha: releaseSha })
+    staging = await startStaging({ releaseDir, candidateApiBaseUrl })
+    await smoke({ baseUrl: staging.baseUrl, expectedSha: releaseSha })
   } catch (error) {
     if (created && existsSync(releaseDir)) rmSync(releaseDir, { recursive: true, force: true })
     throw error
+  } finally {
+    await staging?.close()
   }
   await switchCurrent({ livePath, releaseDir })
 
   let cleanupWarning
   let retained = []
   try {
-    retained = pruneSelfHostedReleases({ releasesRoot, activeSha: releaseSha, retain })
+    retained = pruneSelfHostedReleases({ releasesRoot, activeSha: releaseSha, protectedShas: previousLiveSha ? [previousLiveSha] : [], retain })
   } catch (error) {
     cleanupWarning = String(error)
   }
@@ -121,11 +186,21 @@ export async function rollbackSelfHostedRelease({
   releaseSha,
   releasesRoot = '/www/wwwroot/releases',
   livePath = '/www/wwwroot/alumni-book',
+  candidateApiBaseUrl,
+  smoke = ({ baseUrl, expectedSha }) => smokeSelfHosted({ baseUrl, expectedSha }),
+  startStaging = startCandidateStagingServer,
   switchCurrent = switchCurrentSymlinkAtomically,
 } = {}) {
   assertReleaseSha(releaseSha)
   const releaseDir = join(resolve(releasesRoot), releaseSha)
   assertSelfHostedReleasePreflight({ releaseFile: join(releaseDir, 'release.json'), expectedSha: releaseSha })
+  if (!candidateApiBaseUrl) throw new Error('回滚必须提供隔离的 candidate-api-base-url')
+  const staging = await startStaging({ releaseDir, candidateApiBaseUrl })
+  try {
+    await smoke({ baseUrl: staging.baseUrl, expectedSha: releaseSha })
+  } finally {
+    await staging.close()
+  }
   await switchCurrent({ livePath, releaseDir })
   return { releaseSha, releaseDir }
 }
@@ -142,10 +217,9 @@ export function parseAtomicReleaseArgs(argv = process.argv) {
   assertReleaseSha(releaseSha)
   const releasesRoot = argument(argv, '--releases-root') || '/www/wwwroot/releases'
   const livePath = argument(argv, '--live-path') || '/www/wwwroot/alumni-book'
-  if (command === 'rollback') return { command, releaseSha, releasesRoot, livePath }
-
-  const stagingBaseUrl = argument(argv, '--staging-base-url') || process.env.SELF_HOST_STAGING_BASE_URL
-  if (!stagingBaseUrl) throw new Error('deploy 命令必须提供 --staging-base-url')
+  const candidateApiBaseUrl = argument(argv, '--candidate-api-base-url') || process.env.SELF_HOST_CANDIDATE_API_BASE_URL
+  if (!candidateApiBaseUrl) throw new Error(`${command} 命令必须提供 --candidate-api-base-url`)
+  if (command === 'rollback') return { command, releaseSha, releasesRoot, livePath, candidateApiBaseUrl }
   const retain = Number(argument(argv, '--retain') || 3)
   if (!Number.isInteger(retain) || retain < 3) throw new Error('原子发布至少保留 3 个版本（当前版本和两个旧版本）')
   return {
@@ -154,7 +228,7 @@ export function parseAtomicReleaseArgs(argv = process.argv) {
     artifactDir: argument(argv, '--artifact-dir') || defaultArtifactDir,
     releasesRoot,
     livePath,
-    stagingBaseUrl,
+    candidateApiBaseUrl,
     retain,
   }
 }

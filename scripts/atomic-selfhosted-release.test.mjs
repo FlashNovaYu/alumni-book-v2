@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -20,7 +21,24 @@ async function createRelease(directory, source, builtAt) {
   await mkdir(directory, { recursive: true })
   await writeFile(join(directory, 'release.json'), JSON.stringify({ source, target: 'aliyun-selfhosted', builtAt }))
   await writeFile(join(directory, 'index.html'), source)
+  await mkdir(join(directory, 'admin'), { recursive: true })
+  await writeFile(join(directory, 'admin', 'index.html'), source)
 }
+
+async function startFakeCandidateApi(expectedSha) {
+  const server = createServer((request, response) => {
+    if (request.url === '/api/health') response.writeHead(200).end(JSON.stringify({ success: true, data: { status: 'ok', releaseSha: expectedSha } }))
+    else if (request.url === '/api/readiness') response.writeHead(200).end(JSON.stringify({ success: true, data: { ready: true } }))
+    else response.writeHead(404).end(JSON.stringify({ success: false }))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  return {
+    baseUrl: `http://127.0.0.1:${server.address().port}`,
+    close: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+  }
+}
+
+const injectedStaging = async () => ({ baseUrl: 'http://127.0.0.1:8080', close: async () => undefined })
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'alumni-book-atomic-release-'))
@@ -46,7 +64,8 @@ test('原子发布先完成 staging smoke，再切换并保留当前与两个旧
       artifactDir: paths.artifactDir,
       releasesRoot: paths.releasesRoot,
       livePath: paths.livePath,
-      stagingBaseUrl: 'http://127.0.0.1:8080',
+      candidateApiBaseUrl: 'http://127.0.0.1:8788',
+      startStaging: injectedStaging,
       retain: 3,
       smoke: async ({ baseUrl, expectedSha }) => {
         assert.equal(baseUrl, 'http://127.0.0.1:8080')
@@ -78,7 +97,8 @@ test('staging smoke 失败时不切换当前站点', async () => {
       artifactDir: paths.artifactDir,
       releasesRoot: paths.releasesRoot,
       livePath: paths.livePath,
-      stagingBaseUrl: 'http://127.0.0.1:8080',
+      candidateApiBaseUrl: 'http://127.0.0.1:8788',
+      startStaging: injectedStaging,
       smoke: async () => { throw new Error('staging smoke failed') },
       switchCurrent: () => { switched = true },
     }), /staging smoke failed/)
@@ -103,7 +123,8 @@ test('拒绝复用已存在的同 SHA 目录，避免 staging 验证与切换内
       artifactDir: paths.artifactDir,
       releasesRoot: paths.releasesRoot,
       livePath: paths.livePath,
-      stagingBaseUrl: 'http://127.0.0.1:8080',
+      candidateApiBaseUrl: 'http://127.0.0.1:8788',
+      startStaging: injectedStaging,
       smoke: async () => { smoked = true },
       switchCurrent: () => { switched = true },
     }), /发布目录已存在/)
@@ -123,6 +144,9 @@ test('回滚入口只切换到已存在且清单匹配的历史版本', async ()
       releaseSha: targetSha,
       releasesRoot: paths.releasesRoot,
       livePath: paths.livePath,
+      candidateApiBaseUrl: 'http://127.0.0.1:8788',
+      startStaging: injectedStaging,
+      smoke: async () => undefined,
       switchCurrent: ({ releaseDir }) => { rollbackTarget = releaseDir },
     })
     assert.equal(rollbackTarget, join(paths.releasesRoot, targetSha))
@@ -130,6 +154,9 @@ test('回滚入口只切换到已存在且清单匹配的历史版本', async ()
       releaseSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       releasesRoot: paths.releasesRoot,
       livePath: paths.livePath,
+      candidateApiBaseUrl: 'http://127.0.0.1:8788',
+      startStaging: injectedStaging,
+      smoke: async () => undefined,
       switchCurrent: () => undefined,
     }), /不存在|无法读取/)
   } finally {
@@ -140,12 +167,75 @@ test('回滚入口只切换到已存在且清单匹配的历史版本', async ()
 test('命令行参数强制完整 SHA、staging 地址和至少三个保留版本', () => {
   assert.deepEqual(parseAtomicReleaseArgs([
     'node', 'atomic-selfhosted-release.mjs', 'rollback', '--release-sha', releaseSha,
+    '--candidate-api-base-url', 'http://127.0.0.1:8788',
   ]).command, 'rollback')
   assert.throws(() => parseAtomicReleaseArgs([
     'node', 'atomic-selfhosted-release.mjs', 'deploy', '--release-sha', releaseSha,
-  ]), /staging-base-url/)
+  ]), /candidate-api-base-url/)
   assert.throws(() => parseAtomicReleaseArgs([
     'node', 'atomic-selfhosted-release.mjs', 'deploy', '--release-sha', releaseSha,
-    '--staging-base-url', 'http://127.0.0.1:8080', '--retain', '2',
+    '--candidate-api-base-url', 'http://127.0.0.1:8788', '--retain', '2',
   ]), /至少保留 3/)
+})
+
+test('真实 HTTP staging 服务最终 release 目录并代理隔离候选 API', async () => {
+  const paths = await fixture()
+  const api = await startFakeCandidateApi(releaseSha)
+  let switched = false
+  try {
+    await atomicDeploySelfHosted({
+      releaseSha,
+      artifactDir: paths.artifactDir,
+      releasesRoot: paths.releasesRoot,
+      livePath: paths.livePath,
+      candidateApiBaseUrl: api.baseUrl,
+      switchCurrent: () => { switched = true },
+    })
+    assert.equal(switched, true)
+  } finally {
+    await api.close()
+    await rm(paths.root, { recursive: true, force: true })
+  }
+})
+
+test('发布时显式保护回滚到的较老 live symlink 目标', async () => {
+  const paths = await fixture()
+  try {
+    await rm(paths.livePath, { force: true })
+    await symlink(join(paths.releasesRoot, oldReleaseShas[0]), paths.livePath, 'junction')
+    await atomicDeploySelfHosted({
+      releaseSha,
+      artifactDir: paths.artifactDir,
+      releasesRoot: paths.releasesRoot,
+      livePath: paths.livePath,
+      candidateApiBaseUrl: 'http://127.0.0.1:8788',
+      startStaging: injectedStaging,
+      smoke: async () => undefined,
+      switchCurrent: () => undefined,
+    })
+    const retained = await readdir(paths.releasesRoot)
+    assert.equal(retained.includes(oldReleaseShas[0]), true)
+  } finally {
+    await rm(paths.root, { recursive: true, force: true })
+  }
+})
+
+test('回滚损坏产物的完整 staging smoke 失败时不切换真实 symlink', async () => {
+  const paths = await fixture()
+  const api = await startFakeCandidateApi(oldReleaseShas[2])
+  try {
+    await rm(paths.livePath, { force: true })
+    await symlink(join(paths.releasesRoot, oldReleaseShas[1]), paths.livePath, 'junction')
+    await rm(join(paths.releasesRoot, oldReleaseShas[2], 'admin', 'index.html'))
+    await assert.rejects(() => rollbackSelfHostedRelease({
+      releaseSha: oldReleaseShas[2],
+      releasesRoot: paths.releasesRoot,
+      livePath: paths.livePath,
+      candidateApiBaseUrl: api.baseUrl,
+    }), /admin.*状态码异常|404/)
+    assert.equal((await readFile(join(paths.livePath, 'release.json'), 'utf8')).includes(oldReleaseShas[1]), true)
+  } finally {
+    await api.close()
+    await rm(paths.root, { recursive: true, force: true })
+  }
 })
