@@ -427,3 +427,25 @@ test('手机端从直达会话详情返回时清除详情查询参数', async ({
   await expect(page).toHaveURL(/\/mailbox\/?$/)
   await expect(page.locator('.direct-conversation-list')).toBeVisible()
 })
+
+test('430x932 手机端支持长消息、错误提示和返回且不产生横向溢出', async ({ page }) => {
+  await page.setViewportSize({ width: 430, height: 932 })
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/?conversation=conversation-lisi', { waitUntil: 'networkidle' })
+
+  const composer = page.getByPlaceholder('写下想对李四说的话……')
+  await expect(composer).toBeVisible()
+  await composer.fill('这是一条用于移动端回归的超长私信。'.repeat(80))
+  await page.getByRole('button', { name: '发送私信' }).click()
+  await expect(page.getByRole('button', { name: '重试发送' })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('临时无法发送')
+
+  const layout = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1)
+
+  await page.getByRole('button', { name: '返回信箱' }).click()
+  await expect(page.locator('.direct-conversation-list')).toBeVisible()
+})

@@ -17,6 +17,16 @@ describe('classmate account login frontend', () => {
     expect(source).not.toContain("sessionStorage.setItem('classmate_name'")
   })
 
+  it('uses a semantic login form and a single submit path for keyboard and button activation', () => {
+    const loginPath = path.resolve(__dirname, '../src/components/ClassmateLoginBook.vue')
+    const source = fs.readFileSync(loginPath, 'utf-8')
+
+    expect(source).toContain('<form class="login-form" @submit.prevent="handleLogin">')
+    expect(source).toContain('<button type="submit" class="btn-primary login-btn"')
+    expect(source).not.toContain('@keydown.enter="handleLogin"')
+    expect(source).toContain('v-if="error" class="error-msg" role="alert"')
+  })
+
   it('Layout and navigation files should use getClassmateStudent / clearClassmateSession instead of bare sessionStorage', () => {
     const layoutPath = path.resolve(__dirname, '../src/layouts/MainLayout.astro')
     const navPath = path.resolve(__dirname, '../src/components/TopNav.vue')

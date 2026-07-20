@@ -10,7 +10,7 @@
       <p>请选择自己的姓名或账号，使用管理员发放的初始密码进入。</p>
     </div>
 
-    <div class="login-form">
+    <form class="login-form" @submit.prevent="handleLogin">
       <div class="form-group">
         <label class="form-label" for="username-input">同学账号</label>
         <div class="input-wrapper">
@@ -21,7 +21,6 @@
             class="retro-input"
             placeholder="输入姓名或账号"
             autocomplete="username"
-            @keydown.enter="handleLogin"
           />
         </div>
       </div>
@@ -36,17 +35,16 @@
             class="retro-input"
             placeholder="输入初始密码或自定义密码"
             autocomplete="current-password"
-            @keydown.enter="handleLogin"
           />
         </div>
       </div>
 
-      <div v-if="error" class="error-msg">{{ error }}</div>
+      <div v-if="error" class="error-msg" role="alert">{{ error }}</div>
 
-      <button class="btn-primary login-btn" @click="handleLogin" :disabled="loading">
+      <button type="submit" class="btn-primary login-btn" :disabled="loading">
         <span>{{ loading ? '翻阅中...' : '翻开回忆' }}</span>
       </button>
-    </div>
+    </form>
 
     <p class="paper-login__note">首次登录后会自动弹出密码设置页，请按提示完成自己的专属密码。</p>
 

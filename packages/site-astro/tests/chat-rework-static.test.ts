@@ -55,6 +55,27 @@ describe('班级群聊历史浏览', () => {
   })
 })
 
+describe('私聊低风险体验与限制声明', () => {
+  it('明确当前仅支持文字私聊，并保留失败重试与移动端长消息布局约束', () => {
+    const source = read('components/DirectConversationView.vue')
+
+    expect(source).toContain('当前仅支持文字私聊')
+    expect(source).toContain('type="button" @click="$emit(\'retry\', message.id)"')
+    expect(source).toContain('重试发送')
+    expect(source).toContain('overflow-wrap: anywhere')
+    expect(source).toContain('scrollToLatest')
+  })
+
+  it('验收文档将五秒轮询和附件、已读回执、实时推送列为独立非目标', () => {
+    const report = readFileSync(resolve(__dirname, '../../../docs/phase-14-chat-rework-acceptance-report.md'), 'utf-8')
+
+    expect(report).toContain('五秒轮询不是实时通信')
+    expect(report).toContain('附件、已读回执、实时推送')
+    expect(report).toContain('独立产品非目标')
+    expect(report).toContain('当前仅支持文字私聊')
+  })
+})
+
 describe('可见性轮询生命周期契约', () => {
   it('使用一个可取消的递归计时器同步，并在页面生命周期中释放资源', () => {
     expect(existsSync(resolve(src, 'composables/useVisibilityPolling.ts'))).toBe(true)

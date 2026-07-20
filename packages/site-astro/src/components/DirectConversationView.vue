@@ -30,6 +30,7 @@
     <button v-if="hasNewMessages" type="button" class="jump-to-latest" @click="scrollToLatest">跳到最新消息</button>
 
     <form class="direct-composer" @submit.prevent="submit">
+      <p class="direct-capability-note">当前仅支持文字私聊。附件、已读回执与实时推送暂未提供。</p>
       <textarea v-model="draft" rows="1" :disabled="sending" :placeholder="`写下想对${peer.name}说的话……`" @keydown.enter.exact.prevent="submit"></textarea>
       <button type="submit" :disabled="sending || !draft.trim()">发送私信</button>
     </form>
@@ -117,6 +118,7 @@ function formatTime(value: string) {
 .conversation-empty { margin: auto; color: var(--color-paper-muted); font-size: 14px; text-align: center; }
 .jump-to-latest { position: absolute; right: var(--spacing-lg); bottom: 78px; z-index: 1; min-height: 36px; padding: 0 12px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-sm); }
 .direct-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--spacing-sm); padding: var(--spacing-md); border-top: 1px solid var(--color-paper-border); }
+.direct-capability-note { grid-column: 1 / -1; margin: 0; color: var(--color-paper-muted); font-size: 12px; line-height: 1.45; }
 .direct-composer textarea { min-width: 0; min-height: 44px; max-height: 120px; padding: 10px 12px; resize: vertical; color: var(--color-paper-ink); background: var(--color-paper-bg-soft); border: 1px solid var(--color-paper-border); border-radius: var(--rounded-md); font: inherit; line-height: 1.45; }
 .direct-composer button { min-width: 94px; min-height: 44px; padding: 0 14px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-weight: 700; cursor: pointer; }
 .direct-composer button:disabled, .direct-composer textarea:disabled { opacity: 0.58; cursor: not-allowed; }
