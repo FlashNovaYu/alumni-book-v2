@@ -6,7 +6,9 @@ import { resolve } from 'node:path'
 import {
   assertDeploymentEnvironment,
   findHardcodedDeploymentSecrets,
+  findHardcodedDeploymentSecretsDetailed,
   getDefaultDeploymentScanPaths,
+  isAllowlistedFixtureFinding,
 } from './verify-deployment-secrets.mjs'
 import {
   assertRobotsText,
@@ -68,6 +70,25 @@ test('秘密扫描仅报告文件和键名，不暴露匹配值', () => {
 
   assert.deepEqual(findings, [{ file: 'deploy_frontend.js', key: 'token' }])
   assert.equal(JSON.stringify(findings).includes(leakedValue), false)
+})
+
+test('包含 secret、token 或 password 字样的长凭据仍会命中', () => {
+  const leakedValue = ['prod-', 'secret-token-password-', 'Q7w9E2r4T6y8U1i3O5p7'].join('')
+  const findings = findHardcodedDeploymentSecrets(`const accessToken = '${leakedValue}'`, 'runtime.js')
+  assert.deepEqual(findings, [{ file: 'runtime.js', key: 'token' }])
+})
+
+test('夹具白名单精确到值指纹，同文件新增真实密码仍会命中', () => {
+  const file = 'docs/superpowers/plans/2026-07-05-classmate-account-login-system.md'
+  const existing = findHardcodedDeploymentSecretsDetailed(read(file), file)
+    .find((finding) => finding.key === 'password' && isAllowlistedFixtureFinding(finding))
+  assert.ok(existing, '既有测试夹具必须以值指纹列入白名单')
+
+  const leakedValue = ['Prod!', 'password-secret-token-', 'Q7w9E2r4T6y8'].join('')
+  const injected = findHardcodedDeploymentSecretsDetailed(`const password = '${leakedValue}'`, file)
+  assert.equal(injected.length, 1)
+  assert.equal(isAllowlistedFixtureFinding(injected[0]), false)
+  assert.deepEqual(findHardcodedDeploymentSecrets(`const password = '${leakedValue}'`, file), [{ file, key: 'password' }])
 })
 
 test('秘密扫描默认覆盖部署脚本、scripts、deploy 和 Git 跟踪文本', () => {
@@ -155,4 +176,10 @@ test('工作流不再提交 JWT_SECRET= 测试占位赋值', () => {
   for (const path of ['.github/workflows/verify.yml', '.github/workflows/deploy-production.yml', '.github/workflows/deploy-worker.yml']) {
     assert.doesNotMatch(read(path), /JWT_SECRET=/)
   }
+})
+
+test('部署文件改动会触发 push 和 PR 验证门禁', () => {
+  const workflow = read('.github/workflows/verify.yml')
+  assert.equal(workflow.match(/- 'deploy\/\*\*'/g)?.length, 2)
+  assert.equal(workflow.match(/- 'deploy_frontend\.js'/g)?.length, 2)
 })

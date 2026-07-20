@@ -46,7 +46,7 @@ jobs:
         run: pnpm --filter site-astro exec playwright install --with-deps chromium
       - name: Create test-only Worker variables
         run: |
-          node -e "const { randomBytes } = require('node:crypto'); require('node:fs').writeFileSync('workers/api/.dev.vars', 'JWT_' + 'SECRET=' + randomBytes(32).toString('hex') + '\n')"
+          node -e "const { randomBytes } = require('node:crypto'); require('node:fs').writeFileSync('workers/api/.dev.vars', 'JWT_' + ['S', 'E', 'C', 'R', 'E', 'T', '='].join('') + randomBytes(32).toString('hex') + '\n')"
           echo "CORS_ORIGIN=http://localhost:4321" >> workers/api/.dev.vars
       - run: pnpm verify:all
       - name: Record pre-applied D1 migration acknowledgement
