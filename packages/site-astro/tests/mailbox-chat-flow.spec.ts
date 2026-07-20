@@ -155,12 +155,18 @@ test('新会话首发 503 后保留失败消息并用同一 nonce 重试归并',
 })
 
 test('新会话首发超时后恢复编辑器并显示可重试消息', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window)
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => (
+      nativeSetTimeout(handler, timeout === 15_000 ? 100 : timeout, ...args)
+    )) as typeof window.setTimeout
+  })
   await page.unroute('**/api/direct-conversations')
   await page.route('**/api/direct-conversations', async (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [conversation] } }) })
     }
-    await new Promise(resolve => setTimeout(resolve, 16_000))
+    await new Promise(resolve => setTimeout(resolve, 1_000))
     await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: null }) }).catch(() => {})
   })
 
@@ -170,7 +176,7 @@ test('新会话首发超时后恢复编辑器并显示可重试消息', async ({
   const composer = page.getByPlaceholder('写下想对王五说的话……')
   await composer.fill('等待超时')
   await page.getByRole('button', { name: '发送私信' }).click()
-  await expect(page.getByRole('button', { name: '重试发送' })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('button', { name: '重试发送' })).toBeVisible({ timeout: 5_000 })
   await expect(page.getByRole('alert')).toContainText('请求超时，请稍后重试')
   await expect(composer).toBeEnabled()
 })
