@@ -87,13 +87,14 @@ describe('夜读主题基础层', () => {
     expect(viewTransitions).toMatch(/::view-transition-new\(root\)[\s\S]*?background-color:\s*var\(--bg\)/)
   })
 
-  it('关闭跨文档页面转场，避免新文档在样式完成前被合成为纯文本', () => {
+  it('启用受控跨文档页面转场但不叠加整页平移', () => {
     const viewTransitions = read('styles/view-transitions.css')
     const globalStyles = read('styles/global.css')
 
-    expect(viewTransitions).not.toMatch(/@view-transition\s*\{[\s\S]*?navigation:\s*auto\s*;/)
-    expect(viewTransitions).toContain('navigation: none;')
-    expect(viewTransitions).toMatch(/html \.page-shell,[\s\S]*?html \[style\*="view-transition-name"\][\s\S]*?view-transition-name:\s*none !important;/)
+    expect(viewTransitions).toMatch(/@view-transition\s*\{[\s\S]*?navigation:\s*auto\s*;/)
+    expect(viewTransitions).not.toContain('navigation: none;')
+    expect(viewTransitions).toContain('student-edge-expand')
+    expect(viewTransitions).not.toContain('view-transition-name: page-main')
     expect(globalStyles).toContain('font-family: var(--font-body)')
     expect(globalStyles).not.toContain('font-family: var(--font-sans)')
   })

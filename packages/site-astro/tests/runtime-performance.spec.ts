@@ -6,10 +6,10 @@ const src = resolve(__dirname, '../src')
 const read = (file: string) => readFileSync(resolve(src, file), 'utf8')
 
 describe('公开站点原生运行时性能约束', () => {
-  it('使用跨文档原生导航，不加载 Astro ClientRouter', () => {
+  it('使用 Astro ClientRouter 承载受控共享元素转场', () => {
     const layout = read('layouts/MainLayout.astro')
-    expect(layout).not.toContain("from 'astro:transitions'")
-    expect(layout).not.toContain('<ClientRouter')
+    expect(layout).toContain("from 'astro:transitions'")
+    expect(layout).toContain('<ClientRouter')
     expect(layout).toContain("import('../runtime/navSession')")
     expect(layout).toContain("import('../runtime/volumeToggle')")
   })
@@ -37,10 +37,9 @@ describe('公开站点原生运行时性能约束', () => {
     expect(audio).toContain("document.addEventListener('visibilitychange'")
   })
 
-  it('纯静态页面不包含 Vue runtime 或 ClientRouter 关键词', () => {
+  it('纯静态页面不加载 Vue islands', () => {
     const layout = read('layouts/MainLayout.astro')
     expect(layout).not.toContain('client:load')
-    expect(layout).not.toContain('ClientRouter')
   })
 
   it('同页锚点不触发导航进度，并正确处理 BFCache 生命周期', () => {

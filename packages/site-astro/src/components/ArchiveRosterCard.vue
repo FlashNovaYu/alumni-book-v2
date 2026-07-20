@@ -36,11 +36,13 @@
       <!-- 内容 -->
       <div class="roster-card__body">
         <div class="roster-card__name" :style="nameTransitionStyle">{{ card.name }}</div>
-        <p v-if="card.motto" class="roster-card__motto">{{ card.motto }}</p>
-        <div v-if="card.tags?.length" class="roster-card__tags">
-          <span v-for="tag in card.tags" :key="tag" class="roster-card__tag">{{ tag }}</span>
+        <div data-student-card-details class="roster-card__details" :style="detailsTransitionStyle">
+          <p v-if="card.motto" class="roster-card__motto">{{ card.motto }}</p>
+          <div v-if="card.tags?.length" class="roster-card__tags">
+            <span v-for="tag in card.tags" :key="tag" class="roster-card__tag">{{ tag }}</span>
+          </div>
+          <div v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</div>
         </div>
-        <div v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</div>
       </div>
       
       <!-- 光晕层完全封装在卡片内部并利用 overflow:hidden 绝不漏光 -->
@@ -74,7 +76,7 @@ const avatarTransitionStyle = computed(() => {
   if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
   return {
     viewTransitionName: 'student-avatar-' + props.card.slug,
-    viewTransitionClass: 'student-avatar',
+    viewTransitionClass: 'student-identity student-avatar',
   }
 })
 
@@ -82,7 +84,15 @@ const nameTransitionStyle = computed(() => {
   if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
   return {
     viewTransitionName: 'student-name-' + props.card.slug,
-    viewTransitionClass: 'student-name',
+    viewTransitionClass: 'student-identity student-name',
+  }
+})
+
+const detailsTransitionStyle = computed(() => {
+  if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
+  return {
+    viewTransitionName: 'student-card-details-' + props.card.slug,
+    viewTransitionClass: 'student-card-details',
   }
 })
 

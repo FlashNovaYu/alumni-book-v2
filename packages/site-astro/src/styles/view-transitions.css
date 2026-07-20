@@ -1,26 +1,36 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    VIEW TRANSITIONS
    ═══════════════════════════════════════════════════════════════════════════ */
-/*
- * 页面导航不启用跨文档 View Transition。
- * 新文档的 CSS 和脚本加载顺序并不受当前页面控制，强行合成 page-main
- * 会在样式完成前短暂显示未样式化的 DOM，表现为白屏或“纯文本页面”。
- * 主题按钮使用同文档 startViewTransition，仍由下面的 root 规则负责。
- */
 @view-transition {
-  navigation: none;
-}
-
-/* 页面导航已关闭转场，所有遗留的共享元素名称也必须保持失效。 */
-html .page-shell,
-html [data-page-heading],
-html [style*="view-transition-name"] {
-  view-transition-name: none !important;
+  navigation: auto;
 }
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
   background-color: var(--bg);
+}
+
+html[data-student-transition='edge']::view-transition-old(root) {
+  z-index: 1;
+  animation: none !important;
+}
+
+html[data-student-transition='edge']::view-transition-new(root) {
+  z-index: 3;
+  animation: student-edge-expand 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
+  clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+}
+
+@keyframes student-edge-expand {
+  0% {
+    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+  }
+  64% {
+    clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
+  }
+  100% {
+    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+  }
 }
 
 html::before {
@@ -47,44 +57,6 @@ html[data-nav-dir='back']::before { transform-origin: right center; }
 
 @media (prefers-reduced-motion: reduce) {
   html.is-navigating::before { opacity: 0; transition: none; }
-}
-
-.page-shell {
-  view-transition-name: page-main;
-}
-
-/* 前进方向 */
-html[data-nav-dir=forward]::view-transition-old(page-main) {
-  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-backward;
-}
-
-html[data-nav-dir=forward]::view-transition-new(page-main) {
-  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-forward;
-}
-
-/* 后退方向 */
-html[data-nav-dir=back]::view-transition-old(page-main) {
-  animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both page-exit-forward;
-}
-
-html[data-nav-dir=back]::view-transition-new(page-main) {
-  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) both page-enter-backward;
-}
-
-@keyframes page-exit-backward {
-  to { transform: scale(0.92); opacity: 0; }
-}
-
-@keyframes page-enter-forward {
-  from { transform: scale(1.08); opacity: 0; }
-}
-
-@keyframes page-exit-forward {
-  to { transform: scale(1.08); opacity: 0; }
-}
-
-@keyframes page-enter-backward {
-  from { transform: scale(0.92); opacity: 0; }
 }
 
 /* Heading 过渡 */
@@ -184,6 +156,25 @@ html[data-theme='night'] .page-shell {
 ::view-transition-group(.student-name) {
   animation-duration: 0.4s;
   animation-timing-function: var(--ease-out-expo);
+}
+
+::view-transition-group(.student-identity) {
+  /* 先让卡片边缘完成覆盖，再让身份元素完成最后一段落位，避免穿出扩散边界。 */
+  z-index: 5;
+  animation-delay: 0.52s;
+  animation-duration: 0.3s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-group(.student-card-details) {
+  /* details 必须压在新页面背景之上，才能看见从卡片中心向内坍缩。 */
+  z-index: 4;
+  transform-origin: center;
+  animation: student-card-details-collapse 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes student-card-details-collapse {
+  to { opacity: 0; transform: scale(0.2); }
 }
 
 .student-page .detail-content-enter {

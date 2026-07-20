@@ -419,7 +419,7 @@ const avatarTransitionStyle = computed(() => {
   if (!student.value) return undefined
   return {
     viewTransitionName: 'student-avatar-' + student.value.slug,
-    viewTransitionClass: 'student-avatar',
+    viewTransitionClass: 'student-identity student-avatar',
   }
 })
 
@@ -427,7 +427,7 @@ const nameTransitionStyle = computed(() => {
   if (!student.value) return undefined
   return {
     viewTransitionName: 'student-name-' + student.value.slug,
-    viewTransitionClass: 'student-name',
+    viewTransitionClass: 'student-identity student-name',
   }
 })
 
