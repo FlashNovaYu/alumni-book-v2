@@ -14,7 +14,7 @@ import {
 import { useVisibilityPolling } from './useVisibilityPolling'
 
 export type InboxMode = 'direct' | 'notifications'
-export type InboxConnectionState = 'ready' | 'syncing' | 'error'
+export type InboxConnectionState = 'ready' | 'syncing' | 'sending' | 'error'
 export type DirectInboxMessage = DirectMessage & {
   clientNonce?: string
   deliveryState: 'sent' | 'sending' | 'failed'
@@ -55,7 +55,10 @@ export function useInbox(apiBase: string) {
   function setMessages(conversationId: string, items: DirectInboxMessage[]) {
     const sorted = sortByCreatedAt(items)
     histories.set(conversationId, sorted)
-    if (selectedConversation.value?.id === conversationId) messages.value = sorted
+    if (selectedConversation.value?.id === conversationId
+      || (!selectedConversation.value && selectedRecipient.value && conversationId === `pending-${selectedRecipient.value.slug}`)) {
+      messages.value = sorted
+    }
   }
 
   function replaceMessage(conversationId: string, messageId: string, next: DirectInboxMessage) {
@@ -180,7 +183,7 @@ export function useInbox(apiBase: string) {
     if (!peer || !message.clientNonce) return
 
     const pendingConversationId = message.conversationId
-    connectionState.value = 'syncing'
+    connectionState.value = 'sending'
     message.deliveryState = 'sending'
     replaceMessage(pendingConversationId, message.id, { ...message })
     try {
@@ -242,16 +245,22 @@ export function useInbox(apiBase: string) {
     }
     const items = selectedConversation.value ? histories.get(conversationId) || messages.value : messages.value
     setMessages(conversationId, [...items, pending])
-    await transmit(pending)
-    sending.value = false
+    try {
+      await transmit(pending)
+    } finally {
+      sending.value = false
+    }
   }
 
   async function retry(messageId: string) {
     const message = messages.value.find(item => item.id === messageId)
     if (!message || message.deliveryState !== 'failed' || sending.value) return
     sending.value = true
-    await transmit(message)
-    sending.value = false
+    try {
+      await transmit(message)
+    } finally {
+      sending.value = false
+    }
   }
 
   async function markConversationRead(conversation: DirectConversation) {
@@ -291,7 +300,7 @@ export function useInbox(apiBase: string) {
   }
 
   async function syncNow(signal?: AbortSignal) {
-    connectionState.value = 'syncing'
+    connectionState.value = sending.value ? 'sending' : 'syncing'
     try {
       const result = await syncInbox(apiBase, cursor.value || undefined, { signal })
       cursor.value = result.cursor
@@ -305,7 +314,7 @@ export function useInbox(apiBase: string) {
         else notifications.value = [notification, ...notifications.value]
       })
       updateUnread(result.unread)
-      connectionState.value = 'ready'
+      connectionState.value = sending.value ? 'sending' : 'ready'
     } catch (cause) {
       if ((cause as Error).name !== 'AbortError') {
         error.value = cause instanceof Error ? cause.message : '信箱同步失败'

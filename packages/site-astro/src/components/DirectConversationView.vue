@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { ClassmateEntry } from '@alumni/shared'
 import type { DirectInboxMessage, InboxConnectionState } from '../composables/useInbox'
 
@@ -42,7 +42,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{ send: [body: string]; retry: [messageId: string] }>()
 const draft = ref('')
-const connectionLabel = computed(() => ({ ready: '已连接', syncing: '发送中', error: '等待重试' }[props.connectionState]))
+const log = ref<HTMLDivElement | null>(null)
+const connectionLabel = computed(() => ({ ready: '已连接', syncing: '同步中', sending: '发送中', error: '等待重试' }[props.connectionState]))
+
+watch(() => props.messages.length, async (length, previousLength) => {
+  if (!length || previousLength === undefined) return
+  const element = log.value
+  if (!element) return
+  const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight
+  if (distanceFromBottom > 96) return
+  await nextTick()
+  element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
+})
 
 function submit() {
   const body = draft.value.trim()

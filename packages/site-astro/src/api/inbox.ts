@@ -3,6 +3,7 @@ import { requestClassmateApi } from './classmateRequest'
 
 export interface InboxRequestOptions {
   signal?: AbortSignal
+  timeoutMs?: number
 }
 
 export interface DirectConversationHistory {
@@ -33,11 +34,11 @@ function queryPath(path: string, query: Record<string, string | number | null | 
 }
 
 export function fetchDirectConversations(apiBase: string, options: InboxRequestOptions = {}): Promise<{ items: DirectConversation[] }> {
-  return requestClassmateApi(apiBase, '/api/direct-conversations', { signal: options.signal }, '会话列表加载失败')
+  return requestClassmateApi(apiBase, '/api/direct-conversations', { signal: options.signal, timeoutMs: options.timeoutMs }, '会话列表加载失败')
 }
 
 export function fetchInboxClassmates(apiBase: string, options: InboxRequestOptions = {}): Promise<ClassmateEntry[]> {
-  return requestClassmateApi(apiBase, '/api/classmates', { signal: options.signal }, '同学目录加载失败')
+  return requestClassmateApi(apiBase, '/api/classmates', { signal: options.signal, timeoutMs: options.timeoutMs }, '同学目录加载失败')
 }
 
 export function startDirectConversation(
@@ -51,6 +52,7 @@ export function startDirectConversation(
     {
       method: 'POST',
       signal: options.signal,
+      timeoutMs: options.timeoutMs,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     },
@@ -63,11 +65,11 @@ export function fetchDirectConversationHistory(
   conversationId: string,
   options: { before?: string; limit?: number } & InboxRequestOptions = {},
 ): Promise<DirectConversationHistory> {
-  const { before, limit, signal } = options
+  const { before, limit, signal, timeoutMs } = options
   return requestClassmateApi(
     apiBase,
     queryPath(`/api/direct-conversations/${encodeURIComponent(conversationId)}/messages`, { before, limit }),
-    { signal },
+    { signal, timeoutMs },
     '会话记录加载失败',
   )
 }
@@ -84,6 +86,7 @@ export function sendDirectMessage(
     {
       method: 'POST',
       signal: options.signal,
+      timeoutMs: options.timeoutMs,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     },
@@ -103,6 +106,7 @@ export async function markDirectConversationRead(
     {
       method: 'PUT',
       signal: options.signal,
+      timeoutMs: options.timeoutMs,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ throughMessageId }),
       expectData: false,
@@ -112,20 +116,20 @@ export async function markDirectConversationRead(
 }
 
 export function fetchInboxSummary(apiBase: string, options: InboxRequestOptions = {}): Promise<InboxSummary> {
-  return requestClassmateApi(apiBase, '/api/inbox/summary', { signal: options.signal }, '未读消息加载失败')
+  return requestClassmateApi(apiBase, '/api/inbox/summary', { signal: options.signal, timeoutMs: options.timeoutMs }, '未读消息加载失败')
 }
 
 export function syncInbox(apiBase: string, cursor?: string, options: InboxRequestOptions = {}): Promise<InboxSyncResult> {
   return requestClassmateApi(
     apiBase,
     queryPath('/api/inbox/sync', { cursor }),
-    { signal: options.signal },
+    { signal: options.signal, timeoutMs: options.timeoutMs },
     '信箱同步失败',
   )
 }
 
 export function fetchNotifications(apiBase: string, options: InboxRequestOptions = {}): Promise<{ items: NotificationItem[] }> {
-  return requestClassmateApi(apiBase, '/api/notifications', { signal: options.signal }, '通知加载失败')
+  return requestClassmateApi(apiBase, '/api/notifications', { signal: options.signal, timeoutMs: options.timeoutMs }, '通知加载失败')
 }
 
 export async function markNotificationRead(
@@ -136,7 +140,7 @@ export async function markNotificationRead(
   await requestClassmateApi<void>(
     apiBase,
     `/api/notifications/${encodeURIComponent(notificationId)}/read`,
-    { method: 'PUT', signal: options.signal, expectData: false },
+    { method: 'PUT', signal: options.signal, timeoutMs: options.timeoutMs, expectData: false },
     '通知标记失败',
   )
 }
