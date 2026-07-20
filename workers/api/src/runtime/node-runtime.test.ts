@@ -176,6 +176,27 @@ describe('Node 运行时绑定', () => {
     expect(readinessBody.data.ready).toBe(true)
   })
 
+  it('健康检查拒绝缺失或非法的发布 SHA', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'alumni-book-health-release-'))
+    storageDirectories.push(directory)
+    const runtime = createNodeRuntime({
+      databasePath: join(directory, 'data', 'alumni.sqlite'),
+      uploadRoot: join(directory, 'uploads'),
+      jwtSecret: 'node-health-release-test-secret',
+      corsOrigin: 'http://127.0.0.1:4321',
+      releaseSha: '0123456789abcdef0123456789abcdef01234567',
+    })
+    openRuntimes.push(runtime)
+    const fetch = createNodeFetch(runtime)
+
+    delete (runtime.env as Partial<typeof runtime.env>).RELEASE_SHA
+    const missingRelease = await fetch(new Request('http://127.0.0.1:8787/api/health'))
+    runtime.env.RELEASE_SHA = 'local'
+    const invalidRelease = await fetch(new Request('http://127.0.0.1:8787/api/health'))
+    expect(missingRelease.status).toBe(503)
+    expect(invalidRelease.status).toBe(503)
+  })
+
   it('通过 Node 文件入口提供变体的缓存与 Range 读取', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'alumni-book-media-fetch-'))
     storageDirectories.push(directory)

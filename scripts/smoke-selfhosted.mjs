@@ -62,6 +62,18 @@ export function assertMatchingReleaseShas(staticReleaseSha, apiReleaseSha) {
   if (staticReleaseSha !== apiReleaseSha) throw new Error(`/release.json 与 /api/health 发布 SHA 不一致：${staticReleaseSha} != ${apiReleaseSha}`)
 }
 
+export function parseExpectedSha(argv = process.argv) {
+  const index = argv.indexOf('--expected-sha')
+  const value = index >= 0 ? argv[index + 1] : undefined
+  if (!value || value.startsWith('--')) throw new Error('smoke 必须通过 --expected-sha 传入发布 SHA')
+  assertReleaseSha(value, '--expected-sha')
+  return value
+}
+
+function assertExpectedSha(actualSha, expectedSha, path) {
+  if (actualSha !== expectedSha) throw new Error(`${path} 与 --expected-sha 不一致：${actualSha || '(missing)'} != ${expectedSha}`)
+}
+
 async function request(baseUrl, path, init = {}) {
   const url = `${baseUrl.replace(/\/$/, '')}${path}`
   const response = await fetch(url, init)
@@ -70,8 +82,9 @@ async function request(baseUrl, path, init = {}) {
   return { response, text }
 }
 
-export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false } = {}) {
+export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false, expectedSha } = {}) {
   assertHttpsBaseUrl(baseUrl)
+  assertReleaseSha(expectedSha, '--expected-sha')
   const secureBaseUrl = baseUrl.replace(/\/$/, '')
   const httpBaseUrl = new URL(secureBaseUrl)
   httpBaseUrl.protocol = 'http:'
@@ -82,6 +95,8 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
   const healthBody = JSON.parse(health.text)
   if (!healthBody.success || healthBody.data?.status !== 'ok') throw new Error('/api/health 返回内容异常')
   assertReleaseSha(healthBody.data?.releaseSha, '/api/health')
+  assertExpectedSha(healthBody.data.releaseSha, expectedSha, '/api/health')
+  assertExpectedSha(healthBody.data.releaseSha, expectedSha, '/api/health')
 
   const readiness = await request(baseUrl, '/api/readiness')
   assertStatus(readiness.response.status, [200], '/api/readiness')
@@ -119,6 +134,7 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
       throw new Error(`/release.json 目标异常：${releaseBody.target || '(missing)'}`)
     }
     assertMatchingReleaseShas(releaseBody.source, healthBody.data.releaseSha)
+    assertExpectedSha(releaseBody.source, expectedSha, '/release.json')
   }
   console.log(`Self-hosted smoke test passed: ${baseUrl}`)
 }
@@ -129,11 +145,18 @@ function argument(name) {
 }
 
 if (process.argv[1]?.endsWith('smoke-selfhosted.mjs')) {
-  smokeSelfHosted({
-    baseUrl: argument('--base-url'),
-    apiOnly: process.argv.includes('--api-only'),
-  }).catch((error) => {
+  try {
+    const expectedSha = parseExpectedSha()
+    smokeSelfHosted({
+      baseUrl: argument('--base-url'),
+      apiOnly: process.argv.includes('--api-only'),
+      expectedSha,
+    }).catch((error) => {
+      console.error(String(error))
+      process.exitCode = 1
+    })
+  } catch (error) {
     console.error(String(error))
     process.exitCode = 1
-  })
+  }
 }

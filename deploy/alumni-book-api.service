@@ -9,8 +9,9 @@ RemainAfterExit=yes
 User=admin
 Group=admin
 Environment=XDG_RUNTIME_DIR=/run/user/1001
-EnvironmentFile=/opt/alumni-book/app/deploy/.release.env
+EnvironmentFile=/opt/alumni-book/app/deploy/.env
 WorkingDirectory=/opt/alumni-book/app
+ExecStartPre=/usr/bin/node /opt/alumni-book/app/scripts/preflight-selfhosted-release.mjs
 ExecStart=/usr/bin/podman-compose up -d api
 ExecStop=/usr/bin/podman-compose stop api
 TimeoutStartSec=0

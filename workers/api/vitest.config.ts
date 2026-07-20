@@ -14,6 +14,7 @@ export default defineConfig({
         bindings: {
           JWT_SECRET: 'alumni-book-test-secret',
           CORS_ORIGIN: 'http://localhost:4321',
+          RELEASE_SHA: '0123456789abcdef0123456789abcdef01234567',
         },
       },
     }),

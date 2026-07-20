@@ -16,8 +16,11 @@ async function dispatch(path: string, bindings: any = env) {
 }
 
 describe('Worker 可观测性与 readiness', () => {
-  it('health 是不依赖外部绑定的存活检查，readiness 报告依赖不可用', async () => {
-    const missingBindings = { CORS_ORIGIN: 'http://localhost:4321' }
+  it('health 只要求发布标识，readiness 报告 DB/R2 等依赖不可用', async () => {
+    const missingBindings = {
+      CORS_ORIGIN: 'http://localhost:4321',
+      RELEASE_SHA: '0123456789abcdef0123456789abcdef01234567',
+    }
     expect((await dispatch('/api/health', missingBindings)).status).toBe(200)
 
     const readiness = await dispatch('/api/readiness', missingBindings)

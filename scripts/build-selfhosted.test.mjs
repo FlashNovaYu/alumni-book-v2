@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { assertSelfHostedArtifact, buildSelfHostedConfig, getSelfHostedClientApiBase } from './build-selfhosted.mjs'
+import { assertSelfHostedArtifact, buildSelfHostedConfig, buildSelfHostedReleaseMetadata, getSelfHostedClientApiBase } from './build-selfhosted.mjs'
 
 test('自托管产物拒绝残留 Cloudflare 生产地址', () => {
   assert.doesNotThrow(() => assertSelfHostedArtifact('fetch("/api/health")', 'index.html'))
@@ -41,4 +41,23 @@ test('自托管构建要求显式 API 目标并归一化尾斜杠', () => {
     ssgApiBase: 'http://118.178.88.227',
     releaseSha: '0123456789abcdef0123456789abcdef01234567',
   })
+})
+
+test('自托管发布清单包含可解析的 builtAt', () => {
+  const manifest = buildSelfHostedReleaseMetadata({
+    apiBase: 'http://118.178.88.227',
+    releaseSha: '0123456789abcdef0123456789abcdef01234567',
+    builtAt: '2026-07-20T13:00:00.000Z',
+  })
+  assert.deepEqual(manifest, {
+    source: '0123456789abcdef0123456789abcdef01234567',
+    target: 'aliyun-selfhosted',
+    apiBase: 'http://118.178.88.227',
+    builtAt: '2026-07-20T13:00:00.000Z',
+  })
+  const generated = buildSelfHostedReleaseMetadata({
+    apiBase: 'http://118.178.88.227',
+    releaseSha: '0123456789abcdef0123456789abcdef01234567',
+  })
+  assert.equal(Number.isNaN(Date.parse(generated.builtAt)), false)
 })

@@ -224,7 +224,11 @@ app.use('/api/timeline', etag())
 
 // 健康检查
 app.get('/api/health', (c) => {
-  return c.json({ success: true, data: { status: 'ok', version: '2.0.0', releaseSha: c.env.RELEASE_SHA } })
+  const releaseSha = c.env?.RELEASE_SHA
+  if (!/^[0-9a-f]{40}$/i.test(releaseSha || '')) {
+    return c.json({ success: false, data: { status: 'error' }, message: '发布标识未配置或无效' }, 503)
+  }
+  return c.json({ success: true, data: { status: 'ok', version: '2.0.0', releaseSha } })
 })
 
 app.get('/api/readiness', async (c) => {

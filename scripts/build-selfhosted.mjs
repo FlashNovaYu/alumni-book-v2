@@ -31,6 +31,11 @@ export function buildSelfHostedConfig({ apiBase, releaseSha = process.env.RELEAS
   }
 }
 
+export function buildSelfHostedReleaseMetadata({ apiBase, releaseSha, builtAt = new Date().toISOString() } = {}) {
+  if (!releaseShaPattern.test(String(releaseSha || ''))) throw new Error('RELEASE_SHA 必须是完整 40 位十六进制提交 SHA')
+  return { source: releaseSha, target: 'aliyun-selfhosted', apiBase, builtAt }
+}
+
 export function assertSelfHostedArtifact(content, source) {
   if (forbiddenHosts.some((host) => content.includes(host))) {
     throw new Error(`自托管产物仍包含 Cloudflare 地址：${source}`)
@@ -75,7 +80,7 @@ export function buildSelfHosted({ apiBase, releaseSha } = {}) {
   cpSync(siteDist, selfHostedDir, { recursive: true })
   mkdirSync(join(selfHostedDir, 'admin'), { recursive: true })
   cpSync(adminDist, join(selfHostedDir, 'admin'), { recursive: true })
-  writeFileSync(join(selfHostedDir, 'release.json'), `${JSON.stringify({ source: config.releaseSha, target: 'aliyun-selfhosted', apiBase: config.apiBase })}\n`, 'utf8')
+  writeFileSync(join(selfHostedDir, 'release.json'), `${JSON.stringify(buildSelfHostedReleaseMetadata(config))}\n`, 'utf8')
   scan(selfHostedDir)
   console.log(`Self-hosted deployment prepared at ${selfHostedDir}`)
 }
