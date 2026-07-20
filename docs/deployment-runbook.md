@@ -55,7 +55,7 @@ pnpm media:backfill --input=media-export.json --assets-dir=./assets --execute --
 
 ## 阿里云 ECS IP 预发布（当前部署）
 
-备案完成前，访问入口为 `http://118.178.88.227`。本实例不导入 Cloudflare D1/R2 数据，数据库和上传目录均从空目录开始。
+备案完成前，预发布入口为 `http://118.178.88.227`，仅用于受控部署调试，不承载真实登录；正式 smoke 必须使用已配置证书的 HTTPS 域名。本实例不导入 Cloudflare D1/R2 数据，数据库和上传目录均从空目录开始。
 
 服务器关键路径：
 
@@ -82,7 +82,7 @@ curl -fsS http://127.0.0.1:8787/api/readiness
 
 ```powershell
 $releaseSha = (git rev-parse HEAD).Trim()
-node scripts/smoke-selfhosted.mjs --base-url http://118.178.88.227 --expected-sha $releaseSha
+node scripts/smoke-selfhosted.mjs --base-url $env:SELF_HOST_BASE_URL --expected-sha $releaseSha
 ```
 
 ### 静态站点原子发布
@@ -108,7 +108,7 @@ pnpm release:selfhosted:atomic -- deploy \
   --candidate-api-base-url http://127.0.0.1:8788 \
   --promote-api-hook /opt/alumni-book/bin/promote-api-slot \
   --rollback-api-hook /opt/alumni-book/bin/rollback-api-slot \
-  --live-base-url http://118.178.88.227 \
+  --live-base-url https://<正式域名> \
   --retain 3
 ```
 
@@ -125,9 +125,9 @@ pnpm release:selfhosted:atomic -- rollback \
   --candidate-api-base-url http://127.0.0.1:8788 \
   --promote-api-hook /opt/alumni-book/bin/promote-api-slot \
   --rollback-api-hook /opt/alumni-book/bin/rollback-api-slot \
-  --live-base-url http://118.178.88.227
+  --live-base-url https://<正式域名>
 node scripts/smoke-selfhosted.mjs \
-  --base-url http://118.178.88.227 \
+  --base-url $env:SELF_HOST_BASE_URL \
   --expected-sha '<目标完整 40 位提交 SHA>'
 ```
 
