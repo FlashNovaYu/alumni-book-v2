@@ -93,7 +93,9 @@ function stopVoice(voice: ActiveVoice) {
 function claimVoice(cue: AudioCue, sources: AudioScheduledSourceNode[], protectedVoice: boolean, startedAt: number) {
   if (activeVoices.length >= MAX_ACTIVE_VOICES) {
     const removable = activeVoices.find((voice) => !voice.protected) || activeVoices[0]
-    if (removable) stopVoice(removable)
+    if (!removable) return null
+    if (!protectedVoice && removable.protected) return null
+    stopVoice(removable)
   }
 
   const voice: ActiveVoice = { cue, sources, protected: protectedVoice, startedAt }
@@ -107,7 +109,8 @@ function claimVoice(cue: AudioCue, sources: AudioScheduledSourceNode[], protecte
   return voice
 }
 
-function startVoice(voice: ActiveVoice, when: number, stopAt: number) {
+function startVoice(voice: ActiveVoice | null, when: number, stopAt: number) {
+  if (!voice) return
   voice.sources.forEach((source) => {
     source.start(when)
     source.stop(stopAt)
@@ -240,6 +243,7 @@ export function playAlbumOpen() {
   sources.push(scheduleTone(context, now, 0.055, 'sine', 392, 470, 0.055, 2500))
   sources.push(scheduleTone(context, now + 0.045, 0.075, 'sine', 587, 680, 0.04, 2800))
   const voice = claimVoice('albumOpen', sources, true, now)
+  if (!voice) return
   voice.sources[1].start(now)
   voice.sources[1].stop(now + 0.055)
   voice.sources[2].start(now + 0.045)
