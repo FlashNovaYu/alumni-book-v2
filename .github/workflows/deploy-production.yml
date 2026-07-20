@@ -37,8 +37,6 @@ jobs:
           DEPLOY_CONFIRMATION: ${{ inputs.confirmation }}
         run: node scripts/production-deploy-guard.mjs
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
