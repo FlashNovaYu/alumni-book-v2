@@ -120,6 +120,7 @@ function formatDirectMessage(row: any) {
     recipientSlug: row.recipient_slug,
     body: row.body,
     createdAt: row.created_at,
+    clientNonce: row.client_nonce,
   }
 }
 

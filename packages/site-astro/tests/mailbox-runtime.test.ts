@@ -156,6 +156,56 @@ describe('私聊乐观消息状态', () => {
     await inbox.retry(inbox.messages.value[0].id)
     expect(inbox.messages.value.at(-1)?.deliveryState).toBe('sent')
   })
+
+  it('sync 先于 POST 成功返回时按 clientNonce 和服务端 ID 归并为一条', async () => {
+    let resolvePost!: (message: typeof startedMessage) => void
+    apiMocks.fetchDirectConversationHistory.mockResolvedValue({ items: [], nextCursor: null })
+    apiMocks.sendDirectMessage.mockImplementation(() => new Promise(resolve => { resolvePost = resolve }))
+    const inbox = useInbox('https://api.example.test')
+    await inbox.selectConversation(conversation)
+
+    const sending = inbox.send('竞态消息')
+    const clientNonce = apiMocks.sendDirectMessage.mock.calls[0][2].clientNonce
+    const synced = { ...startedMessage, body: '竞态消息', clientNonce }
+    apiMocks.syncInbox.mockResolvedValue({
+      cursor: 'sync-race-success',
+      conversations: [],
+      messages: [synced],
+      notifications: [],
+      unread: { directUnread: 0, notificationUnread: 0, totalUnread: 0 },
+    })
+    await inbox.syncNow()
+    expect(inbox.messages.value).toEqual([{ ...synced, deliveryState: 'sent' }])
+
+    resolvePost(synced)
+    await sending
+    expect(inbox.messages.value).toEqual([{ ...synced, deliveryState: 'sent' }])
+  })
+
+  it('sync 先于 POST 超时返回时保留唯一已发送消息而不降级为失败', async () => {
+    let rejectPost!: (error: Error) => void
+    apiMocks.fetchDirectConversationHistory.mockResolvedValue({ items: [], nextCursor: null })
+    apiMocks.sendDirectMessage.mockImplementation(() => new Promise((_resolve, reject) => { rejectPost = reject }))
+    const inbox = useInbox('https://api.example.test')
+    await inbox.selectConversation(conversation)
+
+    const sending = inbox.send('已由同步确认')
+    const clientNonce = apiMocks.sendDirectMessage.mock.calls[0][2].clientNonce
+    const synced = { ...startedMessage, body: '已由同步确认', clientNonce }
+    apiMocks.syncInbox.mockResolvedValue({
+      cursor: 'sync-race-timeout',
+      conversations: [],
+      messages: [synced],
+      notifications: [],
+      unread: { directUnread: 0, notificationUnread: 0, totalUnread: 0 },
+    })
+    await inbox.syncNow()
+
+    rejectPost(new ApiRequestError('请求超时，请稍后重试', 408))
+    await sending
+    expect(inbox.messages.value).toEqual([{ ...synced, deliveryState: 'sent' }])
+    expect(inbox.error.value).toBeNull()
+  })
 })
 
 describe('信箱同步退避', () => {

@@ -326,6 +326,7 @@ export interface DirectMessage {
   recipientSlug: string
   body: string
   createdAt: string
+  clientNonce?: string
 }
 
 export interface NotificationItem {

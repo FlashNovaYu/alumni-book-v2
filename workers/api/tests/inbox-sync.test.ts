@@ -139,6 +139,10 @@ describe('Inbox summary and sync API', () => {
     }))
     expect(JSON.stringify(firstBody.data.messages)).not.toContain('read_at')
     expect(JSON.stringify(firstBody.data.messages)).not.toContain('不可见')
+    expect(firstBody.data.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'inbox-sync-incoming', clientNonce: 'inbox-sync-incoming-nonce' }),
+      expect.objectContaining({ id: 'inbox-sync-outgoing', clientNonce: 'inbox-sync-outgoing-nonce' }),
+    ]))
 
     const tamperedCursor = decodeSyncCursorPayload(firstBody.data.cursor)
     tamperedCursor.position.messages = 0

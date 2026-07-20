@@ -133,7 +133,8 @@ function handleIdempotentResponse(c: any, existingMessage: any, viewerSlug: stri
         senderSlug: existingMessage.sender_slug,
         recipientSlug: existingMessage.recipient_slug,
         body: existingMessage.body,
-        createdAt: existingMessage.created_at
+        createdAt: existingMessage.created_at,
+        clientNonce: existingMessage.client_nonce
       }
     }
   }, 200)
@@ -282,7 +283,8 @@ directConversationsRoutes.post('/direct-conversations', async (c) => {
               senderSlug: viewerSlug,
               recipientSlug,
               body: cleanBody,
-              createdAt: now
+              createdAt: now,
+              clientNonce
             }
           }
         }, 201)
@@ -322,7 +324,8 @@ directConversationsRoutes.post('/direct-conversations', async (c) => {
         senderSlug: viewerSlug,
         recipientSlug,
         body: cleanBody,
-        createdAt: now
+        createdAt: now,
+        clientNonce
       }
     }
   }, 201)
@@ -382,7 +385,8 @@ directConversationsRoutes.get('/direct-conversations/:id/messages', async (c) =>
     senderSlug: msg.sender_slug,
     recipientSlug: msg.recipient_slug,
     body: msg.body,
-    createdAt: msg.created_at
+    createdAt: msg.created_at,
+    clientNonce: msg.client_nonce
   })).reverse()
 
   let nextCursor = null
@@ -454,7 +458,8 @@ directConversationsRoutes.post('/direct-conversations/:id/messages', async (c) =
         senderSlug: existingMessage.sender_slug,
         recipientSlug: existingMessage.recipient_slug,
         body: existingMessage.body,
-        createdAt: existingMessage.created_at
+        createdAt: existingMessage.created_at,
+        clientNonce: existingMessage.client_nonce
       }
     }, 200)
   }
@@ -480,7 +485,8 @@ directConversationsRoutes.post('/direct-conversations/:id/messages', async (c) =
       senderSlug: viewerSlug,
       recipientSlug,
       body: cleanBody,
-      createdAt: now
+      createdAt: now,
+      clientNonce
     }
   }, 201)
 })

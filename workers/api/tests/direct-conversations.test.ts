@@ -145,6 +145,7 @@ describe('Direct Conversations API', () => {
     expect(data1.message.body).toBe('首条消息')
     expect(data1.message.senderSlug).toBe(STUDENT_A)
     expect(data1.message.recipientSlug).toBe(STUDENT_B)
+    expect(data1.message.clientNonce).toBe('nonce-1')
     expect(data1.message.readAt).toBeUndefined() // 没有 read_at 暴露给发送者
     
     const convId = data1.conversation.id
@@ -158,6 +159,7 @@ describe('Direct Conversations API', () => {
     expect(res2.status).toBe(200)
     const data2 = (await res2.json() as any).data
     expect(data2.message.id).toBe(data1.message.id)
+    expect(data2.message.clientNonce).toBe('nonce-1')
 
     // 3. 验证双方的列表都能看到这个会话
     const listA = await request('/api/direct-conversations', { headers: headers(TOKEN_A) })
@@ -191,6 +193,7 @@ describe('Direct Conversations API', () => {
     // 2. C (第三人) 尝试读取消息历史
     const getHistory = await request(`/api/direct-conversations/${convId}/messages`, { headers: headers(TOKEN_C) })
     expect(getHistory.status).toBe(404)
+    expect(JSON.stringify(await getHistory.json())).not.toContain('n1')
 
     // 3. C 尝试发送消息
     const postMessage = await request(`/api/direct-conversations/${convId}/messages`, {
@@ -300,6 +303,7 @@ describe('Direct Conversations API', () => {
     const historyItems = (await getHistory.json() as any).data.items
     expect(historyItems[0]).not.toHaveProperty('readAt')
     expect(historyItems[0]).not.toHaveProperty('read_at')
+    expect(historyItems.map((item: any) => item.clientNonce)).toEqual(['n1', 'n2', 'n3'])
   })
 
   it('rejects malformed read request bodies with 400', async () => {

@@ -66,6 +66,46 @@ export function useInbox(apiBase: string) {
     setMessages(conversationId, items.map(item => item.id === messageId ? next : item))
   }
 
+  function sameMessage(left: Pick<DirectInboxMessage, 'id' | 'clientNonce'>, right: Pick<DirectInboxMessage, 'id' | 'clientNonce'>) {
+    return left.id === right.id || Boolean(left.clientNonce && right.clientNonce && left.clientNonce === right.clientNonce)
+  }
+
+  function findMessage(message: Pick<DirectInboxMessage, 'id' | 'clientNonce'>) {
+    for (const [conversationId, items] of histories) {
+      const item = items.find(candidate => sameMessage(candidate, message))
+      if (item) return { conversationId, item }
+    }
+    return null
+  }
+
+  function mergeServerMessage(message: DirectMessage): DirectInboxMessage {
+    const located = findMessage(message)
+    const sourceItems = located
+      ? (histories.get(located.conversationId) || []).map(item => ({ ...item, conversationId: message.conversationId }))
+      : []
+    if (located && located.conversationId !== message.conversationId) histories.delete(located.conversationId)
+    const targetItems = histories.get(message.conversationId) || []
+    const sent: DirectInboxMessage = {
+      ...message,
+      clientNonce: message.clientNonce || located?.item.clientNonce,
+      deliveryState: 'sent',
+    }
+    const candidates = located?.conversationId === message.conversationId
+      ? targetItems
+      : [...targetItems, ...sourceItems]
+
+    if (!selectedConversation.value && located && selectedRecipient.value) {
+      const syncedConversation = conversations.value.find(item => item.id === message.conversationId)
+      if (syncedConversation?.peer.slug === selectedRecipient.value.slug) {
+        selectedConversation.value = syncedConversation
+        selectedRecipient.value = null
+      }
+    }
+
+    setMessages(message.conversationId, [...candidates.filter(item => !sameMessage(item, sent)), sent])
+    return sent
+  }
+
   function upsertConversation(next: DirectConversation) {
     const index = conversations.value.findIndex(item => item.id === next.id)
     const items = [...conversations.value]
@@ -193,22 +233,14 @@ export function useInbox(apiBase: string) {
       } else {
         const started = await startDirectConversation(apiBase, { recipientSlug: peer.slug, body: message.body, clientNonce: message.clientNonce })
         upsertConversation(started.conversation)
-        const pendingItems = histories.get(pendingConversationId) || []
-        histories.delete(pendingConversationId)
-        const startedItems: DirectInboxMessage[] = pendingItems.map(item => item.id === message.id
-          ? { ...started.message, deliveryState: 'sent' as const }
-          : { ...item, conversationId: started.conversation.id },
-        )
         if (!selectedConversation.value && selectedRecipient.value?.slug === peer.slug) {
           selectedConversation.value = started.conversation
           selectedRecipient.value = null
         }
-        setMessages(started.conversation.id, startedItems)
         delivered = started.message
       }
 
-      const sent: DirectInboxMessage = { ...delivered, deliveryState: 'sent' }
-      if (conversation) replaceMessage(pendingConversationId, message.id, sent)
+      const sent = mergeServerMessage({ ...delivered, clientNonce: delivered.clientNonce || message.clientNonce })
       if (conversation) {
         upsertConversation({
           ...conversation,
@@ -219,6 +251,12 @@ export function useInbox(apiBase: string) {
       error.value = null
       connectionState.value = 'ready'
     } catch (cause) {
+      const confirmed = findMessage({ id: message.id, clientNonce: message.clientNonce })?.item
+      if (confirmed?.deliveryState === 'sent') {
+        error.value = null
+        connectionState.value = 'ready'
+        return
+      }
       replaceMessage(pendingConversationId, message.id, { ...message, conversationId: pendingConversationId, deliveryState: 'failed' })
       error.value = cause instanceof Error ? cause.message : '私信发送失败'
       connectionState.value = 'error'
@@ -306,8 +344,7 @@ export function useInbox(apiBase: string) {
       cursor.value = result.cursor
       result.conversations.forEach(upsertConversation)
       result.messages.forEach((message) => {
-        const items = histories.get(message.conversationId) || []
-        if (!items.some(item => item.id === message.id)) setMessages(message.conversationId, [...items, { ...message, deliveryState: 'sent' }])
+        mergeServerMessage(message)
       })
       result.notifications.forEach((notification) => {
         if (notifications.value.some(item => item.id === notification.id)) replaceNotification(notification)
