@@ -64,6 +64,7 @@ pnpm media:backfill --input=media-export.json --assets-dir=./assets --execute --
 - 上传：`/var/lib/alumni-book/uploads`
 - 备份：`/var/backups/alumni-book`
 - 静态站点：`/www/wwwroot/alumni-book`
+- 版本目录：`/www/wwwroot/releases/<完整提交 SHA>`
 - aaPanel Nginx：`/www/server/panel/vhost/nginx/alumni-book.conf`
 
 日常巡检（通过 Workbench 或 SSH 以 `admin` 执行）：
@@ -80,7 +81,46 @@ curl -fsS http://127.0.0.1:8787/api/readiness
 从本地验收公网入口：
 
 ```powershell
-node scripts/smoke-selfhosted.mjs --base-url http://118.178.88.227
+$releaseSha = (git rev-parse HEAD).Trim()
+node scripts/smoke-selfhosted.mjs --base-url http://118.178.88.227 --expected-sha $releaseSha
+```
+
+### 静态站点原子发布
+
+本地必须先使用完整提交 SHA 构建，再通过现有受控上传渠道把 `deploy/selfhosted` 和对应应用代码同步到 `/opt/alumni-book/app`。仓库脚本不保存或读取 SSH 密码、私钥：
+
+```powershell
+$env:RELEASE_SHA = (git rev-parse HEAD).Trim()
+pnpm build:selfhosted -- --api-base http://118.178.88.227
+Remove-Item Env:RELEASE_SHA
+```
+
+服务器上的 `deploy/.env` 必须由发布系统写入相同的完整 `RELEASE_SHA`。候选静态产物由 `container-nginx` profile 在 `127.0.0.1:8080` 提供 staging 访问；API 重启时的 `ExecStartPre` 会先核对候选 `release.json.source`：
+
+```bash
+cd /opt/alumni-book/app
+export RELEASE_SHA='<本次完整 40 位提交 SHA>'
+sudo systemctl restart alumni-book-api.service
+podman-compose --profile container-nginx up -d web
+pnpm release:selfhosted:atomic -- deploy \
+  --release-sha "$RELEASE_SHA" \
+  --artifact-dir /opt/alumni-book/app/deploy/selfhosted \
+  --staging-base-url http://127.0.0.1:8080 \
+  --retain 3
+```
+
+脚本先把候选产物准备到 `/www/wwwroot/releases/$RELEASE_SHA`，再对 staging 执行完整 smoke，并强制静态清单、API health 和 expected SHA 三者一致。只有 smoke 成功后才会在 `/www/wwwroot` 内创建临时 symlink 并以 rename 原子替换 `alumni-book`；失败不会触碰当前 symlink。成功后至少保留当前版本和两个历史版本。
+
+首次启用前，如果 `/www/wwwroot/alumni-book` 仍是实体目录，需要在维护窗口把它移动到独立的 pre-atomic 备份目录并立即用指向该备份的 symlink 替代。由于旧线上版本当前无法证明完整 SHA，不得把它伪装成 `/releases/<SHA>`；在积累三个已验证版本前保留这份备份。此一次性迁移不是后续原子发布脚本的一部分。
+
+明确回滚到已保留的历史版本：先把 API 应用和 `deploy/.env` 恢复到同一个目标 SHA并重启 API，再原子切换静态 symlink，最后用目标 SHA 做公网 smoke。不要只改 `RELEASE_SHA` 来冒充旧 API 代码：
+
+```bash
+cd /opt/alumni-book/app
+pnpm release:selfhosted:atomic -- rollback --release-sha '<目标完整 40 位提交 SHA>'
+node scripts/smoke-selfhosted.mjs \
+  --base-url http://118.178.88.227 \
+  --expected-sha '<目标完整 40 位提交 SHA>'
 ```
 
 重启 API（不会删除 SQLite 或上传文件）：

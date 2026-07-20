@@ -35,6 +35,7 @@
     "verify:all": "pnpm verify:secrets && pnpm verify:deployment-security && pnpm verify:worker && pnpm verify:shared && pnpm verify:admin && pnpm verify:site",
     "prepare:pages": "node scripts/prepare-pages-deploy.mjs",
     "build:selfhosted": "node scripts/build-selfhosted.mjs",
+    "release:selfhosted:atomic": "node scripts/atomic-selfhosted-release.mjs",
     "verify:pages": "pnpm verify:all && pnpm prepare:pages",
     "smoke:pages": "node scripts/smoke-pages.mjs"
   },
