@@ -91,14 +91,16 @@ async function assertReferencedAssets(baseUrl, html, pagePath) {
   }
 }
 
-export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false, expectedSha } = {}) {
-  assertHttpsBaseUrl(baseUrl)
+export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false, expectedSha, allowInsecureStaging = false } = {}) {
+  if (!allowInsecureStaging) assertHttpsBaseUrl(baseUrl)
   assertReleaseSha(expectedSha, '--expected-sha')
   const secureBaseUrl = baseUrl.replace(/\/$/, '')
-  const httpBaseUrl = new URL(secureBaseUrl)
-  httpBaseUrl.protocol = 'http:'
-  const redirect = await request(httpBaseUrl.origin, '/', { redirect: 'manual' })
-  assertHttpRedirect(redirect.response, `${secureBaseUrl}/`)
+  if (!allowInsecureStaging) {
+    const httpBaseUrl = new URL(secureBaseUrl)
+    httpBaseUrl.protocol = 'http:'
+    const redirect = await request(httpBaseUrl.origin, '/', { redirect: 'manual' })
+    assertHttpRedirect(redirect.response, `${secureBaseUrl}/`)
+  }
   const health = await request(baseUrl, '/api/health')
   assertStatus(health.response.status, [200], '/api/health')
   const healthBody = JSON.parse(health.text)
@@ -118,25 +120,29 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
   if (!apiOnly) {
     const home = await request(baseUrl, '/')
     assertStatus(home.response.status, [200], '/')
-    assertSecurityHeaders(home.response.headers, '/')
+    if (!allowInsecureStaging) assertSecurityHeaders(home.response.headers, '/')
     await assertReferencedAssets(baseUrl, home.text, '/')
     const admin = await request(baseUrl, '/admin/')
     assertStatus(admin.response.status, [200], '/admin/')
-    assertSecurityHeaders(admin.response.headers, '/admin/')
+    if (!allowInsecureStaging) assertSecurityHeaders(admin.response.headers, '/admin/')
     await assertReferencedAssets(baseUrl, admin.text, '/admin/')
-    const robots = await request(baseUrl, '/robots.txt')
-    assertStatus(robots.response.status, [200], '/robots.txt')
-    if (!robots.response.headers.get('content-type')?.startsWith('text/plain')) {
-      throw new Error('/robots.txt Content-Type 必须为 text/plain')
+    if (!allowInsecureStaging) {
+      const robots = await request(baseUrl, '/robots.txt')
+      assertStatus(robots.response.status, [200], '/robots.txt')
+      if (!robots.response.headers.get('content-type')?.startsWith('text/plain')) {
+        throw new Error('/robots.txt Content-Type 必须为 text/plain')
+      }
+      assertRobotsText(robots.text, '/robots.txt')
     }
-    assertRobotsText(robots.text, '/robots.txt')
-    for (const path of ['/assets/does-not-exist.js', '/admin/assets/does-not-exist.js', '/this-route-should-not-exist', '/llms.txt']) {
-      const missing = await request(baseUrl, path)
-      assertStatus(missing.response.status, [404], path)
-    }
-    for (const path of ['/roster/', '/album/', '/timeline/', '/mailbox/']) {
-      const route = await request(baseUrl, path)
-      assertStatus(route.response.status, [200], path)
+    if (!allowInsecureStaging) {
+      for (const path of ['/assets/does-not-exist.js', '/admin/assets/does-not-exist.js', '/this-route-should-not-exist', '/llms.txt']) {
+        const missing = await request(baseUrl, path)
+        assertStatus(missing.response.status, [404], path)
+      }
+      for (const path of ['/roster/', '/album/', '/timeline/', '/mailbox/']) {
+        const route = await request(baseUrl, path)
+        assertStatus(route.response.status, [200], path)
+      }
     }
     const release = await request(baseUrl, '/release.json')
     assertStatus(release.response.status, [200], '/release.json')

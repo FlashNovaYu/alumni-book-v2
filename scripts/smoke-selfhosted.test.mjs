@@ -35,7 +35,7 @@ test('自托管 smoke 拒绝静态与 API 发布 SHA 不一致', async () => {
 
   try {
     await assert.rejects(
-      () => smokeSelfHosted({ baseUrl: 'http://self-hosted.test', expectedSha: apiReleaseSha }),
+      () => smokeSelfHosted({ baseUrl: 'http://self-hosted.test', expectedSha: apiReleaseSha, allowInsecureStaging: true }),
       /release\.json.*API.*SHA|SHA.*不一致/i,
     )
   } finally {
@@ -62,9 +62,9 @@ test('自托管 smoke 成功时静态、API 与 --expected-sha 三者一致', as
   }
 
   try {
-    await assert.doesNotReject(() => smokeSelfHosted({ baseUrl: 'http://self-hosted.test', expectedSha }))
+    await assert.doesNotReject(() => smokeSelfHosted({ baseUrl: 'http://self-hosted.test', expectedSha, allowInsecureStaging: true }))
     await assert.rejects(
-      () => smokeSelfHosted({ baseUrl: 'http://self-hosted.test', expectedSha: '0123456789abcdef0123456789abcdef01234567' }),
+      () => smokeSelfHosted({ baseUrl: 'http://self-hosted.test', expectedSha: '0123456789abcdef0123456789abcdef01234567', allowInsecureStaging: true }),
       /--expected-sha 不一致/i,
     )
   } finally {
