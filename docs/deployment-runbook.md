@@ -131,6 +131,24 @@ node scripts/smoke-selfhosted.mjs \
   --expected-sha '<目标完整 40 位提交 SHA>'
 ```
 
+### 发布后私聊阻断验收
+
+基础 smoke 通过后，还必须使用两个专用测试账号执行私聊 smoke。账号 slug 只能使用 `smoke-` 前缀，或由 `CHAT_TEST_SLUG_PREFIXES` 提供的显式专用前缀；两个账号必须不同。Token 只能从受保护的当前会话或 CI Secret 注入，脚本不会输出 Token、正文、密码或服务器路径。
+
+```powershell
+$env:SELF_HOST_BASE_URL = 'https://正式域名'
+$env:EXPECTED_RELEASE_SHA = (git rev-parse HEAD).Trim()
+# 先通过受保护方式注入以下变量，不要把 Token 写入脚本或命令历史：
+# CHAT_SENDER_SLUG、CHAT_RECIPIENT_SLUG、CHAT_SENDER_TOKEN、CHAT_RECIPIENT_TOKEN
+node scripts/smoke-selfhosted-chat.mjs --expected-sha $env:EXPECTED_RELEASE_SHA
+```
+
+固定流程为：发送方读取会话列表；使用唯一 `clientNonce` 首发并重复提交同一 nonce；确认历史记录只有一个消息 ID；收件方在 5 秒内通过 `/api/inbox/sync` 收到；收件方标记已读并确认未读数从大于 0 降为 0；最后确认发送方会话仍指向同一最新消息且自身未读数未增加。
+
+当前没有发送方可见的已读回执，也没有 WebSocket 实时推送，5 秒轮询不能描述为实时通信。缺少专用双账号变量、任一步失败，或 release SHA 不一致，都必须阻断“正式可用”结论；禁止改用真实同学账号完成写入。
+
+脚本故意不提供自动清理。需要删除测试消息或测试账号时，先完成 SQLite 备份并验证可读，再取得生产数据维护的明确授权。由于生产 API 没有私聊删除接口，维护 SQL 必须独立执行并保留删除前后目标行数证明，不能在 smoke 或发布流程中静默运行。
+
 重启 API（不会删除 SQLite 或上传文件）：
 
 ```bash
