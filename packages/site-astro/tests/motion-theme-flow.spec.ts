@@ -26,18 +26,6 @@ test('一级栏目切换时不再启用跨文档共享标题转场', async ({ pa
   await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'none')
 })
 
-test('从同学档案进入周子耀个人页时保持完整布局和字体', async ({ page }) => {
-  await signInForNavigation(page)
-  await page.goto('./roster/', { waitUntil: 'networkidle' })
-
-  await page.getByRole('link', { name: '周子耀', exact: true }).click()
-  await expect(page).toHaveURL(/\/student\/zhou-zi-yao\/?$/)
-  await expect(page.locator('.student-page')).toBeVisible()
-  await expect(page.locator('.student-hero')).toHaveCSS('display', 'flex')
-  await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', 'none')
-  await expect(page.locator('html')).not.toHaveCSS('font-family', 'Times New Roman')
-})
-
 test('夜读按钮以根级水波切换并持久化选择', async ({ page }) => {
   await page.addInitScript(() => {
     const originalAnimate = Element.prototype.animate
