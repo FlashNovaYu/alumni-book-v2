@@ -8,6 +8,25 @@ export function assertNoCloudflareHost(content, path) {
   if (forbiddenHosts.some((host) => content.includes(host))) throw new Error(`${path} 残留 Cloudflare 地址`)
 }
 
+const requiredSecurityHeaders = {
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'content-security-policy': "base-uri 'self'; object-src 'none'; frame-ancestors 'self'",
+}
+
+export function assertSecurityHeaders(headers, path) {
+  for (const [name, expected] of Object.entries(requiredSecurityHeaders)) {
+    if (headers.get(name) !== expected) throw new Error(`${path} 缺少或错误的安全响应头：${name}`)
+  }
+}
+
+export function assertRobotsText(content, path) {
+  if (!/^User-agent:\s*\*/mi.test(content) || /<html/i.test(content)) {
+    throw new Error(`${path} 不是有效的 robots.txt 纯文本规则`)
+  }
+}
+
 async function request(baseUrl, path) {
   const url = `${baseUrl.replace(/\/$/, '')}${path}`
   const response = await fetch(url)
@@ -33,8 +52,20 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
   if (!apiOnly) {
     const home = await request(baseUrl, '/')
     assertStatus(home.response.status, [200], '/')
+    assertSecurityHeaders(home.response.headers, '/')
     const admin = await request(baseUrl, '/admin/')
     assertStatus(admin.response.status, [200], '/admin/')
+    assertSecurityHeaders(admin.response.headers, '/admin/')
+    const robots = await request(baseUrl, '/robots.txt')
+    assertStatus(robots.response.status, [200], '/robots.txt')
+    if (!robots.response.headers.get('content-type')?.startsWith('text/plain')) {
+      throw new Error('/robots.txt Content-Type 必须为 text/plain')
+    }
+    assertRobotsText(robots.text, '/robots.txt')
+    for (const path of ['/assets/does-not-exist.js', '/this-route-should-not-exist']) {
+      const missing = await request(baseUrl, path)
+      assertStatus(missing.response.status, [404], path)
+    }
     const release = await request(baseUrl, '/release.json')
     assertStatus(release.response.status, [200], '/release.json')
     const releaseBody = JSON.parse(release.text)
