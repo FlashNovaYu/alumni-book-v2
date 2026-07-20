@@ -86,6 +86,13 @@ describe('夜读主题基础层', () => {
     expect(viewTransitions).toMatch(/::view-transition-new\(root\)[\s\S]*?background-color:\s*var\(--bg\)/)
   })
 
+  it('关闭跨文档页面转场，避免新文档在样式完成前被合成为纯文本', () => {
+    const viewTransitions = read('styles/view-transitions.css')
+
+    expect(viewTransitions).not.toMatch(/@view-transition\s*\{[\s\S]*?navigation:\s*auto\s*;/)
+    expect(viewTransitions).toContain('navigation: none;')
+  })
+
   it('将主题与共享标题浏览器回归纳入预览测试命令', () => {
     const scripts = packageJson().scripts
 

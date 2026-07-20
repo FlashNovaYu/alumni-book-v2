@@ -1,15 +1,16 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    VIEW TRANSITIONS
    ═══════════════════════════════════════════════════════════════════════════ */
+/*
+ * 页面导航不启用跨文档 View Transition。
+ * 新文档的 CSS 和脚本加载顺序并不受当前页面控制，强行合成 page-main
+ * 会在样式完成前短暂显示未样式化的 DOM，表现为白屏或“纯文本页面”。
+ * 主题按钮使用同文档 startViewTransition，仍由下面的 root 规则负责。
+ */
 @view-transition {
-  navigation: auto;
+  navigation: none;
 }
 
-/*
- * 跨文档转场的 root 图层默认是透明的。page-main 缩放退出时，透明区域
- * 会露出浏览器默认白色背景，尤其在新文档样式尚未完成合成的首帧更明显。
- * 固定为当前主题背景，让所有转场阶段都落在同一张“纸面”上。
- */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   background-color: var(--bg);
