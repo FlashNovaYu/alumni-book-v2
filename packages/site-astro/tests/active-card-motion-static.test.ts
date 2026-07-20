@@ -4,6 +4,19 @@ import { resolve } from 'path'
 
 const read = (file: string) => readFileSync(resolve(__dirname, '../src', file), 'utf-8')
 
+function cssBlock(source: string, header: string) {
+  const headerIndex = source.indexOf(header)
+  const openingBrace = source.indexOf('{', headerIndex)
+  if (headerIndex < 0 || openingBrace < 0) return ''
+  let depth = 0
+  for (let index = openingBrace; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1
+    if (source[index] === '}') depth -= 1
+    if (depth === 0) return source.slice(openingBrace + 1, index)
+  }
+  return ''
+}
+
 describe('档案卡共享元素转场', () => {
   it('仅在被点击卡片和标准详情 Hero 间共享同一学生的头像与姓名', () => {
     const card = read('components/ArchiveRosterCard.vue')
@@ -69,15 +82,13 @@ describe('档案卡共享元素转场', () => {
 
   it('为手机端提供更舒缓且对称的进入/返回节奏', () => {
     const viewTransitions = read('styles/view-transitions.css')
-    const mobileMotion = viewTransitions.match(/@media\s*\(max-width:\s*768px\)\s*\{([\s\S]*)\}\s*$/)?.[1] || ''
+    const mobileMotion = cssBlock(viewTransitions, '@media (max-width: 768px)')
 
-    expect(mobileMotion).toContain("html[data-student-transition='edge']::view-transition-old(root)")
-    expect(mobileMotion).toContain("html[data-student-transition='return-edge']::view-transition-old(root)")
-    expect(mobileMotion).toContain('animation-duration: 1.05s')
-    expect(mobileMotion).toContain('animation-delay: 0.14s')
-    expect(mobileMotion).toContain('animation-duration: 0.9s')
-    expect(mobileMotion).toContain('animation-duration: 0.62s')
-    expect(mobileMotion).toContain('student-edge-expand-mobile')
-    expect(mobileMotion).toContain('student-edge-contract-mobile')
+    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-old\(root\)\s*\{[^}]*animation-duration:\s*1\.05s/)
+    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-new\(root\)\s*\{[^}]*animation-name:\s*student-edge-expand-mobile;[^}]*animation-duration:\s*1\.05s/)
+    expect(mobileMotion).toMatch(/html\[data-student-transition='return-edge'\]::view-transition-old\(root\)\s*\{[^}]*animation-name:\s*student-edge-contract-mobile;[^}]*animation-duration:\s*1\.05s/)
+    expect(mobileMotion).toMatch(/::view-transition-group\(\.student-identity\)\s*\{[^}]*animation-delay:\s*0\.14s;[^}]*animation-duration:\s*0\.9s/)
+    expect(mobileMotion).toMatch(/::view-transition-group\(\.student-card-details\)\s*\{[^}]*animation-duration:\s*0\.62s/)
+    expect(mobileMotion).not.toContain('prefers-reduced-motion')
   })
 })

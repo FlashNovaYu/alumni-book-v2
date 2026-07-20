@@ -275,7 +275,7 @@ html[data-theme='night'] .page-shell {
       calc(var(--student-card-left) - 2vmax)
     );
   }
-  72% {
+  88% {
     clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
   }
   100% {
@@ -288,7 +288,7 @@ html[data-theme='night'] .page-shell {
     opacity: 1;
     clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
   }
-  28% {
+  12% {
     opacity: 0.88;
     clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
   }

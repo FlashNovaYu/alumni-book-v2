@@ -113,6 +113,32 @@ test('从第二页进入详情后返回时恢复第二页中的身份目标', as
   await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
 })
 
+test.describe('手机端档案卡转场', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('在手机视口完成进入和返回，并保留同一身份元素', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+    await expect.poll(() => page.evaluate(() => matchMedia('(max-width: 768px)').matches)).toBe(true)
+
+    const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
+    const href = await card.getAttribute('href')
+    expect(href).not.toBeNull()
+    const slug = href!.split('/').filter(Boolean).at(-1)!
+
+    await card.click()
+    await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+    await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', `student-avatar-${slug}`)
+    await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
+
+    await page.goBack({ waitUntil: 'networkidle' })
+    const returnedCard = page.locator(`[data-student-identity-card="${slug}"]`)
+    await expect(returnedCard).toBeVisible()
+    await expect(returnedCard.locator('.roster-card__avatar')).toHaveCSS('view-transition-name', `student-avatar-${slug}`)
+    await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
+  })
+})
+
 test.describe('减少动态偏好', () => {
   test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
