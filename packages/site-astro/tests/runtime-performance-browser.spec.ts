@@ -109,12 +109,29 @@ test.describe('公开站点真实浏览器性能预算', () => {
         }
       }
     })
+    const audioRequests: string[] = []
+    page.on('request', (request) => {
+      if (/\/audio\/ui\//i.test(request.url())) audioRequests.push(request.url())
+    })
     await page.goto('./', { waitUntil: 'networkidle' })
     const volume = page.locator('[data-volume-toggle]')
     await volume.hover()
     expect(await page.evaluate(() => (window as Window & { __audioContextCreations?: number }).__audioContextCreations)).toBe(0)
+    expect(audioRequests).toHaveLength(0)
     await volume.click()
     await volume.click()
+    expect(await page.evaluate(() => (window as Window & { __audioContextCreations?: number }).__audioContextCreations)).toBe(1)
+    await page.mouse.move(0, 0)
+    await volume.hover()
+    await page.waitForTimeout(250)
+    expect(audioRequests.length).toBeLessThanOrEqual(3)
+
+    for (let index = 0; index < 10; index += 1) {
+      await page.mouse.move(0, 0)
+      await volume.hover()
+    }
+    await page.waitForTimeout(250)
+    expect(audioRequests.length).toBeLessThanOrEqual(3)
     expect(await page.evaluate(() => (window as Window & { __audioContextCreations?: number }).__audioContextCreations)).toBe(1)
   })
 })
