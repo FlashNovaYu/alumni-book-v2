@@ -35,6 +35,18 @@ async function seedClassmateSession(page: any) {
   })
 }
 
+async function transitionXEndpoints(locator: any) {
+  return locator.evaluate((element: Element) => {
+    const values = element.getAnimations().flatMap((animation) => {
+      const effect = animation.effect as KeyframeEffect | null
+      return effect?.getKeyframes()
+        .filter((frame) => typeof frame.transform === 'string')
+        .map((frame) => new DOMMatrix(String(frame.transform)).m41) ?? []
+    })
+    return { min: Math.min(...values), max: Math.max(...values) }
+  })
+}
+
 test.beforeEach(async ({ page }) => {
   await mockClassmateAdminEntry(page)
   await mockClassmateInboxSummary(page)
@@ -95,17 +107,18 @@ test('roster switches whole pages horizontally without collapsing the grid or ch
   await page.getByRole('button', { name: '第 2 页' }).click()
 
   const secondPage = page.locator('[data-roster-page="2"]')
-  await expect(firstPage).toHaveClass(/roster-page-forward-leave-active/)
-  await expect(secondPage).toHaveClass(/roster-page-forward-enter-active/)
-  await page.waitForTimeout(100)
+  await Promise.all([
+    expect(firstPage).toHaveClass(/roster-page-forward-leave-active/),
+    expect(secondPage).toHaveClass(/roster-page-forward-enter-active/),
+  ])
 
-  const [outgoingX, incomingX, transitionHeight] = await Promise.all([
-    firstPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
-    secondPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
+  const [outgoingEndpoints, incomingEndpoints, transitionHeight] = await Promise.all([
+    transitionXEndpoints(firstPage),
+    transitionXEndpoints(secondPage),
     viewport.evaluate((element) => element.getBoundingClientRect().height),
   ])
-  expect(outgoingX).toBeLessThan(-1)
-  expect(incomingX).toBeGreaterThan(1)
+  expect(outgoingEndpoints.min).toBeLessThanOrEqual(-95)
+  expect(incomingEndpoints.max).toBeGreaterThanOrEqual(95)
   expect(transitionHeight).toBeGreaterThanOrEqual(initialHeight - 1)
 
   await expect(firstPage).toHaveCount(0)
@@ -116,18 +129,25 @@ test('roster switches whole pages horizontally without collapsing the grid or ch
   expect(Math.abs(finalScrollY - initialScrollY)).toBeLessThanOrEqual(2)
 
   await page.getByRole('button', { name: '第 1 页' }).click()
-  await expect(secondPage).toHaveClass(/roster-page-backward-leave-active/)
-  await expect(firstPage).toHaveClass(/roster-page-backward-enter-active/)
-  await page.waitForTimeout(100)
-
-  const [backwardOutgoingX, backwardIncomingX] = await Promise.all([
-    secondPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
-    firstPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
+  await Promise.all([
+    expect(secondPage).toHaveClass(/roster-page-backward-leave-active/),
+    expect(firstPage).toHaveClass(/roster-page-backward-enter-active/),
   ])
-  expect(backwardOutgoingX).toBeGreaterThan(1)
-  expect(backwardIncomingX).toBeLessThan(-1)
+
+  const [backwardOutgoingEndpoints, backwardIncomingEndpoints] = await Promise.all([
+    transitionXEndpoints(secondPage),
+    transitionXEndpoints(firstPage),
+  ])
+  expect(backwardOutgoingEndpoints.max).toBeGreaterThanOrEqual(95)
+  expect(backwardIncomingEndpoints.min).toBeLessThanOrEqual(-95)
   await expect(secondPage).toHaveCount(0)
   await expect(firstPage.locator('.roster-card')).toHaveCount(12)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: '第 2 页' }).click()
+  await expect(secondPage).toHaveClass(/roster-page-forward-enter-active/)
+  const desktopIncomingEndpoints = await transitionXEndpoints(secondPage)
+  expect(desktopIncomingEndpoints.max).toBeCloseTo(280, 0)
 })
 
 test('roster only renders ellipses when pagination omits page numbers', async ({ page }) => {

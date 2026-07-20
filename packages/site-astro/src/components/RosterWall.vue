@@ -445,37 +445,36 @@ onMounted(async () => {
 }
 
 .roster-page-viewport {
+  --roster-page-shift: clamp(96px, 22vw, 280px);
   position: relative;
 }
 
 .roster-page-forward-enter-active,
-.roster-page-forward-leave-active,
-.roster-page-backward-enter-active,
-.roster-page-backward-leave-active {
+.roster-page-backward-enter-active {
   transition:
-    opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1),
-    transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity, transform;
 }
 
 .roster-page-forward-enter-from {
   opacity: 0;
-  transform: translateX(30px) scale(0.95);
+  transform: translateX(var(--roster-page-shift)) scale(0.95);
 }
 
 .roster-page-forward-leave-to {
   opacity: 0;
-  transform: translateX(-30px) scale(0.95);
+  transform: translateX(calc(0px - var(--roster-page-shift))) scale(0.95);
 }
 
 .roster-page-backward-enter-from {
   opacity: 0;
-  transform: translateX(-30px) scale(0.95);
+  transform: translateX(calc(0px - var(--roster-page-shift))) scale(0.95);
 }
 
 .roster-page-backward-leave-to {
   opacity: 0;
-  transform: translateX(30px) scale(0.95);
+  transform: translateX(var(--roster-page-shift)) scale(0.95);
 }
 
 .roster-page-forward-leave-active,
@@ -483,6 +482,10 @@ onMounted(async () => {
   position: absolute;
   inset: 0;
   width: 100%;
+  transition:
+    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
 }
 
 /* Pagination spacing */
