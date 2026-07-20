@@ -85,6 +85,35 @@ Schema 定义在 `workers/api/src/db/schema.sql`，迁移文件在 `workers/api/
 3. **本地预览发布**：本机不得使用 `main` 作为 Pages branch；需要远程预览时使用唯一的非生产分支名。详见 `docs/deployment-runbook.md`。
 4. **Worker 发布**：保持 `.github/workflows/deploy-worker.yml` 手动触发，不从本机直接更新生产。
 
+### 阿里云 ECS 自托管当前基线
+
+项目目前同时保留 Cloudflare 发布链路和阿里云 ECS 自托管实例。除非任务明确针对 Cloudflare，否则涉及 ECS 的部署、排查和验收遵循以下约束：
+
+- 预发布公网入口：`http://118.178.88.227`；备案完成前不配置正式域名 HTTPS。
+- ECS 系统：Alibaba Cloud Linux 3；运行方式：rootless Podman + `podman-compose` + aaPanel Nginx。
+- API：Node.js 22 + Hono，容器名通常为 `app_api_1`，内部端口 `8787`，公网只经 Nginx 的 `/api/` 访问。
+- 数据库：全新 SQLite，路径为 `/var/lib/alumni-book/data/alumni.sqlite`；不导入旧 Cloudflare D1 数据。
+- 文件：本地持久化路径 `/var/lib/alumni-book/uploads`；当前不依赖 OSS，文件 URL 仍为 `/api/files/<key>`。
+- 静态站点：`/www/wwwroot/alumni-book`；服务器配置：`/www/server/panel/vhost/nginx/alumni-book.conf`。
+- 备份：`/var/backups/alumni-book`；`alumni-book-backup.timer` 每日 UTC 04:00 运行，`alumni-book-cleanup.timer` 每日 UTC 03:00 清理过期会话。
+- 服务器环境文件：`/opt/alumni-book/app/deploy/.env`，权限必须为 `600`；禁止读取、提交或输出 `JWT_SECRET`、管理员密码和 SSH 私钥。
+
+自托管发布必须使用专用构建脚本，不要直接用默认 Cloudflare 数据构建：
+
+```powershell
+$env:RELEASE_SHA=(git rev-parse HEAD).Trim()
+pnpm build:selfhosted -- --api-base http://118.178.88.227
+Remove-Item Env:RELEASE_SHA
+```
+
+自托管客户端 API 基址必须为空字符串，让后台和前端统一请求同源 `/api/...`；不要把 `VITE_API_BASE_URL` 设为 `/api`，否则会产生错误的 `/api/api/...` 路径。发布后至少执行：
+
+```powershell
+node scripts/smoke-selfhosted.mjs --base-url http://118.178.88.227
+```
+
+服务器巡检和恢复命令见 `docs/deployment-runbook.md`、`docs/operations-data-recovery.md` 及 `docs/alibaba-ecs-selfhosted-acceptance.md`。重启或重建容器不得删除 SQLite、上传目录或备份目录；备案完成并通过域名 smoke 前，不要停止 Cloudflare 旧生产。
+
 ### 专属模板系统
 
 `isOwner` 学生可以配置 `customHtml`（自定义 HTML 页面）。模板变量支持 `{{ student.name }}`、`{{ student.avatarUrl }}` 等，在 `StudentView.vue` 的 `processedHtml` 计算属性中被替换。该 HTML 通过 sandbox iframe 渲染（`allow-scripts allow-same-origin`），与标准信息页布局互斥——标准页面的所有分区（基础信息、联系方式、个性标签等）通过 `v-if="student.isOwner && student.customHtml"` 隐藏。
