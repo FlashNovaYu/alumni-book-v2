@@ -6,6 +6,14 @@ const repoRoot = resolve(__dirname, '../../..')
 const read = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8')
 
 describe('生产发布单一写入者契约', () => {
+  it('学生详情页使用单次公开学生快照生成路径和页面数据', () => {
+    const source = read('packages/site-astro/src/pages/student/[slug].astro')
+
+    expect(source).toContain('/api/students?audience=public')
+    expect(source).toContain('props: { student: toPublicStudent(student) }')
+    expect(source).not.toContain('/api/students/${slug}?audience=public')
+  })
+
   it('生产工作流只允许 main 手动审批发布', () => {
     expect(existsSync(resolve(repoRoot, '.github/workflows/deploy-site.yml'))).toBe(false)
     const workflow = read('.github/workflows/deploy-production.yml')
