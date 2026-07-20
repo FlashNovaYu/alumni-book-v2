@@ -13,7 +13,6 @@ function createHeaders(object: R2Object) {
   headers.set('Content-Length', String(object.size))
   headers.set('Accept-Ranges', 'bytes')
   headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  headers.set('Cloudflare-CDN-Cache-Control', 'max-age=31536000')
   if (object.httpEtag) headers.set('ETag', object.httpEtag)
   return headers
 }

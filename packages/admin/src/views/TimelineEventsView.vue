@@ -112,8 +112,8 @@ async function reorderGroup(eventDate: string, targetId: string) {
 
 function getEventTypeName(type: string) { return ({ class_event: '班级大事', activity: '活动', exam: '考试节点', graduation: '毕业节点', funny: '班级趣事' }[type] || '班级大事') }
 async function deleteEvent(id: string) {
-  const reason = window.prompt('请输入删除原因：')?.trim()
-  if (!reason) return
+  const reason = window.prompt('请输入删除原因（选填）：')?.trim() ?? null
+  if (reason === null) return
   try {
     await adminFetch('/api/timeline/events/' + id, { method: 'DELETE', body: JSON.stringify({ reason }) })
     events.value = events.value.filter((event) => event.id !== id)

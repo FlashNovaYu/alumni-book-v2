@@ -3,6 +3,7 @@ import MainLayout from '../../layouts/MainLayout.astro'
 import StudentProfile from '../../components/StudentProfile.vue'
 import { normalizeLegacyFileUrls } from '../../../../../workers/api/src/lib/fileUrl'
 import { toPublicStudent } from '../../utils/publicStudent'
+import { getSsgApiBase } from '../../utils/ssgApiBase'
 
 export async function getStaticPaths() {
   async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
@@ -24,7 +25,7 @@ export async function getStaticPaths() {
     }
   }
 
-  const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
+  const API_BASE = getSsgApiBase()
   let classmates: any[] = []
   try {
     const data = await fetchWithRetry(`${API_BASE}/api/classmates`)
@@ -38,7 +39,7 @@ export async function getStaticPaths() {
 
 const { slug } = Astro.params
 
-const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
+const API_BASE = getSsgApiBase()
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
@@ -88,7 +89,7 @@ try {
 } catch {}
 
 // 测试或本地开发构建时，默认开启亮点卡片以保证 Playwright E2E 网络测试覆盖
-if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
+if (!process.env.VITE_SSG_API_BASE || process.env.NODE_ENV === 'test') {
   museum.enableClassGraph = true
   museum.enableSeatMap = true
 }

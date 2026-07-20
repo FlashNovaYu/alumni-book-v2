@@ -406,9 +406,18 @@ function cancelUpload(id: string) {
 }
 
 async function handleDelete(album: any) {
-  if (!confirm(`确定要删除相册 "${album.title}" 吗？`)) return
+  const reason = prompt(`确定要删除相册 "${album.title}" 吗？此操作不可撤销。\n请填写删除原因：`)
+  if (reason === null) return
+  if (!reason.trim()) {
+    alert('必须填写删除原因！')
+    return
+  }
   try {
-    await adminFetch(`/api/albums/${album.id}`, { method: 'DELETE' })
+    await adminFetch(`/api/albums/${album.id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason.trim() })
+    })
     await loadAlbums(true)
   } catch (e: any) {
     alert(e.message || '删除失败')
@@ -473,9 +482,12 @@ async function movePhoto(album: any, idx: number, direction: number) {
 }
 
 async function deletePhoto(album: any, photoId: string) {
-  if (!confirm('确定要删除这张照片吗？')) return
-  const reason = prompt('请输入删除原因：')
-  if (reason === null || !reason.trim()) return
+  const reason = prompt('确定要删除这张照片吗？\n请输入删除原因（必填）：')
+  if (reason === null) return
+  if (!reason.trim()) {
+    alert('必须填写删除原因！')
+    return
+  }
   try {
     await adminFetch(`/api/photos/${photoId}`, {
       method: 'DELETE', body: JSON.stringify({ reason: reason.trim() })

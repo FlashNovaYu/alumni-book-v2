@@ -35,6 +35,12 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
     assertStatus(home.response.status, [200], '/')
     const admin = await request(baseUrl, '/admin/')
     assertStatus(admin.response.status, [200], '/admin/')
+    const release = await request(baseUrl, '/release.json')
+    assertStatus(release.response.status, [200], '/release.json')
+    const releaseBody = JSON.parse(release.text)
+    if (releaseBody.target !== 'aliyun-selfhosted') {
+      throw new Error(`/release.json 目标异常：${releaseBody.target || '(missing)'}`)
+    }
   }
   console.log(`Self-hosted smoke test passed: ${baseUrl}`)
 }

@@ -2,11 +2,12 @@
 import MainLayout from '../layouts/MainLayout.astro'
 import MuseumHero from '../components/MuseumHero.astro'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
+import { getSsgApiBase } from '../utils/ssgApiBase'
 
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
 
-const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
+const API_BASE = getSsgApiBase()
 
 let heroEyebrow = 'CLASS MEMORY MUSEUM'
 let heroTitle = '青春纪念馆'

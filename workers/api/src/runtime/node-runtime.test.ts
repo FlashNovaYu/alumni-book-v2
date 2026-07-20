@@ -38,6 +38,13 @@ async function openStorage() {
 }
 
 describe('本地 SQLite D1 适配器', () => {
+  it('启用 busy timeout 和外键约束', async () => {
+    const database = openDatabase()
+
+    expect(await database.prepare('PRAGMA busy_timeout').first<{ timeout: number }>()).toEqual({ timeout: 5000 })
+    expect(await database.prepare('PRAGMA foreign_keys').first<{ foreign_keys: number }>()).toEqual({ foreign_keys: 1 })
+  })
+
   it('支持 prepare、bind、first、all 和 run 的 D1 返回结构', async () => {
     const database = openDatabase()
 

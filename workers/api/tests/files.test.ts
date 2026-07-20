@@ -29,7 +29,7 @@ describe('R2 file delivery', () => {
     expect(response.headers.get('Accept-Ranges')).toBe('bytes')
     expect(response.headers.get('ETag')).toBeTruthy()
     expect(response.headers.get('Cache-Control')).toContain('immutable')
-    expect(response.headers.get('Cloudflare-CDN-Cache-Control')).toContain('31536000')
+    expect(response.headers.get('Cloudflare-CDN-Cache-Control')).toBeNull()
     expect(Array.from(new Uint8Array(await response.arrayBuffer()))).toEqual([1, 2, 3, 4])
   })
 

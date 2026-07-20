@@ -48,14 +48,13 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-const DEFAULT_CORS_ORIGIN = 'https://alumni-book.pages.dev'
 const VISIT_DEDUPE_WINDOW_SECONDS = 60 * 60
 
-function normalizeHttpsOrigin(value: string | undefined): string | null {
+function normalizeConfiguredOrigin(value: string | undefined): string | null {
   if (!value || value === '*') return null
   try {
     const url = new URL(value.trim())
-    return url.protocol === 'https:' && url.pathname === '/' && !url.search && !url.hash
+    return (url.protocol === 'https:' || url.protocol === 'http:') && url.pathname === '/' && !url.search && !url.hash
       ? url.origin
       : null
   } catch {
@@ -76,12 +75,12 @@ function resolveCorsOrigin(origin: string, env: Bindings): string | undefined {
   if (isLocalDevelopmentOrigin(origin)) return origin
 
   const allowedOrigins = new Set([
-    normalizeHttpsOrigin(env.CORS_ORIGIN) || DEFAULT_CORS_ORIGIN,
+    normalizeConfiguredOrigin(env.CORS_ORIGIN),
     ...(env.CORS_PREVIEW_ORIGINS || '')
       .split(',')
-      .map(normalizeHttpsOrigin)
+      .map(normalizeConfiguredOrigin)
       .filter((value): value is string => value !== null),
-  ])
+  ].filter((value): value is string => value !== null))
 
   return allowedOrigins.has(origin) ? origin : undefined
 }
@@ -151,7 +150,7 @@ app.use('/api/*', async (c, next) => {
 
   if (missingBindings.length > 0) {
     const requestId = c.get('requestId') || 'unknown'
-    console.error(`[Request ID: ${requestId}] Cloudflare bindings are incomplete`)
+    console.error(`[Request ID: ${requestId}] 运行时依赖不完整：${missingBindings.join(', ')}`)
     return c.json({
       success: false,
       message: '服务配置不完整',

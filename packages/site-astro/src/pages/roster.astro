@@ -6,14 +6,15 @@ import RankingsPanel from '../components/RankingsPanel.vue'
 import ClassGraphPreview from '../components/ClassGraphPreview.vue'
 import SeatMapPreview from '../components/SeatMapPreview.vue'
 import { normalizeLegacyFileUrls } from '../../../../workers/api/src/lib/fileUrl'
+import { getSsgApiBase } from '../utils/ssgApiBase'
 
 interface Classmate {
   name: string; slug: string; hasPage: boolean
   hasStandardProfile?: boolean
-  avatarUrl: string | null; motto: string
+  avatarUrl: string | null; motto: string; completion?: number
 }
 
-const API_BASE = import.meta.env.VITE_WORKER_URL || 'https://alumni-book.pages.dev'
+const API_BASE = getSsgApiBase()
 const base = process.env.SITE_BASE || import.meta.env.BASE_URL || '/'
 const href = (path: string) => `${base}${path.replace(/^\/+/, '')}`
 const CLIENT_API_BASE = import.meta.env.VITE_API_BASE_URL || (base.endsWith('/') ? base.slice(0, -1) : base)
@@ -41,6 +42,7 @@ let classmates: Classmate[] = []
 try {
   const data = await fetchWithRetry(`${API_BASE}/api/classmates`)
   classmates = data.data || []
+  classmates.sort((a, b) => (b.completion || 0) - (a.completion || 0))
 } catch (e: any) {
   console.error(`❌ roster.astro failed to fetch classmates: ${e.message}. Aborting build.`)
   throw e
@@ -61,7 +63,7 @@ try {
 }
 
 // 测试或本地开发构建时，默认开启亮点卡片以保证 Playwright E2E 网络测试覆盖
-if (!process.env.VITE_WORKER_URL || process.env.NODE_ENV === 'test') {
+if (!process.env.VITE_SSG_API_BASE || process.env.NODE_ENV === 'test') {
   museum.enableClassGraph = true
   museum.enableSeatMap = true
 }

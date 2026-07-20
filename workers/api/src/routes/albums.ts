@@ -86,8 +86,8 @@ albumsRoutes.delete('/albums/:id', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (!cleanReason) return c.json({ success: false, message: '删除相册时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
+  if (!cleanReason) return c.json({ success: false, message: '必须填写删除原因' }, 400)
   const album = await db.prepare('SELECT title FROM albums WHERE id = ?').bind(id).first()
   if (!album) return c.json({ success: false, message: '相册不存在' }, 404)
   const { results: photos } = await db.prepare('SELECT r2_key, media_json FROM photos WHERE album_id = ?').bind(id).all()
@@ -145,8 +145,8 @@ albumsRoutes.delete('/photos/:id', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (!cleanReason) return c.json({ success: false, message: '删除照片时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
+  if (!cleanReason) return c.json({ success: false, message: '必须填写删除原因' }, 400)
 
   const photo = await db.prepare('SELECT r2_key, media_json FROM photos WHERE id = ?').bind(id).first()
   if (!photo) {

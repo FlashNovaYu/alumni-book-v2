@@ -7,8 +7,8 @@ const source = (file: string) => readFileSync(resolve(__dirname, '../src', file)
 describe('public state consistency regressions', () => {
   it('applies valid roster cache when it differs from rendered data', () => {
     const roster = source('components/RosterWall.vue')
-    expect(roster).toContain('const { data } = await fetchJsonIfChanged')
-    expect(roster).toContain('!isDeepEqual(data.data, classmates.value)')
+    expect(roster).toContain('const { changed, data } = await fetchJsonIfChanged')
+    expect(roster).toContain('changed && data?.success && Array.isArray(data.data)')
     expect(roster).not.toContain('changed && !isDeepEqual')
   })
 

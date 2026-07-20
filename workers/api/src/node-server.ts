@@ -18,8 +18,17 @@ export function startNodeServer() {
   const runtime = createNodeRuntime()
   const port = Number(process.env.PORT || 8787)
   const server = serve({ fetch: createNodeFetch(runtime), port })
+  let shuttingDown = false
   const shutdown = () => {
-    server.close(() => runtime.close())
+    if (shuttingDown) return
+    shuttingDown = true
+    server.close(() => {
+      try {
+        runtime.close()
+      } catch (error) {
+        console.error('Node runtime close failed:', error)
+      }
+    })
   }
   process.once('SIGINT', shutdown)
   process.once('SIGTERM', shutdown)

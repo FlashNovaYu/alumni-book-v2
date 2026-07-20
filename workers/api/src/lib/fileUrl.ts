@@ -1,4 +1,4 @@
-const LEGACY_FILE_URL = /^https:\/\/alumni-book-api\.chenyuhao2263\.workers\.dev(?=\/api\/files\/)/
+const LEGACY_FILE_URL = /^https:\/\/(?:alumni-book-api\.chenyuhao2263\.workers\.dev|alumni-book\.pages\.dev)(?=\/api\/files\/)/
 
 export function normalizeFileUrl<T extends string | null | undefined>(value: T): T | string {
   if (typeof value !== 'string') return value

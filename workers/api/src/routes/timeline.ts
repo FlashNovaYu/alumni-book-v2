@@ -122,8 +122,7 @@ timelineRoutes.delete('/timeline/events/:id', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (!cleanReason) return c.json({ success: false, message: '删除时光轴事件时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
   const before = await db.prepare('SELECT title, event_date FROM timeline_events WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '时光轴事件不存在' }, 404)
   await runAuditedBatch(db, admin.id, [db.prepare('DELETE FROM timeline_events WHERE id = ?').bind(id)], { action: 'timeline_event.delete', resourceType: 'timeline_event', resourceId: id, reason: cleanReason, before })

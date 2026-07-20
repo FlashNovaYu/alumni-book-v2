@@ -52,6 +52,10 @@ function createBoundStatement(statement: Database.Statement, values: unknown[]):
 
 export function createSqliteDatabase(filename: string): SqliteDatabase {
   const database = new Database(filename)
+  database.pragma('busy_timeout = 5000')
+  database.pragma('foreign_keys = ON')
+  database.pragma('synchronous = NORMAL')
+  if (filename !== ':memory:') database.pragma('journal_mode = WAL')
   return {
     exec(sql) {
       database.exec(sql)
@@ -70,8 +74,8 @@ export function createSqliteDatabase(filename: string): SqliteDatabase {
       const runBatch = database.transaction(() => statements.map((statement) => statement.run()))
       return runBatch()
     },
-    backup(destination) {
-      return database.backup(destination)
+    async backup(destination) {
+      await database.backup(destination)
     },
     close() {
       database.close()

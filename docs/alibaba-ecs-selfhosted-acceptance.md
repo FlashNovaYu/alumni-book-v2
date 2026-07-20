@@ -4,6 +4,8 @@
 
 ## 已完成
 
+- 运行定位：阿里云 ECS 为正式商用版本；Cloudflare Worker/Pages/D1/R2 保留为开发测试链路。
+
 - ECS：Alibaba Cloud Linux 3，公网 IP `118.178.88.227`，备案完成前使用 HTTP IP 预发布。
 - 部署：rootless Podman + `podman-compose`，aaPanel Nginx 提供静态站点并反向代理 API。
 - 数据：新建空 SQLite；不导入 Cloudflare D1/R2 旧数据；上传文件使用 ECS 本地 40G 系统盘目录。

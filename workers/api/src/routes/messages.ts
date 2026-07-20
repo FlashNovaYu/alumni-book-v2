@@ -239,9 +239,8 @@ messagesRoutes.put('/admin/messages/:id/hide', async (c) => {
   const db = c.env.DB
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
-  const { hidden, reason } = await parseLimitedJson(c)
-  const cleanReason = String(reason || '').trim()
-  if (hidden && !cleanReason) return c.json({ success: false, message: '隐藏留言时请填写原因' }, 400)
+  const { hidden, reason } = await parseLimitedJson<any>(c, { fallback: {} })
+  const cleanReason = String(reason || '').trim() || null
   const before = await db.prepare('SELECT is_hidden FROM messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(db, admin.id, [
@@ -274,10 +273,7 @@ messagesRoutes.post('/admin/messages/batch', async (c) => {
   if (!Array.isArray(ids) || ids.length === 0) {
     return c.json({ success: false, message: '无效的 ID 数组' }, 400)
   }
-  const cleanReason = String(reason || '').trim()
-  if ((action === 'delete' || (action === 'hide' && hidden)) && !cleanReason) {
-    return c.json({ success: false, message: '该批量操作需要填写原因' }, 400)
-  }
+  const cleanReason = String(reason || '').trim() || null
 
   const placeholders = ids.map(() => '?').join(',')
   let mutation: D1PreparedStatement
@@ -305,8 +301,7 @@ messagesRoutes.delete('/admin/messages/:id', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (!cleanReason) return c.json({ success: false, message: '删除留言时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
   const before = await db.prepare('SELECT student_slug, author_name FROM messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(db, admin.id, [db.prepare('DELETE FROM messages WHERE id = ?').bind(id)], {

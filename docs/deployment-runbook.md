@@ -116,4 +116,4 @@ sudo chown -R admin:admin /var/lib/alumni-book
 sudo systemctl start alumni-book-api.service
 ```
 
-备案完成后的切换顺序：先将域名 A 记录指向 `118.178.88.227`，再在 aaPanel 配置 HTTPS；更新服务器 `deploy/.env` 的 `CORS_ORIGIN`，以正式域名重新执行自托管构建并运行域名 smoke。域名验收完成前不要停用 Cloudflare 旧生产。
+备案完成后的切换顺序：先将域名 A 记录指向 `118.178.88.227`，再在 aaPanel 配置 HTTPS；更新服务器 `deploy/.env` 的 `CORS_ORIGIN`，以正式域名重新执行自托管构建并运行域名 smoke。Cloudflare 仅作为开发测试链路保留，不作为阿里云商用发布回退。

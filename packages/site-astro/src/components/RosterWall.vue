@@ -50,14 +50,13 @@
     </div>
 
     <!-- 同学列表网格 -->
-    <TransitionGroup v-else-if="filteredClassmates.length > 0" name="roster-list" tag="div" class="roster-grid">
+    <TransitionGroup v-else-if="filteredClassmates.length > 0" :name="transitionName" tag="div" class="roster-grid">
       <ArchiveRosterCard
-        v-for="(mate, index) in classmates"
+        v-for="(mate, index) in paginatedClassmates"
         :key="mate.slug"
-        v-show="isCardVisible(mate)"
         :card="toArchiveClassmateCard(mate, siteBase)"
         :api-base="apiBase"
-        :base-transform="`rotateZ(${getStaticRotation(index)}deg) translateY(${getStaticY(index)}px)`"
+        :base-transform="`rotateZ(${getStaticRotation((currentPage - 1) * PAGE_SIZE + index)}deg) translateY(${getStaticY((currentPage - 1) * PAGE_SIZE + index)}px)`"
         @identity-transition="rememberIdentityTransition"
       />
     </TransitionGroup>
@@ -142,7 +141,7 @@ const props = defineProps<{
   siteBase: string
 }>()
 
-const classmates = ref<Classmate[]>([...props.initialClassmates])
+const classmates = ref<Classmate[]>([...props.initialClassmates].sort((a, b) => (b.completion || 0) - (a.completion || 0)))
 const keyword = ref('')
 const gyroActivated = ref(false)
 
@@ -158,6 +157,7 @@ function getStaticY(index: number) {
   return (Math.cos(index * 2.1) * 4).toFixed(2);
 }
 const currentPage = ref(1)
+const transitionName = ref('roster-list-forward')
 const isRestoringIdentityState = ref(false)
 const loading = ref(false)
 const PAGE_SIZE = 12
@@ -166,17 +166,22 @@ const rootRef = ref<HTMLElement | null>(null)
 
 const filteredClassmates = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  if (!kw) return classmates.value
-  return classmates.value.filter(c => {
-    return (
-      c.name.toLowerCase().includes(kw) ||
-      (c.nickname && c.nickname.toLowerCase().includes(kw)) ||
-      (c.school && c.school.toLowerCase().includes(kw)) ||
-      (c.className && c.className.toLowerCase().includes(kw)) ||
-      (c.motto && c.motto.toLowerCase().includes(kw)) ||
-      (c.mbti && c.mbti.toLowerCase().includes(kw))
-    )
-  })
+  let result = classmates.value
+  
+  if (kw) {
+    result = result.filter(c => {
+      return (
+        c.name.toLowerCase().includes(kw) ||
+        (c.nickname && c.nickname.toLowerCase().includes(kw)) ||
+        (c.school && c.school.toLowerCase().includes(kw)) ||
+        (c.className && c.className.toLowerCase().includes(kw)) ||
+        (c.motto && c.motto.toLowerCase().includes(kw)) ||
+        (c.mbti && c.mbti.toLowerCase().includes(kw))
+      )
+    })
+  }
+
+  return result
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredClassmates.value.length / PAGE_SIZE)))
@@ -185,12 +190,6 @@ const paginatedClassmates = computed(() => {
   const start = (currentPage.value - 1) * PAGE_SIZE
   return filteredClassmates.value.slice(start, start + PAGE_SIZE)
 })
-
-const visibleClassmateSlugs = computed(() => new Set(paginatedClassmates.value.map((mate) => mate.slug)))
-
-function isCardVisible(mate: Classmate) {
-  return visibleClassmateSlugs.value.has(mate.slug)
-}
 
 const searchCountText = computed(() => {
   if (keyword.value.trim()) {
@@ -210,14 +209,13 @@ watch(totalPages, () => {
 function goToPage(page: number) {
   if (page < 1 || page > totalPages.value || page === currentPage.value) return
 
+  if (page > currentPage.value) {
+    transitionName.value = 'roster-list-forward'
+  } else {
+    transitionName.value = 'roster-list-backward'
+  }
+
   currentPage.value = page
-  nextTick(() => {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    rootRef.value?.scrollIntoView({
-      behavior: reduceMotion ? 'auto' : 'smooth',
-      block: 'start',
-    })
-  })
 }
 
 function rememberIdentityTransition(slug: string) {
@@ -241,18 +239,20 @@ onMounted(async () => {
     isRestoringIdentityState.value = false
   }
 
-  // SWR 数据刷新
   runWhenIdle(async () => {
     try {
-      const { data } = await fetchJsonIfChanged(
-        `${props.apiBase}/api/classmates`,
-        'classmates'
+      loading.value = true
+      const { changed, data } = await fetchJsonIfChanged<{ success: boolean; data: Classmate[] }>(
+        `${props.apiBase}/api/classmates?t=${Date.now()}`,
+        `roster-classmates-cache`
       )
-      if (data && data.success && data.data && !isDeepEqual(data.data, classmates.value)) {
-        classmates.value = data.data
+      if (changed && data?.success && Array.isArray(data.data)) {
+        classmates.value = data.data.sort((a, b) => (b.completion || 0) - (a.completion || 0))
       }
     } catch (e) {
       console.error('Failed to sync classmates list via SWR:', e)
+    } finally {
+      loading.value = false
     }
   })
 })
@@ -397,19 +397,35 @@ onMounted(async () => {
   perspective: 1200px;
 }
 
-.roster-list-move,
-.roster-list-enter-active,
-.roster-list-leave-active {
+.roster-list-forward-move,
+.roster-list-forward-enter-active,
+.roster-list-forward-leave-active,
+.roster-list-backward-move,
+.roster-list-backward-enter-active,
+.roster-list-backward-leave-active {
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.roster-list-enter-from,
-.roster-list-leave-to {
+.roster-list-forward-enter-from {
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
+  transform: translateX(30px) scale(0.95);
+}
+.roster-list-forward-leave-to {
+  opacity: 0;
+  transform: translateX(-30px) scale(0.95);
 }
 
-.roster-list-leave-active {
+.roster-list-backward-enter-from {
+  opacity: 0;
+  transform: translateX(-30px) scale(0.95);
+}
+.roster-list-backward-leave-to {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+}
+
+.roster-list-forward-leave-active,
+.roster-list-backward-leave-active {
   position: absolute;
 }
 

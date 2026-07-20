@@ -1,14 +1,14 @@
 # 同学录 v2
 
-校园纪念网站 — Vue 3 + Cloudflare Workers + D1 + R2
+校园纪念网站 — Astro/Vue + Node/Hono + SQLite，本地自托管为正式商用版本
 
 ## 技术栈
 
 - **前端**: Vue 3 + Vite + Vue Router + TypeScript
-- **后端**: Cloudflare Workers (Hono)
-- **数据库**: Cloudflare D1 (SQLite)
-- **存储**: Cloudflare R2
-- **部署**: GitHub Pages + Cloudflare
+- **后端**: Node.js/Hono（阿里云 ECS 正式运行）；Cloudflare Worker 仅开发测试
+- **数据库**: SQLite（自托管持久化）；Cloudflare D1 仅测试
+- **存储**: 本地持久化文件（可替换为 OSS/CDN 适配器）；Cloudflare R2 仅测试
+- **部署**: 阿里云 ECS + Podman + Nginx
 
 ## 快速开始
 
@@ -24,6 +24,9 @@ pnpm dev:admin
 
 # 启动 Worker API (需要 wrangler)
 pnpm dev:worker
+
+# 启动阿里云兼容的本地 Node API
+pnpm --filter worker run dev:node
 ```
 
 ## 项目结构
@@ -41,7 +44,19 @@ scripts/
 
 ## 部署
 
-### 1. Cloudflare 配置
+### 1. 阿里云正式发布
+
+正式构建必须显式指定 API 地址，客户端使用同源 `/api`：
+
+```powershell
+$env:RELEASE_SHA=(git rev-parse HEAD).Trim()
+pnpm build:selfhosted -- --api-base http://118.178.88.227
+Remove-Item Env:RELEASE_SHA
+```
+
+发布后执行：`node scripts/smoke-selfhosted.mjs --base-url http://118.178.88.227`。
+
+### 2. Cloudflare 开发测试
 
 1. 创建 D1 数据库: `wrangler d1 create alumni-book-db`
 2. 创建 R2 存储桶: `wrangler r2 bucket create alumni-book-assets`
@@ -49,14 +64,16 @@ scripts/
 4. 运行迁移: `wrangler d1 execute alumni-book-db --file=workers/api/src/db/schema.sql`
 5. 部署 Worker: `pnpm --filter worker deploy`
 
-### 2. GitHub Pages
+使用 `VITE_SSG_API_BASE` 显式指定 Worker/Pages 测试地址；不要把 `VITE_WORKER_URL` 作为应用配置。
+
+### 3. GitHub Pages 测试环境
 
 在仓库 Settings → Secrets 中添加:
-- `VITE_API_BASE_URL`: Worker API 地址
+- `VITE_SSG_API_BASE`: Worker/Pages 测试 API 地址
 - `CLOUDFLARE_API_TOKEN`: Cloudflare API 令牌
 - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 账户 ID
 
-### 3. 数据迁移
+### 4. 数据迁移（仅 CF 测试工具）
 
 ```bash
 # 生成迁移 SQL

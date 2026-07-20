@@ -9,19 +9,19 @@ export default defineConfig({
   integrations: [vue()],
   vite: {
     define: {
-      // 客户端运行时 API 地址（空字符串走同域代理，`` ?? `` 保本地开发回退 Worker）
+      // 客户端运行时 API 地址（空字符串走同域代理）
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
         process.env.VITE_API_BASE_URL ?? ''
       ),
-      // SSG 构建时 API 地址（默认读取正式 Pages 同源 API）
-      'import.meta.env.VITE_WORKER_URL': JSON.stringify(
-        process.env.VITE_WORKER_URL ?? 'https://alumni-book.pages.dev'
+      // SSG 构建时 API 地址必须由目标环境显式提供
+      'import.meta.env.VITE_SSG_API_BASE': JSON.stringify(
+        process.env.VITE_SSG_API_BASE ?? ''
       ),
     },
     server: {
       proxy: {
         '/api': {
-          target: 'https://alumni-book-api.chenyuhao2263.workers.dev',
+          target: process.env.VITE_SSG_API_BASE || 'http://127.0.0.1:8787',
           changeOrigin: true,
         }
       }

@@ -152,8 +152,8 @@ studentsRoutes.delete('/students/:slug', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (!cleanReason) return c.json({ success: false, message: '删除学生档案时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
+  if (!cleanReason) return c.json({ success: false, message: '必须填写删除原因' }, 400)
 
   const existing = await db.prepare('SELECT id FROM students WHERE slug = ?').bind(slug).first()
   if (!existing) {

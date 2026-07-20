@@ -12,7 +12,7 @@ function read(relativePath: string) {
 }
 
 describe('Pages production deployment contract', () => {
-  it('uses Pages as the production SSG data source', () => {
+  it('uses an explicit SSG API data source for each deployment target', () => {
     const files = [
       'packages/site-astro/astro.config.mjs',
       'packages/site-astro/scripts/fetch-data.ts',
@@ -25,9 +25,9 @@ describe('Pages production deployment contract', () => {
       'packages/site-astro/src/pages/student/[slug].astro',
     ]
 
-    for (const file of files) {
-      expect(read(file), file).toContain(pagesHost)
-    }
+    for (const file of files) expect(read(file), file).not.toContain('VITE_WORKER_URL')
+    expect(read('packages/site-astro/astro.config.mjs')).toContain('VITE_SSG_API_BASE')
+    expect(read('.github/workflows/deploy-production.yml')).toContain(`VITE_SSG_API_BASE: '${pagesHost}'`)
     expect(read('packages/site-astro/scripts/fetch-data.ts')).not.toContain(publicWorkerHost)
   })
 
@@ -94,7 +94,7 @@ describe('Pages production deployment contract', () => {
     expect(pagesWorkflow).toContain('pnpm smoke:pages')
     expect(pagesWorkflow).toContain('wrangler --cwd ../.. pages deploy deploy')
     expect(pagesWorkflow).not.toContain('wrangler.pages.toml')
-    expect(pagesWorkflow).toContain("VITE_WORKER_URL: 'https://alumni-book.pages.dev'")
+    expect(pagesWorkflow).toContain("VITE_SSG_API_BASE: 'https://alumni-book.pages.dev'")
 
     const workerWorkflow = read('.github/workflows/deploy-worker.yml')
     expect(workerWorkflow).toContain('workflow_dispatch:')

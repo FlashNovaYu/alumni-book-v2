@@ -152,9 +152,18 @@ function closeCreate() {
 }
 
 async function handleDelete(student: Student) {
-  if (!confirm(`确定要删除 "${student.name}" 吗？此操作不可撤销。`)) return
+  const reason = prompt(`确定要删除 "${student.name}" 吗？此操作不可撤销。\n请填写删除原因：`)
+  if (reason === null) return
+  if (!reason.trim()) {
+    alert('必须填写删除原因！')
+    return
+  }
   try {
-    await adminFetch(`/api/students/${student.slug}`, { method: 'DELETE' })
+    await adminFetch(`/api/students/${student.slug}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason.trim() })
+    })
     await loadStudents(true)
   } catch (e: any) {
     alert(e.message || '删除失败')

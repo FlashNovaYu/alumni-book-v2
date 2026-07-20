@@ -12,6 +12,12 @@ import { resolve } from 'path'
 
 const isRemote = process.argv.includes('--remote')
 const mode = isRemote ? '--remote' : '--local'
+const fileApiBase = (process.env.VITE_SSG_API_BASE || '').trim().replace(/\/+$/, '')
+
+function fileUrl(value: string): string {
+  if (/^https?:\/\//.test(value)) return value
+  return `${fileApiBase}${value.startsWith('/') ? value : `/api/files/${value}`}`
+}
 
 console.log(`================================================`)
 console.log(`  同学录单文件 HTML 纪念册导出中... [数据源: ${isRemote ? '远程' : '本地'}]`)
@@ -265,7 +271,7 @@ try {
           try { info = JSON.parse(mate.info || '{}') } catch {}
           const motto = info.motto || '留念'
           const avatarHtml = mate.avatar_url 
-            ? `<img src="${mate.avatar_url.startsWith('http') ? mate.avatar_url : 'https://alumni-book-api.chenyuhao2263.workers.dev' + mate.avatar_url}" />`
+            ? `<img src="${fileUrl(mate.avatar_url)}" />`
             : `<span>${mate.name.charAt(0)}</span>`
             
           return `
@@ -302,7 +308,7 @@ try {
         <div class="album-photos">
           ${alb.photos.map((p: any) => `
           <div class="photo-item">
-            <img src="https://alumni-book-api.chenyuhao2263.workers.dev/api/files/${p.r2_key}" />
+            <img src="${fileUrl(p.r2_key)}" />
             ${p.caption ? `<div class="photo-cap">${escape(p.caption)}</div>` : ''}
           </div>`).join('')}
         </div>

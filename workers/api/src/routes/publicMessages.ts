@@ -258,8 +258,7 @@ publicMessagesRoutes.put('/admin/public-messages/:id/hide', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { hidden, reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (hidden && !cleanReason) return c.json({ success: false, message: '隐藏留言时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
   const before = await c.env.DB.prepare('SELECT status FROM public_messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare(
@@ -306,8 +305,7 @@ publicMessagesRoutes.delete('/admin/public-messages/:id', async (c) => {
   const admin = getAdminPrincipal(c)
   if (!admin) return c.json({ success: false, message: '未提供管理会话' }, 401)
   const { reason } = await parseLimitedJson<any>(c, { fallback: {} })
-  const cleanReason = String(reason || '').trim()
-  if (!cleanReason) return c.json({ success: false, message: '删除留言时请填写原因' }, 400)
+  const cleanReason = String(reason || '').trim() || null
   const before = await c.env.DB.prepare('SELECT author_slug, status FROM public_messages WHERE id = ?').bind(id).first()
   if (!before) return c.json({ success: false, message: '留言不存在' }, 404)
   await runAuditedBatch(c.env.DB, admin.id, [c.env.DB.prepare('DELETE FROM public_messages WHERE id = ?').bind(id)], {

@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_API_BASE_URL: ''
-      VITE_WORKER_URL: 'https://alumni-book.pages.dev'
+      VITE_SSG_API_BASE: 'https://alumni-book.pages.dev'
       SITE_BASE: /
     steps:
       - uses: actions/checkout@v4

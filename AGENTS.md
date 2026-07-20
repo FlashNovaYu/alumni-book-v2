@@ -24,7 +24,7 @@ pnpm --filter worker run deploy
 pnpm migrate:data               # 运行 scripts/migrate.ts
 ```
 
-**重要：** 本地开发时，前端通过 `VITE_API_BASE_URL` 环境变量指向后端 API。默认值为 `https://alumni-book-api.chenyuhao2263.workers.dev`。如需指向本地 Worker，在 shell 中设置该环境变量后重启 dev server。
+**重要：** 阿里云是正式商用目标，Cloudflare 仅用于开发测试。SSG 构建必须通过 `VITE_SSG_API_BASE` 显式指定数据源；浏览器端自托管构建的 `VITE_API_BASE_URL` 必须为空以使用同源 `/api`。本地 CF/Worker 开发也必须显式设置对应测试地址，不再依赖隐式公网回退。
 
 ## 架构概览
 
@@ -46,7 +46,7 @@ pnpm migrate:data               # 运行 scripts/migrate.ts
 
 管理后台使用 JWT 进行认证。`adminLogin()` 将密码发送至 `/api/auth/login`，成功后将 JWT 存入 `sessionStorage.setItem('admin_token', token)`。`adminFetch()` 会自动在每个请求头中附加 `Authorization: Bearer <token>`。后台路由守卫在 `main.ts` 的 `router.beforeEach` 中检查该 token。
 
-JWT 密钥通过 Cloudflare Worker 的环境变量 `JWT_SECRET` 配置，在 `wrangler.toml` 中定义。
+JWT 密钥通过运行环境的 `JWT_SECRET` 配置；CF 测试使用 Wrangler 变量，自托管使用 ECS 的 `deploy/.env`，不得提交或输出密钥。
 
 ### 两个不同的 API 客户端
 
@@ -81,9 +81,9 @@ Schema 定义在 `workers/api/src/db/schema.sql`，迁移文件在 `workers/api/
 ### 部署与发布流程
 
 1. **验证 CI**：`main` push 和 pull request 只运行 `.github/workflows/verify.yml`，不会部署。
-2. **生产发布**：只能从 GitHub Actions 手动运行 `Deploy Site & Admin`，选择 `main`，输入 `DEPLOY_PRODUCTION` 并通过 `production` Environment 审批。
-3. **本地预览发布**：本机不得使用 `main` 作为 Pages branch；需要远程预览时使用唯一的非生产分支名。详见 `docs/deployment-runbook.md`。
-4. **Worker 发布**：保持 `.github/workflows/deploy-worker.yml` 手动触发，不从本机直接更新生产。
+2. **正式发布**：阿里云使用专用 `build:selfhosted` 产物、Podman 和 Nginx 发布，并以公网 release/readiness/smoke 作为验收；Cloudflare 工作流只用于开发测试。
+3. **CF 预览发布**：本机不得使用 `main` 作为 Pages branch；需要远程测试时使用唯一的非生产分支名。详见 `docs/deployment-runbook.md`。
+4. **Worker 测试**：保持 `.github/workflows/deploy-worker.yml` 手动触发，不把 Cloudflare 发布当作商用发布。
 
 ### 阿里云 ECS 自托管当前基线
 
