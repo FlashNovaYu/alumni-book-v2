@@ -71,9 +71,8 @@ test.describe('公开站点真实浏览器性能预算', () => {
     await page.goto('./roster/', { waitUntil: 'load' })
     await waitNavigationInteractive(page)
     const yearbookLink = page.locator('[data-nav-item][href$="/yearbook/"]')
-    const yearbookPrefetched = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith('/yearbook/'))
     await yearbookLink.hover()
-    await yearbookPrefetched
+    await expect(page.locator('link[rel="prefetch"][href$="/yearbook/"]')).toHaveCount(1)
     await page.waitForTimeout(300)
     const rosterStart = Date.now()
     await page.evaluate(() => document.querySelector<HTMLAnchorElement>('[data-nav-item][href$="/yearbook/"]')?.click())
