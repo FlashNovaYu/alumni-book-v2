@@ -332,10 +332,15 @@ function timelineMedia(item: any) {
       flex-wrap: nowrap;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      box-shadow: inset -18px 0 16px -18px var(--color-paper-brown);
     }
+
+    .timeline-tabs::-webkit-scrollbar { display: none; }
 
     .tab-btn {
       flex: 0 0 auto;
+      min-height: 44px;
     }
 
     .timeline-item {

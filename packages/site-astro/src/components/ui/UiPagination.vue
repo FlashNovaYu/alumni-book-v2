@@ -155,11 +155,19 @@ function goToPage(page: number) {
 }
 
 @media (max-width: 640px) {
+  .ui-pagination {
+    gap: var(--space-1);
+  }
+
+  .ui-pagination__pages {
+    gap: 2px;
+  }
+
   .ui-pagination__page,
   .ui-pagination__button,
   .ui-pagination__ellipsis {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     font-size: var(--type-caption);
   }
 }

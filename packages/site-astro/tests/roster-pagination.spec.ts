@@ -41,7 +41,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('roster paginates twelve cards, resets search to the first page, and hides broken avatars', async ({ page }) => {
-  await page.route('**/api/classmates', async (route) => {
+  await page.route('**/api/classmates**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -73,7 +73,7 @@ test('roster paginates twelve cards, resets search to the first page, and hides 
 
 test('roster only renders ellipses when pagination omits page numbers', async ({ page }) => {
   let responseClassmates = createClassmates(27)
-  await page.route('**/api/classmates', (route) => route.fulfill({
+  await page.route('**/api/classmates**', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: responseClassmates }),

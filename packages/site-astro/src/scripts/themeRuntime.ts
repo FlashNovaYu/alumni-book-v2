@@ -28,6 +28,12 @@ function applyTheme(theme: AlumniTheme, persist = true) {
   if (persist) window.localStorage.setItem(themeStorageKey, theme)
 }
 
+function getThemeOrigin(button: HTMLButtonElement) {
+  const anchor = button.querySelector<HTMLElement>('[data-theme-icon]') ?? button
+  const rect = anchor.getBoundingClientRect()
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+}
+
 function switchFrom(button: HTMLButtonElement) {
   const next: AlumniTheme = readTheme() === 'night' ? 'paper' : 'night'
   if (prefersReducedMotion() || !document.startViewTransition) {
@@ -35,9 +41,7 @@ function switchFrom(button: HTMLButtonElement) {
     return
   }
 
-  const { left, top, width, height } = button.getBoundingClientRect()
-  const x = left + width / 2
-  const y = top + height / 2
+  const { x, y } = getThemeOrigin(button)
   const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
   document.documentElement.classList.add('theme-transition')
   const transition = document.startViewTransition(() => applyTheme(next))

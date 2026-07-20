@@ -20,6 +20,7 @@ describe('夜读主题基础层', () => {
     expect(runtime).toContain('export function initThemeRuntime')
     expect(runtime).toContain('document.startViewTransition')
     expect(runtime).toContain("'[data-theme-toggle]'")
+    expect(nav.match(/data-theme-icon/g)?.length).toBe(2)
     expect(runtime).toContain("prefers-reduced-motion: reduce")
     expect(layout).toContain('is:inline')
     expect(layout).toContain("const storageKey = 'alumni_theme'")

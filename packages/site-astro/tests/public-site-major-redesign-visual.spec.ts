@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { mockClassmateAdminEntry, mockClassmateInboxSummary } from './classmate-session-mocks'
 
-const mobilePages = ['./', './preface/', './roster/', './album/', './timeline/', './yearbook/', './student/template/']
+const mobilePages = ['./', './preface/', './roster/', './album/', './timeline/', './yearbook/', './account/', './student/template/']
 const yearbookSource = readFileSync(resolve(__dirname, '../src/pages/yearbook.astro'), 'utf-8')
 const yearbookStyles = yearbookSource.match(/<style>([\s\S]*)<\/style>/)?.[1] || ''
 
@@ -26,6 +26,22 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe('public site major redesign responsive smoke', () => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    test(`roster stays two columns at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      await seedClassmateSession(page)
+      await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+      const columns = await page.locator('.roster-grid').first().evaluate((grid) =>
+        getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
+      )
+      expect(columns).toBe(2)
+    })
+  }
+
   for (const pathname of mobilePages) {
     test(`mobile page has no horizontal overflow: ${pathname}`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })

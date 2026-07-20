@@ -70,6 +70,7 @@ test.describe('公开站点真实浏览器性能预算', () => {
     })
     await page.goto('./roster/', { waitUntil: 'load' })
     await waitNavigationInteractive(page)
+    await page.waitForFunction(() => Boolean((window as Window & { __alumniNavRuntime?: unknown }).__alumniNavRuntime))
     const yearbookLink = page.locator('[data-nav-item][href$="/yearbook/"]')
     await yearbookLink.hover()
     await expect(page.locator('link[rel="prefetch"][href$="/yearbook/"]')).toHaveCount(1)

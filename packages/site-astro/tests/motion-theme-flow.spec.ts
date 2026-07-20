@@ -51,6 +51,37 @@ test('夜读按钮以根级水波切换并持久化选择', async ({ page }) => 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'night')
 })
 
+test('移动主题水波从可见图标中心开始', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    const originalAnimate = Element.prototype.animate
+    Element.prototype.animate = function (keyframes, options) {
+      if (options && typeof options === 'object' && options.pseudoElement === '::view-transition-new(root)') {
+        const first = Array.isArray(keyframes) ? keyframes[0] : keyframes
+        const clipPath = typeof first === 'object' && first && 'clipPath' in first ? String(first.clipPath) : ''
+        const match = clipPath.match(/at ([\d.]+)px ([\d.]+)px/)
+        if (match) (window as Window & { __themeRippleOrigin?: { x: number; y: number } }).__themeRippleOrigin = { x: Number(match[1]), y: Number(match[2]) }
+      }
+      return originalAnimate.call(this, keyframes, options)
+    }
+  })
+  await page.goto('./')
+  await page.evaluate(() => localStorage.setItem('alumni_theme', 'paper'))
+  await page.reload()
+  const toggle = page.locator('[data-theme-toggle]:visible').first()
+  await toggle.locator('svg').evaluate((icon) => { (icon as SVGElement).style.transform = 'translateX(-6px)' })
+  const icon = await toggle.locator('[data-theme-icon]').boundingBox()
+  expect(icon).not.toBeNull()
+  await toggle.click()
+  await expect.poll(() => page.evaluate(() => Boolean(
+    (window as Window & { __themeRippleOrigin?: { x: number; y: number } }).__themeRippleOrigin,
+  ))).toBe(true)
+  const origin = await page.evaluate(() => (window as Window & { __themeRippleOrigin?: { x: number; y: number } }).__themeRippleOrigin)
+  expect(origin).toBeDefined()
+  expect(origin!.x).toBeCloseTo(icon!.x + icon!.width / 2, 1)
+  expect(origin!.y).toBeCloseTo(icon!.y + icon!.height / 2, 1)
+})
+
 test.describe('减少动态偏好', () => {
   test.use({ contextOptions: { reducedMotion: 'reduce' } })
 

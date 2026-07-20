@@ -191,6 +191,16 @@ async function handleLogout() {
 
 <style scoped>
 .account-center-card {
+  --color-text: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-primary: var(--accent);
+  --color-primary-strong: var(--accent-active);
+  --color-primary-light: var(--accent-soft);
+  --color-surface-card: var(--bg-surface);
+  --color-surface-cream: var(--bg-soft);
+  --color-hairline: var(--border);
+  --color-error: var(--error);
+  --color-success: var(--success);
   max-width: 500px;
   margin: 0 auto;
   padding: 30px;
@@ -266,6 +276,7 @@ async function handleLogout() {
   justify-content: center;
   gap: 8px;
   padding: 12px;
+  min-height: 44px;
   border-radius: var(--rounded-md, 8px);
   background: var(--color-surface-cream, #fcfaf7);
   border: 1px solid var(--color-hairline, #eee);
@@ -323,9 +334,12 @@ async function handleLogout() {
 
 .form-group input {
   padding: 10px 14px;
+  min-height: 44px;
   border: 1px solid var(--color-hairline, #ccc);
   border-radius: var(--rounded-md, 8px);
   font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
   outline: none;
   transition: border-color 0.2s;
 }
@@ -348,6 +362,7 @@ async function handleLogout() {
 
 .btn {
   padding: 12px 20px;
+  min-height: 44px;
   font-size: 14px;
   font-weight: 600;
   border-radius: var(--rounded-md, 8px);
@@ -398,6 +413,20 @@ async function handleLogout() {
   border-radius: 50%;
   margin: 0 auto 16px;
   animation: spin 0.8s linear infinite;
+}
+
+@media (max-width: 640px) {
+  .account-center-card {
+    padding: 20px 16px;
+  }
+
+  .profile-summary {
+    gap: 12px;
+  }
+
+  .quick-links {
+    gap: 8px;
+  }
 }
 
 @keyframes spin {

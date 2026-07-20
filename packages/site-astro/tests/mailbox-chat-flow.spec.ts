@@ -66,7 +66,7 @@ test.beforeEach(async ({ page }) => {
     contentType: 'application/json',
     body: JSON.stringify({ success: true }),
   }))
-  await page.route('**/api/classmates', (route) => route.fulfill({
+  await page.route('**/api/classmates**', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [{ name: '测试同学', slug: 'test_init', avatarUrl: null }, { name: '李四', slug: 'lisi', avatarUrl: null }] }),
   }))
@@ -204,7 +204,7 @@ test('会话历史加载失败时不会显示上一位同学的消息或提交�
 
 test('新建私聊在目录加载失败时可重试且支持 Escape 关闭', async ({ page }) => {
   let shouldFailDirectory = true
-  await page.route('**/api/classmates', (route) => {
+  await page.route('**/api/classmates**', (route) => {
     if (shouldFailDirectory) {
       shouldFailDirectory = false
       return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false, message: '目录暂不可用' }) })

@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      ssh2-sftp-client:
-        specifier: ^12.1.1
-        version: 12.1.1
       tsx:
         specifier: ^4.23.0
         version: 4.23.0
@@ -100,12 +97,6 @@ importers:
       vue-tsc:
         specifier: ^2.2.12
         version: 2.2.12(typescript@5.9.3)
-
-  temp-deploy:
-    dependencies:
-      ssh2-sftp-client:
-        specifier: ^12.1.1
-        version: 12.1.1
 
   workers/api:
     dependencies:

@@ -754,7 +754,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  color: var(--text-inverse);
+  color: var(--bg-raised);
 }
 
 .student-hero__name {
@@ -770,14 +770,14 @@ onUnmounted(() => {
 .student-hero__nickname {
   font-size: var(--type-body-lg);
   font-weight: var(--weight-medium);
-  color: var(--text-primary);
+  color: inherit;
   margin: 0;
 }
 
 .student-hero__motto {
   font-size: var(--type-body-md);
   font-style: italic;
-  color: var(--text-secondary);
+  color: inherit;
   margin: 0;
   max-width: 480px;
 }
@@ -796,7 +796,7 @@ onUnmounted(() => {
   background: var(--glass-panel);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(12px);
-  color: var(--text-primary);
+  color: inherit;
   font-size: var(--type-caption);
   font-weight: var(--weight-medium);
   backdrop-filter: blur(4px);
@@ -835,6 +835,15 @@ onUnmounted(() => {
 
 .student-hero__action--secondary {
   background: transparent;
+}
+
+html[data-theme='night'] .student-page .hero-support {
+  color: var(--text-primary);
+}
+
+html[data-theme='night'] .student-page .student-hero__name,
+html[data-theme='night'] .student-page .student-hero__action {
+  color: var(--text-primary);
 }
 
 /* ── Body ── */
@@ -1230,7 +1239,21 @@ button.seal.is-stamped {
   }
 
   .student-hero__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .student-hero__action {
     justify-content: center;
+    min-height: 44px;
+    min-width: 0;
+  }
+
+  .student-hero__action:nth-child(3):last-child {
+    grid-column: 1 / -1;
   }
 
   .info-grid {

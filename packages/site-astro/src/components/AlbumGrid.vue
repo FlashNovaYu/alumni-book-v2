@@ -33,13 +33,15 @@
             class="photo-item"
             :class="{ 'is-hovered': getState(photo.id).isHovered }"
             :style="getTiltStyles(photo.id, `rotateZ(${getStaticRotation(i)}deg) translateY(${getStaticY(i)}px)`)"
-            @mousemove="onMouseMove($event, photo.id)"
-            @mouseenter="onMouseEnter(photo.id); playPaperSlide()"
-            @mouseleave="onMouseLeave(photo.id)"
+            @pointermove="onPointerMove($event, photo.id)"
+            @pointerenter="onMouseEnter(photo.id); playPaperSlide()"
+            @pointerleave="onMouseLeave(photo.id)"
+            @pointerup="onPointerEnd($event, photo.id)"
+            @pointercancel="onPointerEnd($event, photo.id)"
             @touchstart="playPaperSlide()"
             @click="openLightbox(album.photos, i); playCrystalTick()"
           >
-            <div class="glare-layer" :style="{ opacity: getState(photo.id).isHovered ? 1 : 0 }"></div>
+            <div class="glare-layer" :style="{ opacity: getState(photo.id).isHovered || getState(photo.id).isOrientationActive ? 1 : 0 }"></div>
             <img
               v-if="!photoErrors[photo.id]"
               :src="getMedia(photo).src"
@@ -121,7 +123,7 @@ import { useMouseTilt } from '../composables/useMouseTilt'
 import { useAudioSynth } from '../composables/useAudioSynth'
 import { buildMediaSources, resolveMediaUrl, type MediaVariant } from '@alumni/shared'
 
-const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 10, scale: 1.05 })
+const { onPointerMove, onPointerEnd, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 10, scale: 1.05 })
 const { playPaperSlide, playCrystalTick } = useAudioSynth()
 
 function getStaticRotation(index: number) {

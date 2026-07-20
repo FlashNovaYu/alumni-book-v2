@@ -4,9 +4,11 @@
     class="roster-card"
     :data-student-identity-card="card.slug"
     @click="handleTransition"
-    @mouseenter="onMouseEnter(card.slug); playPaperSlide()"
-    @mouseleave="onMouseLeave(card.slug)"
-    @mousemove="onMouseMove($event, card.slug)"
+    @pointerenter="onMouseEnter(card.slug); playPaperSlide()"
+    @pointerleave="onMouseLeave(card.slug)"
+    @pointermove="onPointerMove($event, card.slug)"
+    @pointerup="onPointerEnd($event, card.slug)"
+    @pointercancel="onPointerEnd($event, card.slug)"
     @touchstart="playPaperSlide()"
     :style="getTiltStyles(card.slug, baseTransform)"
   >
@@ -42,7 +44,7 @@
       </div>
       
       <!-- 光晕层完全封装在卡片内部并利用 overflow:hidden 绝不漏光 -->
-      <div class="glare-layer" :style="{ opacity: getState(card.slug).isHovered ? 1 : 0 }"></div>
+      <div class="glare-layer" :style="{ opacity: getState(card.slug).isHovered || getState(card.slug).isOrientationActive ? 1 : 0 }"></div>
     </div>
   </a>
 </template>
@@ -65,7 +67,7 @@ const avatarError = ref(false)
 const avatarImage = ref<HTMLImageElement | null>(null)
 const isTransitioning = ref(false)
 
-const { onMouseMove, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
+const { onPointerMove, onPointerEnd, onMouseEnter, onMouseLeave, getTiltStyles, getState } = useMouseTilt({ maxTilt: 6, scale: 1.02 })
 const { playPaperSlide } = useAudioSynth()
 
 const avatarTransitionStyle = computed(() => {
