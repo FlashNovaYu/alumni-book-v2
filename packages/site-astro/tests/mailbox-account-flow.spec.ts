@@ -5,7 +5,7 @@ async function seedClassmateSession(page: any) {
   await page.goto('./')
   await page.evaluate(() => {
     sessionStorage.setItem('classmate_account_token', 'test-classmate-token')
-    sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学', slug: 'chen-yu-hao', avatarUrl: null }))
+    sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学', slug: 'template', avatarUrl: null }))
   })
 }
 
@@ -94,13 +94,13 @@ test.describe('Classmate Account Center Flow', () => {
   })
 
   test('navigates to self-edit from account center', async ({ page }) => {
-    await page.route(/\/api\/students\/chen-yu-hao(?:\?.*)?$/, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { name: '测试同学', slug: 'chen-yu-hao', avatarUrl: null, backgroundUrl: null, info: { visibility: {} } } }) }))
+    await page.route(/\/api\/students\/template(?:\?.*)?$/, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { name: '测试同学', slug: 'template', avatarUrl: null, backgroundUrl: null, info: { visibility: {} } } }) }))
     await seedClassmateSession(page)
     await page.goto('./account/', { waitUntil: 'networkidle' })
     await page.click('a[href*="edit=1"]')
-    await expect(page).toHaveURL(/\/student\/chen-yu-hao\/\?edit=1/)
+    await expect(page).toHaveURL(/\/student\/template\/\?edit=1/)
     await expect(page.locator('.editor-overlay')).toBeVisible()
     await page.locator('.editor-close').click({ force: true })
-    await expect(page).toHaveURL(/\/student\/chen-yu-hao\/$/)
+    await expect(page).toHaveURL(/\/student\/template\/$/)
   })
 })
