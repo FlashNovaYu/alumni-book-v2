@@ -9,6 +9,7 @@ services:
       DATABASE_PATH: /var/lib/alumni-book/data/alumni.sqlite
       UPLOAD_ROOT: /var/lib/alumni-book/uploads
       PORT: 8787
+      RELEASE_SHA: ${RELEASE_SHA:?RELEASE_SHA must be a full 40-character commit SHA}
     volumes:
       - /var/lib/alumni-book/data:/var/lib/alumni-book/data
       - /var/lib/alumni-book/uploads:/var/lib/alumni-book/uploads

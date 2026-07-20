@@ -127,6 +127,11 @@ describe('本地文件存储适配器', () => {
 })
 
 describe('Node 运行时绑定', () => {
+  it('拒绝缺失或格式错误的发布 SHA', () => {
+    expect(() => createNodeRuntime({ jwtSecret: 'node-runtime-test-secret' })).toThrow('RELEASE_SHA 必须是完整 40 位十六进制提交 SHA')
+    expect(() => createNodeRuntime({ jwtSecret: 'node-runtime-test-secret', releaseSha: 'local' })).toThrow('RELEASE_SHA 必须是完整 40 位十六进制提交 SHA')
+  })
+
   it('从显式配置创建数据库、文件存储和鉴权环境', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'alumni-book-runtime-'))
     storageDirectories.push(directory)
@@ -135,11 +140,13 @@ describe('Node 运行时绑定', () => {
       uploadRoot: join(directory, 'uploads'),
       jwtSecret: 'node-runtime-test-secret',
       corsOrigin: 'http://127.0.0.1:4321',
+      releaseSha: '0123456789abcdef0123456789abcdef01234567',
     })
     openRuntimes.push(runtime)
 
     expect(runtime.env.JWT_SECRET).toBe('node-runtime-test-secret')
     expect(runtime.env.CORS_ORIGIN).toBe('http://127.0.0.1:4321')
+    expect(runtime.env.RELEASE_SHA).toBe('0123456789abcdef0123456789abcdef01234567')
     expect(await runtime.env.DB.prepare('SELECT 1 AS value').first<{ value: number }>()).toEqual({ value: 1 })
     await runtime.env.R2.put('misc/runtime.txt', 'ok', { httpMetadata: { contentType: 'text/plain' } })
     expect(await runtime.env.R2.head('misc/runtime.txt')).not.toBeNull()
@@ -153,15 +160,18 @@ describe('Node 运行时绑定', () => {
       uploadRoot: join(directory, 'uploads'),
       jwtSecret: 'node-fetch-test-secret',
       corsOrigin: 'http://127.0.0.1:4321',
+      releaseSha: '89abcdef0123456789abcdef0123456789abcdef',
     })
     openRuntimes.push(runtime)
     const fetch = createNodeFetch(runtime)
 
     const health = await fetch(new Request('http://127.0.0.1:8787/api/health'))
     const readiness = await fetch(new Request('http://127.0.0.1:8787/api/readiness'))
+    const healthBody = await health.json() as { data: { releaseSha?: string } }
     const readinessBody = await readiness.json() as { data: { ready: boolean } }
 
     expect(health.status).toBe(200)
+    expect(healthBody.data.releaseSha).toBe('89abcdef0123456789abcdef0123456789abcdef')
     expect(readiness.status).toBe(200)
     expect(readinessBody.data.ready).toBe(true)
   })
@@ -174,6 +184,7 @@ describe('Node 运行时绑定', () => {
       uploadRoot: join(directory, 'uploads'),
       jwtSecret: 'node-media-test-secret',
       corsOrigin: 'http://127.0.0.1:4321',
+      releaseSha: 'fedcba9876543210fedcba9876543210fedcba98',
     })
     openRuntimes.push(runtime)
     await runtime.env.R2.put('photos/sample_320.webp', new Uint8Array([0, 1, 2, 3]), {

@@ -10,6 +10,7 @@ export type NodeRuntimeConfig = {
   jwtSecret?: string
   corsOrigin?: string
   corsPreviewOrigins?: string
+  releaseSha?: string
 }
 
 export type NodeRuntimeEnv = {
@@ -18,6 +19,7 @@ export type NodeRuntimeEnv = {
   JWT_SECRET: string
   CORS_ORIGIN: string
   CORS_PREVIEW_ORIGINS?: string
+  RELEASE_SHA: string
 }
 
 export type NodeRuntime = {
@@ -37,6 +39,8 @@ export function createNodeRuntime(config: NodeRuntimeConfig = {}): NodeRuntime {
   const uploadRoot = value(config, 'uploadRoot', 'UPLOAD_ROOT', './.data/uploads')
   const jwtSecret = value(config, 'jwtSecret', 'JWT_SECRET', '')
   if (!jwtSecret) throw new Error('JWT_SECRET 必须配置')
+  const releaseSha = value(config, 'releaseSha', 'RELEASE_SHA', '')
+  if (!/^[0-9a-f]{40}$/i.test(releaseSha)) throw new Error('RELEASE_SHA 必须是完整 40 位十六进制提交 SHA')
 
   const corsOrigin = value(config, 'corsOrigin', 'CORS_ORIGIN', 'http://127.0.0.1:4321')
   const corsPreviewOrigins = config.corsPreviewOrigins ?? process.env.CORS_PREVIEW_ORIGINS ?? ''
@@ -51,6 +55,7 @@ export function createNodeRuntime(config: NodeRuntimeConfig = {}): NodeRuntime {
       R2: storage,
       JWT_SECRET: jwtSecret,
       CORS_ORIGIN: corsOrigin,
+      RELEASE_SHA: releaseSha,
       ...(corsPreviewOrigins ? { CORS_PREVIEW_ORIGINS: corsPreviewOrigins } : {}),
     },
     close() {

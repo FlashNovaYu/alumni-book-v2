@@ -39,6 +39,7 @@ type Bindings = {
   JWT_SECRET: string
   CORS_ORIGIN: string
   CORS_PREVIEW_ORIGINS?: string
+  RELEASE_SHA?: string
 }
 
 type Variables = {
@@ -223,7 +224,7 @@ app.use('/api/timeline', etag())
 
 // 健康检查
 app.get('/api/health', (c) => {
-  return c.json({ success: true, data: { status: 'ok', version: '2.0.0' } })
+  return c.json({ success: true, data: { status: 'ok', version: '2.0.0', releaseSha: c.env.RELEASE_SHA } })
 })
 
 app.get('/api/readiness', async (c) => {

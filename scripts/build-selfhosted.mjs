@@ -9,6 +9,7 @@ const siteDist = join(rootDir, 'packages', 'site-astro', 'dist')
 const adminDist = join(rootDir, 'packages', 'admin', 'dist')
 const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.xml', '.map'])
 const forbiddenHosts = ['alumni-book.pages.dev', 'alumni-book-api.chenyuhao2263.workers.dev', 'VITE_WORKER_URL']
+const releaseShaPattern = /^[0-9a-f]{40}$/i
 
 export function getSelfHostedClientApiBase() {
   return ''
@@ -18,13 +19,15 @@ export function normalizeApiBase(value) {
   return String(value || '').trim().replace(/\/+$/, '')
 }
 
-export function buildSelfHostedConfig({ apiBase } = {}) {
+export function buildSelfHostedConfig({ apiBase, releaseSha = process.env.RELEASE_SHA } = {}) {
   const normalizedApiBase = normalizeApiBase(apiBase || process.env.SELF_HOST_API_BASE)
   if (!normalizedApiBase) throw new Error('自托管构建必须通过 --api-base 或 SELF_HOST_API_BASE 显式指定 API 地址')
+  if (!releaseShaPattern.test(String(releaseSha || ''))) throw new Error('RELEASE_SHA 必须是完整 40 位十六进制提交 SHA')
   return {
     apiBase: normalizedApiBase,
     clientApiBase: getSelfHostedClientApiBase(),
     ssgApiBase: normalizedApiBase,
+    releaseSha,
   }
 }
 
@@ -51,8 +54,8 @@ function argument(name) {
   return index >= 0 ? process.argv[index + 1] : undefined
 }
 
-export function buildSelfHosted({ apiBase } = {}) {
-  const config = buildSelfHostedConfig({ apiBase })
+export function buildSelfHosted({ apiBase, releaseSha } = {}) {
+  const config = buildSelfHostedConfig({ apiBase, releaseSha })
   const pnpmCommand = process.platform === 'win32' ? process.execPath : 'pnpm'
   const pnpmPrefix = process.platform === 'win32'
     ? [join(process.env.APPDATA || '', 'npm', 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')]
@@ -72,7 +75,7 @@ export function buildSelfHosted({ apiBase } = {}) {
   cpSync(siteDist, selfHostedDir, { recursive: true })
   mkdirSync(join(selfHostedDir, 'admin'), { recursive: true })
   cpSync(adminDist, join(selfHostedDir, 'admin'), { recursive: true })
-  writeFileSync(join(selfHostedDir, 'release.json'), `${JSON.stringify({ source: process.env.RELEASE_SHA || 'local', target: 'aliyun-selfhosted', apiBase: config.apiBase })}\n`, 'utf8')
+  writeFileSync(join(selfHostedDir, 'release.json'), `${JSON.stringify({ source: config.releaseSha, target: 'aliyun-selfhosted', apiBase: config.apiBase })}\n`, 'utf8')
   scan(selfHostedDir)
   console.log(`Self-hosted deployment prepared at ${selfHostedDir}`)
 }

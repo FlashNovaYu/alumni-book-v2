@@ -1,4 +1,5 @@
 const forbiddenHosts = ['alumni-book.pages.dev', 'alumni-book-api.chenyuhao2263.workers.dev']
+const releaseShaPattern = /^[0-9a-f]{40}$/i
 
 export function assertStatus(actual, expected, path) {
   if (!expected.includes(actual)) throw new Error(`${path} 状态码异常：${actual}，预期 ${expected.join(', ')}`)
@@ -51,6 +52,16 @@ export function assertRobotsText(content, path) {
   }
 }
 
+export function assertReleaseSha(value, path) {
+  if (!releaseShaPattern.test(String(value || ''))) throw new Error(`${path} 发布 SHA 必须是完整 40 位十六进制提交 SHA`)
+}
+
+export function assertMatchingReleaseShas(staticReleaseSha, apiReleaseSha) {
+  assertReleaseSha(staticReleaseSha, '/release.json')
+  assertReleaseSha(apiReleaseSha, '/api/health')
+  if (staticReleaseSha !== apiReleaseSha) throw new Error(`/release.json 与 /api/health 发布 SHA 不一致：${staticReleaseSha} != ${apiReleaseSha}`)
+}
+
 async function request(baseUrl, path, init = {}) {
   const url = `${baseUrl.replace(/\/$/, '')}${path}`
   const response = await fetch(url, init)
@@ -70,6 +81,7 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
   assertStatus(health.response.status, [200], '/api/health')
   const healthBody = JSON.parse(health.text)
   if (!healthBody.success || healthBody.data?.status !== 'ok') throw new Error('/api/health 返回内容异常')
+  assertReleaseSha(healthBody.data?.releaseSha, '/api/health')
 
   const readiness = await request(baseUrl, '/api/readiness')
   assertStatus(readiness.response.status, [200], '/api/readiness')
@@ -106,6 +118,7 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
     if (releaseBody.target !== 'aliyun-selfhosted') {
       throw new Error(`/release.json 目标异常：${releaseBody.target || '(missing)'}`)
     }
+    assertMatchingReleaseShas(releaseBody.source, healthBody.data.releaseSha)
   }
   console.log(`Self-hosted smoke test passed: ${baseUrl}`)
 }
