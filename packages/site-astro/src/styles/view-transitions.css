@@ -17,7 +17,7 @@
 
 html[data-student-transition='edge']::view-transition-old(root) {
   z-index: 1;
-  animation: none !important;
+  animation: student-edge-old-fade 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 html[data-student-transition='edge']::view-transition-new(root) {
@@ -35,6 +35,38 @@ html[data-student-transition='edge']::view-transition-new(root) {
   }
   100% {
     clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+  }
+}
+
+@keyframes student-edge-old-fade {
+  0% { opacity: 1; }
+  48% { opacity: 0.72; }
+  100% { opacity: 0; }
+}
+
+html[data-student-transition='return-edge']::view-transition-old(root) {
+  z-index: 3;
+  animation: student-edge-contract 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
+  clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+}
+
+html[data-student-transition='return-edge']::view-transition-new(root) {
+  z-index: 1;
+  animation: none !important;
+}
+
+@keyframes student-edge-contract {
+  0% {
+    opacity: 1;
+    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+  }
+  64% {
+    opacity: 0.88;
+    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
   }
 }
 
@@ -169,6 +201,20 @@ html[data-theme='night'] .page-shell {
   animation-delay: 0.12s;
   animation-duration: 0.7s;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+::view-transition-image-pair(.student-identity) {
+  isolation: isolate;
+}
+
+::view-transition-old(.student-identity) {
+  animation: none !important;
+  opacity: 0;
+}
+
+::view-transition-new(.student-identity) {
+  animation: none !important;
+  opacity: 1;
 }
 
 ::view-transition-group(.student-card-details) {

@@ -66,12 +66,14 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
   await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
   await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', `student-avatar-${slug}`)
   await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('vt-student-return-edge-state'))).not.toBeNull()
 
   await page.goBack({ waitUntil: 'networkidle' })
   const returnedCard = page.locator(`[data-student-identity-card="${slug}"]`)
   await expect(returnedCard).toBeVisible()
   await expect(returnedCard.locator('.roster-card__avatar')).toHaveCSS('view-transition-name', `student-avatar-${slug}`)
   await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('vt-student-return-edge-state'))).toBeNull()
 })
 
 test('从第二页进入详情后返回时恢复第二页中的身份目标', async ({ page }) => {

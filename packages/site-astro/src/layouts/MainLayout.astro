@@ -117,6 +117,22 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
       <script>
         let reinitAuxiliaryRuntime = () => {}
 
+        function applyStudentTransitionNames(root: ParentNode, slug: string) {
+          const card = Array.from(root.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
+            .find((element) => element.dataset.studentIdentityCard === slug)
+          if (!card) return false
+          const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
+          const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
+          const details = card.querySelector<HTMLElement>('[data-student-card-details]')
+          avatar?.style.setProperty('view-transition-name', `student-avatar-${slug}`)
+          avatar?.style.setProperty('view-transition-class', 'student-identity')
+          name?.style.setProperty('view-transition-name', `student-name-${slug}`)
+          name?.style.setProperty('view-transition-class', 'student-identity')
+          details?.style.setProperty('view-transition-name', `student-card-details-${slug}`)
+          details?.style.setProperty('view-transition-class', 'student-card-details')
+          return true
+        }
+
         function restoreStudentIdentityTarget() {
           const path = window.location.pathname
           if (!path.includes('/roster/')) return
@@ -127,19 +143,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           } catch {}
           if (!slug) return
           const apply = () => {
-            const card = Array.from(document.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
-              .find((element) => element.dataset.studentIdentityCard === slug)
-            if (!card) return false
-            const avatar = card?.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
-            const name = card?.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
-            const details = card?.querySelector<HTMLElement>('[data-student-card-details]')
-            avatar?.style.setProperty('view-transition-name', `student-avatar-${slug}`)
-            avatar?.style.setProperty('view-transition-class', 'student-identity')
-            name?.style.setProperty('view-transition-name', `student-name-${slug}`)
-            name?.style.setProperty('view-transition-class', 'student-identity')
-            details?.style.setProperty('view-transition-name', `student-card-details-${slug}`)
-            details?.style.setProperty('view-transition-class', 'student-card-details')
-            return true
+            return applyStudentTransitionNames(document, slug)
           }
           let observer: MutationObserver | null = null
           let attempts = 0
@@ -219,12 +223,13 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           navigationResetTimer = null
         }
 
-        const clearStudentTransition = () => {
+        const clearStudentTransition = (preserveReturn = false) => {
           document.documentElement.removeAttribute('data-student-transition')
           for (const property of ['--student-card-left', '--student-card-top', '--student-card-right', '--student-card-bottom']) {
             document.documentElement.style.removeProperty(property)
           }
           sessionStorage.removeItem('vt-student-edge-state')
+          if (!preserveReturn) sessionStorage.removeItem('vt-student-return-edge-state')
         }
 
         function prepareStudentTransition(card: HTMLElement, slug: string) {
@@ -242,6 +247,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           document.documentElement.style.setProperty('--student-card-right', geometry.right)
           document.documentElement.style.setProperty('--student-card-bottom', geometry.bottom)
           sessionStorage.setItem('vt-student-edge-state', JSON.stringify({ slug, ...geometry }))
+          sessionStorage.setItem('vt-student-return-edge-state', JSON.stringify({ slug, ...geometry }))
 
           const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
           const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
@@ -255,6 +261,21 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           return true
         }
 
+        function prepareStudentReturnTransition() {
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || typeof document.startViewTransition !== 'function') return false
+          let state: { slug?: string; left?: string; top?: string; right?: string; bottom?: string } | null = null
+          try {
+            state = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')
+          } catch {}
+          if (!state?.left || !state.top || !state.right || !state.bottom) return false
+          document.documentElement.dataset.studentTransition = 'return-edge'
+          document.documentElement.style.setProperty('--student-card-left', state.left)
+          document.documentElement.style.setProperty('--student-card-top', state.top)
+          document.documentElement.style.setProperty('--student-card-right', state.right)
+          document.documentElement.style.setProperty('--student-card-bottom', state.bottom)
+          return true
+        }
+
         document.addEventListener('astro:before-preparation', (event) => {
           const transitionEvent = event as Event & { to?: URL; sourceElement?: Element | null }
           const targetPath = new URL(transitionEvent.to || window.location.href).pathname
@@ -262,6 +283,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const slug = sourceCard?.dataset.studentIdentityCard
           if (targetPath.includes('/student/') && sourceCard && slug) {
             prepareStudentTransition(sourceCard, slug)
+          } else if (targetPath.includes('/roster/') && window.location.pathname.includes('/student/')) {
+            prepareStudentReturnTransition()
           } else if (!targetPath.includes('/student/')) {
             clearStudentTransition()
           }
@@ -277,19 +300,30 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           try {
             edgeState = JSON.parse(sessionStorage.getItem('vt-student-edge-state') || 'null')
           } catch {}
-          const active = document.documentElement.dataset.studentTransition === 'edge' || Boolean(edgeState)
+          let returnEdgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string } | null = null
+          try {
+            returnEdgeState = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')
+          } catch {}
+          const mode = document.documentElement.dataset.studentTransition
+          const active = mode === 'edge' || mode === 'return-edge' || Boolean(edgeState)
           if (!active) return
-          nextDocument.documentElement.dataset.studentTransition = 'edge'
+          nextDocument.documentElement.dataset.studentTransition = mode || 'edge'
+          const geometryState = mode === 'return-edge' ? returnEdgeState : edgeState
           for (const property of ['--student-card-left', '--student-card-top', '--student-card-right', '--student-card-bottom']) {
             const value = document.documentElement.style.getPropertyValue(property)
-            const fallback = property === '--student-card-left' ? edgeState?.left
-              : property === '--student-card-top' ? edgeState?.top
-                : property === '--student-card-right' ? edgeState?.right
-                  : edgeState?.bottom
+            const fallback = property === '--student-card-left' ? geometryState?.left
+              : property === '--student-card-top' ? geometryState?.top
+                : property === '--student-card-right' ? geometryState?.right
+                  : geometryState?.bottom
             if (value || fallback) nextDocument.documentElement.style.setProperty(property, value || fallback || '')
           }
+          if (mode === 'return-edge' && returnEdgeState?.slug) applyStudentTransitionNames(nextDocument, returnEdgeState.slug)
           if (transitionEvent.viewTransition) {
-            void transitionEvent.viewTransition.finished.then(clearStudentTransition, clearStudentTransition)
+            const preserveReturn = mode === 'edge'
+            void transitionEvent.viewTransition.finished.then(
+              () => clearStudentTransition(preserveReturn),
+              () => clearStudentTransition(preserveReturn),
+            )
           }
         })
 
@@ -305,6 +339,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
             const slug = identityCard.dataset.studentIdentityCard
             sessionStorage.setItem('vt-student-return-slug', slug)
             prepareStudentTransition(identityCard, slug)
+          } else if (url.pathname.includes('/roster/') && window.location.pathname.includes('/student/')) {
+            prepareStudentReturnTransition()
           } else {
             clearStudentTransition()
           }
@@ -315,11 +351,11 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         document.addEventListener('astro:page-load', () => {
           restoreStudentIdentityTarget()
           reinitAuxiliaryRuntime()
-          window.setTimeout(clearStudentTransition, 1400)
+          window.setTimeout(() => clearStudentTransition(window.location.pathname.includes('/student/')), 1400)
         })
         window.addEventListener('pageshow', (event) => {
           clearNavigationState()
-          clearStudentTransition()
+          clearStudentTransition(window.location.pathname.includes('/student/'))
           if ((event as PageTransitionEvent).persisted) {
             restoreStudentIdentityTarget()
             reinitAuxiliaryRuntime()
