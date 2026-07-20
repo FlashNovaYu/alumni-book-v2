@@ -51,33 +51,35 @@ export function playCrystalTick() {
   
   const now = context.currentTime
   
-  // Layer 1: The body of the tick (Sine)
-  const osc1 = context.createOscillator()
-  const gain1 = context.createGain()
-  osc1.type = 'sine'
-  osc1.frequency.setValueAtTime(1400, now)
-  osc1.frequency.exponentialRampToValueAtTime(600, now + 0.04)
-  gain1.gain.setValueAtTime(0, now)
-  gain1.gain.linearRampToValueAtTime(0.4, now + 0.005)
-  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+  // Pen tap has a short, sharp transient and a tiny hollow body
+  const osc = context.createOscillator()
+  const gain = context.createGain()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(300, now)
+  osc.frequency.exponentialRampToValueAtTime(100, now + 0.03)
   
-  // Layer 2: The crisp click edge (Triangle)
-  const osc2 = context.createOscillator()
-  const gain2 = context.createGain()
-  osc2.type = 'triangle'
-  osc2.frequency.setValueAtTime(4000, now)
-  osc2.frequency.exponentialRampToValueAtTime(1000, now + 0.02)
-  gain2.gain.setValueAtTime(0, now)
-  gain2.gain.linearRampToValueAtTime(0.15, now + 0.002)
-  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.02)
+  gain.gain.setValueAtTime(0, now)
+  gain.gain.linearRampToValueAtTime(0.6, now + 0.002)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
   
-  osc1.connect(gain1).connect(context.destination)
-  osc2.connect(gain2).connect(context.destination)
+  // Mix some high-passed noise for the "click" texture
+  const noise = context.createBufferSource()
+  noise.buffer = createNoiseBuffer(context)
+  const noiseFilter = context.createBiquadFilter()
+  noiseFilter.type = 'highpass'
+  noiseFilter.frequency.value = 4000
+  const noiseGain = context.createGain()
+  noiseGain.gain.setValueAtTime(0, now)
+  noiseGain.gain.linearRampToValueAtTime(0.3, now + 0.002)
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015)
   
-  osc1.start(now)
-  osc2.start(now)
-  osc1.stop(now + 0.04)
-  osc2.stop(now + 0.02)
+  osc.connect(gain).connect(context.destination)
+  noise.connect(noiseFilter).connect(noiseGain).connect(context.destination)
+  
+  osc.start(now)
+  noise.start(now)
+  osc.stop(now + 0.04)
+  noise.stop(now + 0.02)
 }
 
 export function playPaperSlide() {
@@ -88,20 +90,20 @@ export function playPaperSlide() {
   
   const now = context.currentTime
   
-  // A soft airy sweep using noise and a moving filter
+  // Soft paper friction
   const source = context.createBufferSource()
   source.buffer = createNoiseBuffer(context)
   
   const filter = context.createBiquadFilter()
   filter.type = 'bandpass'
-  filter.Q.value = 1.2
-  filter.frequency.setValueAtTime(3000, now)
-  filter.frequency.exponentialRampToValueAtTime(600, now + 0.15)
+  filter.Q.value = 0.8
+  filter.frequency.setValueAtTime(800, now)
+  filter.frequency.exponentialRampToValueAtTime(2000, now + 0.1)
   
   const gain = context.createGain()
   gain.gain.setValueAtTime(0, now)
-  gain.gain.linearRampToValueAtTime(0.2, now + 0.02)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  gain.gain.linearRampToValueAtTime(0.15, now + 0.03)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
   
   source.connect(filter).connect(gain).connect(context.destination)
   source.start(now)
@@ -116,40 +118,46 @@ export function playDeepWhoosh() {
   
   const now = context.currentTime
   
-  // Layer 1: Deep sub bass (Sine)
+  // Soft book thud / page settle (Sine + Triangle)
   const sub = context.createOscillator()
   const gainSub = context.createGain()
   sub.type = 'sine'
-  sub.frequency.setValueAtTime(120, now)
-  sub.frequency.exponentialRampToValueAtTime(40, now + 0.5)
+  sub.frequency.setValueAtTime(150, now)
+  sub.frequency.exponentialRampToValueAtTime(40, now + 0.2)
   gainSub.gain.setValueAtTime(0, now)
-  gainSub.gain.linearRampToValueAtTime(0.5, now + 0.1)
-  gainSub.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+  gainSub.gain.linearRampToValueAtTime(0.4, now + 0.02)
+  gainSub.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
   
-  // Layer 2: Subtle mid-low warmth (Triangle)
   const mid = context.createOscillator()
   const gainMid = context.createGain()
   mid.type = 'triangle'
-  mid.frequency.setValueAtTime(200, now)
-  mid.frequency.exponentialRampToValueAtTime(60, now + 0.3)
-  
-  // Lowpass filter for the mid layer to make it muffled
-  const filter = context.createBiquadFilter()
-  filter.type = 'lowpass'
-  filter.frequency.setValueAtTime(800, now)
-  filter.frequency.linearRampToValueAtTime(200, now + 0.3)
-  
+  mid.frequency.setValueAtTime(300, now)
+  mid.frequency.exponentialRampToValueAtTime(80, now + 0.1)
   gainMid.gain.setValueAtTime(0, now)
-  gainMid.gain.linearRampToValueAtTime(0.15, now + 0.05)
-  gainMid.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+  gainMid.gain.linearRampToValueAtTime(0.1, now + 0.01)
+  gainMid.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+  
+  // Paper rustle on close
+  const noise = context.createBufferSource()
+  noise.buffer = createNoiseBuffer(context)
+  const noiseFilter = context.createBiquadFilter()
+  noiseFilter.type = 'lowpass'
+  noiseFilter.frequency.value = 1000
+  const noiseGain = context.createGain()
+  noiseGain.gain.setValueAtTime(0, now)
+  noiseGain.gain.linearRampToValueAtTime(0.05, now + 0.02)
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
   
   sub.connect(gainSub).connect(context.destination)
-  mid.connect(filter).connect(gainMid).connect(context.destination)
+  mid.connect(gainMid).connect(context.destination)
+  noise.connect(noiseFilter).connect(noiseGain).connect(context.destination)
   
   sub.start(now)
   mid.start(now)
-  sub.stop(now + 0.5)
-  mid.stop(now + 0.3)
+  noise.start(now)
+  sub.stop(now + 0.3)
+  mid.stop(now + 0.2)
+  noise.stop(now + 0.25)
 }
 
 export function toggleAudioMuted() {
