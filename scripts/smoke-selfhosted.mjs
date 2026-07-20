@@ -12,7 +12,7 @@ const requiredSecurityHeaders = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
-  'content-security-policy': "base-uri 'self'; object-src 'none'; frame-ancestors 'self'",
+  'content-security-policy': "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
 }
 
 export function assertSecurityHeaders(headers, path) {
@@ -21,8 +21,23 @@ export function assertSecurityHeaders(headers, path) {
   }
 }
 
+export function assertHttpsBaseUrl(baseUrl) {
+  let url
+  try {
+    url = new URL(baseUrl)
+  } catch {
+    throw new Error(`自托管 smoke 基址必须是 HTTPS URL：${baseUrl}`)
+  }
+  if (url.protocol !== 'https:') throw new Error(`自托管 smoke 基址必须使用 HTTPS：${baseUrl}`)
+}
+
 export function assertRobotsText(content, path) {
-  if (!/^User-agent:\s*\*/mi.test(content) || /<html/i.test(content)) {
+  const valid = /^User-agent:\s*\*/mi.test(content)
+    && /^Disallow:\s*\/admin\/$/mi.test(content)
+    && /^Disallow:\s*\/api\/$/mi.test(content)
+    && !/^Allow:\s*\/$/mi.test(content)
+    && !/<html/i.test(content)
+  if (!valid) {
     throw new Error(`${path} 不是有效的 robots.txt 纯文本规则`)
   }
 }
@@ -35,7 +50,8 @@ async function request(baseUrl, path) {
   return { response, text }
 }
 
-export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || 'http://127.0.0.1', apiOnly = false } = {}) {
+export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false } = {}) {
+  assertHttpsBaseUrl(baseUrl)
   const health = await request(baseUrl, '/api/health')
   assertStatus(health.response.status, [200], '/api/health')
   const healthBody = JSON.parse(health.text)
@@ -62,9 +78,13 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
       throw new Error('/robots.txt Content-Type 必须为 text/plain')
     }
     assertRobotsText(robots.text, '/robots.txt')
-    for (const path of ['/assets/does-not-exist.js', '/this-route-should-not-exist']) {
+    for (const path of ['/assets/does-not-exist.js', '/admin/assets/does-not-exist.js', '/this-route-should-not-exist', '/llms.txt']) {
       const missing = await request(baseUrl, path)
       assertStatus(missing.response.status, [404], path)
+    }
+    for (const path of ['/roster/']) {
+      const route = await request(baseUrl, path)
+      assertStatus(route.response.status, [200], path)
     }
     const release = await request(baseUrl, '/release.json')
     assertStatus(release.response.status, [200], '/release.json')
