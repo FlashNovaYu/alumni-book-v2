@@ -66,4 +66,18 @@ describe('档案卡共享元素转场', () => {
     expect(viewTransitions).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.student-page \.detail-content-enter\s*\{[\s\S]*?animation:\s*none\s*!important;/)
     expect(viewTransitions).not.toContain('::view-transition-group(active-card)')
   })
+
+  it('为手机端提供更舒缓且对称的进入/返回节奏', () => {
+    const viewTransitions = read('styles/view-transitions.css')
+    const mobileMotion = viewTransitions.match(/@media\s*\(max-width:\s*768px\)\s*\{([\s\S]*)\}\s*$/)?.[1] || ''
+
+    expect(mobileMotion).toContain("html[data-student-transition='edge']::view-transition-old(root)")
+    expect(mobileMotion).toContain("html[data-student-transition='return-edge']::view-transition-old(root)")
+    expect(mobileMotion).toContain('animation-duration: 1.05s')
+    expect(mobileMotion).toContain('animation-delay: 0.14s')
+    expect(mobileMotion).toContain('animation-duration: 0.9s')
+    expect(mobileMotion).toContain('animation-duration: 0.62s')
+    expect(mobileMotion).toContain('student-edge-expand-mobile')
+    expect(mobileMotion).toContain('student-edge-contract-mobile')
+  })
 })

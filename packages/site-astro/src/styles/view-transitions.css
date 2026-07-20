@@ -237,6 +237,76 @@ html[data-theme='night'] .page-shell {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* 手机端屏幕更窄，边缘更早铺满可视区域，因此保留起步阶段再放慢扩散。 */
+@media (max-width: 768px) {
+  html[data-student-transition='edge']::view-transition-old(root) {
+    animation-duration: 1.05s;
+  }
+
+  html[data-student-transition='edge']::view-transition-new(root) {
+    animation-name: student-edge-expand-mobile;
+    animation-duration: 1.05s;
+  }
+
+  html[data-student-transition='return-edge']::view-transition-old(root) {
+    animation-name: student-edge-contract-mobile;
+    animation-duration: 1.05s;
+  }
+
+  ::view-transition-group(.student-identity) {
+    animation-delay: 0.14s;
+    animation-duration: 0.9s;
+  }
+
+  ::view-transition-group(.student-card-details) {
+    animation-duration: 0.62s;
+  }
+}
+
+@keyframes student-edge-expand-mobile {
+  0% {
+    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+  }
+  24% {
+    clip-path: inset(
+      calc(var(--student-card-top) - 2vmax)
+      calc(var(--student-card-right) - 2vmax)
+      calc(var(--student-card-bottom) - 2vmax)
+      calc(var(--student-card-left) - 2vmax)
+    );
+  }
+  72% {
+    clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
+  }
+  100% {
+    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+  }
+}
+
+@keyframes student-edge-contract-mobile {
+  0% {
+    opacity: 1;
+    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+  }
+  28% {
+    opacity: 0.88;
+    clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
+  }
+  76% {
+    opacity: 0.72;
+    clip-path: inset(
+      calc(var(--student-card-top) - 2vmax)
+      calc(var(--student-card-right) - 2vmax)
+      calc(var(--student-card-bottom) - 2vmax)
+      calc(var(--student-card-left) - 2vmax)
+    );
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+  }
+}
+
 /* View Transitions reduced motion */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
