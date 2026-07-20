@@ -40,6 +40,7 @@ type Bindings = {
   CORS_ORIGIN: string
   CORS_PREVIEW_ORIGINS?: string
   RELEASE_SHA?: string
+  RELEASE_SHA_STRICT?: string
 }
 
 type Variables = {
@@ -225,7 +226,7 @@ app.use('/api/timeline', etag())
 // 健康检查
 app.get('/api/health', (c) => {
   const releaseSha = c.env?.RELEASE_SHA
-  if (!/^[0-9a-f]{40}$/i.test(releaseSha || '')) {
+  if (c.env?.RELEASE_SHA_STRICT === '1' && !/^[0-9a-f]{40}$/i.test(releaseSha || '')) {
     return c.json({ success: false, data: { status: 'error' }, message: '发布标识未配置或无效' }, 503)
   }
   return c.json({ success: true, data: { status: 'ok', version: '2.0.0', releaseSha } })

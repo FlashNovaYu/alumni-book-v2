@@ -12,6 +12,7 @@ import {
   symlinkSync,
 } from 'node:fs'
 import { createServer } from 'node:http'
+import { execFileSync } from 'node:child_process'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertSelfHostedReleasePreflight } from './preflight-selfhosted-release.mjs'
@@ -119,6 +120,10 @@ export async function startCandidateStagingServer({ releaseDir, candidateApiBase
       const requested = decoded.endsWith('/') ? `${decoded}index.html` : decoded
       let file = resolve(staticRoot, `.${requested}`)
       if (!file.startsWith(`${staticRoot}${sep}`) && file !== staticRoot) throw new Error('非法 staging 路径')
+      if ((!existsSync(file) || statSync(file).isDirectory()) && extname(decoded)) {
+        response.writeHead(404).end('Not Found')
+        return
+      }
       if (!existsSync(file) || statSync(file).isDirectory()) {
         file = join(staticRoot, decoded.startsWith('/admin/') ? 'admin/index.html' : 'index.html')
       }
@@ -153,6 +158,10 @@ export async function atomicDeploySelfHosted({
   smoke = ({ baseUrl, expectedSha }) => smokeSelfHosted({ baseUrl, expectedSha }),
   startStaging = startCandidateStagingServer,
   switchCurrent = switchCurrentSymlinkAtomically,
+  promoteApi = async () => undefined,
+  rollbackApi = async () => undefined,
+  liveBaseUrl,
+  liveSmoke = smoke,
 } = {}) {
   assertReleaseSha(releaseSha)
   if (!candidateApiBaseUrl) throw new Error('原子发布必须提供 candidate-api-base-url')
@@ -170,7 +179,19 @@ export async function atomicDeploySelfHosted({
   } finally {
     await staging?.close()
   }
-  await switchCurrent({ livePath, releaseDir })
+  let apiPromoted = false
+  let staticSwitched = false
+  try {
+    await promoteApi({ releaseSha, candidateApiBaseUrl, previousLiveSha })
+    apiPromoted = true
+    await switchCurrent({ livePath, releaseDir })
+    staticSwitched = true
+    if (liveBaseUrl) await liveSmoke({ baseUrl: liveBaseUrl, expectedSha: releaseSha })
+  } catch (error) {
+    if (staticSwitched && previousLiveSha) await switchCurrent({ livePath, releaseDir: join(resolve(releasesRoot), previousLiveSha) })
+    if (apiPromoted) await rollbackApi({ previousLiveSha })
+    throw error
+  }
 
   let cleanupWarning
   let retained = []
@@ -190,6 +211,10 @@ export async function rollbackSelfHostedRelease({
   smoke = ({ baseUrl, expectedSha }) => smokeSelfHosted({ baseUrl, expectedSha }),
   startStaging = startCandidateStagingServer,
   switchCurrent = switchCurrentSymlinkAtomically,
+  promoteApi = async () => undefined,
+  rollbackApi = async () => undefined,
+  liveBaseUrl,
+  liveSmoke = smoke,
 } = {}) {
   assertReleaseSha(releaseSha)
   const releaseDir = join(resolve(releasesRoot), releaseSha)
@@ -201,7 +226,20 @@ export async function rollbackSelfHostedRelease({
   } finally {
     await staging.close()
   }
-  await switchCurrent({ livePath, releaseDir })
+  const previousLiveSha = resolveLiveReleaseSha({ livePath, releasesRoot })
+  let promoted = false
+  let switched = false
+  try {
+    await promoteApi({ releaseSha, candidateApiBaseUrl, previousLiveSha })
+    promoted = true
+    await switchCurrent({ livePath, releaseDir })
+    switched = true
+    if (liveBaseUrl) await liveSmoke({ baseUrl: liveBaseUrl, expectedSha: releaseSha })
+  } catch (error) {
+    if (switched && previousLiveSha) await switchCurrent({ livePath, releaseDir: join(resolve(releasesRoot), previousLiveSha) })
+    if (promoted) await rollbackApi({ previousLiveSha })
+    throw error
+  }
   return { releaseSha, releaseDir }
 }
 
@@ -219,7 +257,11 @@ export function parseAtomicReleaseArgs(argv = process.argv) {
   const livePath = argument(argv, '--live-path') || '/www/wwwroot/alumni-book'
   const candidateApiBaseUrl = argument(argv, '--candidate-api-base-url') || process.env.SELF_HOST_CANDIDATE_API_BASE_URL
   if (!candidateApiBaseUrl) throw new Error(`${command} 命令必须提供 --candidate-api-base-url`)
-  if (command === 'rollback') return { command, releaseSha, releasesRoot, livePath, candidateApiBaseUrl }
+  const promoteApiHook = argument(argv, '--promote-api-hook')
+  const rollbackApiHook = argument(argv, '--rollback-api-hook')
+  const liveBaseUrl = argument(argv, '--live-base-url')
+  if (!promoteApiHook || !rollbackApiHook || !liveBaseUrl) throw new Error('deploy 必须提供 API promotion/rollback hook 和 live-base-url')
+  if (command === 'rollback') return { command, releaseSha, releasesRoot, livePath, candidateApiBaseUrl, promoteApiHook, rollbackApiHook, liveBaseUrl }
   const retain = Number(argument(argv, '--retain') || 3)
   if (!Number.isInteger(retain) || retain < 3) throw new Error('原子发布至少保留 3 个版本（当前版本和两个旧版本）')
   return {
@@ -230,6 +272,9 @@ export function parseAtomicReleaseArgs(argv = process.argv) {
     livePath,
     candidateApiBaseUrl,
     retain,
+    promoteApiHook,
+    rollbackApiHook,
+    liveBaseUrl,
   }
 }
 
@@ -237,8 +282,16 @@ if (process.argv[1]?.endsWith('atomic-selfhosted-release.mjs')) {
   try {
     const options = parseAtomicReleaseArgs()
     const result = options.command === 'deploy'
-      ? await atomicDeploySelfHosted(options)
-      : await rollbackSelfHostedRelease(options)
+      ? await atomicDeploySelfHosted({
+        ...options,
+        promoteApi: ({ releaseSha }) => execFileSync(options.promoteApiHook, [releaseSha], { stdio: 'inherit' }),
+        rollbackApi: ({ previousLiveSha }) => execFileSync(options.rollbackApiHook, previousLiveSha ? [previousLiveSha] : [], { stdio: 'inherit' }),
+      })
+      : await rollbackSelfHostedRelease({
+        ...options,
+        promoteApi: ({ releaseSha }) => execFileSync(options.promoteApiHook, [releaseSha], { stdio: 'inherit' }),
+        rollbackApi: ({ previousLiveSha }) => execFileSync(options.rollbackApiHook, previousLiveSha ? [previousLiveSha] : [], { stdio: 'inherit' }),
+      })
     if (result.cleanupWarning) console.warn(`发布已切换，但旧版本清理失败：${result.cleanupWarning}`)
     console.log(`${options.command === 'deploy' ? 'Atomic release' : 'Rollback'} completed: ${result.releaseSha}`)
   } catch (error) {

@@ -82,6 +82,15 @@ async function request(baseUrl, path, init = {}) {
   return { response, text }
 }
 
+async function assertReferencedAssets(baseUrl, html, pagePath) {
+  const assets = [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/gi)].map((match) => match[1]).filter((value) => value.startsWith('/'))
+  for (const asset of new Set(assets)) {
+    const result = await request(baseUrl, asset)
+    assertStatus(result.response.status, [200], `${pagePath} 引用 ${asset}`)
+    if (/^\s*</.test(result.text)) throw new Error(`${pagePath} 引用 ${asset} 返回了 HTML`)
+  }
+}
+
 export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false, expectedSha } = {}) {
   assertHttpsBaseUrl(baseUrl)
   assertReleaseSha(expectedSha, '--expected-sha')
@@ -110,9 +119,11 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
     const home = await request(baseUrl, '/')
     assertStatus(home.response.status, [200], '/')
     assertSecurityHeaders(home.response.headers, '/')
+    await assertReferencedAssets(baseUrl, home.text, '/')
     const admin = await request(baseUrl, '/admin/')
     assertStatus(admin.response.status, [200], '/admin/')
     assertSecurityHeaders(admin.response.headers, '/admin/')
+    await assertReferencedAssets(baseUrl, admin.text, '/admin/')
     const robots = await request(baseUrl, '/robots.txt')
     assertStatus(robots.response.status, [200], '/robots.txt')
     if (!robots.response.headers.get('content-type')?.startsWith('text/plain')) {

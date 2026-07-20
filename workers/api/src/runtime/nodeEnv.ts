@@ -20,6 +20,7 @@ export type NodeRuntimeEnv = {
   CORS_ORIGIN: string
   CORS_PREVIEW_ORIGINS?: string
   RELEASE_SHA: string
+  RELEASE_SHA_STRICT: string
 }
 
 export type NodeRuntime = {
@@ -56,6 +57,7 @@ export function createNodeRuntime(config: NodeRuntimeConfig = {}): NodeRuntime {
       JWT_SECRET: jwtSecret,
       CORS_ORIGIN: corsOrigin,
       RELEASE_SHA: releaseSha,
+      RELEASE_SHA_STRICT: '1',
       ...(corsPreviewOrigins ? { CORS_PREVIEW_ORIGINS: corsPreviewOrigins } : {}),
     },
     close() {

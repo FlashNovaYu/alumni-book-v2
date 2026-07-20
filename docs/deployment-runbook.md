@@ -106,20 +106,26 @@ pnpm release:selfhosted:atomic -- deploy \
   --release-sha "$RELEASE_SHA" \
   --artifact-dir /opt/alumni-book/app/deploy/selfhosted \
   --candidate-api-base-url http://127.0.0.1:8788 \
+  --promote-api-hook /opt/alumni-book/bin/promote-api-slot \
+  --rollback-api-hook /opt/alumni-book/bin/rollback-api-slot \
+  --live-base-url http://118.178.88.227 \
   --retain 3
 ```
 
-脚本先把候选产物准备到 `/www/wwwroot/releases/$RELEASE_SHA`，再由 loopback staging 对该最终目录和隔离候选 API 执行完整 smoke，并强制静态清单、API health 和 expected SHA 三者一致。只有 smoke 成功后才会在 `/www/wwwroot` 内创建临时 symlink 并以 rename 原子替换 `alumni-book`；staging 失败不会触碰当前 symlink 或线上 API。成功后清理旧版时会显式保护切换前 live symlink 指向的版本，即使它是刚回滚到的较老版本，也至少保留当前版本和两个历史版本。
+脚本先对最终 release 目录和隔离候选 API 执行完整 smoke，并检查首页及后台引用的本地 JS/CSS。通过后依次调用 API promotion hook、原子切换静态 symlink，并对公网同源入口执行 expected-SHA smoke；后两步失败会恢复旧静态目标并调用 API rollback hook。两个 hook 必须是运维侧提供的无交互可执行文件，负责蓝绿 API 槽位切换及恢复，脚本只传递完整 SHA，不读取或输出凭据。staging 失败不会触碰旧静态或旧 API。
 
 首次启用前，如果 `/www/wwwroot/alumni-book` 仍是实体目录，需要在维护窗口把它移动到独立的 pre-atomic 备份目录并立即用指向该备份的 symlink 替代。由于旧线上版本当前无法证明完整 SHA，不得把它伪装成 `/releases/<SHA>`；在积累三个已验证版本前保留这份备份。此一次性迁移不是后续原子发布脚本的一部分。
 
-明确回滚到已保留的历史版本：先把 API 应用和 `deploy/.env` 恢复到同一个目标 SHA并重启 API，再原子切换静态 symlink，最后用目标 SHA 做公网 smoke。不要只改 `RELEASE_SHA` 来冒充旧 API 代码：
+明确回滚到已保留的历史版本：先在隔离候选槽启动目标 API，回滚命令会先 smoke 历史静态目录与候选 API，再通过同一组 promotion/rollback hook 切换并补偿。不要在 smoke 前改线上 API：
 
 ```bash
 cd /opt/alumni-book/app
 pnpm release:selfhosted:atomic -- rollback \
   --release-sha '<目标完整 40 位提交 SHA>' \
-  --candidate-api-base-url http://127.0.0.1:8788
+  --candidate-api-base-url http://127.0.0.1:8788 \
+  --promote-api-hook /opt/alumni-book/bin/promote-api-slot \
+  --rollback-api-hook /opt/alumni-book/bin/rollback-api-slot \
+  --live-base-url http://118.178.88.227
 node scripts/smoke-selfhosted.mjs \
   --base-url http://118.178.88.227 \
   --expected-sha '<目标完整 40 位提交 SHA>'
