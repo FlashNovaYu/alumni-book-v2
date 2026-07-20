@@ -71,6 +71,65 @@ test('roster paginates twelve cards, resets search to the first page, and hides 
   await expect(page.locator('.roster-card:visible').getByText('分页同学 1', { exact: true })).toBeVisible()
 })
 
+test('roster switches whole pages horizontally without collapsing the grid or changing scroll position', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/api/classmates**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: classmates }),
+    })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const viewport = page.locator('.roster-page-viewport')
+  const firstPage = page.locator('[data-roster-page="1"]')
+  const pagination = page.getByRole('navigation', { name: '人物长廊分页' })
+  await expect(firstPage.locator('.roster-card')).toHaveCount(12)
+  await pagination.scrollIntoViewIfNeeded()
+
+  const initialHeight = await viewport.evaluate((element) => element.getBoundingClientRect().height)
+  const initialScrollY = await page.evaluate(() => window.scrollY)
+  await page.getByRole('button', { name: '第 2 页' }).click()
+
+  const secondPage = page.locator('[data-roster-page="2"]')
+  await expect(firstPage).toHaveClass(/roster-page-forward-leave-active/)
+  await expect(secondPage).toHaveClass(/roster-page-forward-enter-active/)
+  await page.waitForTimeout(100)
+
+  const [outgoingX, incomingX, transitionHeight] = await Promise.all([
+    firstPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
+    secondPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
+    viewport.evaluate((element) => element.getBoundingClientRect().height),
+  ])
+  expect(outgoingX).toBeLessThan(-1)
+  expect(incomingX).toBeGreaterThan(1)
+  expect(transitionHeight).toBeGreaterThanOrEqual(initialHeight - 1)
+
+  await expect(firstPage).toHaveCount(0)
+  await expect(secondPage.locator('.roster-card')).toHaveCount(1)
+  const finalHeight = await viewport.evaluate((element) => element.getBoundingClientRect().height)
+  const finalScrollY = await page.evaluate(() => window.scrollY)
+  expect(finalHeight).toBeGreaterThanOrEqual(initialHeight - 1)
+  expect(Math.abs(finalScrollY - initialScrollY)).toBeLessThanOrEqual(2)
+
+  await page.getByRole('button', { name: '第 1 页' }).click()
+  await expect(secondPage).toHaveClass(/roster-page-backward-leave-active/)
+  await expect(firstPage).toHaveClass(/roster-page-backward-enter-active/)
+  await page.waitForTimeout(100)
+
+  const [backwardOutgoingX, backwardIncomingX] = await Promise.all([
+    secondPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
+    firstPage.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).m41),
+  ])
+  expect(backwardOutgoingX).toBeGreaterThan(1)
+  expect(backwardIncomingX).toBeLessThan(-1)
+  await expect(secondPage).toHaveCount(0)
+  await expect(firstPage.locator('.roster-card')).toHaveCount(12)
+})
+
 test('roster only renders ellipses when pagination omits page numbers', async ({ page }) => {
   let responseClassmates = createClassmates(27)
   await page.route('**/api/classmates**', (route) => route.fulfill({

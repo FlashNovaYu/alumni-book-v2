@@ -51,16 +51,29 @@
     </div>
 
     <!-- 同学列表网格 -->
-    <TransitionGroup v-else-if="filteredClassmates.length > 0" :name="transitionName" tag="div" class="roster-grid">
-      <ArchiveRosterCard
-        v-for="(mate, index) in paginatedClassmates"
-        :key="mate.slug"
-        :card="toArchiveClassmateCard(mate, siteBase)"
-        :api-base="apiBase"
-        :base-transform="`rotateZ(${getStaticRotation((currentPage - 1) * PAGE_SIZE + index)}deg) translateY(${getStaticY((currentPage - 1) * PAGE_SIZE + index)}px)`"
-        @identity-transition="rememberIdentityTransition"
-      />
-    </TransitionGroup>
+    <div
+      v-else-if="filteredClassmates.length > 0"
+      class="roster-page-viewport"
+      :style="stablePageHeight ? { minHeight: `${stablePageHeight}px` } : undefined"
+    >
+      <Transition :name="transitionName" @after-enter="rememberPageHeight">
+        <div
+          ref="rosterPageRef"
+          :key="currentPage"
+          class="roster-page roster-grid"
+          :data-roster-page="currentPage"
+        >
+          <ArchiveRosterCard
+            v-for="(mate, index) in paginatedClassmates"
+            :key="mate.slug"
+            :card="toArchiveClassmateCard(mate, siteBase)"
+            :api-base="apiBase"
+            :base-transform="`rotateZ(${getStaticRotation((currentPage - 1) * PAGE_SIZE + index)}deg) translateY(${getStaticY((currentPage - 1) * PAGE_SIZE + index)}px)`"
+            @identity-transition="rememberIdentityTransition"
+          />
+        </div>
+      </Transition>
+    </div>
 
     <!-- 空状态 -->
     <UiEmptyState
@@ -166,12 +179,19 @@ function getStaticY(index: number) {
   return (Math.cos(index * 2.1) * 4).toFixed(2);
 }
 const currentPage = ref(1)
-const transitionName = ref('roster-list-forward')
+const transitionName = ref('roster-page-forward')
 const isRestoringIdentityState = ref(false)
 const loading = ref(false)
 const PAGE_SIZE = 12
 
 const rootRef = ref<HTMLElement | null>(null)
+const rosterPageRef = ref<HTMLElement | null>(null)
+const stablePageHeight = ref(0)
+
+function rememberPageHeight() {
+  const height = rosterPageRef.value?.getBoundingClientRect().height ?? 0
+  stablePageHeight.value = Math.max(stablePageHeight.value, Math.ceil(height))
+}
 
 const filteredClassmates = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
@@ -207,8 +227,11 @@ const searchCountText = computed(() => {
   return '浏览所有同学档案（若 TA 的页面待完善，欢迎联系管理员补全资料）'
 })
 
-watch(keyword, () => {
+watch(keyword, async () => {
+  stablePageHeight.value = 0
   if (!isRestoringIdentityState.value) currentPage.value = 1
+  await nextTick()
+  rememberPageHeight()
 })
 
 watch(totalPages, () => {
@@ -219,9 +242,9 @@ function goToPage(page: number) {
   if (page < 1 || page > totalPages.value || page === currentPage.value) return
 
   if (page > currentPage.value) {
-    transitionName.value = 'roster-list-forward'
+    transitionName.value = 'roster-page-forward'
   } else {
-    transitionName.value = 'roster-list-backward'
+    transitionName.value = 'roster-page-backward'
   }
 
   currentPage.value = page
@@ -248,6 +271,8 @@ onMounted(async () => {
     isRestoringIdentityState.value = false
   }
 
+  rememberPageHeight()
+
   runWhenIdle(async () => {
     try {
       // 页面已有 SSG 数据时，后台刷新不能用骨架替换真实卡片，否则会造成布局跳动。
@@ -258,6 +283,8 @@ onMounted(async () => {
       )
       if (changed && data?.success && Array.isArray(data.data)) {
         classmates.value = data.data.sort((a, b) => (b.completion || 0) - (a.completion || 0))
+        await nextTick()
+        rememberPageHeight()
       }
     } catch (e) {
       console.error('Failed to sync classmates list via SWR:', e)
@@ -417,36 +444,45 @@ onMounted(async () => {
   perspective: 1200px;
 }
 
-.roster-list-forward-move,
-.roster-list-forward-enter-active,
-.roster-list-forward-leave-active,
-.roster-list-backward-move,
-.roster-list-backward-enter-active,
-.roster-list-backward-leave-active {
-  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+.roster-page-viewport {
+  position: relative;
 }
 
-.roster-list-forward-enter-from {
-  opacity: 0;
-  transform: translateX(30px) scale(0.95);
-}
-.roster-list-forward-leave-to {
-  opacity: 0;
-  transform: translateX(-30px) scale(0.95);
+.roster-page-forward-enter-active,
+.roster-page-forward-leave-active,
+.roster-page-backward-enter-active,
+.roster-page-backward-leave-active {
+  transition:
+    opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: opacity, transform;
 }
 
-.roster-list-backward-enter-from {
-  opacity: 0;
-  transform: translateX(-30px) scale(0.95);
-}
-.roster-list-backward-leave-to {
+.roster-page-forward-enter-from {
   opacity: 0;
   transform: translateX(30px) scale(0.95);
 }
 
-.roster-list-forward-leave-active,
-.roster-list-backward-leave-active {
+.roster-page-forward-leave-to {
+  opacity: 0;
+  transform: translateX(-30px) scale(0.95);
+}
+
+.roster-page-backward-enter-from {
+  opacity: 0;
+  transform: translateX(-30px) scale(0.95);
+}
+
+.roster-page-backward-leave-to {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+}
+
+.roster-page-forward-leave-active,
+.roster-page-backward-leave-active {
   position: absolute;
+  inset: 0;
+  width: 100%;
 }
 
 /* Pagination spacing */
