@@ -92,6 +92,7 @@ async function requestJson({
       }),
     ])
   } catch (error) {
+    clearTimeout(timeout)
     if (error instanceof ChatSmokeError) throw error
     throw new ChatSmokeError(`请求失败 path=${displayPath} status=network-error`)
   }
