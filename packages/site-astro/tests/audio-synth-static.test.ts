@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const src = resolve(__dirname, '../src')
+const audioAssets = resolve(__dirname, '../public/audio/ui')
 const read = (file: string) => readFileSync(resolve(src, file), 'utf8')
 
 describe('温润青春档案音效契约', () => {
@@ -33,5 +34,11 @@ describe('温润青春档案音效契约', () => {
     expect(assets).toContain('paper-brush.ogg')
     expect(assets).toContain('camera-shutter.ogg')
     expect(assets).toContain('Promise<AudioBuffer | null>')
+  })
+
+  it('仓库包含三段短微采样资源', () => {
+    for (const file of ['wood-tap.ogg', 'paper-brush.ogg', 'camera-shutter.ogg']) {
+      expect(existsSync(resolve(audioAssets, file))).toBe(true)
+    }
   })
 })
