@@ -31,6 +31,12 @@ timelineRoutes.get('/timeline', async (c) => {
   return c.json({ success: true, data: timeline })
 })
 
+// 内容审计使用精确记录数，避免公开 feed 的 100 条展示上限造成误判。
+timelineRoutes.get('/timeline/count', async (c) => {
+  const row = await c.env.DB.prepare('SELECT COUNT(*) AS count FROM timeline_events').first<{ count: number }>()
+  return c.json({ success: true, data: { count: Number(row?.count || 0) } })
+})
+
 timelineRoutes.get('/admin/timeline/events', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT * FROM timeline_events ORDER BY event_date DESC, sort_order ASC, id ASC'

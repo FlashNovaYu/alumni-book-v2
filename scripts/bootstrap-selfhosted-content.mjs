@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+import { existsSync, realpathSync } from 'node:fs'
 
 /**
  * 阿里云自托管内容初始化前的只读审计和幂等初始化骨架。
@@ -61,8 +63,12 @@ export function summarizeContent(input = {}) {
     avatarCount: students.filter((student) => Boolean(student?.avatar_url || student?.avatarUrl)).length,
     albumCount: albums.length,
     photoCount: photos.length,
-    timelineCount: timeline.length,
-    ownerCount: students.filter((student) => Boolean(student?.is_owner || student?.isOwner || student?.hasStandardProfile === false)).length,
+    timelineCount: Number.isInteger(input.timelineCount) ? input.timelineCount : timeline.length,
+    ownerCount: input.ownerCount === null
+      ? null
+      : Number.isInteger(input.ownerCount)
+        ? input.ownerCount
+        : students.filter((student) => Boolean(student?.is_owner || student?.isOwner || student?.hasStandardProfile === false)).length,
   }
 }
 
@@ -83,6 +89,7 @@ export function runBootstrap({ rows, writer, dryRun = true } = {}) {
   const warnings = baselineMatches
     ? []
     : ['内容统计相对已知基线漂移（46/6/0/1/0/47/0），请先人工核对数据来源和初始化清单。']
+  if (stats.ownerCount === null) warnings.push('当前输入未提供 is_owner 字段，owner 数未知；请改用受控 SQLite 报告。')
   const statements = buildInitializationStatements()
   if (!dryRun) {
     if (!writer || typeof writer.exec !== 'function') throw new Error('执行初始化需要可写数据库连接')
@@ -106,32 +113,70 @@ async function readApiRows(baseUrl) {
     const response = await fetch(`${baseUrl}${route}`)
     if (!response.ok) throw new Error(`${route} 请求失败：HTTP ${response.status}`)
     const payload = await response.json()
-    if (!payload || payload.success === false) throw new Error(`${route} 返回失败`) 
+    if (!payload || payload.success === false) throw new Error(`${route} 返回失败`)
     return payload.data
   }
-  const [students, albums, timeline] = await Promise.all([
+  const [students, albums, timeline, timelineCountPayload] = await Promise.all([
     getJson('/api/classmates'),
     getJson('/api/albums'),
-    getJson('/api/timeline'),
+    getJson('/api/timeline?type=event'),
+    getJson('/api/timeline/count'),
   ])
-  return { students: Array.isArray(students) ? students : [], albums: Array.isArray(albums) ? albums : [], timeline: Array.isArray(timeline) ? timeline : [] }
+  const studentRows = Array.isArray(students) ? students : []
+  const hasOwnerField = studentRows.every((student) => Object.hasOwn(student || {}, 'isOwner') || Object.hasOwn(student || {}, 'is_owner'))
+  return {
+    students: studentRows,
+    albums: Array.isArray(albums) ? albums : [],
+    timeline: Array.isArray(timeline) ? timeline : [],
+    timelineCount: Number(timelineCountPayload?.count),
+    ownerCount: hasOwnerField ? studentRows.filter((student) => Boolean(student?.isOwner || student?.is_owner)).length : null,
+  }
 }
 
-async function openSqlite(databasePath, writable) {
-  let Database
-  try {
-    ({ default: Database } = await import('better-sqlite3'))
-  } catch {
-    throw new Error('未找到 better-sqlite3；请使用 --api-base 或在 API 容器依赖中运行此脚本')
-  }
-  const database = new Database(databasePath, { readonly: !writable })
-  const rows = {
+function readSqliteRows(database) {
+  return {
     students: database.prepare('SELECT avatar_url, info, is_owner FROM students').all(),
     albums: database.prepare('SELECT id FROM albums').all(),
     photos: database.prepare('SELECT id FROM photos').all(),
     timeline: database.prepare('SELECT id FROM timeline_events').all(),
   }
-  return { database, rows }
+}
+
+export async function openSqlite(databasePath, writable) {
+  let database
+  try {
+    const { DatabaseSync } = await import('node:sqlite')
+    database = new DatabaseSync(databasePath, { readOnly: !writable })
+  } catch (nodeSqliteError) {
+    try {
+      const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+      const require = createRequire(path.join(repoRoot, 'workers/api/package.json'))
+      const Database = require('better-sqlite3')
+      database = new Database(databasePath, { readonly: !writable })
+    } catch {
+      throw new Error(`无法加载 SQLite 运行时（node:sqlite 和 workers/api better-sqlite3 均不可用）：${nodeSqliteError instanceof Error ? nodeSqliteError.message : String(nodeSqliteError)}`)
+    }
+  }
+  return { database, rows: readSqliteRows(database) }
+}
+
+function isWithin(child, parent) {
+  const relative = path.relative(path.resolve(parent), path.resolve(child))
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+}
+
+function validateApplyOptions(options) {
+  if (!options.databasePathExplicit) throw new Error('--apply 必须显式提供 --database-path')
+  if (!existsSync(options.databasePath)) throw new Error('SQLite 数据库路径不存在')
+  const databasePath = realpathSync(options.databasePath)
+  const roots = [options.dataRoot, options.backupRoot].filter(Boolean).map((root) => path.resolve(root))
+  if (roots.length === 0 || !roots.some((root) => isWithin(databasePath, root))) {
+    throw new Error('SQLite 路径必须位于 SELFHOSTED_DATA_ROOT 或 SELFHOSTED_BACKUP_ROOT 受控范围内')
+  }
+  if (!options.backupProof || !existsSync(options.backupProof)) throw new Error('apply 必须提供存在的备份证明')
+  if (!options.backupRoot || !isWithin(realpathSync(options.backupProof), options.backupRoot)) {
+    throw new Error('备份证明必须位于 SELFHOSTED_BACKUP_ROOT 受控范围内')
+  }
 }
 
 function parseArgs(argv) {
@@ -141,13 +186,18 @@ function parseArgs(argv) {
   }
   return {
     dryRun: !argv.includes('--apply'),
-    databasePath: valueAfter('--database-path') || process.env.DATABASE_PATH || './.data/alumni.sqlite',
+    databasePathExplicit: argv.includes('--database-path'),
+    databasePath: valueAfter('--database-path') || process.env.DATABASE_PATH,
     apiBase: valueAfter('--api-base') || process.env.SELF_HOST_BASE_URL,
+    backupProof: valueAfter('--backup-proof') || process.env.SELFHOSTED_BACKUP_PROOF,
+    dataRoot: valueAfter('--data-root') || process.env.SELFHOSTED_DATA_ROOT,
+    backupRoot: valueAfter('--backup-root') || process.env.SELFHOSTED_BACKUP_ROOT,
   }
 }
 
 export async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv)
+  if (!options.dryRun) validateApplyOptions(options)
   let database
   let rows
   if (options.apiBase) {
@@ -158,6 +208,10 @@ export async function main(argv = process.argv.slice(2)) {
   }
   try {
     const report = runBootstrap({ rows, writer: database, dryRun: options.dryRun })
+    if (!options.dryRun) {
+      report.beforeStats = report.stats
+      report.afterStats = summarizeContent(readSqliteRows(database))
+    }
     console.log(JSON.stringify(report, null, 2))
     return report
   } finally {

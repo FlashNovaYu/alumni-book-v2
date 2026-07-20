@@ -88,10 +88,13 @@ node scripts/bootstrap-selfhosted-content.mjs --api-base $env:SELF_HOST_BASE_URL
 如需写入固定的审计标记，必须先完成 SQLite 备份，再显式使用受控数据库路径执行：
 
 ```powershell
-node scripts/bootstrap-selfhosted-content.mjs --database-path $env:DATABASE_PATH --apply
+node scripts/bootstrap-selfhosted-content.mjs `
+  --database-path $env:DATABASE_PATH `
+  --backup-proof $env:SELFHOSTED_BACKUP_PROOF `
+  --apply
 ```
 
-脚本只使用固定 ID 和 `INSERT ... ON CONFLICT DO UPDATE` 的无操作冲突更新，不导入 Cloudflare 数据，也不覆盖管理员已编辑字段；默认 dry-run 和 API 模式永远不写入。
+`--apply` 同时要求数据库路径位于 `SELFHOSTED_DATA_ROOT` 或 `SELFHOSTED_BACKUP_ROOT`，备份证明文件位于 `SELFHOSTED_BACKUP_ROOT` 且确实存在；不满足任一条件立即拒绝。脚本只使用固定 ID 和 `INSERT ... ON CONFLICT DO UPDATE` 的无操作冲突更新，不导入 Cloudflare 数据，也不覆盖管理员已编辑字段；默认 dry-run 和 API 模式永远不写入。
 
 ### 上传与文件服务验收
 
