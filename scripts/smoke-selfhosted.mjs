@@ -13,6 +13,7 @@ const requiredSecurityHeaders = {
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'content-security-policy': "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
 }
 
 export function assertSecurityHeaders(headers, path) {
@@ -31,6 +32,14 @@ export function assertHttpsBaseUrl(baseUrl) {
   if (url.protocol !== 'https:') throw new Error(`自托管 smoke 基址必须使用 HTTPS：${baseUrl}`)
 }
 
+export function assertHttpRedirect(response, expectedHttpsUrl) {
+  if (response.status !== 301) throw new Error(`HTTP 入口状态码异常：${response.status}，预期 301`)
+  const location = response.headers.get('location')
+  if (!location || new URL(location, expectedHttpsUrl).href !== expectedHttpsUrl) {
+    throw new Error(`HTTP 入口未重定向到预期 HTTPS 地址：${expectedHttpsUrl}`)
+  }
+}
+
 export function assertRobotsText(content, path) {
   const valid = /^User-agent:\s*\*/mi.test(content)
     && /^Disallow:\s*\/admin\/$/mi.test(content)
@@ -42,9 +51,9 @@ export function assertRobotsText(content, path) {
   }
 }
 
-async function request(baseUrl, path) {
+async function request(baseUrl, path, init = {}) {
   const url = `${baseUrl.replace(/\/$/, '')}${path}`
-  const response = await fetch(url)
+  const response = await fetch(url, init)
   const text = await response.text()
   assertNoCloudflareHost(text, path)
   return { response, text }
@@ -52,6 +61,11 @@ async function request(baseUrl, path) {
 
 export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL || '', apiOnly = false } = {}) {
   assertHttpsBaseUrl(baseUrl)
+  const secureBaseUrl = baseUrl.replace(/\/$/, '')
+  const httpBaseUrl = new URL(secureBaseUrl)
+  httpBaseUrl.protocol = 'http:'
+  const redirect = await request(httpBaseUrl.origin, '/', { redirect: 'manual' })
+  assertHttpRedirect(redirect.response, `${secureBaseUrl}/`)
   const health = await request(baseUrl, '/api/health')
   assertStatus(health.response.status, [200], '/api/health')
   const healthBody = JSON.parse(health.text)
@@ -82,7 +96,7 @@ export async function smokeSelfHosted({ baseUrl = process.env.SELF_HOST_BASE_URL
       const missing = await request(baseUrl, path)
       assertStatus(missing.response.status, [404], path)
     }
-    for (const path of ['/roster/']) {
+    for (const path of ['/roster/', '/album/', '/timeline/', '/mailbox/']) {
       const route = await request(baseUrl, path)
       assertStatus(route.response.status, [200], path)
     }

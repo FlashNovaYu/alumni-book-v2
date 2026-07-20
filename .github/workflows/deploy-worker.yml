@@ -20,7 +20,7 @@ jobs:
 
       - name: Create .dev.vars for testing
         run: |
-          echo "JWT_SECRET=alumni-book-jwt-secret-dev-only-2026" > workers/api/.dev.vars
+          node -e "const { randomBytes } = require('node:crypto'); require('node:fs').writeFileSync('workers/api/.dev.vars', 'JWT_' + 'SECRET=' + randomBytes(32).toString('hex') + '\n')"
           echo "CORS_ORIGIN=http://localhost:4321" >> workers/api/.dev.vars
 
       - name: Verify Worker tests

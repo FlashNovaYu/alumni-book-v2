@@ -1,13 +1,18 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { extname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const rootDir = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const textExtensions = new Set(['.cjs', '.conf', '.css', '.html', '.js', '.json', '.mjs', '.md', '.service', '.toml', '.ts', '.tsx', '.txt', '.vue', '.yaml', '.yml'])
 const secretKeyPattern = /\b([A-Za-z][A-Za-z0-9_-]*(?:password|passphrase|token|secret|api[_-]?key|access[_-]?key|private[_-]?key|credential)[A-Za-z0-9_-]*)\b\s*[:=]\s*(['"`])([^'"`]+)\2/gi
 const unquotedSecretPattern = /\b([A-Za-z][A-Za-z0-9_-]*(?:password|passphrase|token|secret|api[_-]?key|access[_-]?key|private[_-]?key|credential)[A-Za-z0-9_-]*)\b\s*[:=]\s*([A-Za-z0-9+/_=-]{32,})/gi
 const privateKeyPattern = new RegExp('-----BEGIN ' + '(?:[A-Z ]+ )?PRIVATE KEY-----')
+const explicitFixtureFindings = new Set([
+  'docs/superpowers/plans/2026-07-05-classmate-account-login-system.md:password',
+  'docs/superpowers/plans/2026-07-12-admin-rbac-workbench.md:password',
+  'workers/api/tests/admin-rbac.test.ts:password',
+  'workers/api/tests/api.test.ts:password',
+])
 
 function normalizeSecretKey(name) {
   const lower = name.toLowerCase()
@@ -77,7 +82,8 @@ function collectTextFiles(path, output) {
     }
     return
   }
-  if (textExtensions.has(extname(file).toLowerCase())) output.add(path.replaceAll('\\', '/'))
+  const content = readFileSync(file)
+  if (!content.includes(0)) output.add(path.replaceAll('\\', '/'))
 }
 
 export function getDefaultDeploymentScanPaths() {
@@ -85,7 +91,7 @@ export function getDefaultDeploymentScanPaths() {
   try {
     const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: rootDir, encoding: 'utf8' })
     for (const path of tracked.split('\0')) {
-      if (path && textExtensions.has(extname(path).toLowerCase())) paths.add(path)
+      if (path) paths.add(path)
     }
   } catch {
     // Git is optional when the verifier is copied into a release image.
@@ -98,8 +104,8 @@ export function verifyDeploymentSecrets({ paths = getDefaultDeploymentScanPaths(
   for (const path of paths) collectTextFiles(path, files)
   const findings = [...files].flatMap((path) => {
     const file = resolve(rootDir, path)
-    if (/(^|\/)(?:\.github|docs|skills|tests?)(\/|$)|(?:^|\.)test\.[^.]+$/i.test(path)) return []
     return findHardcodedDeploymentSecrets(readFileSync(file, 'utf8'), path)
+      .filter((finding) => !explicitFixtureFindings.has(`${finding.file}:${finding.key}`))
   })
   if (findings.length) {
     for (const finding of findings) console.error(`检测到硬编码部署凭据：${finding.file} [${finding.key}]`)
