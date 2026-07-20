@@ -214,6 +214,18 @@ test('请求超时会终止 smoke 而不会永久等待', async () => {
   )
 })
 
+test('响应头已返回但响应体不结束时仍受请求超时保护', async () => {
+  const fetchImpl = async (url) => {
+    if (new URL(url).pathname === '/release.json') return jsonResponse(200, { source: RELEASE_SHA })
+    return { status: 200, ok: true, json: () => new Promise(() => {}) }
+  }
+
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, fetchImpl, requestTimeoutMs: 10 }),
+    /请求超时/,
+  )
+})
+
 test('证据和失败信息不泄露 token、正文、slug、基址或服务端错误体', async () => {
   const evidence = []
   const secrets = [

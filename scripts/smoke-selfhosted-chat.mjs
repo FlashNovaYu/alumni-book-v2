@@ -94,16 +94,22 @@ async function requestJson({
   } catch (error) {
     if (error instanceof ChatSmokeError) throw error
     throw new ChatSmokeError(`请求失败 path=${displayPath} status=network-error`)
-  } finally {
-    clearTimeout(timeout)
   }
 
   const durationMs = now() - startedAt
   let payload
   try {
-    payload = await response.json()
-  } catch {
+    payload = await Promise.race([
+      response.json(),
+      new Promise((_, reject) => {
+        controller.signal.addEventListener('abort', () => reject(new ChatSmokeError(`请求超时 path=${displayPath}`)), { once: true })
+      }),
+    ])
+  } catch (error) {
+    if (error instanceof ChatSmokeError) throw error
     throw new ChatSmokeError(`响应格式异常 path=${displayPath} status=${response.status}`)
+  } finally {
+    clearTimeout(timeout)
   }
 
   if (releaseSha) log(evidenceLine({ path, status: response.status, durationMs, releaseSha }))
