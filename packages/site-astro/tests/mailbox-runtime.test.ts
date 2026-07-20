@@ -84,6 +84,56 @@ describe('同学会话请求可靠性', () => {
     await vi.advanceTimersByTimeAsync(50)
     await result
   })
+
+  it('fetch 阶段外部取消时保留调用方 signal.reason', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('用户取消发送', 'AbortError')
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = requestClassmateApi('https://api.example.test', '/api/inbox/sync', { signal: controller.signal })
+    controller.abort(reason)
+
+    await expect(request).rejects.toBe(reason)
+    expect(fetchMock.mock.calls[0][1]?.signal?.reason).toBe(reason)
+  })
+
+  it('响应体阶段外部取消时立即结束并保留调用方 signal.reason', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('离开信箱', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: () => new Promise<unknown>(() => {}),
+    } as Response)))
+
+    const request = requestClassmateApi('https://api.example.test', '/api/inbox/sync', { signal: controller.signal })
+    await Promise.resolve()
+    controller.abort(reason)
+
+    await expect(request).rejects.toBe(reason)
+  })
+
+  it('未显式配置时使用 15 秒默认超时', async () => {
+    vi.useFakeTimers()
+    let requestSignal: AbortSignal | undefined
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      requestSignal = init?.signal ?? undefined
+      requestSignal?.addEventListener('abort', () => reject(requestSignal?.reason), { once: true })
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = requestClassmateApi('https://api.example.test', '/api/inbox/sync')
+    const result = expect(request).rejects.toMatchObject({ name: 'ApiRequestError', status: 408 })
+    await vi.advanceTimersByTimeAsync(14_999)
+    expect(requestSignal?.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    await result
+    expect(requestSignal?.aborted).toBe(true)
+  })
 })
 
 describe('私聊乐观消息状态', () => {
@@ -109,37 +159,48 @@ describe('私聊乐观消息状态', () => {
 })
 
 describe('信箱同步退避', () => {
-  it('同步超时失败后按退避时间再次调度', async () => {
+  it('同步永不返回时主动取消、释放请求并按退避时间再次调度', async () => {
     expect(useVisibilityPolling).toBeDefined()
     const source = await vi.importActual<typeof import('../src/composables/useVisibilityPolling')>('../src/composables/useVisibilityPolling')
-    let attempts = 0
+    const signals: AbortSignal[] = []
     vi.useFakeTimers()
     const scope = effectScope()
     const polling = scope.run(() => source.useVisibilityPolling({
-        initialDelay: 0,
-        baseDelay: 1_000,
-        maxDelay: 3_000,
-        run: async () => {
-          attempts += 1
-          if (attempts === 1) throw new ApiRequestError('同步超时', 408)
-        },
+      initialDelay: 0,
+      baseDelay: 1_000,
+      maxDelay: 100,
+      timeoutMs: 50,
+      run: async (signal) => {
+        signals.push(signal)
+        return new Promise<void>(() => {})
+      },
       }))!
 
     await vi.advanceTimersByTimeAsync(0)
-    expect(attempts).toBe(1)
-    await vi.advanceTimersByTimeAsync(3_000)
-    expect(attempts).toBe(2)
+    expect(signals).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(50)
+    expect(signals[0].aborted).toBe(true)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(signals).toHaveLength(2)
     polling.stop()
     scope.stop()
+  })
+
+  it('信箱轮询显式使用 15 秒超时', async () => {
+    const source = await (await import('node:fs/promises')).readFile(new URL('../src/composables/useInbox.ts', import.meta.url), 'utf8')
+    expect(source).toContain('timeoutMs: 15_000')
   })
 })
 
 describe('私聊记录滚动契约', () => {
-  it('监听消息变化并仅在接近底部时自动滚动', async () => {
+  it('接近底部或自己发送时滚动，远离底部收件时显示跳转按钮', async () => {
     const source = await (await import('node:fs/promises')).readFile(new URL('../src/components/DirectConversationView.vue', import.meta.url), 'utf8')
     expect(source).toContain('watch(() => props.messages')
     expect(source).toContain('scrollHeight')
     expect(source).toContain('scrollTo')
     expect(source).toContain('scrollTop')
+    expect(source).toContain("senderSlug === props.currentSlug")
+    expect(source).toContain('hasNewMessages')
+    expect(source).toContain('跳到最新消息')
   })
 })

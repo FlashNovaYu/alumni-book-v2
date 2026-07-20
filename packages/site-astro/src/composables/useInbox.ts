@@ -324,7 +324,7 @@ export function useInbox(apiBase: string) {
     }
   }
 
-  useVisibilityPolling({ run: syncNow, initialDelay: 5_000, baseDelay: 5_000, maxDelay: 30_000 })
+  useVisibilityPolling({ run: syncNow, initialDelay: 5_000, baseDelay: 5_000, maxDelay: 30_000, timeoutMs: 15_000 })
 
   return {
     mode,

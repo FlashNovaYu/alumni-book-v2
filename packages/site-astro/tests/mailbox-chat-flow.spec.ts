@@ -68,8 +68,173 @@ test.beforeEach(async ({ page }) => {
   }))
   await page.route('**/api/classmates**', (route) => route.fulfill({
     contentType: 'application/json',
-    body: JSON.stringify({ success: true, data: [{ name: '测试同学', slug: 'test_init', avatarUrl: null }, { name: '李四', slug: 'lisi', avatarUrl: null }] }),
+    body: JSON.stringify({ success: true, data: [{ name: '测试同学', slug: 'test_init', avatarUrl: null }, { name: '李四', slug: 'lisi', avatarUrl: null }, { name: '王五', slug: 'wangwu', avatarUrl: null }] }),
   }))
+})
+
+async function chooseNewConversation(page: any, name: string) {
+  await page.getByRole('button', { name: '新建私聊' }).click()
+  await page.getByPlaceholder('搜索收件人姓名或拼音...').fill(name)
+  await page.getByRole('button', { name: `选择${name}` }).click()
+}
+
+test('新会话首发成功后归并左侧会话并清理临时 ID', async ({ page }) => {
+  let releaseResponse = () => {}
+  const responseGate = new Promise<void>((resolve) => { releaseResponse = resolve })
+  await page.unroute('**/api/direct-conversations')
+  await page.route('**/api/direct-conversations', async (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [conversation] } }) })
+    }
+    await responseGate
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          conversation: { id: 'conversation-wang', peer: { name: '王五', slug: 'wangwu', avatarUrl: null }, lastMessage: { id: 'wang-first', senderSlug: 'test_init', body: '第一封私信', createdAt: '2026-07-20T08:00:00.000Z' }, unreadCount: 0, updatedAt: '2026-07-20T08:00:00.000Z' },
+          message: { id: 'wang-first', conversationId: 'conversation-wang', senderSlug: 'test_init', recipientSlug: 'wangwu', body: '第一封私信', createdAt: '2026-07-20T08:00:00.000Z' },
+        },
+      }),
+    })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+  await chooseNewConversation(page, '王五')
+  await page.getByPlaceholder('写下想对王五说的话……').fill('第一封私信')
+  await page.getByRole('button', { name: '发送私信' }).click()
+  await expect(page.getByRole('log', { name: '与王五的私聊记录' }).getByText('发送中')).toBeVisible()
+  await expect(page.getByRole('button', { name: '王五', exact: true })).toHaveCount(0)
+
+  releaseResponse()
+  await expect(page.getByRole('button', { name: '王五', exact: true })).toContainText('第一封私信')
+  await expect(page.getByRole('button', { name: '王五', exact: true })).toHaveCount(1)
+  await expect(page.locator('.direct-message[data-conversation-id="conversation-wang"]')).toContainText('第一封私信')
+  await expect(page.locator('.direct-message[data-conversation-id^="pending-"]')).toHaveCount(0)
+})
+
+test('新会话首发 503 后保留失败消息并用同一 nonce 重试归并', async ({ page }) => {
+  const nonces: string[] = []
+  let attempts = 0
+  await page.unroute('**/api/direct-conversations')
+  await page.route('**/api/direct-conversations', async (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [conversation] } }) })
+    }
+    attempts += 1
+    nonces.push(route.request().postDataJSON().clientNonce)
+    if (attempts === 1) {
+      return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false, message: '首发暂不可用' }) })
+    }
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: {
+        conversation: { id: 'conversation-wang', peer: { name: '王五', slug: 'wangwu', avatarUrl: null }, lastMessage: { id: 'wang-retry', senderSlug: 'test_init', body: '失败后重试', createdAt: '2026-07-20T08:01:00.000Z' }, unreadCount: 0, updatedAt: '2026-07-20T08:01:00.000Z' },
+        message: { id: 'wang-retry', conversationId: 'conversation-wang', senderSlug: 'test_init', recipientSlug: 'wangwu', body: '失败后重试', createdAt: '2026-07-20T08:01:00.000Z' },
+      } }),
+    })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+  await chooseNewConversation(page, '王五')
+  await page.getByPlaceholder('写下想对王五说的话……').fill('失败后重试')
+  await page.getByRole('button', { name: '发送私信' }).click()
+  await expect(page.getByRole('alert')).toContainText('首发暂不可用')
+  await expect(page.getByRole('button', { name: '重试发送' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '王五', exact: true })).toHaveCount(0)
+
+  await page.getByRole('button', { name: '重试发送' }).click()
+  await expect(page.getByRole('button', { name: '王五', exact: true })).toContainText('失败后重试')
+  await expect(page.locator('.direct-message[data-conversation-id^="pending-"]')).toHaveCount(0)
+  expect(nonces).toHaveLength(2)
+  expect(nonces[1]).toBe(nonces[0])
+})
+
+test('新会话首发超时后恢复编辑器并显示可重试消息', async ({ page }) => {
+  await page.unroute('**/api/direct-conversations')
+  await page.route('**/api/direct-conversations', async (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { items: [conversation] } }) })
+    }
+    await new Promise(resolve => setTimeout(resolve, 16_000))
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: null }) }).catch(() => {})
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+  await chooseNewConversation(page, '王五')
+  const composer = page.getByPlaceholder('写下想对王五说的话……')
+  await composer.fill('等待超时')
+  await page.getByRole('button', { name: '发送私信' }).click()
+  await expect(page.getByRole('button', { name: '重试发送' })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('alert')).toContainText('请求超时，请稍后重试')
+  await expect(composer).toBeEnabled()
+})
+
+test('阅读历史时收件不抢滚动并提供跳到最新消息，在底部收件自动跟随', async ({ page }) => {
+  const history = Array.from({ length: 24 }, (_, index) => ({
+    id: `history-${index}`,
+    conversationId: 'conversation-lisi',
+    senderSlug: index % 2 ? 'test_init' : 'lisi',
+    recipientSlug: index % 2 ? 'lisi' : 'test_init',
+    body: `历史私信 ${index + 1}`,
+    createdAt: new Date(Date.UTC(2026, 6, 20, 0, index)).toISOString(),
+  }))
+  let syncCalls = 0
+  let readyForMessages = false
+  await page.route('**/api/direct-conversations/conversation-lisi/messages**', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: { items: history, nextCursor: null } }),
+  }))
+  await page.route('**/api/inbox/sync**', (route) => {
+    if (!readyForMessages) {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { cursor: 'sync-waiting', conversations: [], messages: [], notifications: [], unread: { directUnread: 0, notificationUnread: 0, totalUnread: 0 } } }) })
+    }
+    syncCalls += 1
+    const message = { id: `incoming-${syncCalls}`, conversationId: 'conversation-lisi', senderSlug: 'lisi', recipientSlug: 'test_init', body: `新收到私信 ${syncCalls}`, createdAt: new Date(Date.UTC(2026, 6, 20, 1, syncCalls)).toISOString() }
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { cursor: `sync-${syncCalls}`, conversations: [], messages: [message], notifications: [], unread: { directUnread: syncCalls, notificationUnread: 0, totalUnread: syncCalls } } }) })
+  })
+
+  await seedClassmateSession(page)
+  await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: '李四', exact: true }).click()
+  const log = page.getByRole('log', { name: '与李四的私聊记录' })
+  await expect(log).toContainText('历史私信 24')
+  await expect(log.locator('.direct-message')).toHaveCount(24)
+  await log.locator('.direct-message').evaluateAll((messages: HTMLElement[]) => messages.forEach(message => { message.style.minHeight = '64px' }))
+  await log.evaluate((element: HTMLElement) => {
+    element.style.display = 'block'
+    element.style.height = '180px'
+    element.style.maxHeight = '180px'
+    element.scrollTop = 0
+    element.dispatchEvent(new Event('scroll'))
+  })
+  readyForMessages = true
+
+  await expect.poll(() => log.evaluate((element: HTMLElement) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(96)
+  await expect(log).toContainText('新收到私信 1', { timeout: 7_000 })
+  await expect(page.getByRole('button', { name: '跳到最新消息' })).toBeVisible({ timeout: 7_000 })
+  expect(await log.evaluate((element: HTMLElement) => element.scrollTop)).toBeLessThan(10)
+  await page.getByRole('button', { name: '跳到最新消息' }).click()
+  await expect.poll(() => log.evaluate((element: HTMLElement) => element.scrollTop)).toBeGreaterThan(0)
+  await log.evaluate((element: HTMLElement) => { element.scrollTop = element.scrollHeight })
+
+  await expect(log).toContainText('新收到私信 2', { timeout: 7_000 })
+  await expect(page.getByRole('button', { name: '跳到最新消息' })).toHaveCount(0)
+  await expect.poll(() => log.evaluate((element: HTMLElement) => element.scrollHeight - element.scrollTop - element.clientHeight)).toBeLessThanOrEqual(96)
+
+  await log.evaluate((element: HTMLElement) => {
+    element.scrollTop = 0
+    element.dispatchEvent(new Event('scroll'))
+  })
+  await page.getByPlaceholder('写下想对李四说的话……').fill('主动发送时跟随到底部')
+  await page.getByRole('button', { name: '发送私信' }).click()
+  await expect(log).toContainText('主动发送时跟随到底部')
+  await expect.poll(() => log.evaluate((element: HTMLElement) => element.scrollTop)).toBeGreaterThan(0)
 })
 
 test('班级信箱以会话式私聊展示历史、重试发送并复用已有会话', async ({ page }) => {

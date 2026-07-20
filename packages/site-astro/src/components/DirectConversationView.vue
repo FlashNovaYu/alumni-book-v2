@@ -11,13 +11,23 @@
       <span class="connection-state" :data-state="connectionState">{{ connectionLabel }}</span>
     </header>
 
-    <div ref="log" class="direct-message-log" role="log" :aria-label="`与${peer.name}的私聊记录`" aria-live="polite">
+    <div ref="log" class="direct-message-log" role="log" :aria-label="`与${peer.name}的私聊记录`" aria-live="polite" @scroll="handleLogScroll">
       <p v-if="!messages.length" class="conversation-empty">写下第一句私信，新的会话会在发送后建立。</p>
-      <article v-for="message in messages" :key="message.id" class="direct-message" :class="message.senderSlug === currentSlug ? 'is-own' : 'is-peer'">
+      <article
+        v-for="message in messages"
+        :key="message.id"
+        class="direct-message"
+        :class="message.senderSlug === currentSlug ? 'is-own' : 'is-peer'"
+        :data-message-id="message.id"
+        :data-conversation-id="message.conversationId"
+        :data-delivery-state="message.deliveryState"
+      >
         <p>{{ message.body }}</p>
         <footer><time :datetime="message.createdAt">{{ formatTime(message.createdAt) }}</time><span v-if="message.deliveryState === 'sending'">发送中</span><button v-else-if="message.deliveryState === 'failed'" type="button" @click="$emit('retry', message.id)">重试发送</button></footer>
       </article>
     </div>
+
+    <button v-if="hasNewMessages" type="button" class="jump-to-latest" @click="scrollToLatest">跳到最新消息</button>
 
     <form class="direct-composer" @submit.prevent="submit">
       <textarea v-model="draft" rows="1" :disabled="sending" :placeholder="`写下想对${peer.name}说的话……`" @keydown.enter.exact.prevent="submit"></textarea>
@@ -43,16 +53,35 @@ const props = defineProps<{
 const emit = defineEmits<{ send: [body: string]; retry: [messageId: string] }>()
 const draft = ref('')
 const log = ref<HTMLDivElement | null>(null)
+const hasNewMessages = ref(false)
 const connectionLabel = computed(() => ({ ready: '已连接', syncing: '同步中', sending: '发送中', error: '等待重试' }[props.connectionState]))
 
-watch(() => props.messages.length, async (length, previousLength) => {
-  if (!length || previousLength === undefined) return
+function isNearBottom(element: HTMLDivElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 96
+}
+
+async function scrollToLatest() {
+  hasNewMessages.value = false
+  await nextTick()
+  log.value?.scrollTo({ top: log.value.scrollHeight, behavior: 'smooth' })
+}
+
+function handleLogScroll() {
+  const element = log.value
+  if (element && isNearBottom(element)) hasNewMessages.value = false
+}
+
+watch(() => props.messages, async (items, previousItems = []) => {
+  const latest = items.at(-1)
+  if (!latest || previousItems.some(item => item.id === latest.id)) return
   const element = log.value
   if (!element) return
-  const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight
-  if (distanceFromBottom > 96) return
-  await nextTick()
-  element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' })
+  const sentByCurrentUser = latest.senderSlug === props.currentSlug
+  if (sentByCurrentUser || isNearBottom(element)) {
+    await scrollToLatest()
+    return
+  }
+  hasNewMessages.value = true
 })
 
 function submit() {
@@ -68,7 +97,7 @@ function formatTime(value: string) {
 </script>
 
 <style scoped>
-.direct-conversation-view { display: grid; grid-template-rows: auto minmax(360px, 1fr) auto; min-height: 640px; color: var(--color-paper-ink); background: var(--color-paper-card); border: 1px solid var(--color-paper-border); }
+.direct-conversation-view { position: relative; display: grid; grid-template-rows: auto minmax(360px, 1fr) auto; min-height: 640px; color: var(--color-paper-ink); background: var(--color-paper-card); border: 1px solid var(--color-paper-border); }
 .conversation-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-lg); border-bottom: 1px solid var(--color-paper-border); }
 .peer-identity { display: flex; min-width: 0; gap: var(--spacing-sm); align-items: center; }
 .peer-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; overflow: hidden; color: var(--color-paper-brown); background: var(--color-paper-bg-soft); border: 1px solid var(--color-paper-border); border-radius: 50%; font-size: 13px; font-weight: 700; }
@@ -86,6 +115,7 @@ function formatTime(value: string) {
 .direct-message.is-own footer { justify-content: flex-end; }
 .direct-message footer button { padding: 0; color: var(--color-paper-stamp-red); background: transparent; border: 0; font: inherit; cursor: pointer; text-decoration: underline; }
 .conversation-empty { margin: auto; color: var(--color-paper-muted); font-size: 14px; text-align: center; }
+.jump-to-latest { position: absolute; right: var(--spacing-lg); bottom: 78px; z-index: 1; min-height: 36px; padding: 0 12px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-sm); }
 .direct-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--spacing-sm); padding: var(--spacing-md); border-top: 1px solid var(--color-paper-border); }
 .direct-composer textarea { min-width: 0; min-height: 44px; max-height: 120px; padding: 10px 12px; resize: vertical; color: var(--color-paper-ink); background: var(--color-paper-bg-soft); border: 1px solid var(--color-paper-border); border-radius: var(--rounded-md); font: inherit; line-height: 1.45; }
 .direct-composer button { min-width: 94px; min-height: 44px; padding: 0 14px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-weight: 700; cursor: pointer; }

@@ -29,7 +29,7 @@ function parseRetryAfter(raw: string | null): number | null {
 async function readPayload<T>(res: Response, signal: AbortSignal): Promise<ApiResponse<T> | null> {
   let abortHandler: (() => void) | null = null
   const aborted = new Promise<never>((_, reject) => {
-    abortHandler = () => reject(new DOMException('请求已取消', 'AbortError'))
+    abortHandler = () => reject(signal.reason ?? new DOMException('请求已取消', 'AbortError'))
     if (signal.aborted) abortHandler()
     else signal.addEventListener('abort', abortHandler, { once: true })
   })
@@ -57,12 +57,12 @@ export async function requestClassmateApi<T>(
   requestHeaders.set('X-Classmate-Token', token)
   const controller = new AbortController()
   let timedOut = false
-  const forwardAbort = () => controller.abort()
-  if (signal?.aborted) controller.abort()
+  const forwardAbort = () => controller.abort(signal?.reason)
+  if (signal?.aborted) controller.abort(signal.reason)
   else signal?.addEventListener('abort', forwardAbort, { once: true })
   const timeout = setTimeout(() => {
     timedOut = true
-    controller.abort()
+    controller.abort(new DOMException('请求超时', 'TimeoutError'))
   }, timeoutMs)
 
   try {
