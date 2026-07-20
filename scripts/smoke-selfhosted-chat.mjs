@@ -140,6 +140,13 @@ export async function smokeSelfHostedChat({
   if (senderSlug === recipientSlug) throw new ChatSmokeError('发送方和收件方必须是两个不同的专用测试账号')
   const safeSenderToken = required(senderToken, 'CHAT_SENDER_TOKEN')
   const safeRecipientToken = required(recipientToken, 'CHAT_RECIPIENT_TOKEN')
+  if (typeof expectedSha !== 'string' || !expectedSha.trim()) {
+    throw new ChatSmokeError('EXPECTED_RELEASE_SHA 必填')
+  }
+  const safeExpectedSha = expectedSha.trim()
+  if (!SHA_PATTERN.test(safeExpectedSha)) {
+    throw new ChatSmokeError('EXPECTED_RELEASE_SHA 必须是完整 40 位 SHA')
+  }
 
   const release = await requestJson({
     baseUrl: safeBaseUrl,
@@ -152,16 +159,16 @@ export async function smokeSelfHostedChat({
   })
   const releaseSha = release.data?.source
   if (!SHA_PATTERN.test(releaseSha || '')) throw new ChatSmokeError('release SHA 缺失或格式异常')
-  if (expectedSha && releaseSha !== expectedSha) throw new ChatSmokeError('release SHA 与预期不一致')
+  if (releaseSha !== safeExpectedSha) throw new ChatSmokeError('release SHA 与预期不一致')
   log(evidenceLine({ path: '/release.json', status: release.status, durationMs: release.durationMs, releaseSha }))
 
-  const request = (path, token, init) => requestJson({
+  const request = (path, token, init, timeoutMs = requestTimeoutMs) => requestJson({
     baseUrl: safeBaseUrl,
     path,
     token,
     init,
     fetchImpl,
-    requestTimeoutMs,
+    requestTimeoutMs: timeoutMs,
     now,
     log,
     releaseSha,
@@ -172,14 +179,14 @@ export async function smokeSelfHostedChat({
   if (!Array.isArray(initialItems)) throw new ChatSmokeError('会话列表响应格式异常')
 
   const clientNonce = `chat-smoke:${randomUUID()}`
-  const body = `专用双账号私聊烟测 ${new Date(now()).toISOString()}`
+  const body = `专用双账号私聊烟测 ${clientNonce}`
   const sendInit = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipientSlug, body, clientNonce }),
   }
   const firstSend = await request('/api/direct-conversations', safeSenderToken, sendInit)
-  if (![200, 201].includes(firstSend.status)) throw new ChatSmokeError('首发消息状态异常')
+  if (firstSend.status !== 201) throw new ChatSmokeError('首发消息必须返回 201')
   const message = firstSend.data?.message
   const conversationId = firstSend.data?.conversation?.id || message?.conversationId
   if (!message?.id || !conversationId) throw new ChatSmokeError('首发消息响应格式异常')
@@ -192,6 +199,7 @@ export async function smokeSelfHostedChat({
   }))
 
   const duplicateSend = await request('/api/direct-conversations', safeSenderToken, sendInit)
+  if (duplicateSend.status !== 200) throw new ChatSmokeError('重复发送必须返回 200')
   if (duplicateSend.data?.message?.id !== message.id) throw new ChatSmokeError('同一 clientNonce 未返回同一消息 ID')
   log(evidenceLine({
     path: '/api/direct-conversations',
@@ -203,29 +211,46 @@ export async function smokeSelfHostedChat({
 
   const historyPath = `/api/direct-conversations/${encodeURIComponent(conversationId)}/messages?limit=30`
   const history = await request(historyPath, safeSenderToken)
-  const occurrences = Array.isArray(history.data?.items)
-    ? history.data.items.filter(item => item?.id === message.id).length
-    : 0
-  if (occurrences !== 1) throw new ChatSmokeError('同一 clientNonce 产生了重复消息或目标消息不可见')
+  const matchingHistory = Array.isArray(history.data?.items)
+    ? history.data.items.filter(item => (
+      item?.body === body
+      && item?.senderSlug === senderSlug
+      && item?.recipientSlug === recipientSlug
+    ))
+    : []
+  if (matchingHistory.length !== 1 || matchingHistory[0]?.id !== message.id) {
+    throw new ChatSmokeError('相同正文、发送方和收件方的历史消息数量不是 1')
+  }
 
   let cursor
   let receivedMessage
   const pollStartedAt = now()
-  do {
+  const pollDeadline = pollStartedAt + pollTimeoutMs
+  while (now() <= pollDeadline) {
+    const remainingMs = pollDeadline - now()
+    if (remainingMs <= 0) break
     const syncPath = cursor
       ? `/api/inbox/sync?cursor=${encodeURIComponent(cursor)}`
       : '/api/inbox/sync'
-    const sync = await request(syncPath, safeRecipientToken)
+    let sync
+    try {
+      sync = await request(syncPath, safeRecipientToken, undefined, Math.min(requestTimeoutMs, remainingMs))
+    } catch (error) {
+      if (now() >= pollDeadline && error instanceof ChatSmokeError && error.message.startsWith('请求超时')) break
+      throw error
+    }
+    if (now() > pollDeadline) break
     cursor = sync.data?.cursor
     receivedMessage = Array.isArray(sync.data?.messages)
       ? sync.data.messages.find(item => item?.id === message.id && item?.conversationId === conversationId)
       : undefined
     if (receivedMessage) break
-    if (now() - pollStartedAt >= pollTimeoutMs) break
-    await sleep(pollIntervalMs)
-  } while (now() - pollStartedAt <= pollTimeoutMs)
+    const remainingAfterSync = pollDeadline - now()
+    if (remainingAfterSync <= 0) break
+    await sleep(Math.min(pollIntervalMs, remainingAfterSync))
+  }
 
-  if (!receivedMessage) throw new ChatSmokeError('收件方在五秒轮询窗口内未收到目标消息')
+  if (!receivedMessage || now() > pollDeadline) throw new ChatSmokeError('收件方在五秒轮询窗口内未收到目标消息')
   log(evidenceLine({
     path: '/api/inbox/sync',
     status: 200,

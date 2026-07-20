@@ -35,22 +35,23 @@ function conversation(unreadCount) {
   }
 }
 
-function message() {
+function message(body = '不应出现在日志中的测试正文', id = MESSAGE_ID) {
   return {
-    id: MESSAGE_ID,
+    id,
     conversationId: CONVERSATION_ID,
     senderSlug: 'smoke-sender',
     recipientSlug: 'smoke-recipient',
-    body: '不应出现在日志中的测试正文',
+    body,
     createdAt: '2026-07-20T00:00:00.000Z',
   }
 }
 
-function createHappyFetch() {
+function createHappyFetch({ firstStatus = 201, duplicateStatus = 200, duplicateMessageId = MESSAGE_ID } = {}) {
   const calls = []
   let senderConversationReads = 0
   let recipientConversationReads = 0
   let syncReads = 0
+  let sentBody = ''
 
   const fetchImpl = async (url, init = {}) => {
     const parsed = new URL(url)
@@ -69,17 +70,21 @@ function createHappyFetch() {
     }
     if (path === '/api/direct-conversations' && init.method === 'POST') {
       const duplicate = calls.filter(call => call.path === path && call.method === 'POST').length > 1
-      return success({ conversation: conversation(0), message: message() }, duplicate ? 200 : 201)
+      sentBody ||= JSON.parse(init.body).body
+      return success(
+        { conversation: conversation(0), message: message(sentBody, duplicate ? duplicateMessageId : MESSAGE_ID) },
+        duplicate ? duplicateStatus : firstStatus,
+      )
     }
     if (path === `/api/direct-conversations/${CONVERSATION_ID}/messages?limit=30`) {
-      return success({ items: [message()], nextCursor: null })
+      return success({ items: [message(sentBody)], nextCursor: null })
     }
     if (path.startsWith('/api/inbox/sync')) {
       syncReads += 1
       return success({
         cursor: `cursor-${syncReads}`,
         conversations: syncReads === 1 ? [] : [conversation(1)],
-        messages: syncReads === 1 ? [] : [message()],
+        messages: syncReads === 1 ? [] : [message(sentBody)],
         notifications: [],
         unread: { directUnread: syncReads === 1 ? 0 : 1, notificationUnread: 0, totalUnread: syncReads === 1 ? 0 : 1 },
       })
@@ -99,6 +104,7 @@ const baseOptions = {
   recipientSlug: 'smoke-recipient',
   senderToken: 'sender-secret-token',
   recipientToken: 'recipient-secret-token',
+  expectedSha: RELEASE_SHA,
   pollIntervalMs: 0,
   log: () => {},
 }
@@ -150,6 +156,50 @@ test('同一 nonce 只写入一次并完成收件、已读和发送方最终确�
   assert.match(output, new RegExp(`releaseSha=${RELEASE_SHA}`))
   assert.equal(output.includes(CONVERSATION_ID), false)
   assert.equal(output.includes('cursor-1'), false)
+})
+
+test('首发必须返回 201，重复同 nonce 必须返回 200', async () => {
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, fetchImpl: createHappyFetch({ firstStatus: 200 }).fetchImpl }),
+    /首发消息必须返回 201/,
+  )
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, fetchImpl: createHappyFetch({ duplicateStatus: 201 }).fetchImpl }),
+    /重复发送必须返回 200/,
+  )
+})
+
+test('同 nonce 返回不同消息 ID 时立即失败', async () => {
+  await assert.rejects(
+    smokeSelfHostedChat({
+      ...baseOptions,
+      fetchImpl: createHappyFetch({ duplicateMessageId: 'fedcba98-7654-3210-fedc-ba9876543210' }).fetchImpl,
+    }),
+    /同一 clientNonce 未返回同一消息 ID/,
+  )
+})
+
+test('历史中相同正文、发送方和收件方出现第二个 ID 时判定重复写入', async () => {
+  const { fetchImpl: happyFetch, calls } = createHappyFetch()
+  const fetchImpl = async (url, init) => {
+    const path = `${new URL(url).pathname}${new URL(url).search}`
+    if (path === `/api/direct-conversations/${CONVERSATION_ID}/messages?limit=30`) {
+      const sent = JSON.parse(calls.find(call => call.path === '/api/direct-conversations' && call.method === 'POST').body)
+      return success({
+        items: [
+          message(sent.body),
+          message(sent.body, 'fedcba98-7654-3210-fedc-ba9876543210'),
+        ],
+        nextCursor: null,
+      })
+    }
+    return happyFetch(url, init)
+  }
+
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, fetchImpl }),
+    /相同正文、发送方和收件方的历史消息数量不是 1/,
+  )
 })
 
 test('请求超时会终止 smoke 而不会永久等待', async () => {
@@ -224,4 +274,65 @@ test('收件轮询超过五秒窗口仍未出现目标消息时失败', async ()
     }),
     /五秒轮询窗口内未收到目标消息/,
   )
+})
+
+test('目标消息在全局截止时间后才返回仍判定五秒收件失败', async () => {
+  const { fetchImpl: happyFetch } = createHappyFetch()
+  let now = 0
+  const fetchImpl = async (url, init) => {
+    if (new URL(url).pathname === '/api/inbox/sync') {
+      now = 6001
+      return success({
+        cursor: 'late-cursor',
+        conversations: [conversation(1)],
+        messages: [message()],
+        notifications: [],
+        unread: { directUnread: 1, notificationUnread: 0, totalUnread: 1 },
+      })
+    }
+    return happyFetch(url, init)
+  }
+
+  await assert.rejects(
+    smokeSelfHostedChat({
+      ...baseOptions,
+      fetchImpl,
+      now: () => now,
+      pollTimeoutMs: 5000,
+    }),
+    /五秒轮询窗口内未收到目标消息/,
+  )
+})
+
+test('expected SHA 缺失或不是完整 40 位时在请求前失败', async () => {
+  let requested = false
+  const fetchImpl = async () => {
+    requested = true
+    throw new Error('不应请求')
+  }
+
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, expectedSha: '', fetchImpl }),
+    /EXPECTED_RELEASE_SHA 必填/,
+  )
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, expectedSha: 'short-sha', fetchImpl }),
+    /EXPECTED_RELEASE_SHA 必须是完整 40 位 SHA/,
+  )
+  assert.equal(requested, false)
+})
+
+test('完整 expected SHA 与线上 release SHA 不一致时失败', async () => {
+  let requests = 0
+  const fetchImpl = async (url) => {
+    requests += 1
+    assert.equal(new URL(url).pathname, '/release.json')
+    return jsonResponse(200, { source: RELEASE_SHA })
+  }
+
+  await assert.rejects(
+    smokeSelfHostedChat({ ...baseOptions, expectedSha: 'f'.repeat(40), fetchImpl }),
+    /release SHA 与预期不一致/,
+  )
+  assert.equal(requests, 1)
 })
