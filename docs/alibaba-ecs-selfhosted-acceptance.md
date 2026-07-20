@@ -60,6 +60,50 @@ node scripts/smoke-selfhosted-chat.mjs --expected-sha $env:EXPECTED_RELEASE_SHA
 1. 已登录 `/admin/`；继续创建两名 `smoke-` 前缀的专用测试同学，完成双账号私聊 smoke；再验证账号登录、资料编辑、头像/背景上传、相册/照片、留言、群聊和通知。
 2. 备案完成后配置域名 A 记录、HTTPS 和正式 `CORS_ORIGIN`；通过域名 smoke 后再决定是否停止 Cloudflare 旧生产。
 
+## 内容初始化清单与只读缺口报告
+
+内容初始化必须先执行只读报告，默认不会写入数据库：
+
+```powershell
+node scripts/bootstrap-selfhosted-content.mjs --database-path $env:DATABASE_PATH
+```
+
+也可以使用公开 API 做远程只读统计（不能通过 API 执行初始化写入）：
+
+```powershell
+node scripts/bootstrap-selfhosted-content.mjs --api-base $env:SELF_HOST_BASE_URL
+```
+
+报告至少包含同学总数、完成度分布（完成度大于 0 的人数）、头像数、相册数、照片数、时光轴数和 owner 数。已知空内容基线为
+`46/6/0/1/0/47/0`；报告出现基线漂移警告时，管理员必须先核对数据来源，不得把空数据库当作功能完成。
+
+管理员逐项确认以下内容后，才可在验收表标记“内容初始化完成”：
+
+- 每名同学已填写姓名、头像、个人简介，或明确选择暂不公开；
+- 至少一个相册含真实照片，列表、缩略图和原图均可打开；
+- 时光轴中的照片引用均能从文件服务读取；
+- owner 页面仅对取得明确授权的同学启用；
+- 手机端 roster、profile、album、timeline、yearbook 页面均能加载。
+
+如需写入固定的审计标记，必须先完成 SQLite 备份，再显式使用受控数据库路径执行：
+
+```powershell
+node scripts/bootstrap-selfhosted-content.mjs --database-path $env:DATABASE_PATH --apply
+```
+
+脚本只使用固定 ID 和 `INSERT ... ON CONFLICT DO UPDATE` 的无操作冲突更新，不导入 Cloudflare 数据，也不覆盖管理员已编辑字段；默认 dry-run 和 API 模式永远不写入。
+
+### 上传与文件服务验收
+
+使用专用测试图片完成头像、背景和相册照片上传。保存上传响应中的 `r2Key`（只记录 key，不记录账号凭据），然后验证：
+
+1. `GET /api/files/<r2Key>` 返回正确 `Content-Type`、`ETag` 和 immutable 缓存头；
+2. 带合法 `Range` 请求返回 `206` 及正确 `Content-Range`，完整请求返回 `200`；
+3. 模拟对象存储写入失败后，数据库不保留孤儿文件引用；
+4. 完成验证后删除专用测试对象和测试账号，并在 SQLite 备份中保留删除前后行数证明。
+
+上传和文件服务验收未完成前，不得把“相册/头像功能可用”写入正式发布结论。
+
 ## 安全边界
 
 - 不记录 JWT secret、管理员密码或 SSH 私钥。
