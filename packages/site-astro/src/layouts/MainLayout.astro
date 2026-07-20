@@ -268,7 +268,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         })
 
         document.addEventListener('astro:before-swap', (event) => {
-          const nextDocument = (event as Event & { newDocument?: Document }).newDocument
+          const transitionEvent = event as Event & { newDocument?: Document; viewTransition?: ViewTransition }
+          const nextDocument = transitionEvent.newDocument
           if (!nextDocument) return
           const navDirection = document.documentElement.dataset.navDir || sessionStorage.getItem('vt-nav-dir')
           if (navDirection) nextDocument.documentElement.dataset.navDir = navDirection
@@ -286,6 +287,9 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
                 : property === '--student-card-right' ? edgeState?.right
                   : edgeState?.bottom
             if (value || fallback) nextDocument.documentElement.style.setProperty(property, value || fallback || '')
+          }
+          if (transitionEvent.viewTransition) {
+            void transitionEvent.viewTransition.finished.then(clearStudentTransition, clearStudentTransition)
           }
         })
 
@@ -311,7 +315,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         document.addEventListener('astro:page-load', () => {
           restoreStudentIdentityTarget()
           reinitAuxiliaryRuntime()
-          window.setTimeout(clearStudentTransition, 820)
+          window.setTimeout(clearStudentTransition, 1400)
         })
         window.addEventListener('pageshow', (event) => {
           clearNavigationState()

@@ -68,6 +68,10 @@ try {
   const data = await fetchWithRetry(`${API_BASE}/api/students/${slug}?audience=public`)
   if (data.success && data.data) student = toPublicStudent(data.data)
 } catch (e: any) {
+  if (e?.message === 'HTTP 404') {
+    console.warn(`[slug].astro] student ${slug} is listed but unavailable; redirecting to roster`)
+    return Astro.redirect(href('/roster'))
+  }
   console.error(`❌ [slug].astro failed to fetch student detail for ${slug}: ${e.message}. Aborting build.`)
   throw e
 }

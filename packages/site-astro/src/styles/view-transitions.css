@@ -5,9 +5,14 @@
   navigation: auto;
 }
 
+::view-transition {
+  background-color: var(--bg);
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   background-color: var(--bg);
+  backface-visibility: hidden;
 }
 
 html[data-student-transition='edge']::view-transition-old(root) {
@@ -159,11 +164,11 @@ html[data-theme='night'] .page-shell {
 }
 
 ::view-transition-group(.student-identity) {
-  /* 先让卡片边缘完成覆盖，再让身份元素完成最后一段落位，避免穿出扩散边界。 */
+  /* 扩散开始后即缓慢移动，最后一小段与新页面 Hero 对齐。 */
   z-index: 5;
-  animation-delay: 0.52s;
-  animation-duration: 0.3s;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-delay: 0.12s;
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 ::view-transition-group(.student-card-details) {

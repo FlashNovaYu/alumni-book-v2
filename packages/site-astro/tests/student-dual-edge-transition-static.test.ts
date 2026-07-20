@@ -24,6 +24,7 @@ describe('同学档案卡双向边缘转场契约', () => {
     expect(layout).toContain('nextDocument.documentElement.dataset.studentTransition = \'edge\'')
     expect(layout).toContain("sessionStorage.getItem('vt-student-edge-state')")
     expect(layout).toContain('nextDocument.documentElement.style.setProperty(property')
+    expect(layout).toContain('viewTransition.finished.then(clearStudentTransition, clearStudentTransition)')
   })
 
   it('保留身份共享元素并为非身份内容提供坍缩层', () => {
@@ -33,7 +34,9 @@ describe('同学档案卡双向边缘转场契约', () => {
     expect(profile).toContain('student-name-')
     expect(transitions).toContain('student-card-details')
     expect(transitions).toContain('z-index: 4')
-    expect(transitions).toContain('animation-delay: 0.52s')
+    expect(transitions).toContain('animation-delay: 0.12s')
+    expect(transitions).toContain('animation-duration: 0.7s')
+    expect(transitions).toContain('::view-transition {')
   })
 
   it('包含减少动态效果和普通导航退化', () => {
