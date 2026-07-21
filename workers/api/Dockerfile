@@ -14,7 +14,7 @@ RUN sed -i \
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY workers/api/package.json workers/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set registry https://registry.npmmirror.com && pnpm install --frozen-lockfile
 
 COPY workers/api workers/api
 COPY packages/shared packages/shared
