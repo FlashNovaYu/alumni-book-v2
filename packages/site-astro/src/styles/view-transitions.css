@@ -237,29 +237,39 @@ html[data-theme='night'] .page-shell {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 手机端屏幕更窄，边缘更早铺满可视区域，因此保留起步阶段再放慢扩散。 */
-@media (max-width: 768px) {
+/* 手机端让背景边界持续领先身份元素，并覆盖触摸横屏。 */
+@media (max-width: 768px), (max-width: 900px) and (pointer: coarse) {
   html[data-student-transition='edge']::view-transition-old(root) {
     animation-duration: 1.05s;
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
   }
 
   html[data-student-transition='edge']::view-transition-new(root) {
     animation-name: student-edge-expand-mobile;
     animation-duration: 1.05s;
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
   }
 
   html[data-student-transition='return-edge']::view-transition-old(root) {
     animation-name: student-edge-contract-mobile;
-    animation-duration: 1.05s;
+    animation-duration: 0.98s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
   }
 
-  ::view-transition-group(.student-identity) {
-    animation-delay: 0.14s;
-    animation-duration: 0.9s;
+  html[data-student-transition='edge']::view-transition-group(.student-identity) {
+    animation-delay: 0.08s;
+    animation-duration: 0.92s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  html[data-student-transition='return-edge']::view-transition-group(.student-identity) {
+    animation-delay: 0.04s;
+    animation-duration: 0.86s;
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
   }
 
   ::view-transition-group(.student-card-details) {
-    animation-duration: 0.62s;
+    animation-duration: 0.54s;
   }
 }
 
@@ -267,15 +277,7 @@ html[data-theme='night'] .page-shell {
   0% {
     clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
   }
-  24% {
-    clip-path: inset(
-      calc(var(--student-card-top) - 2vmax)
-      calc(var(--student-card-right) - 2vmax)
-      calc(var(--student-card-bottom) - 2vmax)
-      calc(var(--student-card-left) - 2vmax)
-    );
-  }
-  88% {
+  92% {
     clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
   }
   100% {
@@ -288,18 +290,13 @@ html[data-theme='night'] .page-shell {
     opacity: 1;
     clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
   }
-  12% {
-    opacity: 0.88;
+  8% {
+    opacity: 1;
     clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
   }
-  76% {
+  96% {
     opacity: 0.72;
-    clip-path: inset(
-      calc(var(--student-card-top) - 2vmax)
-      calc(var(--student-card-right) - 2vmax)
-      calc(var(--student-card-bottom) - 2vmax)
-      calc(var(--student-card-left) - 2vmax)
-    );
+    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
   }
   100% {
     opacity: 0;
