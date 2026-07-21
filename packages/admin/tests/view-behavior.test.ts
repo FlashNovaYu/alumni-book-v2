@@ -7,6 +7,7 @@ import AdminLayout from '../src/views/AdminLayout.vue'
 import AuditLogView from '../src/views/AuditLogView.vue'
 import MessagesView from '../src/views/MessagesView.vue'
 import StudentsView from '../src/views/StudentsView.vue'
+import TimelineEventsView from '../src/views/TimelineEventsView.vue'
 
 function jsonResponse(data: unknown): Response {
   return new Response(JSON.stringify({ success: true, data }), {
@@ -190,6 +191,26 @@ describe('视图请求所有权', () => {
 })
 
 describe('管理筛选与路由加载态', () => {
+  it('审计筛选与时光轴编辑器打开内置日期面板', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse([])))
+
+    const audit = mount(AuditLogView)
+    await flushPromises()
+    expect(audit.findAll('.calendar-date-picker')).toHaveLength(2)
+    await audit.find('.date-input').trigger('click')
+    expect(audit.find('.calendar-popover').exists()).toBe(true)
+    audit.unmount()
+
+    const timeline = mount(TimelineEventsView)
+    await flushPromises()
+    const createButton = timeline.findAll('button').find((button) => button.text() === '添加事件')!
+    await createButton.trigger('click')
+    expect(timeline.findAll('.calendar-date-picker')).toHaveLength(1)
+    await timeline.find('.date-input').trigger('click')
+    expect(timeline.find('.calendar-popover').exists()).toBe(true)
+    timeline.unmount()
+  })
+
   it('AuditLogView 遍历全部管理员分页，超过 50 个仍可筛选', async () => {
     const requests: URL[] = []
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {

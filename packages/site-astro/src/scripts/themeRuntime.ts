@@ -29,8 +29,7 @@ function applyTheme(theme: AlumniTheme, persist = true) {
 }
 
 function getThemeOrigin(button: HTMLButtonElement) {
-  const anchor = button.querySelector<HTMLElement>('[data-theme-icon]') ?? button
-  const rect = anchor.getBoundingClientRect()
+  const rect = button.getBoundingClientRect()
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
 }
 

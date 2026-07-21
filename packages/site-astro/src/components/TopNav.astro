@@ -36,6 +36,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       <button class="mobile-nav-button" type="button" data-nav-open data-audio-hover aria-label="打开目录">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
+      <a href={adminHref} class="nav-admin-button nav-admin-button--mobile" data-nav-admin-entry>管理</a>
     </div>
 
     <!-- 中部：主票面 (导航区) -->
@@ -73,7 +74,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
         <button class="nav-volume-button" type="button" data-volume-toggle data-audio-hover aria-label="关闭页面音效" aria-pressed="false" title="关闭页面音效">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Z" /><path d="M17 9.5a4 4 0 0 1 0 5M19.5 7a7 7 0 0 1 0 10" /></svg>
         </button>
-        <a href={adminHref} class="nav-admin-button" data-nav-admin-entry>管理</a>
+        <a href={adminHref} class="nav-admin-button nav-admin-button--desktop" data-nav-admin-entry>管理</a>
         <a
           href={href('/account')}
           class="nav-account-button"
@@ -401,7 +402,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     border: 1px solid var(--color-paper-border);
   }
 
-  :global(html.has-admin-entry) .nav-admin-button { display: inline-flex; }
+  .nav-admin-button--mobile { display: none; }
+
+  :global(html.has-admin-entry) .nav-admin-button--desktop { display: inline-flex; }
   .drawer-footer [data-nav-admin-entry] { display: none; }
   :global(html.has-admin-entry) .drawer-footer [data-nav-admin-entry] { display: flex; }
 
@@ -549,7 +552,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   @media (max-width: 768px) {
     .top-nav { min-height: 52px; }
     .ticket-container { margin: 0; border: none; border-bottom: 1px solid color-mix(in srgb, var(--color-paper-brown) 15%, var(--color-paper-border)); filter: none; }
-    .ticket-stub-left, .ticket-stub-right { border: none; background: transparent; padding: 0 12px; }
+    .ticket-stub-left, .ticket-stub-right { border: none; background: transparent; padding: 0 6px; }
     .ticket-punch-top, .ticket-punch-bottom { display: none; }
     .nav-inner {
       min-height: 52px;
@@ -559,13 +562,23 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     .nav-directory,
     .nav-account-button,
     .nav-theme-button--desktop { display: none; }
+    :global(html.has-admin-entry) .nav-admin-button--desktop { display: none; }
+    :global(html.has-admin-entry) .nav-admin-button--mobile {
+      display: inline-flex;
+      width: 44px;
+      height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+    }
     .nav-theme-button--mobile { display: inline-grid; }
     .mobile-nav-button { display: inline-grid; }
     .mobile-page-title {
       position: absolute;
       left: 50%;
       top: 50%;
-      max-width: calc(100% - 132px);
+      max-width: calc(100% - 296px);
       pointer-events: none;
       transform: translate(-50%, -50%);
       display: block;
@@ -573,7 +586,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       margin: 0;
       color: var(--color-paper-ink);
       font-family: var(--font-display);
-      font-size: 18px;
+      font-size: clamp(15px, 4.2vw, 18px);
       font-weight: 600;
       line-height: 52px;
       text-align: center;
@@ -585,6 +598,16 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     .nav-theme-button--mobile,
     .nav-volume-button,
     .mobile-nav-button { width: 44px; height: 44px; }
+  }
+
+  @media (max-width: 360px) {
+    .ticket-main { min-width: 0; }
+    .mobile-page-title {
+      position: static;
+      width: 100%;
+      max-width: 100%;
+      transform: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

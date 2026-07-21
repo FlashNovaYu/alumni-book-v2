@@ -51,7 +51,7 @@ test('夜读按钮以根级水波切换并持久化选择', async ({ page }) => 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'night')
 })
 
-test('移动主题水波从可见图标中心开始', async ({ page }) => {
+test('移动主题水波从可见按钮中心开始', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => {
     const originalAnimate = Element.prototype.animate
@@ -70,16 +70,16 @@ test('移动主题水波从可见图标中心开始', async ({ page }) => {
   await page.reload()
   const toggle = page.locator('[data-theme-toggle]:visible').first()
   await toggle.locator('svg').evaluate((icon) => { (icon as SVGElement).style.transform = 'translateX(-6px)' })
-  const icon = await toggle.locator('[data-theme-icon]').boundingBox()
-  expect(icon).not.toBeNull()
+  const button = await toggle.boundingBox()
+  expect(button).not.toBeNull()
   await toggle.click()
   await expect.poll(() => page.evaluate(() => Boolean(
     (window as Window & { __themeRippleOrigin?: { x: number; y: number } }).__themeRippleOrigin,
   ))).toBe(true)
   const origin = await page.evaluate(() => (window as Window & { __themeRippleOrigin?: { x: number; y: number } }).__themeRippleOrigin)
   expect(origin).toBeDefined()
-  expect(origin!.x).toBeCloseTo(icon!.x + icon!.width / 2, 1)
-  expect(origin!.y).toBeCloseTo(icon!.y + icon!.height / 2, 1)
+  expect(origin!.x).toBeCloseTo(button!.x + button!.width / 2, 1)
+  expect(origin!.y).toBeCloseTo(button!.y + button!.height / 2, 1)
 })
 
 test.describe('减少动态偏好', () => {
@@ -121,5 +121,56 @@ test.describe('移动导航', () => {
 
     expect(centers).not.toBeNull()
     expect(Math.abs(centers!.nav - centers!.title)).toBeLessThanOrEqual(1)
+  })
+
+  test('管理入口位于目录按钮右侧且右侧工具不与标题重叠', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => document.documentElement.classList.add('has-admin-entry'))
+
+    const boxes = await page.evaluate(() => {
+      const rect = (selector: string) => {
+        const box = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect()
+        return box && box.width > 0 ? { left: box.left, right: box.right } : null
+      }
+      return {
+        menu: rect('.mobile-nav-button'),
+        admin: rect('.nav-admin-button--mobile'),
+        title: rect('.mobile-page-title'),
+        volume: rect('.nav-volume-button'),
+        mailbox: rect('.nav-mailbox-button'),
+        theme: rect('.nav-theme-button--mobile'),
+      }
+    })
+
+    for (const box of Object.values(boxes)) expect(box).not.toBeNull()
+    expect(boxes.menu!.right).toBeLessThanOrEqual(boxes.admin!.left)
+    expect(boxes.admin!.right).toBeLessThanOrEqual(boxes.title!.left)
+    expect(boxes.title!.right).toBeLessThanOrEqual(boxes.volume!.left)
+    expect(boxes.volume!.right).toBeLessThanOrEqual(boxes.mailbox!.left)
+    expect(boxes.mailbox!.right).toBeLessThanOrEqual(boxes.theme!.left)
+  })
+
+  test('320px 窄屏标题在两侧工具之间保持可读', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 })
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => document.documentElement.classList.add('has-admin-entry'))
+
+    const boxes = await page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector<HTMLElement>(selector)?.getBoundingClientRect() ?? null
+      return {
+        admin: rect('.nav-admin-button--mobile'),
+        title: rect('.mobile-page-title'),
+        volume: rect('.nav-volume-button'),
+      }
+    })
+
+    expect(boxes.admin).not.toBeNull()
+    expect(boxes.title).not.toBeNull()
+    expect(boxes.volume).not.toBeNull()
+    expect(boxes.title!.width).toBeGreaterThanOrEqual(56)
+    expect(boxes.admin!.right).toBeLessThanOrEqual(boxes.title!.left)
+    expect(boxes.title!.right).toBeLessThanOrEqual(boxes.volume!.left)
   })
 })

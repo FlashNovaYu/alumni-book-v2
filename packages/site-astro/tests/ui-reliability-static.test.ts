@@ -310,6 +310,26 @@ describe('只读日期选择器', () => {
       expect(source).toContain('function clearDate()')
     }
   })
+
+  it('所有生日和日期字段统一使用内置选择器', () => {
+    const selfEdit = read('components/SelfEditPanel.vue')
+    const studentEdit = read('../../admin/src/views/StudentEditView.vue')
+    const timeline = read('../../admin/src/views/TimelineEventsView.vue')
+    const audit = read('../../admin/src/views/AuditLogView.vue')
+
+    expect(selfEdit).toContain('<CalendarDatePicker v-model="form.info.birthday" />')
+    expect(selfEdit).toContain("import CalendarDatePicker from './CalendarDatePicker.vue'")
+    expect(studentEdit).toContain('<CalendarDatePicker v-model="student.info.birthday" />')
+    expect(timeline).toContain('<CalendarDatePicker v-model="form.eventDate" />')
+    expect(timeline).toContain("import CalendarDatePicker from '@/components/CalendarDatePicker.vue'")
+    expect(audit).toContain('<CalendarDatePicker v-model="filters.from" />')
+    expect(audit).toContain('<CalendarDatePicker v-model="filters.to" />')
+    expect(audit).toContain("import CalendarDatePicker from '@/components/CalendarDatePicker.vue'")
+
+    for (const source of [selfEdit, studentEdit, timeline, audit]) {
+      expect(source).not.toContain('type="date"')
+    }
+  })
 })
 
 describe('默认质量门禁', () => {

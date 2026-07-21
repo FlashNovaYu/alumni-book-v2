@@ -9,7 +9,7 @@
       <aside class="card editor-drawer" role="dialog" aria-modal="true" aria-labelledby="timeline-editor-title">
         <div class="editor-heading"><h2 id="timeline-editor-title" class="title-md">{{ editingId ? '编辑时光轴事件' : '添加时光轴事件' }}</h2><button class="btn-secondary btn-sm" :disabled="saving" @click="closeEditor">关闭</button></div>
         <label class="form-group">标题 *<input v-model.trim="form.title" class="text-input" maxlength="120" /></label>
-        <label class="form-group">日期 *<input v-model="form.eventDate" class="text-input" type="date" /></label>
+        <label class="form-group">日期 *<CalendarDatePicker v-model="form.eventDate" /></label>
         <label class="form-group">描述<textarea v-model="form.description" class="textarea form-textarea" rows="5"></textarea></label>
         <label class="form-group">照片 R2 Key<input v-model.trim="form.photoR2Key" class="text-input" placeholder="photos/xxx.jpg" /></label>
         <label class="form-group">事件类型<select v-model="form.eventType" class="text-input"><option value="class_event">班级大事</option><option value="activity">活动</option><option value="exam">考试节点</option><option value="graduation">毕业节点</option><option value="funny">班级趣事</option></select></label>
@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { adminFetch } from '@/api/client'
+import CalendarDatePicker from '@/components/CalendarDatePicker.vue'
 
 interface Event { id: string; title: string; description: string; eventDate: string; photoR2Key: string | null; isMilestone: boolean; eventType: string; sortOrder: number }
 

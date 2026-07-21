@@ -61,7 +61,7 @@
                   </div>
                   <div class="form-group">
                     <label class="form-label">生日</label>
-                    <input v-model="form.info.birthday" type="date" class="text-input" aria-label="生日" />
+                    <CalendarDatePicker v-model="form.info.birthday" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">学校</label>
@@ -217,6 +217,7 @@ import { appendImageVariants, compressImage, cropImageToSquare, generateImageVar
 import { joinApiUrl } from '../utils/apiBase'
 import { handleClassmateUnauthorized } from '../api/classmateSession'
 import AvatarCropper from './AvatarCropper.vue'
+import CalendarDatePicker from './CalendarDatePicker.vue'
 
 const props = defineProps<{
   studentSlug: string

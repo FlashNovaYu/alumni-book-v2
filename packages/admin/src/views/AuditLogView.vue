@@ -6,8 +6,8 @@
       <label>操作人<select v-model="filters.actorId" class="text-input"><option value="">全部管理员</option><option v-for="account in accounts" :key="account.id" :value="account.id">{{ account.displayName }}</option></select></label>
       <label>操作动作<input v-model.trim="filters.action" class="text-input" placeholder="如：admin_account.disable" /></label>
       <label>资源类型<input v-model.trim="filters.resourceType" class="text-input" placeholder="如：admin_account" /></label>
-      <label>开始日期<input v-model="filters.from" class="text-input" type="date" /></label>
-      <label>结束日期<input v-model="filters.to" class="text-input" type="date" /></label>
+      <label>开始日期<CalendarDatePicker v-model="filters.from" /></label>
+      <label>结束日期<CalendarDatePicker v-model="filters.to" /></label>
       <div class="filter-actions"><button type="button" class="btn-secondary" @click="resetFilters">重置</button><button class="btn-primary" :disabled="loading">筛选</button></div>
     </form>
 
@@ -35,6 +35,7 @@ import { listAllAdminAccounts, listAuditLogs, type AuditLogFilters } from '@/api
 import { summarizeAuditLog } from '@/utils/auditSummary'
 import { isAbortError } from '@/api/network'
 import { appendUniquePage } from '@/api/pagination'
+import CalendarDatePicker from '@/components/CalendarDatePicker.vue'
 
 const logs = ref<AdminAuditLog[]>([])
 const accounts = ref<AdminAccountSummary[]>([])
