@@ -290,10 +290,6 @@ html[data-theme='night'] .page-shell {
     opacity: 1;
     clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
   }
-  8% {
-    opacity: 1;
-    clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
-  }
   96% {
     opacity: 0.72;
     clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));

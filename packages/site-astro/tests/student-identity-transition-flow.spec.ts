@@ -294,18 +294,22 @@ async function sampleIdentityContainment(
   rootPseudo: '::view-transition-new(root)' | '::view-transition-old(root)',
 ) {
   return page.locator(selector).first().evaluate(async (element, options) => {
-    const rows: Array<{ contained: boolean; rootArea: number }> = []
+    const rows: Array<{ contained: boolean; elapsed: number; rootArea: number }> = []
     const avatarPseudo = `::view-transition-group(student-avatar-${options.slug})`
     const namePseudo = `::view-transition-group(student-name-${options.slug})`
 
     const insetBounds = (clipPath: string) => {
       const values = Array.from(clipPath.matchAll(/(-?\d+(?:\.\d+)?)px/g), match => Number(match[1]))
-      if (values.length !== 4) return null
+      if (values.length < 1 || values.length > 4) return null
+      const top = values[0]
+      const right = values[1] ?? top
+      const bottom = values[2] ?? top
+      const left = values[3] ?? right
       return {
-        top: values[0],
-        right: innerWidth - values[1],
-        bottom: innerHeight - values[2],
-        left: values[3],
+        top,
+        right: innerWidth - right,
+        bottom: innerHeight - bottom,
+        left,
       }
     }
     const groupBounds = (pseudo: string) => {
@@ -314,14 +318,33 @@ async function sampleIdentityContainment(
       const matrix = new DOMMatrixReadOnly(style.transform)
       const width = Number.parseFloat(style.width)
       const height = Number.parseFloat(style.height)
-      return { top: matrix.m42, right: matrix.m41 + width, bottom: matrix.m42 + height, left: matrix.m41 }
+      const origin = style.transformOrigin.split(' ').map(Number.parseFloat)
+      const originX = origin[0] || 0
+      const originY = origin[1] || 0
+      const corners = [[0, 0], [width, 0], [width, height], [0, height]].map(([x, y]) => {
+        const point = new DOMPoint(x - originX, y - originY).matrixTransform(matrix)
+        return { x: point.x + originX, y: point.y + originY }
+      })
+      return {
+        top: Math.min(...corners.map(point => point.y)),
+        right: Math.max(...corners.map(point => point.x)),
+        bottom: Math.max(...corners.map(point => point.y)),
+        left: Math.min(...corners.map(point => point.x)),
+      }
     }
-    const contains = (outer: NonNullable<ReturnType<typeof insetBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => (
-      inner.top >= outer.top - 2
-      && inner.right <= outer.right + 2
-      && inner.bottom <= outer.bottom + 2
-      && inner.left >= outer.left - 2
-    )
+    const contains = (outer: NonNullable<ReturnType<typeof insetBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => {
+      const visible = {
+        top: Math.max(0, inner.top),
+        right: Math.min(innerWidth, inner.right),
+        bottom: Math.min(innerHeight, inner.bottom),
+        left: Math.max(0, inner.left),
+      }
+      if (visible.right <= visible.left || visible.bottom <= visible.top) return true
+      return visible.top >= outer.top - 2
+        && visible.right <= outer.right + 2
+        && visible.bottom <= outer.bottom + 2
+        && visible.left >= outer.left - 2
+    }
 
     ;(element as HTMLElement).click()
     const startedAt = performance.now()
@@ -333,7 +356,9 @@ async function sampleIdentityContainment(
         if (root && avatar && name) {
           rows.push({
             contained: contains(root, avatar) && contains(root, name),
-            rootArea: Math.max(0, root.right - root.left) * Math.max(0, root.bottom - root.top),
+            elapsed: performance.now() - startedAt,
+            rootArea: Math.max(0, Math.min(innerWidth, root.right) - Math.max(0, root.left))
+              * Math.max(0, Math.min(innerHeight, root.bottom) - Math.max(0, root.top)),
           })
         }
         if (performance.now() - startedAt < 1150) requestAnimationFrame(sample)
@@ -343,6 +368,27 @@ async function sampleIdentityContainment(
     })
     return rows
   }, { slug, rootPseudo })
+}
+
+function expectContinuousEdge(
+  samples: Array<{ contained: boolean; elapsed: number; rootArea: number }>,
+  direction: 'expand' | 'contract',
+  viewportArea: number,
+) {
+  expect(samples.length).toBeGreaterThan(20)
+  expect(samples.every(sample => sample.contained)).toBe(true)
+  const pairs = samples.slice(1).map((sample, index) => ({ current: sample, previous: samples[index] }))
+  expect(pairs.every(({ current, previous }) => (
+    direction === 'expand'
+      ? current.rootArea >= previous.rootArea - 2
+      : current.rootArea <= previous.rootArea + 2
+  ))).toBe(true)
+  const peakAreaRate = Math.max(...pairs.map(({ current, previous }) => (
+    Math.abs(current.rootArea - previous.rootArea)
+    / viewportArea
+    / Math.max(1, current.elapsed - previous.elapsed)
+  )))
+  expect(peakAreaRate).toBeLessThanOrEqual(0.0035)
 }
 
 test.describe('手机端档案卡转场', () => {
@@ -356,18 +402,15 @@ test.describe('手机端档案卡转场', () => {
     const href = await card.getAttribute('href')
     expect(href).not.toBeNull()
     const slug = href!.split('/').filter(Boolean).at(-1)!
+    await card.scrollIntoViewIfNeeded()
 
     const enter = await sampleIdentityContainment(page, '.roster-card[href]:not([href="#"]):visible', slug, '::view-transition-new(root)')
     await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
     const back = await sampleIdentityContainment(page, 'a[href*="/roster/"]', slug, '::view-transition-old(root)')
 
-    expect(enter.length).toBeGreaterThan(20)
-    expect(back.length).toBeGreaterThan(20)
-    expect(enter.every(sample => sample.contained)).toBe(true)
-    expect(back.every(sample => sample.contained)).toBe(true)
-    expect(enter.at(-1)!.rootArea).toBeGreaterThan(enter[0].rootArea)
-    expect(back.at(-1)!.rootArea).toBeLessThan(back[0].rootArea)
+    expectContinuousEdge(enter, 'expand', 390 * 844)
+    expectContinuousEdge(back, 'contract', 390 * 844)
   })
 
   test('在手机视口完成进入和返回，并保留同一身份元素', async ({ page }) => {
@@ -419,18 +462,22 @@ test.describe('手机端档案卡转场', () => {
 test.describe('手机横屏档案卡转场', () => {
   test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true })
 
-  test('触摸横屏继续使用手机端扩散时长', async ({ page }) => {
+  test('触摸横屏的进入和返回也保持身份元素在背景边界内', async ({ page }) => {
     await signInForNavigation(page)
     await page.goto('./roster/', { waitUntil: 'networkidle' })
-    const duration = page.evaluate(() => new Promise<string>((resolve) => {
-      document.addEventListener('astro:before-swap', () => {
-        requestAnimationFrame(() => resolve(
-          getComputedStyle(document.documentElement, '::view-transition-new(root)').animationDuration,
-        ))
-      }, { once: true })
-    }))
-    await page.locator('.roster-card[href]:not([href="#"]):visible').first().click()
-    expect(await duration).toBe('1.05s')
+
+    const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
+    const href = await card.getAttribute('href')
+    expect(href).not.toBeNull()
+    const slug = href!.split('/').filter(Boolean).at(-1)!
+    await card.scrollIntoViewIfNeeded()
+    const enter = await sampleIdentityContainment(page, '.roster-card[href]:not([href="#"]):visible', slug, '::view-transition-new(root)')
+    await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+    const back = await sampleIdentityContainment(page, 'a[href*="/roster/"]', slug, '::view-transition-old(root)')
+
+    expectContinuousEdge(enter, 'expand', 844 * 390)
+    expectContinuousEdge(back, 'contract', 844 * 390)
   })
 })
 

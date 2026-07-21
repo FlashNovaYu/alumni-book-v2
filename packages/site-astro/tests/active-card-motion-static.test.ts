@@ -99,6 +99,7 @@ describe('档案卡共享元素转场', () => {
     expect(expand).not.toContain('2vmax')
     expect(expand).not.toContain('24%')
     expect(contract).toContain('96%')
+    expect(contract).not.toContain('8%')
     expect(contract).not.toContain('76%')
   })
 })
