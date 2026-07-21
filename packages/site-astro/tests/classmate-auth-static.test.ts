@@ -71,4 +71,36 @@ describe('classmate account login frontend', () => {
     expect(selfEdit).toContain('appendImageVariants')
     expect(selfEdit).toMatch(/appendImageVariants\(fd, variants, type === 'avatar' \? 'avatars' : 'backgrounds', props\.studentSlug\)/)
   })
+
+  it('提供可拖拽、可缩放且支持键盘取消的圆形头像裁切对话框', () => {
+    const cropperPath = path.resolve(__dirname, '../src/components/AvatarCropper.vue')
+    expect(fs.existsSync(cropperPath)).toBe(true)
+    const cropper = fs.readFileSync(cropperPath, 'utf-8')
+
+    expect(cropper).toContain('role="dialog"')
+    expect(cropper).toContain('aria-modal="true"')
+    expect(cropper).toContain('class="crop-circle"')
+    expect(cropper).toContain('aria-label="头像缩放比例"')
+    expect(cropper).toContain('v-if="error" class="crop-error" role="alert"')
+    expect(cropper).toContain('@pointerdown="startDrag"')
+    expect(cropper).toContain('@pointermove="moveDrag"')
+    expect(cropper).toContain("event.key === 'Escape'")
+    expect(cropper).toContain("emit('confirm'")
+    expect(cropper).toContain("emit('cancel')")
+  })
+
+  it('头像先裁切后上传，同时保持背景图直接上传链路', () => {
+    const selfEditPath = path.resolve(__dirname, '../src/components/SelfEditPanel.vue')
+    const selfEdit = fs.readFileSync(selfEditPath, 'utf-8')
+
+    expect(selfEdit).toContain('@change="selectAvatar"')
+    expect(selfEdit).toContain('@change="uploadBackground"')
+    expect(selfEdit).toContain('<AvatarCropper')
+    expect(selfEdit).toContain('@confirm="confirmAvatarCrop"')
+    expect(selfEdit).toContain('@cancel="cancelAvatarCrop"')
+    expect(selfEdit).toContain(':error="avatarCropError"')
+    expect(selfEdit).toMatch(/async function confirmAvatarCrop[\s\S]*?cropImageToSquare[\s\S]*?uploadPreparedFile/)
+    expect(selfEdit).toContain('URL.revokeObjectURL(avatarCrop.value.url)')
+    expect(selfEdit).toContain('onBeforeUnmount(cleanupAvatarCrop)')
+  })
 })

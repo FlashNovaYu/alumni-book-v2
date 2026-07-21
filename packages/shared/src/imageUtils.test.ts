@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { generateImageVariants } from './imageUtils'
+import { cropImageToSquare, generateImageVariants } from './imageUtils'
 
 const originalGlobals = {
   document: globalThis.document,
@@ -66,6 +66,42 @@ describe('generateImageVariants', () => {
     expect(closed).toBe(1)
     expect(canvases[0].width).toBe(1)
     expect(canvases[0].height).toBe(1)
+  })
+})
+
+describe('cropImageToSquare', () => {
+  it('按源图裁切矩形生成 512 像素头像并释放临时资源', async () => {
+    const drawImage = vi.fn()
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage }),
+      toBlob: (callback: BlobCallback, type?: string) => callback(new Blob(['cropped'], { type: type || 'image/jpeg' })),
+    }
+    vi.stubGlobal('document', { createElement: () => canvas })
+    vi.stubGlobal('Image', class {
+      width = 1200
+      height = 800
+      naturalWidth = 1200
+      naturalHeight = 800
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(_value: string) { queueMicrotask(() => this.onload?.()) }
+    })
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:avatar')
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const source = new File(['photo'], 'portrait.jpg', { type: 'image/jpeg', lastModified: 123 })
+
+    const result = await cropImageToSquare(source, { x: 200, y: 0, size: 800 })
+
+    expect(createObjectURL).toHaveBeenCalledWith(source)
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 200, 0, 800, 800, 0, 0, 512, 512)
+    expect(result).toBeInstanceOf(File)
+    expect(result.name).toBe('portrait-cropped.jpg')
+    expect(result.type).toBe('image/jpeg')
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:avatar')
+    expect(canvas.width).toBe(1)
+    expect(canvas.height).toBe(1)
   })
 })
 

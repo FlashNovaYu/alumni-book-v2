@@ -224,6 +224,57 @@ describe('Node 运行时绑定', () => {
     expect(new Uint8Array(await ranged.arrayBuffer())).toEqual(new Uint8Array([1, 2]))
   })
 
+  it('通过 Node 同源入口上传并读取同学头像和背景图', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'alumni-book-upload-fetch-'))
+    storageDirectories.push(directory)
+    const runtime = createNodeRuntime({
+      databasePath: join(directory, 'data', 'alumni.sqlite'),
+      uploadRoot: join(directory, 'uploads'),
+      jwtSecret: 'node-upload-test-secret',
+      corsOrigin: 'http://127.0.0.1:4321',
+      releaseSha: '1234567890abcdef1234567890abcdef12345678',
+    })
+    openRuntimes.push(runtime)
+    await runtime.env.DB.prepare(
+      'INSERT INTO students (id, name, slug) VALUES (?, ?, ?)',
+    ).bind('node-upload-student', '本地上传同学', 'node-upload').run()
+    await runtime.env.DB.prepare(
+      "INSERT INTO classmate_sessions (token, student_slug, expires_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+1 day'))",
+    ).bind('node-upload-token', 'node-upload').run()
+    const fetch = createNodeFetch(runtime)
+
+    const upload = async (type: 'avatar' | 'background') => {
+      const form = new FormData()
+      form.append('file', new File([
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      ], `${type}.png`, { type: 'image/png' }))
+      form.append('type', type)
+      form.append('slug', 'node-upload')
+      const response = await fetch(new Request('http://127.0.0.1:8787/api/classmate/upload', {
+        method: 'POST',
+        headers: { 'X-Classmate-Token': 'node-upload-token' },
+        body: form,
+      }))
+      expect(response.status).toBe(200)
+      return response.json() as Promise<{ data: { r2Key: string } }>
+    }
+
+    const avatar = await upload('avatar')
+    const background = await upload('background')
+    const row = await runtime.env.DB.prepare(
+      'SELECT avatar_url, background_url FROM students WHERE slug = ?',
+    ).bind('node-upload').first<{ avatar_url: string; background_url: string }>()
+    const avatarFile = await fetch(new Request(`http://127.0.0.1:8787/api/files/${avatar.data.r2Key}`))
+    const backgroundFile = await fetch(new Request(`http://127.0.0.1:8787/api/files/${background.data.r2Key}`))
+
+    expect(row?.avatar_url).toBe(`/api/files/${avatar.data.r2Key}`)
+    expect(row?.background_url).toBe(`/api/files/${background.data.r2Key}`)
+    expect(avatarFile.status).toBe(200)
+    expect(avatarFile.headers.get('Content-Type')).toBe('image/png')
+    expect(backgroundFile.status).toBe(200)
+    expect(backgroundFile.headers.get('Content-Type')).toBe('image/png')
+  })
+
   it('在 Node 没有 Cache API 时跳过 HTTPS 公共缓存读取', async () => {
     await expect(matchPublicCache(new Request('https://example.test/api/config'))).resolves.toBeUndefined()
   })

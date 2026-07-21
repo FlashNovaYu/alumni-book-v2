@@ -29,7 +29,7 @@
                   <img v-if="form.avatarUrl" :src="form.avatarUrl" class="avatar-preview" width="60" height="60" loading="lazy" decoding="async" />
                   <span v-else class="avatar-empty">无头像</span>
                   <label class="btn-sm btn-secondary upload-label">
-                    上传<input type="file" accept="image/*" class="file-input" @change="uploadAvatar" :disabled="uploading" />
+                    上传<input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/webp" class="file-input" @change="selectAvatar" :disabled="uploading" />
                   </label>
                 </div>
               </section>
@@ -197,14 +197,26 @@
         </div>
       </Transition>
     </Teleport>
+
+    <AvatarCropper
+      v-if="avatarCrop"
+      :src="avatarCrop.url"
+      :natural-width="avatarCrop.naturalWidth"
+      :natural-height="avatarCrop.naturalHeight"
+      :busy="uploading"
+      :error="avatarCropError"
+      @confirm="confirmAvatarCrop"
+      @cancel="cancelAvatarCrop"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { appendImageVariants, compressImage, generateImageVariants, getSessionName, getClassmateToken, getClassmateStudent, type Student } from '@alumni/shared'
+import { ref, reactive, onBeforeUnmount, onMounted, computed } from 'vue'
+import { appendImageVariants, compressImage, cropImageToSquare, generateImageVariants, getSessionName, getClassmateToken, getClassmateStudent, type SquareCrop, type Student } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
 import { handleClassmateUnauthorized } from '../api/classmateSession'
+import AvatarCropper from './AvatarCropper.vue'
 
 const props = defineProps<{
   studentSlug: string
@@ -229,6 +241,14 @@ const uploading = ref(false)
 const saveMsg = ref<{ type: string; text: string } | null>(null)
 const token = ref('')
 const needSetup = ref(false)
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarCropError = ref<string | null>(null)
+const avatarCrop = ref<{
+  file: File
+  url: string
+  naturalWidth: number
+  naturalHeight: number
+} | null>(null)
 
 const form = reactive<{
   name: string
@@ -314,6 +334,7 @@ async function openEditorAfterAuthed() {
 }
 
 function closeEditor() {
+  cleanupAvatarCrop()
   show.value = false
   saveMsg.value = null
   form.editSecret = undefined
@@ -325,49 +346,120 @@ function closeEditor() {
   }
 }
 
-async function uploadFile(e: Event, type: 'avatar' | 'background') {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  if (!(await ensureToken())) return
+function cleanupAvatarCrop() {
+  if (avatarCrop.value) URL.revokeObjectURL(avatarCrop.value.url)
+  avatarCrop.value = null
+  avatarCropError.value = null
+  if (avatarInput.value) avatarInput.value.value = ''
+}
 
+function cancelAvatarCrop() {
+  if (!uploading.value) cleanupAvatarCrop()
+}
+
+async function selectAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  saveMsg.value = null
+  avatarCropError.value = null
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    saveMsg.value = { type: 'error', text: '该图片暂不支持裁切，请选择 JPG、PNG 或 WebP' }
+    input.value = ''
+    return
+  }
+  if (!(await ensureToken())) {
+    input.value = ''
+    return
+  }
+
+  cleanupAvatarCrop()
+  const url = URL.createObjectURL(file)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const preview = new Image()
+      preview.onload = () => resolve(preview)
+      preview.onerror = () => reject(new Error('Image load failed'))
+      preview.src = url
+    })
+    const naturalWidth = image.naturalWidth || image.width
+    const naturalHeight = image.naturalHeight || image.height
+    if (!naturalWidth || !naturalHeight) throw new Error('Image dimensions unavailable')
+    avatarCrop.value = { file, url, naturalWidth, naturalHeight }
+  } catch {
+    URL.revokeObjectURL(url)
+    input.value = ''
+    saveMsg.value = { type: 'error', text: '无法读取图片，请重新选择' }
+  }
+}
+
+async function uploadPreparedFile(file: File, type: 'avatar' | 'background'): Promise<boolean> {
+  const compressed = await compressImage(file, type === 'avatar' ? 400 : 1600, 0.82)
+  const variants = await generateImageVariants(compressed, {
+    widths: type === 'avatar' ? [128, 256, 320] : [320, 960],
+    quality: 0.82,
+  })
+  const fd = new FormData()
+  fd.append('file', compressed)
+  fd.append('type', type)
+  fd.append('slug', props.studentSlug)
+  appendImageVariants(fd, variants, type === 'avatar' ? 'avatars' : 'backgrounds', props.studentSlug)
+
+  const url = joinApiUrl(props.apiBase, '/api/classmate/upload')
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: fd,
+  })
+  if (res.status === 401) handleClassmateUnauthorized()
+  const data = await res.json()
+  if (!data.success) {
+    saveMsg.value = { type: 'error', text: data.message || '上传失败' }
+    return false
+  }
+  if (type === 'avatar') form.avatarUrl = data.data.url
+  else form.backgroundUrl = data.data.url
+  saveMsg.value = { type: 'success', text: '上传成功' }
+  return true
+}
+
+async function confirmAvatarCrop(crop: SquareCrop) {
+  const state = avatarCrop.value
+  if (!state || !(await ensureToken())) return
+  avatarCropError.value = null
   uploading.value = true
   try {
-    const compressed = await compressImage(file, type === 'avatar' ? 400 : 1600, 0.82)
-    const variants = await generateImageVariants(compressed, {
-      widths: type === 'avatar' ? [128, 256, 320] : [320, 960],
-      quality: 0.82,
-    })
-    const fd = new FormData()
-    fd.append('file', compressed)
-    fd.append('type', type)
-    fd.append('slug', props.studentSlug)
-    appendImageVariants(fd, variants, type === 'avatar' ? 'avatars' : 'backgrounds', props.studentSlug)
+    const cropped = await cropImageToSquare(state.file, crop)
+    if (await uploadPreparedFile(cropped, 'avatar')) cleanupAvatarCrop()
+    else avatarCropError.value = saveMsg.value?.text || '上传失败'
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : '头像裁切或上传失败'
+    avatarCropError.value = text
+    saveMsg.value = { type: 'error', text }
+  } finally {
+    uploading.value = false
+  }
+}
 
-    const url = joinApiUrl(props.apiBase, '/api/classmate/upload')
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: fd,
-    })
-    if (res.status === 401) handleClassmateUnauthorized()
-    const data = await res.json()
-    if (data.success) {
-      if (type === 'avatar') form.avatarUrl = data.data.url
-      else form.backgroundUrl = data.data.url
-      saveMsg.value = { type: 'success', text: '上传成功' }
-    } else {
-      saveMsg.value = { type: 'error', text: data.message || '上传失败' }
-    }
+async function uploadBackground(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !(await ensureToken())) {
+    input.value = ''
+    return
+  }
+  uploading.value = true
+  try {
+    await uploadPreparedFile(file, 'background')
   } catch {
     saveMsg.value = { type: 'error', text: '上传失败' }
   } finally {
     uploading.value = false
-    ;(e.target as HTMLInputElement).value = ''
+    input.value = ''
   }
 }
 
-const uploadAvatar = (e: Event) => uploadFile(e, 'avatar')
-const uploadBackground = (e: Event) => uploadFile(e, 'background')
+onBeforeUnmount(cleanupAvatarCrop)
 
 async function save() {
   if (!(await ensureToken())) return

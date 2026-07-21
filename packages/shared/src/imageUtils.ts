@@ -86,6 +86,52 @@ function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number | u
   })
 }
 
+export interface SquareCrop {
+  x: number
+  y: number
+  size: number
+}
+
+/** Crop a source image to a square file suitable for avatar uploads. */
+export async function cropImageToSquare(file: File, crop: SquareCrop, outputSize = 512): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === SVG_TYPE || file.type === 'image/gif') {
+    throw new Error('该图片暂不支持裁切，请选择 JPG、PNG 或 WebP')
+  }
+  if (![crop.x, crop.y, crop.size, outputSize].every(Number.isFinite) || crop.size <= 0 || outputSize <= 0) {
+    throw new Error('头像裁切范围无效')
+  }
+
+  let decoded: Awaited<ReturnType<typeof decodeImage>> | null = null
+  const canvas = document.createElement('canvas')
+  try {
+    decoded = await decodeImage(file)
+    const size = Math.min(crop.size, decoded.width, decoded.height)
+    const x = Math.min(Math.max(0, crop.x), decoded.width - size)
+    const y = Math.min(Math.max(0, crop.y), decoded.height - size)
+    const targetSize = Math.max(1, Math.round(outputSize))
+    canvas.width = targetSize
+    canvas.height = targetSize
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('当前浏览器无法处理头像图片')
+    context.drawImage(decoded.source, x, y, size, size, 0, 0, targetSize, targetSize)
+
+    const contentType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+    const blob = await canvasBlob(canvas, contentType, contentType === 'image/png' ? undefined : 0.9)
+    const extension = contentType === 'image/png' ? 'png' : 'jpg'
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'avatar'
+    return new File([blob], `${baseName}-cropped.${extension}`, {
+      type: contentType,
+      lastModified: Date.now(),
+    })
+  } finally {
+    canvas.width = 1
+    canvas.height = 1
+    const source = decoded?.source
+    if (source && 'close' in source && typeof source.close === 'function') source.close()
+    decoded?.revoke?.()
+  }
+}
+
 /** Generate immutable responsive image derivatives in the browser. */
 export async function generateImageVariants(file: File, options: ImageVariantOptions = {}): Promise<GeneratedImageVariant[]> {
   if (!file.type.startsWith('image/') || file.type === SVG_TYPE || file.type === 'image/gif') {
