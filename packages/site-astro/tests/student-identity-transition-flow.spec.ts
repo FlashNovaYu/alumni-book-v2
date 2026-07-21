@@ -76,6 +76,84 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('vt-student-return-edge-state'))).toBeNull()
 })
 
+test('快速连续点击不同档案时由最后一次点击完整接管转场', async ({ page }) => {
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const cards = page.locator('.roster-card[href]:not([href="#"]):visible')
+  expect(await cards.count()).toBeGreaterThan(1)
+  const secondHref = await cards.nth(1).getAttribute('href')
+  expect(secondHref).not.toBeNull()
+  const secondSlug = secondHref!.split('/').filter(Boolean).at(-1)!
+
+  await page.evaluate(() => {
+    const visibleCards = Array.from(document.querySelectorAll<HTMLAnchorElement>('.roster-card[href]:not([href="#"])'))
+      .filter((card) => card.offsetParent !== null)
+    visibleCards[0]?.click()
+    window.setTimeout(() => visibleCards[1]?.click(), 20)
+  })
+
+  await expect(page).toHaveURL(new RegExp(secondHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', `student-avatar-${secondSlug}`)
+  await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', `student-name-${secondSlug}`)
+  await expect.poll(() => page.evaluate(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')?.slug || ''
+    } catch {
+      return ''
+    }
+  })).toBe(secondSlug)
+})
+
+test('返回动画尚未结束时连续点击多张档案会排队最后一次点击', async ({ page }) => {
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const rosterCards = page.locator('.roster-card[href]:not([href="#"]):visible')
+  const firstCard = rosterCards.first()
+  const firstHref = await firstCard.getAttribute('href')
+  const nextHref = await rosterCards.nth(2).getAttribute('href')
+  expect(firstHref).not.toBeNull()
+  expect(nextHref).not.toBeNull()
+  const nextSlug = nextHref!.split('/').filter(Boolean).at(-1)!
+  await firstCard.click()
+  await expect(page).toHaveURL(new RegExp(firstHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+
+  await page.getByRole('link', { name: '同学档案' }).click()
+  await expect(page).toHaveURL(/\/roster\/$/)
+
+  const nextPath = new URL(nextHref!, page.url()).pathname
+  await page.route(`**${nextPath}`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    await route.continue()
+  }, { times: 1 })
+  await page.evaluate(() => {
+    ;(window as Window & { __queuedStudentTransitionMode?: string }).__queuedStudentTransitionMode = ''
+    document.addEventListener('astro:before-swap', () => {
+      ;(window as Window & { __queuedStudentTransitionMode?: string }).__queuedStudentTransitionMode = document.documentElement.dataset.studentTransition || ''
+    }, { once: true })
+  })
+  await page.evaluate(() => {
+    const visibleCards = Array.from(document.querySelectorAll<HTMLAnchorElement>('.roster-card[href]:not([href="#"])'))
+      .filter((card) => card.offsetParent !== null)
+    visibleCards[1]?.click()
+    window.setTimeout(() => visibleCards[2]?.click(), 20)
+  })
+
+  await page.waitForTimeout(150)
+  expect(new URL(page.url()).pathname).toMatch(/\/roster\/$/)
+  await expect(page).toHaveURL(new RegExp(nextHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  await expect.poll(() => page.evaluate(() => (window as Window & { __queuedStudentTransitionMode?: string }).__queuedStudentTransitionMode || '')).toBe('edge')
+  await expect.poll(() => page.evaluate(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')?.slug || ''
+    } catch {
+      return ''
+    }
+  })).toBe(nextSlug)
+})
+
 test('从第二页进入详情后返回时恢复第二页中的身份目标', async ({ page }) => {
   await signInForNavigation(page)
   await page.route('**/api/classmates**', (route) => route.fulfill({
@@ -137,6 +215,29 @@ test.describe('手机端档案卡转场', () => {
     await expect(returnedCard.locator('.roster-card__avatar')).toHaveCSS('view-transition-name', `student-avatar-${slug}`)
     await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
   })
+
+  test('返回动画中点击另一档案会等待手机端动画完整结束', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+    const cards = page.locator('.roster-card[href]:not([href="#"]):visible')
+    const firstHref = await cards.first().getAttribute('href')
+    const nextHref = await cards.nth(1).getAttribute('href')
+    expect(firstHref).not.toBeNull()
+    expect(nextHref).not.toBeNull()
+
+    await cards.first().click()
+    await expect(page).toHaveURL(new RegExp(firstHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+
+    await page.locator('a[data-nav-item][href*="/roster/"]').first().evaluate((anchor: HTMLAnchorElement) => anchor.click())
+    await expect(page).toHaveURL(/\/roster\/$/)
+    await page.locator('.roster-card[href]:not([href="#"]):visible').nth(1).evaluate((card: HTMLAnchorElement) => card.click())
+
+    await page.waitForTimeout(200)
+    expect(new URL(page.url()).pathname).toMatch(/\/roster\/$/)
+    await expect(page).toHaveURL(new RegExp(nextHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  })
 })
 
 test.describe('减少动态偏好', () => {
@@ -145,8 +246,17 @@ test.describe('减少动态偏好', () => {
   test('个人页立即显示身份元素和辅助资料', async ({ page }) => {
     await signInForNavigation(page)
     await page.goto('./roster/', { waitUntil: 'networkidle' })
-    await page.locator('.roster-card[href]:not([href="#"])').first().click()
+    const cards = page.locator('.roster-card[href]:not([href="#"]):visible')
+    const secondHref = await cards.nth(1).getAttribute('href')
+    expect(secondHref).not.toBeNull()
+    await page.evaluate(() => {
+      const visibleCards = Array.from(document.querySelectorAll<HTMLAnchorElement>('.roster-card[href]:not([href="#"])'))
+        .filter((card) => card.offsetParent !== null)
+      visibleCards[0]?.click()
+      window.setTimeout(() => visibleCards[1]?.click(), 20)
+    })
 
+    await expect(page).toHaveURL(new RegExp(secondHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
     await expect(page.locator('.student-hero__avatar')).toHaveCSS('view-transition-name', 'none')
     await expect(page.locator('.student-hero__name')).toHaveCSS('view-transition-name', 'none')
     await expect(page.locator('.hero-support')).toHaveCSS('opacity', '1')
