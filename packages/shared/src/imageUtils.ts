@@ -38,10 +38,20 @@ export interface ImageVariantOptions {
   quality?: number
 }
 
+function createImageVariantId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 export function appendImageVariants(formData: FormData, variants: GeneratedImageVariant[], prefix: string, target: string) {
   const metadata = variants.filter((variant) => variant.kind !== 'original').map((variant) => {
     const extension = variant.contentType === 'image/webp' ? 'webp' : 'jpg'
-    const key = `${prefix}/${target}_${Date.now()}_${crypto.randomUUID()}_${variant.kind}.${extension}`
+    const key = `${prefix}/${target}_${Date.now()}_${createImageVariantId()}_${variant.kind}.${extension}`
     formData.append(`variant_${variant.kind}`, new File([variant.blob], `${variant.kind}.${extension}`, { type: variant.contentType }))
     return { key, contentType: variant.contentType, width: variant.width, height: variant.height, kind: variant.kind }
   })

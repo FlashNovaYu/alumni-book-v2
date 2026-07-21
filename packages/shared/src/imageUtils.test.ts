@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cropImageToSquare, generateImageVariants } from './imageUtils'
+import { appendImageVariants, cropImageToSquare, generateImageVariants } from './imageUtils'
 
 const originalGlobals = {
   document: globalThis.document,
@@ -29,6 +29,29 @@ function installCanvas(toBlob: (callback: BlobCallback, type?: string) => void) 
   })
   return canvases
 }
+
+describe('appendImageVariants', () => {
+  it('randomUUID 不可用时使用 getRandomValues 生成变体文件标识', () => {
+    vi.stubGlobal('crypto', {
+      getRandomValues: (values: Uint8Array) => {
+        values.set(Array.from({ length: values.length }, (_, index) => index))
+        return values
+      },
+    })
+    const formData = new FormData()
+
+    const metadata = appendImageVariants(formData, [{
+      kind: '128',
+      blob: new Blob(['avatar'], { type: 'image/webp' }),
+      width: 128,
+      height: 128,
+      contentType: 'image/webp',
+    }], 'avatars', 'student')
+
+    expect(metadata[0].key).toMatch(/^avatars\/student_\d+_00010203-0405-4607-8809-0a0b0c0d0e0f_128\.webp$/)
+    expect(formData.get('variant_128')).toBeInstanceOf(File)
+  })
+})
 
 describe('generateImageVariants', () => {
   it('GIF 仅保留原文件，避免把动画降成单帧变体', async () => {
