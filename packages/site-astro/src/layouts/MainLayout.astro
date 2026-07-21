@@ -115,8 +115,6 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
       <TopNav />
       <main class="main-content"><slot /></main>
       <script>
-        import { navigate } from 'astro:transitions/client'
-
         let reinitAuxiliaryRuntime = () => {}
 
         function applyStudentTransitionNames(root: ParentNode, slug: string) {
@@ -228,7 +226,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         let studentTransitionSequence = 0
         let activeStudentTransitionId = 0
         let studentViewTransitionRunning = false
-        let queuedStudentNavigation: { href: string; slug?: string; kind: 'student' | 'roster' } | null = null
+        let queuedStudentNavigation: { href: string; anchor: HTMLAnchorElement } | null = null
 
         const clearStudentTransition = (preserveReturn = false, ownerId?: number) => {
           if (ownerId !== undefined && ownerId !== activeStudentTransitionId) return
@@ -285,22 +283,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const queued = queuedStudentNavigation
           queuedStudentNavigation = null
           if (!queued) return
-
-          claimStudentTransitionOwnership()
-          if (queued.kind === 'student' && queued.slug) {
-            const card = Array.from(document.querySelectorAll<HTMLElement>('[data-student-identity-card]'))
-              .find((element) => element.dataset.studentIdentityCard === queued.slug)
-            if (card) {
-              sessionStorage.setItem('vt-student-return-slug', queued.slug)
-              prepareStudentTransition(card, queued.slug)
-            }
-          } else if (queued.kind === 'roster') {
-            prepareStudentReturnTransition()
-          }
-          setNavigationState(queued.href)
-          if (navigationResetTimer !== null) clearTimeout(navigationResetTimer)
-          navigationResetTimer = setTimeout(clearNavigationState, 4000)
-          void navigate(queued.href)
+          if (queued.anchor.isConnected) queued.anchor.click()
+          else window.location.assign(queued.href)
         }
 
         const finishStudentViewTransition = (ownerId: number, preserveReturn: boolean) => {
@@ -394,9 +378,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           if (studentViewTransitionRunning && (studentNavigation || rosterNavigation)) {
             event.preventDefault()
             event.stopImmediatePropagation()
-            queuedStudentNavigation = studentNavigation
-              ? { href: url.href, slug: studentSlug, kind: 'student' }
-              : { href: url.href, kind: 'roster' }
+            queuedStudentNavigation = { href: url.href, anchor }
             return
           }
           if (studentSlug && url.pathname.includes('/student/')) {
