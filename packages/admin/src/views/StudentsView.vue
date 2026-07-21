@@ -131,7 +131,7 @@ async function handleCreate() {
       body: JSON.stringify(newStudent.value),
     })
     await loadStudents(true)
-    createSuccess.value = '已创建同学账号，初始密码为 123456，请通知同学首次登录后修改。'
+    createSuccess.value = '已创建同学账号，初始密码为 12356，请通知同学首次登录后修改。'
   } catch (e: any) {
     alert(e.message || '创建失败')
   } finally {

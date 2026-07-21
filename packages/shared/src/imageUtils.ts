@@ -25,7 +25,7 @@ export function createThumbnail(file: File, maxWidth = 200, quality = 0.8): Prom
 }
 
 export interface GeneratedImageVariant {
-  kind: 'original' | '128' | '256' | '320' | '960'
+  kind: 'original' | '128' | '256' | '320' | '640' | '960' | '1280' | '1920'
   blob: Blob
   width: number
   height: number

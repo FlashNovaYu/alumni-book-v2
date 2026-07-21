@@ -395,10 +395,10 @@ async function selectAvatar(event: Event) {
 }
 
 async function uploadPreparedFile(file: File, type: 'avatar' | 'background'): Promise<boolean> {
-  const compressed = await compressImage(file, type === 'avatar' ? 400 : 1600, 0.82)
+  const compressed = await compressImage(file, type === 'avatar' ? 400 : 2048, type === 'avatar' ? 0.85 : 0.88)
   const variants = await generateImageVariants(compressed, {
-    widths: type === 'avatar' ? [128, 256, 320] : [320, 960],
-    quality: 0.82,
+    widths: type === 'avatar' ? [128, 256, 320] : [640, 1280, 1920],
+    quality: type === 'avatar' ? 0.85 : 0.88,
   })
   const fd = new FormData()
   fd.append('file', compressed)

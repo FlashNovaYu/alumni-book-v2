@@ -21,13 +21,21 @@ export function buildMediaSources(
     .slice()
     .sort((a, b) => a.width - b.width)
   const srcset = valid.map((variant) => `${resolveMediaUrl(original, variant.key)} ${variant.width}w`).join(', ')
-  const smallest = valid[0]
+  let selectedVariant: MediaVariant | undefined
+  if (valid.length > 0) {
+    if (width && width > 0) {
+      selectedVariant = valid.find((v) => v.width >= width) || valid[valid.length - 1]
+    } else {
+      selectedVariant = valid[valid.length - 1]
+    }
+  }
+  const chosenUrl = selectedVariant ? resolveMediaUrl(original, selectedVariant.key) : resolveMediaUrl(original, original)
   return {
-    src: smallest ? resolveMediaUrl(original, smallest.key) : resolveMediaUrl(original, original),
+    src: chosenUrl,
     srcset,
     sizes: width && width > 0 ? `${Math.round(width)}px` : '100vw',
-    width: width || smallest?.width,
-    height: height || (smallest?.height || undefined),
+    width: width || selectedVariant?.width,
+    height: height || (selectedVariant?.height || undefined),
     variants: valid.length ? valid : undefined,
   }
 }

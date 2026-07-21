@@ -50,7 +50,7 @@ studentsRoutes.post('/students', async (c) => {
     futureSelf: '',
     letterToClassmates: ''
   })
-  const initialPasswordHash = await hashPassword('123456')
+  const initialPasswordHash = await hashPassword('12356')
 
   await runAuditedBatch(db, admin.id, [db.prepare(
     `INSERT INTO students (

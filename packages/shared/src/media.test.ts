@@ -25,4 +25,12 @@ describe('buildMediaSources', () => {
     expect(resolveMediaUrl('/api/files/photos/original.jpg', 'photos/960.webp')).toBe('/api/files/photos/960.webp')
     expect(resolveMediaUrl('https://cdn.example.test/api/files/photos/original.jpg', 'https://img.example.test/960.webp')).toBe('https://img.example.test/960.webp')
   })
+
+  it('selects high-res variant for background when larger width is requested', () => {
+    const result = buildMediaSources('/api/files/backgrounds/orig.jpg', [
+      { key: 'backgrounds/1920.webp', contentType: 'image/webp', width: 1920, height: 1080, kind: '1920' },
+      { key: 'backgrounds/320.webp', contentType: 'image/webp', width: 320, height: 180, kind: '320' },
+    ], 1920, 1080)
+    expect(result.src).toBe('/api/files/backgrounds/1920.webp')
+  })
 })

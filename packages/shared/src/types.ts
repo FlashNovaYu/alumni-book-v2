@@ -460,6 +460,7 @@ export interface AdminAuditLog {
   reason: string | null
   before_summary: string | null
   after_summary: string | null
+  metadata?: string | null
   created_at: string
 }
 

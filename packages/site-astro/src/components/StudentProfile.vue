@@ -436,7 +436,7 @@ const heroBgStyle = computed(() => {
   const bgUrl = student.value.backgroundUrl
     ? (student.value.backgroundUrl.startsWith('http') ? student.value.backgroundUrl : `${props.apiBase}${student.value.backgroundUrl}`)
     : null
-  const backgroundMedia = buildMediaSources(bgUrl, student.value.media?.background?.variants, 960, 540)
+  const backgroundMedia = buildMediaSources(bgUrl, student.value.media?.background?.variants, 1920, 1080)
   return {
     backgroundImage: backgroundMedia.src
       ? `linear-gradient(180deg, rgba(28,25,23,0.3) 0%, rgba(28,25,23,0.7) 100%), url(${backgroundMedia.src})`

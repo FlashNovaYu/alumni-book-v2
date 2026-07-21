@@ -69,7 +69,7 @@ export async function parseUploadVariants(formData: FormData, type: string, targ
     const kind = String(value.kind || '')
     const width = Number(value.width)
     const height = Number(value.height)
-    if (!key || key.length > 512 || key.includes('..') || !key.startsWith(VARIANT_PREFIX[type]) || (target && !key.startsWith(`${VARIANT_PREFIX[type]}${target}_`)) || !/^image\/(?:webp|jpeg|jpg|png)$/.test(contentType) || !['128', '256', '320', '960'].includes(kind) || kinds.has(kind) || keys.has(key) || !Number.isInteger(width) || width < 1 || width > Number(kind) || !Number.isInteger(height) || height < 1 || height > 10000) {
+    if (!key || key.length > 512 || key.includes('..') || !key.startsWith(VARIANT_PREFIX[type]) || (target && !key.startsWith(`${VARIANT_PREFIX[type]}${target}_`)) || !/^image\/(?:webp|jpeg|jpg|png)$/.test(contentType) || !['128', '256', '320', '640', '960', '1280', '1920'].includes(kind) || kinds.has(kind) || keys.has(key) || !Number.isInteger(width) || width < 1 || width > Number(kind) || !Number.isInteger(height) || height < 1 || height > 10000) {
       return { error: '图片变体元数据无效' }
     }
     const file = formData.get(`variant_${kind}`)

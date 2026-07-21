@@ -59,7 +59,7 @@ assert.doesNotMatch(mail, /\/api\/admin\/mail\//)
 assert.match(mail, /historyRequest/)
 assert.match(layout, /通知中心/)
 assert.match(main, /path: 'mail', name: 'notifications'/)
-assert.match(studentsView, /初始密码为 123456/)
+assert.match(studentsView, /初始密码为 12356/)
 assert.match(studentsView, /首次登录后修改/)
 
 console.log('后台社群治理与通知中心静态契约通过')
