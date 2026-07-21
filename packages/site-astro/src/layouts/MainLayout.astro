@@ -225,6 +225,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
 
         let studentTransitionSequence = 0
         let activeStudentTransitionId = 0
+        let studentScrollRestoreSequence = 0
         let studentViewTransitionRunning = false
         let queuedStudentNavigation: { href: string; anchor: HTMLAnchorElement } | null = null
 
@@ -258,6 +259,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
             top: `${rect.top}px`,
             right: `${innerWidth - rect.right}px`,
             bottom: `${innerHeight - rect.bottom}px`,
+            scrollX: window.scrollX,
+            scrollY: window.scrollY,
           }
           document.documentElement.dataset.studentTransition = 'edge'
           document.documentElement.style.setProperty('--student-card-left', geometry.left)
@@ -295,11 +298,22 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         }
 
         function prepareStudentReturnTransition() {
-          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || typeof document.startViewTransition !== 'function') return false
-          let state: { slug?: string; left?: string; top?: string; right?: string; bottom?: string } | null = null
+          let state: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; scrollX?: number; scrollY?: number } | null = null
           try {
             state = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')
           } catch {}
+          let currentSlug = ''
+          try {
+            const match = window.location.pathname.match(/\/student\/([^/]+)\/?/)
+            currentSlug = match?.[1] ? decodeURIComponent(match[1]) : ''
+          } catch {}
+          if (!state?.slug || state.slug !== currentSlug) {
+            clearStudentTransition()
+            sessionStorage.removeItem('vt-student-return-slug')
+            sessionStorage.removeItem('vt-student-identity-state')
+            return false
+          }
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || typeof document.startViewTransition !== 'function') return false
           if (!state?.left || !state.top || !state.right || !state.bottom) return false
           document.documentElement.dataset.studentTransition = 'return-edge'
           document.documentElement.style.setProperty('--student-card-left', state.left)
@@ -335,7 +349,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           try {
             edgeState = JSON.parse(sessionStorage.getItem('vt-student-edge-state') || 'null')
           } catch {}
-          let returnEdgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string } | null = null
+          let returnEdgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; scrollX?: number; scrollY?: number } | null = null
           try {
             returnEdgeState = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')
           } catch {}
@@ -362,6 +376,41 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
               () => finishStudentViewTransition(ownerId, preserveReturn),
             )
           }
+        })
+
+        document.addEventListener('astro:after-swap', () => {
+          if (document.documentElement.dataset.studentTransition !== 'return-edge') return
+          try {
+            const state = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null') as { scrollX?: unknown; scrollY?: unknown } | null
+            if (typeof state?.scrollY !== 'number' || !Number.isFinite(state.scrollY)) return
+            const left = typeof state.scrollX === 'number' && Number.isFinite(state.scrollX) ? state.scrollX : 0
+            const top = Math.max(0, state.scrollY)
+            const restoreId = ++studentScrollRestoreSequence
+            const body = document.body
+            const previousMinHeight = body.style.minHeight
+            const forcedMinHeight = `${Math.ceil(Math.max(document.documentElement.scrollHeight, top + window.innerHeight))}px`
+            const scroll = () => window.scrollTo({ left, top, behavior: 'instant' as ScrollBehavior })
+            body.style.minHeight = forcedMinHeight
+            scroll()
+
+            let attempts = 0
+            const settle = () => {
+              if (restoreId !== studentScrollRestoreSequence || !window.location.pathname.includes('/roster/')) {
+                body.style.minHeight = previousMinHeight
+                return
+              }
+              body.style.minHeight = previousMinHeight
+              const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+              if (maxScrollY + 2 >= top || attempts++ >= 120) {
+                scroll()
+                return
+              }
+              body.style.minHeight = forcedMinHeight
+              scroll()
+              requestAnimationFrame(settle)
+            }
+            requestAnimationFrame(settle)
+          } catch {}
         })
 
         const onDocumentClick = (event: MouseEvent) => {

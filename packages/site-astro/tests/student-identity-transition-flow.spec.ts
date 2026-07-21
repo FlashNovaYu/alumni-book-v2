@@ -76,6 +76,93 @@ test('点击卡片后身份元素进入 Hero，并在返回时恢复到原卡片
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('vt-student-return-edge-state'))).toBeNull()
 })
 
+test('从滚动位置进入档案后返回时在新页面截图前恢复同一视口', async ({ page }) => {
+  await page.addInitScript(() => {
+    document.addEventListener('astro:after-swap', () => {
+      if (document.documentElement.dataset.studentTransition !== 'return-edge') return
+      const style = document.createElement('style')
+      style.textContent = 'body > .app, body > .alumni-ambient-bg { display: none !important; }'
+      document.head.append(style)
+      requestAnimationFrame(() => requestAnimationFrame(() => style.remove()))
+    })
+  })
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const card = page.locator('.roster-card[href]:not([href="#"]):visible').nth(10)
+  await card.scrollIntoViewIfNeeded()
+  await page.evaluate(() => window.scrollBy({ top: 120, behavior: 'instant' }))
+  const href = await card.getAttribute('href')
+  expect(href).not.toBeNull()
+  const slug = href!.split('/').filter(Boolean).at(-1)!
+  const before = await card.evaluate((element) => ({
+    scrollY: window.scrollY,
+    top: element.getBoundingClientRect().top,
+  }))
+  expect(before.scrollY).toBeGreaterThan(300)
+
+  await card.click()
+  await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+  await page.evaluate(() => {
+    ;(window as Window & { __studentReturnAfterSwapScrollY?: number }).__studentReturnAfterSwapScrollY = -1
+    document.addEventListener('astro:after-swap', () => {
+      ;(window as Window & { __studentReturnAfterSwapScrollY?: number }).__studentReturnAfterSwapScrollY = window.scrollY
+    }, { once: true })
+  })
+
+  await page.getByRole('link', { name: '同学档案' }).click()
+  await expect(page).toHaveURL(/\/roster\/$/)
+  const returnedCard = page.locator(`[data-student-identity-card="${slug}"]`)
+  await expect(returnedCard).toBeVisible()
+  const after = await returnedCard.evaluate((element) => ({
+    scrollY: window.scrollY,
+    top: element.getBoundingClientRect().top,
+    afterSwapScrollY: (window as Window & { __studentReturnAfterSwapScrollY?: number }).__studentReturnAfterSwapScrollY ?? -1,
+  }))
+
+  expect(Math.abs(after.afterSwapScrollY - before.scrollY)).toBeLessThanOrEqual(2)
+  expect(Math.abs(after.scrollY - before.scrollY)).toBeLessThanOrEqual(2)
+  expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(2)
+})
+
+test('其他学生留下的陈旧返回状态不会驱动当前档案的动画和滚动', async ({ page }) => {
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const cards = page.locator('.roster-card[href]:not([href="#"]):visible')
+  const firstCard = cards.first()
+  const firstHref = await firstCard.getAttribute('href')
+  const secondHref = await cards.nth(1).getAttribute('href')
+  expect(firstHref).not.toBeNull()
+  expect(secondHref).not.toBeNull()
+  await firstCard.scrollIntoViewIfNeeded()
+  await page.evaluate(() => window.scrollBy({ top: 120, behavior: 'instant' }))
+  await firstCard.click()
+  await expect(page).toHaveURL(new RegExp(firstHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+
+  await page.goto(secondHref!, { waitUntil: 'networkidle' })
+  await page.evaluate(() => {
+    ;(window as Window & { __staleReturnState?: { mode: string; scrollY: number } }).__staleReturnState = { mode: '', scrollY: -1 }
+    document.addEventListener('astro:before-swap', () => {
+      const state = (window as Window & { __staleReturnState?: { mode: string; scrollY: number } }).__staleReturnState
+      if (state) state.mode = document.documentElement.dataset.studentTransition || ''
+    }, { once: true })
+    document.addEventListener('astro:after-swap', () => {
+      const state = (window as Window & { __staleReturnState?: { mode: string; scrollY: number } }).__staleReturnState
+      if (state) state.scrollY = window.scrollY
+    }, { once: true })
+  })
+
+  await page.getByRole('link', { name: '同学档案' }).click()
+  await expect(page).toHaveURL(/\/roster\/$/)
+  await expect.poll(() => page.evaluate(() => (window as Window & { __staleReturnState?: { mode: string; scrollY: number } }).__staleReturnState)).toEqual({
+    mode: '',
+    scrollY: 0,
+  })
+})
+
 test('快速连续点击不同档案时由最后一次点击完整接管转场', async ({ page }) => {
   await signInForNavigation(page)
   await page.goto('./roster/', { waitUntil: 'networkidle' })
