@@ -287,8 +287,88 @@ test('从第二页进入详情后返回时恢复第二页中的身份目标', as
   await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
 })
 
+async function sampleIdentityContainment(
+  page: import('@playwright/test').Page,
+  selector: string,
+  slug: string,
+  rootPseudo: '::view-transition-new(root)' | '::view-transition-old(root)',
+) {
+  return page.locator(selector).first().evaluate(async (element, options) => {
+    const rows: Array<{ contained: boolean; rootArea: number }> = []
+    const avatarPseudo = `::view-transition-group(student-avatar-${options.slug})`
+    const namePseudo = `::view-transition-group(student-name-${options.slug})`
+
+    const insetBounds = (clipPath: string) => {
+      const values = Array.from(clipPath.matchAll(/(-?\d+(?:\.\d+)?)px/g), match => Number(match[1]))
+      if (values.length !== 4) return null
+      return {
+        top: values[0],
+        right: innerWidth - values[1],
+        bottom: innerHeight - values[2],
+        left: values[3],
+      }
+    }
+    const groupBounds = (pseudo: string) => {
+      const style = getComputedStyle(document.documentElement, pseudo)
+      if (style.width === 'auto' || style.transform === 'none') return null
+      const matrix = new DOMMatrixReadOnly(style.transform)
+      const width = Number.parseFloat(style.width)
+      const height = Number.parseFloat(style.height)
+      return { top: matrix.m42, right: matrix.m41 + width, bottom: matrix.m42 + height, left: matrix.m41 }
+    }
+    const contains = (outer: NonNullable<ReturnType<typeof insetBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => (
+      inner.top >= outer.top - 2
+      && inner.right <= outer.right + 2
+      && inner.bottom <= outer.bottom + 2
+      && inner.left >= outer.left - 2
+    )
+
+    ;(element as HTMLElement).click()
+    const startedAt = performance.now()
+    await new Promise<void>((resolve) => {
+      const sample = () => {
+        const root = insetBounds(getComputedStyle(document.documentElement, options.rootPseudo).clipPath)
+        const avatar = groupBounds(avatarPseudo)
+        const name = groupBounds(namePseudo)
+        if (root && avatar && name) {
+          rows.push({
+            contained: contains(root, avatar) && contains(root, name),
+            rootArea: Math.max(0, root.right - root.left) * Math.max(0, root.bottom - root.top),
+          })
+        }
+        if (performance.now() - startedAt < 1150) requestAnimationFrame(sample)
+        else resolve()
+      }
+      requestAnimationFrame(sample)
+    })
+    return rows
+  }, { slug, rootPseudo })
+}
+
 test.describe('手机端档案卡转场', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('进入和返回过程中背景边界始终包住头像与姓名', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+    const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
+    const href = await card.getAttribute('href')
+    expect(href).not.toBeNull()
+    const slug = href!.split('/').filter(Boolean).at(-1)!
+
+    const enter = await sampleIdentityContainment(page, '.roster-card[href]:not([href="#"]):visible', slug, '::view-transition-new(root)')
+    await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+    const back = await sampleIdentityContainment(page, 'a[href*="/roster/"]', slug, '::view-transition-old(root)')
+
+    expect(enter.length).toBeGreaterThan(20)
+    expect(back.length).toBeGreaterThan(20)
+    expect(enter.every(sample => sample.contained)).toBe(true)
+    expect(back.every(sample => sample.contained)).toBe(true)
+    expect(enter.at(-1)!.rootArea).toBeGreaterThan(enter[0].rootArea)
+    expect(back.at(-1)!.rootArea).toBeLessThan(back[0].rootArea)
+  })
 
   test('在手机视口完成进入和返回，并保留同一身份元素', async ({ page }) => {
     await signInForNavigation(page)
@@ -333,6 +413,24 @@ test.describe('手机端档案卡转场', () => {
     await page.waitForTimeout(200)
     expect(new URL(page.url()).pathname).toMatch(/\/roster\/$/)
     await expect(page).toHaveURL(new RegExp(nextHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  })
+})
+
+test.describe('手机横屏档案卡转场', () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true })
+
+  test('触摸横屏继续使用手机端扩散时长', async ({ page }) => {
+    await signInForNavigation(page)
+    await page.goto('./roster/', { waitUntil: 'networkidle' })
+    const duration = page.evaluate(() => new Promise<string>((resolve) => {
+      document.addEventListener('astro:before-swap', () => {
+        requestAnimationFrame(() => resolve(
+          getComputedStyle(document.documentElement, '::view-transition-new(root)').animationDuration,
+        ))
+      }, { once: true })
+    }))
+    await page.locator('.roster-card[href]:not([href="#"]):visible').first().click()
+    expect(await duration).toBe('1.05s')
   })
 })
 

@@ -80,15 +80,25 @@ describe('档案卡共享元素转场', () => {
     expect(viewTransitions).not.toContain('::view-transition-group(active-card)')
   })
 
-  it('为手机端提供更舒缓且对称的进入/返回节奏', () => {
+  it('手机端使用连续同步曲线并覆盖触摸横屏', () => {
     const viewTransitions = read('styles/view-transitions.css')
-    const mobileMotion = cssBlock(viewTransitions, '@media (max-width: 768px)')
+    const mobileMotion = cssBlock(
+      viewTransitions,
+      '@media (max-width: 768px), (max-width: 900px) and (pointer: coarse)',
+    )
 
-    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-old\(root\)\s*\{[^}]*animation-duration:\s*1\.05s/)
-    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-new\(root\)\s*\{[^}]*animation-name:\s*student-edge-expand-mobile;[^}]*animation-duration:\s*1\.05s/)
-    expect(mobileMotion).toMatch(/html\[data-student-transition='return-edge'\]::view-transition-old\(root\)\s*\{[^}]*animation-name:\s*student-edge-contract-mobile;[^}]*animation-duration:\s*1\.05s/)
-    expect(mobileMotion).toMatch(/::view-transition-group\(\.student-identity\)\s*\{[^}]*animation-delay:\s*0\.14s;[^}]*animation-duration:\s*0\.9s/)
-    expect(mobileMotion).toMatch(/::view-transition-group\(\.student-card-details\)\s*\{[^}]*animation-duration:\s*0\.62s/)
-    expect(mobileMotion).not.toContain('prefers-reduced-motion')
+    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-new\(root\)[\s\S]*?animation-duration:\s*1\.05s/)
+    expect(mobileMotion).toMatch(/html\[data-student-transition='return-edge'\]::view-transition-old\(root\)[\s\S]*?animation-duration:\s*0\.98s/)
+    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-group\(\.student-identity\)[\s\S]*?animation-delay:\s*0\.08s;[\s\S]*?animation-duration:\s*0\.92s/)
+    expect(mobileMotion).toMatch(/html\[data-student-transition='return-edge'\]::view-transition-group\(\.student-identity\)[\s\S]*?animation-delay:\s*0\.04s;[\s\S]*?animation-duration:\s*0\.86s/)
+    expect(mobileMotion).toMatch(/::view-transition-group\(\.student-card-details\)[\s\S]*?animation-duration:\s*0\.54s/)
+
+    const expand = cssBlock(viewTransitions, '@keyframes student-edge-expand-mobile')
+    const contract = cssBlock(viewTransitions, '@keyframes student-edge-contract-mobile')
+    expect(expand).toContain('92%')
+    expect(expand).not.toContain('2vmax')
+    expect(expand).not.toContain('24%')
+    expect(contract).toContain('96%')
+    expect(contract).not.toContain('76%')
   })
 })
