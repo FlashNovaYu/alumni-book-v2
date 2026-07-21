@@ -50,4 +50,9 @@ describe('同学档案卡双向边缘转场契约', () => {
     expect(transitions).toContain('@media (prefers-reduced-motion: reduce)')
     expect(layout).toContain('startViewTransition')
   })
+
+  it('旧会话缺少卡片中心坐标时清理状态并降级普通返回', () => {
+    expect(layout).toContain('if (!state.centerX || !state.centerY)')
+    expect(layout).toMatch(/if \(!state\.centerX \|\| !state\.centerY\) \{[\s\S]*?clearStudentTransition\(\)[\s\S]*?return false/)
+  })
 })

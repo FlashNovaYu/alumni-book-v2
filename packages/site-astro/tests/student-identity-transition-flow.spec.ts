@@ -172,6 +172,45 @@ test('其他学生留下的陈旧返回状态不会驱动当前档案的动画�
   })
 })
 
+test('旧版返回状态缺少卡片中心坐标时清理并降级普通导航', async ({ page }) => {
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
+  const href = await card.getAttribute('href')
+  expect(href).not.toBeNull()
+  const slug = href!.split('/').filter(Boolean).at(-1)!
+  await card.click()
+  await expect(page).toHaveURL(new RegExp(href!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+
+  await page.evaluate((studentSlug) => {
+    const legacyState = {
+      slug: studentSlug,
+      left: '12px',
+      top: '320px',
+      right: '12px',
+      bottom: '120px',
+      scrollX: 0,
+      scrollY: 240,
+    }
+    sessionStorage.setItem('vt-student-edge-state', JSON.stringify(legacyState))
+    sessionStorage.setItem('vt-student-return-edge-state', JSON.stringify(legacyState))
+    ;(window as Window & { __legacyStudentTransitionMode?: string }).__legacyStudentTransitionMode = 'unset'
+    document.addEventListener('astro:after-swap', () => {
+      ;(window as Window & { __legacyStudentTransitionMode?: string }).__legacyStudentTransitionMode = document.documentElement.dataset.studentTransition || ''
+    }, { once: true })
+  }, slug)
+
+  await page.getByRole('link', { name: '同学档案' }).click()
+  await expect(page).toHaveURL(/\/roster\/$/)
+  await expect.poll(() => page.evaluate(() => ({
+    mode: (window as Window & { __legacyStudentTransitionMode?: string }).__legacyStudentTransitionMode,
+    edge: sessionStorage.getItem('vt-student-edge-state'),
+    returnEdge: sessionStorage.getItem('vt-student-return-edge-state'),
+  }))).toEqual({ mode: '', edge: null, returnEdge: null })
+})
+
 test('快速连续点击不同档案时由最后一次点击完整接管转场', async ({ page }) => {
   await signInForNavigation(page)
   await page.goto('./roster/', { waitUntil: 'networkidle' })
@@ -294,11 +333,38 @@ async function sampleIdentityContainment(
   rootPseudo: '::view-transition-new(root)' | '::view-transition-old(root)',
 ) {
   return page.locator(selector).first().evaluate(async (element, options) => {
-    const rows: Array<{ contained: boolean; elapsed: number; rootArea: number }> = []
+    const rows: Array<{
+      contained: boolean
+      elapsed: number
+      rootArea: number
+      clipPath: string
+      sourceOpacity: number
+      destinationOpacity: number
+    }> = []
     const avatarPseudo = `::view-transition-group(student-avatar-${options.slug})`
     const namePseudo = `::view-transition-group(student-name-${options.slug})`
 
-    const insetBounds = (clipPath: string) => {
+    const clipBounds = (clipPath: string) => {
+      if (clipPath.startsWith('polygon(')) {
+        const coordinate = '(calc\\(100% [+-] \\d+(?:\\.\\d+)?px\\)|-?\\d+(?:\\.\\d+)?px)'
+        const pointPattern = new RegExp(`${coordinate}\\s+${coordinate}`, 'g')
+        const resolveCoordinate = (value: string, axisSize: number) => {
+          const pixels = Number.parseFloat(value.match(/-?\d+(?:\.\d+)?px/)?.[0] || '0')
+          if (!value.startsWith('calc(')) return pixels
+          return value.includes(' + ') ? axisSize + Math.abs(pixels) : axisSize - Math.abs(pixels)
+        }
+        const points = Array.from(clipPath.matchAll(pointPattern), match => ({
+          x: resolveCoordinate(match[1], innerWidth),
+          y: resolveCoordinate(match[2], innerHeight),
+        })).slice(0, 4)
+        if (points.length !== 4) return null
+        return {
+          top: Math.min(...points.map(point => point.y)),
+          right: Math.max(...points.map(point => point.x)),
+          bottom: Math.max(...points.map(point => point.y)),
+          left: Math.min(...points.map(point => point.x)),
+        }
+      }
       const values = Array.from(clipPath.matchAll(/(-?\d+(?:\.\d+)?)px/g), match => Number(match[1]))
       if (values.length < 1 || values.length > 4) return null
       const top = values[0]
@@ -332,7 +398,7 @@ async function sampleIdentityContainment(
         left: Math.min(...corners.map(point => point.x)),
       }
     }
-    const contains = (outer: NonNullable<ReturnType<typeof insetBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => {
+    const contains = (outer: NonNullable<ReturnType<typeof clipBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => {
       const visible = {
         top: Math.max(0, inner.top),
         right: Math.min(innerWidth, inner.right),
@@ -350,7 +416,8 @@ async function sampleIdentityContainment(
     const startedAt = performance.now()
     await new Promise<void>((resolve) => {
       const sample = () => {
-        const root = insetBounds(getComputedStyle(document.documentElement, options.rootPseudo).clipPath)
+        const rootStyle = getComputedStyle(document.documentElement, options.rootPseudo)
+        const root = clipBounds(rootStyle.clipPath)
         const avatar = groupBounds(avatarPseudo)
         const name = groupBounds(namePseudo)
         if (root && avatar && name) {
@@ -359,6 +426,9 @@ async function sampleIdentityContainment(
             elapsed: performance.now() - startedAt,
             rootArea: Math.max(0, Math.min(innerWidth, root.right) - Math.max(0, root.left))
               * Math.max(0, Math.min(innerHeight, root.bottom) - Math.max(0, root.top)),
+            clipPath: rootStyle.clipPath,
+            sourceOpacity: Number.parseFloat(getComputedStyle(document.documentElement, `::view-transition-old(student-avatar-${options.slug})`).opacity),
+            destinationOpacity: Number.parseFloat(getComputedStyle(document.documentElement, `::view-transition-new(student-avatar-${options.slug})`).opacity),
           })
         }
         if (performance.now() - startedAt < 1150) requestAnimationFrame(sample)
@@ -371,12 +441,23 @@ async function sampleIdentityContainment(
 }
 
 function expectContinuousEdge(
-  samples: Array<{ contained: boolean; elapsed: number; rootArea: number }>,
+  samples: Array<{
+    contained: boolean
+    elapsed: number
+    rootArea: number
+    clipPath: string
+    sourceOpacity: number
+    destinationOpacity: number
+  }>,
   direction: 'expand' | 'contract',
   viewportArea: number,
 ) {
   expect(samples.length).toBeGreaterThan(20)
-  expect(samples.every(sample => sample.contained)).toBe(true)
+  expect(samples.filter(sample => !sample.contained).slice(0, 3).map(sample => ({
+    elapsed: Math.round(sample.elapsed),
+    rootArea: Math.round(sample.rootArea),
+    clipPath: sample.clipPath,
+  }))).toEqual([])
   const pairs = samples.slice(1).map((sample, index) => ({ current: sample, previous: samples[index] }))
   expect(pairs.every(({ current, previous }) => (
     direction === 'expand'
@@ -410,6 +491,9 @@ test.describe('手机端档案卡转场', () => {
     const back = await sampleIdentityContainment(page, 'a[href*="/roster/"]', slug, '::view-transition-old(root)')
 
     expectContinuousEdge(enter, 'expand', 390 * 844)
+    expect(enter[0]?.clipPath).toContain('polygon(')
+    expect(enter[0]?.sourceOpacity).toBeGreaterThanOrEqual(0.9)
+    expect(enter.every(sample => sample.sourceOpacity + sample.destinationOpacity >= 0.85)).toBe(true)
     expectContinuousEdge(back, 'contract', 390 * 844)
   })
 

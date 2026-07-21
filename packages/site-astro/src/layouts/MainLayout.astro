@@ -232,7 +232,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         const clearStudentTransition = (preserveReturn = false, ownerId?: number) => {
           if (ownerId !== undefined && ownerId !== activeStudentTransitionId) return
           document.documentElement.removeAttribute('data-student-transition')
-          for (const property of ['--student-card-left', '--student-card-top', '--student-card-right', '--student-card-bottom']) {
+          for (const property of ['--student-card-left', '--student-card-top', '--student-card-right', '--student-card-bottom', '--student-card-center-x', '--student-card-center-y']) {
             document.documentElement.style.removeProperty(property)
           }
           sessionStorage.removeItem('vt-student-edge-state')
@@ -259,6 +259,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
             top: `${rect.top}px`,
             right: `${innerWidth - rect.right}px`,
             bottom: `${innerHeight - rect.bottom}px`,
+            centerX: `${rect.left + rect.width / 2}px`,
+            centerY: `${rect.top + rect.height / 2}px`,
             scrollX: window.scrollX,
             scrollY: window.scrollY,
           }
@@ -267,6 +269,8 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           document.documentElement.style.setProperty('--student-card-top', geometry.top)
           document.documentElement.style.setProperty('--student-card-right', geometry.right)
           document.documentElement.style.setProperty('--student-card-bottom', geometry.bottom)
+          document.documentElement.style.setProperty('--student-card-center-x', geometry.centerX)
+          document.documentElement.style.setProperty('--student-card-center-y', geometry.centerY)
           sessionStorage.setItem('vt-student-edge-state', JSON.stringify({ slug, ...geometry }))
           sessionStorage.setItem('vt-student-return-edge-state', JSON.stringify({ slug, ...geometry }))
 
@@ -298,7 +302,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         }
 
         function prepareStudentReturnTransition() {
-          let state: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; scrollX?: number; scrollY?: number } | null = null
+          let state: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; centerX?: string; centerY?: string; scrollX?: number; scrollY?: number } | null = null
           try {
             state = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')
           } catch {}
@@ -315,11 +319,19 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           }
           if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || typeof document.startViewTransition !== 'function') return false
           if (!state?.left || !state.top || !state.right || !state.bottom) return false
+          if (!state.centerX || !state.centerY) {
+            clearStudentTransition()
+            sessionStorage.removeItem('vt-student-return-slug')
+            sessionStorage.removeItem('vt-student-identity-state')
+            return false
+          }
           document.documentElement.dataset.studentTransition = 'return-edge'
           document.documentElement.style.setProperty('--student-card-left', state.left)
           document.documentElement.style.setProperty('--student-card-top', state.top)
           document.documentElement.style.setProperty('--student-card-right', state.right)
           document.documentElement.style.setProperty('--student-card-bottom', state.bottom)
+          document.documentElement.style.setProperty('--student-card-center-x', state.centerX)
+          document.documentElement.style.setProperty('--student-card-center-y', state.centerY)
           return true
         }
 
@@ -345,11 +357,11 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           if (!nextDocument) return
           const navDirection = document.documentElement.dataset.navDir || sessionStorage.getItem('vt-nav-dir')
           if (navDirection) nextDocument.documentElement.dataset.navDir = navDirection
-          let edgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string } | null = null
+          let edgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; centerX?: string; centerY?: string } | null = null
           try {
             edgeState = JSON.parse(sessionStorage.getItem('vt-student-edge-state') || 'null')
           } catch {}
-          let returnEdgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; scrollX?: number; scrollY?: number } | null = null
+          let returnEdgeState: { slug?: string; left?: string; top?: string; right?: string; bottom?: string; centerX?: string; centerY?: string; scrollX?: number; scrollY?: number } | null = null
           try {
             returnEdgeState = JSON.parse(sessionStorage.getItem('vt-student-return-edge-state') || 'null')
           } catch {}
@@ -358,12 +370,14 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           if (!active) return
           nextDocument.documentElement.dataset.studentTransition = mode || 'edge'
           const geometryState = mode === 'return-edge' ? returnEdgeState : edgeState
-          for (const property of ['--student-card-left', '--student-card-top', '--student-card-right', '--student-card-bottom']) {
+          for (const property of ['--student-card-left', '--student-card-top', '--student-card-right', '--student-card-bottom', '--student-card-center-x', '--student-card-center-y']) {
             const value = document.documentElement.style.getPropertyValue(property)
             const fallback = property === '--student-card-left' ? geometryState?.left
               : property === '--student-card-top' ? geometryState?.top
                 : property === '--student-card-right' ? geometryState?.right
-                  : geometryState?.bottom
+                  : property === '--student-card-bottom' ? geometryState?.bottom
+                    : property === '--student-card-center-x' ? geometryState?.centerX
+                      : geometryState?.centerY
             if (value || fallback) nextDocument.documentElement.style.setProperty(property, value || fallback || '')
           }
           if (mode === 'return-edge' && returnEdgeState?.slug) applyStudentTransitionNames(nextDocument, returnEdgeState.slug)

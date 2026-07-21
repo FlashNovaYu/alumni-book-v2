@@ -95,11 +95,24 @@ describe('档案卡共享元素转场', () => {
 
     const expand = cssBlock(viewTransitions, '@keyframes student-edge-expand-mobile')
     const contract = cssBlock(viewTransitions, '@keyframes student-edge-contract-mobile')
-    expect(expand).toContain('92%')
-    expect(expand).not.toContain('2vmax')
-    expect(expand).not.toContain('24%')
+    expect(expand).toContain('polygon(evenodd')
+    expect(expand).toContain('--student-card-center-x')
+    expect(expand).toContain('12%')
+    expect(expand).not.toMatch(/0%\s*\{\s*clip-path:\s*inset/)
     expect(contract).toContain('96%')
     expect(contract).not.toContain('8%')
     expect(contract).not.toContain('76%')
+  })
+
+  it('身份快照在移动开始时连续交接而不是先隐藏再出现', () => {
+    const viewTransitions = read('styles/view-transitions.css')
+    const source = cssBlock(viewTransitions, '::view-transition-old(.student-identity)')
+    const destination = cssBlock(viewTransitions, '::view-transition-new(.student-identity)')
+
+    expect(source).toContain('student-identity-source-handoff')
+    expect(source).not.toMatch(/opacity:\s*0\s*;/)
+    expect(destination).toContain('student-identity-destination-handoff')
+    expect(viewTransitions).toMatch(/@keyframes student-identity-source-handoff[\s\S]*?0%[\s\S]*?opacity:\s*1/)
+    expect(viewTransitions).toMatch(/@keyframes student-identity-destination-handoff[\s\S]*?100%[\s\S]*?opacity:\s*1/)
   })
 })

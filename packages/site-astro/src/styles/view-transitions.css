@@ -208,13 +208,24 @@ html[data-theme='night'] .page-shell {
 }
 
 ::view-transition-old(.student-identity) {
-  animation: none !important;
-  opacity: 0;
+  animation: student-identity-source-handoff 0.28s linear both !important;
+  mix-blend-mode: normal;
+  opacity: 1;
 }
 
 ::view-transition-new(.student-identity) {
-  animation: none !important;
-  opacity: 1;
+  animation: student-identity-destination-handoff 0.2s 0.08s linear both !important;
+  mix-blend-mode: normal;
+}
+
+@keyframes student-identity-source-handoff {
+  0%, 28% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes student-identity-destination-handoff {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 ::view-transition-group(.student-card-details) {
@@ -248,6 +259,18 @@ html[data-theme='night'] .page-shell {
     animation-name: student-edge-expand-mobile;
     animation-duration: 1.05s;
     animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+    clip-path: polygon(evenodd,
+      var(--student-card-left) var(--student-card-top),
+      calc(100% - var(--student-card-right)) var(--student-card-top),
+      calc(100% - var(--student-card-right)) calc(100% - var(--student-card-bottom)),
+      var(--student-card-left) calc(100% - var(--student-card-bottom)),
+      var(--student-card-left) var(--student-card-top),
+      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px),
+      calc(var(--student-card-left) + 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
+      calc(100% - var(--student-card-right) - 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
+      calc(100% - var(--student-card-right) - 1.5px) calc(var(--student-card-top) + 1.5px),
+      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px)
+    );
   }
 
   html[data-student-transition='return-edge']::view-transition-old(root) {
@@ -275,13 +298,60 @@ html[data-theme='night'] .page-shell {
 
 @keyframes student-edge-expand-mobile {
   0% {
-    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+    clip-path: polygon(evenodd,
+      var(--student-card-left) var(--student-card-top),
+      calc(100% - var(--student-card-right)) var(--student-card-top),
+      calc(100% - var(--student-card-right)) calc(100% - var(--student-card-bottom)),
+      var(--student-card-left) calc(100% - var(--student-card-bottom)),
+      var(--student-card-left) var(--student-card-top),
+      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px),
+      calc(var(--student-card-left) + 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
+      calc(100% - var(--student-card-right) - 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
+      calc(100% - var(--student-card-right) - 1.5px) calc(var(--student-card-top) + 1.5px),
+      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px)
+    );
   }
-  92% {
-    clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
+  12% {
+    clip-path: polygon(evenodd,
+      calc(var(--student-card-left) - 10px) calc(var(--student-card-top) - 10px),
+      calc(100% - var(--student-card-right) + 10px) calc(var(--student-card-top) - 10px),
+      calc(100% - var(--student-card-right) + 10px) calc(100% - var(--student-card-bottom) + 10px),
+      calc(var(--student-card-left) - 10px) calc(100% - var(--student-card-bottom) + 10px),
+      calc(var(--student-card-left) - 10px) calc(var(--student-card-top) - 10px),
+      calc(var(--student-card-left) + 16px) calc(var(--student-card-top) + 16px),
+      calc(var(--student-card-left) + 16px) calc(100% - var(--student-card-bottom) - 16px),
+      calc(100% - var(--student-card-right) - 16px) calc(100% - var(--student-card-bottom) - 16px),
+      calc(100% - var(--student-card-right) - 16px) calc(var(--student-card-top) + 16px),
+      calc(var(--student-card-left) + 16px) calc(var(--student-card-top) + 16px)
+    );
+  }
+  70% {
+    clip-path: polygon(evenodd,
+      -1vmax -1vmax,
+      calc(100% + 1vmax) -1vmax,
+      calc(100% + 1vmax) calc(100% + 1vmax),
+      -1vmax calc(100% + 1vmax),
+      -1vmax -1vmax,
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y)
+    );
   }
   100% {
-    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+    clip-path: polygon(evenodd,
+      -8vmax -8vmax,
+      calc(100% + 8vmax) -8vmax,
+      calc(100% + 8vmax) calc(100% + 8vmax),
+      -8vmax calc(100% + 8vmax),
+      -8vmax -8vmax,
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y),
+      var(--student-card-center-x) var(--student-card-center-y)
+    );
   }
 }
 
