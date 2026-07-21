@@ -108,6 +108,10 @@ test('API 镜像构建排除工作区 node_modules，避免覆盖容器依赖链
   assert.match(dockerignore, /^packages\/shared\/node_modules$/m)
 })
 
+test('Linux 备份脚本保持 LF 换行，避免 systemd 执行失败', () => {
+  assert.doesNotMatch(read('scripts/backup-selfhosted.sh'), /\r\n/)
+})
+
 test('IP 明文入口只返回 403', () => {
   const config = read('deploy/nginx-ecs.conf')
   assert.match(config, /listen 80 default_server;/)
