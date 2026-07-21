@@ -14,7 +14,16 @@ let currentAdminCacheVersion = 0
 const CURRENT_ADMIN_TTL_MS = 30_000
 
 function getToken(): string | null {
-  const token = sessionStorage.getItem('admin_token')
+  let token: string | null = null
+  try {
+    token = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('admin_token') : null
+    if (!token && typeof localStorage !== 'undefined') {
+      token = localStorage.getItem('admin_token')
+      if (token && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('admin_token', token)
+      }
+    }
+  } catch {}
   if (currentAdminToken && currentAdminToken !== token) clearCurrentAdminCache()
   return token
 }
@@ -40,7 +49,10 @@ function authHeaders(): Record<string, string> {
 }
 
 function redirectToLogin(): void {
-  sessionStorage.removeItem('admin_token')
+  try {
+    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('admin_token')
+    if (typeof localStorage !== 'undefined') localStorage.removeItem('admin_token')
+  } catch {}
   clearCurrentAdminCache()
   const adminBase = import.meta.env?.BASE_URL || '/admin/'
   window.location.href = `${adminBase}#/login`
@@ -93,6 +105,9 @@ export async function adminLogin(username: string, password: string): Promise<{ 
   const admin = data.data?.admin as AdminIdentity | undefined
   if (!token || !admin) throw new Error(data.message || '登录响应异常，请重试')
   sessionStorage.setItem('admin_token', token)
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('admin_token', token)
+  } catch {}
   clearCurrentAdminCache()
   setCurrentAdmin(admin, token)
   return { needsSetup: false, admin }
@@ -138,7 +153,13 @@ export async function changeAdminPassword(oldPassword: string, newPassword: stri
 }
 
 export async function exchangeClassmateSession(): Promise<AdminIdentity> {
-  const classmateToken = sessionStorage.getItem('classmate_account_token')
+  let classmateToken: string | null = null
+  try {
+    classmateToken = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('classmate_account_token') : null
+    if (!classmateToken && typeof localStorage !== 'undefined') {
+      classmateToken = localStorage.getItem('classmate_account_token')
+    }
+  } catch {}
   if (!classmateToken) throw new Error('请先登录同学账号')
   const data = await requestJson<ApiResponse<{ token: string; admin: AdminIdentity }>>('/api/auth/classmate-exchange', {
     method: 'POST',
@@ -146,6 +167,9 @@ export async function exchangeClassmateSession(): Promise<AdminIdentity> {
   }, { apiBase: API_BASE })
   if (!data.data?.token || !data.data?.admin) throw new Error(data.message || '进入管理后台失败')
   sessionStorage.setItem('admin_token', data.data.token)
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('admin_token', data.data.token)
+  } catch {}
   clearCurrentAdminCache()
   return setCurrentAdmin(data.data.admin as AdminIdentity, data.data.token)
 }

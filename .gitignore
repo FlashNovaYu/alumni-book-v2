@@ -11,6 +11,9 @@ dist
 backups/
 .artifacts/
 deploy/
+!deploy/
+deploy/*
+!deploy/AGENTS.md
 yearbook.html
 packages/site-astro/public/data/*.json
 memory/

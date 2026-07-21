@@ -20,7 +20,9 @@ class MemoryStorage {
 }
 
 const storage = new MemoryStorage()
+const localStorageStore = new MemoryStorage()
 Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: storage })
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: localStorageStore })
 Object.defineProperty(globalThis, 'window', { configurable: true, value: { location: { href: '' } } })
 
 const admin: AdminIdentity = {
@@ -218,9 +220,11 @@ test('改密成功后刷新身份而不复用旧的改密状态缓存', async ()
   }
 })
 
-test('401 仍清空会话并跳转登录页', async () => {
+test('401 仍清空会话并跳转登录页，同时清理 localStorage 中的凭据', async () => {
   storage.clear()
+  localStorageStore.clear()
   storage.setItem('admin_token', 'expired-token')
+  localStorageStore.setItem('admin_token', 'expired-token')
   clearCurrentAdminCache()
   ;(globalThis.window as { location: { href: string } }).location.href = ''
   const previousFetch = globalThis.fetch
@@ -229,7 +233,29 @@ test('401 仍清空会话并跳转登录页', async () => {
   try {
     await assert.rejects(adminFetch('/api/auth/me'), /未授权/)
     assert.equal(storage.getItem('admin_token'), null)
+    assert.equal(localStorageStore.getItem('admin_token'), null)
     assert.match((globalThis.window as { location: { href: string } }).location.href, /#\/login$/)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('同设备重启浏览器后可从 localStorage 恢复 admin_token 凭据并同步至 sessionStorage', async () => {
+  storage.clear()
+  localStorageStore.clear()
+  localStorageStore.setItem('admin_token', 'persisted-admin-token')
+  clearCurrentAdminCache()
+
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async (input) => {
+    assert.equal(String(input), '/api/auth/me')
+    return jsonResponse({ success: true, data: { admin } })
+  }
+
+  try {
+    const activeAdmin = await fetchCurrentAdmin()
+    assert.equal(activeAdmin.id, 'admin-1')
+    assert.equal(storage.getItem('admin_token'), 'persisted-admin-token')
   } finally {
     globalThis.fetch = previousFetch
   }

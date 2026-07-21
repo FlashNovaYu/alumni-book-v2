@@ -49,7 +49,19 @@ function firstAccessibleRoute(admin: AdminIdentity): string | null {
   return routes.find(route => canAccess(admin, route.permission))?.name || null
 }
 
+function syncTokenStorage() {
+  if (typeof sessionStorage !== 'undefined' && typeof localStorage !== 'undefined') {
+    try {
+      if (!sessionStorage.getItem('admin_token')) {
+        const persisted = localStorage.getItem('admin_token')
+        if (persisted) sessionStorage.setItem('admin_token', persisted)
+      }
+    } catch {}
+  }
+}
+
 router.beforeEach(async (to) => {
+  syncTokenStorage()
   if (to.name === 'change-password') {
     if (!sessionStorage.getItem('admin_token')) return { name: 'login' }
     try {

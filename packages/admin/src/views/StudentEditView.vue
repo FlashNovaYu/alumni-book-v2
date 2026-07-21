@@ -194,7 +194,7 @@
               {{ isActivated ? '已激活' : '未激活' }}
             </span>
             <span class="status-tip">
-              {{ isActivated ? '同学已完成首次登录改密' : '初始密码为 12356，等待同学首次登录激活' }}
+              {{ isActivated ? '同学已完成首次登录改密' : '初始密码为 123456，等待同学首次登录激活' }}
             </span>
           </div>
         </div>
@@ -203,16 +203,16 @@
           <div class="label-with-actions">
             <label class="form-label">密码管理</label>
             <button v-if="isActivated" type="button" class="btn-warning btn-sm" @click="resetToDefaultPassword">
-              重置密码为初始密码 (12356)
+              重置密码为初始密码 (123456)
             </button>
           </div>
           <div class="color-row">
             <input v-model="tempInitialPassword" :type="showSecret ? 'text' : 'password'" class="text-input" placeholder="留空则不修改已有密码" />
-            <button type="button" class="btn-secondary btn-sm" @click="resetToDefaultPassword">设为初始密码 (12356)</button>
+            <button type="button" class="btn-secondary btn-sm" @click="resetToDefaultPassword">设为初始密码 (123456)</button>
             <button type="button" class="btn-secondary btn-sm" @click="generateRandomPassword">随机生成</button>
             <button type="button" class="btn-secondary btn-sm" @click="showSecret = !showSecret">{{ showSecret ? '隐藏' : '显示' }}</button>
           </div>
-          <p class="form-hint">保存后该同学下次需使用此密码登录（若重置为初始密码 12356，登录后将被要求重新修改密码）。</p>
+          <p class="form-hint">保存后该同学下次需使用此密码登录（若重置为初始密码 123456，登录后将被要求重新修改密码）。</p>
         </div>
         <div class="form-group">
           <label class="form-label">页面隐私级别 (默认仅同学可见)</label>
@@ -397,9 +397,9 @@ const showSecret = ref(false)
 const isActivated = computed(() => student.value.accountStatus === 'active')
 
 function resetToDefaultPassword() {
-  tempInitialPassword.value = '12356'
+  tempInitialPassword.value = '123456'
   showSecret.value = true
-  showToast('success', '已填入初始密码 12356，点击右上角保存后生效')
+  showToast('success', '已填入初始密码 123456，点击右上角保存后生效')
 }
 
 function generateRandomPassword() {
