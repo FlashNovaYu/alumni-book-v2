@@ -17,37 +17,27 @@
 
 html[data-student-transition='edge']::view-transition-old(root) {
   z-index: 1;
-  animation: student-edge-old-fade 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: student-page-content-exit 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 html[data-student-transition='edge']::view-transition-new(root) {
   z-index: 3;
-  animation: student-edge-expand 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
-  clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
+  animation: student-page-content-reveal 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes student-edge-expand {
-  0% {
-    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
-  }
-  64% {
-    clip-path: inset(-1vmax -1vmax -1vmax -1vmax);
-  }
-  100% {
-    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
-  }
-}
-
-@keyframes student-edge-old-fade {
-  0% { opacity: 1; }
-  48% { opacity: 0.72; }
+@keyframes student-page-content-exit {
+  0%, 62% { opacity: 1; }
   100% { opacity: 0; }
 }
 
+@keyframes student-page-content-reveal {
+  0%, 66% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 html[data-student-transition='return-edge']::view-transition-old(root) {
-  z-index: 3;
-  animation: student-edge-contract 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
-  clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
+  z-index: 1;
+  animation: student-page-content-exit-return 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 html[data-student-transition='return-edge']::view-transition-new(root) {
@@ -55,19 +45,9 @@ html[data-student-transition='return-edge']::view-transition-new(root) {
   animation: none !important;
 }
 
-@keyframes student-edge-contract {
-  0% {
-    opacity: 1;
-    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
-  }
-  64% {
-    opacity: 0.88;
-    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
-  }
-  100% {
-    opacity: 0;
-    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
-  }
+@keyframes student-page-content-exit-return {
+  0% { opacity: 1; }
+  42%, 100% { opacity: 0; }
 }
 
 html::before {
@@ -185,6 +165,33 @@ html[data-theme='night'] .page-shell {
   background-color: var(--color-paper-bg);
 }
 
+::view-transition-group(.student-surface) {
+  z-index: 2;
+  overflow: clip;
+  animation-duration: 0.82s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-image-pair(.student-surface) {
+  isolation: isolate;
+}
+
+::view-transition-old(.student-surface) {
+  animation: none !important;
+  mix-blend-mode: normal;
+  opacity: 1;
+}
+
+::view-transition-new(.student-surface) {
+  animation: student-surface-color-handoff 0.82s linear both !important;
+  mix-blend-mode: normal;
+}
+
+@keyframes student-surface-color-handoff {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 ::view-transition-group(.student-avatar) {
   animation-duration: 0.5s;
   animation-timing-function: var(--ease-out-expo);
@@ -256,27 +263,30 @@ html[data-theme='night'] .page-shell {
   }
 
   html[data-student-transition='edge']::view-transition-new(root) {
-    animation-name: student-edge-expand-mobile;
+    animation-name: student-page-content-reveal-mobile;
     animation-duration: 1.05s;
     animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
-    clip-path: polygon(evenodd,
-      var(--student-card-left) var(--student-card-top),
-      calc(100% - var(--student-card-right)) var(--student-card-top),
-      calc(100% - var(--student-card-right)) calc(100% - var(--student-card-bottom)),
-      var(--student-card-left) calc(100% - var(--student-card-bottom)),
-      var(--student-card-left) var(--student-card-top),
-      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px),
-      calc(var(--student-card-left) + 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
-      calc(100% - var(--student-card-right) - 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
-      calc(100% - var(--student-card-right) - 1.5px) calc(var(--student-card-top) + 1.5px),
-      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px)
-    );
   }
 
   html[data-student-transition='return-edge']::view-transition-old(root) {
-    animation-name: student-edge-contract-mobile;
+    animation-name: student-page-content-exit-return-mobile;
     animation-duration: 0.98s;
     animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  html[data-student-transition='edge']::view-transition-group(.student-surface) {
+    animation-duration: 1.05s;
+    animation-timing-function: cubic-bezier(0.22, 0.75, 0.25, 1);
+  }
+
+  html[data-student-transition='edge']::view-transition-new(.student-surface) {
+    animation-duration: 1.05s !important;
+  }
+
+  html[data-student-transition='return-edge']::view-transition-group(.student-surface),
+  html[data-student-transition='return-edge']::view-transition-new(.student-surface) {
+    animation-duration: 0.98s !important;
+    animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
   }
 
   html[data-student-transition='edge']::view-transition-group(.student-identity) {
@@ -296,78 +306,16 @@ html[data-theme='night'] .page-shell {
   }
 }
 
-@keyframes student-edge-expand-mobile {
-  0% {
-    clip-path: polygon(evenodd,
-      var(--student-card-left) var(--student-card-top),
-      calc(100% - var(--student-card-right)) var(--student-card-top),
-      calc(100% - var(--student-card-right)) calc(100% - var(--student-card-bottom)),
-      var(--student-card-left) calc(100% - var(--student-card-bottom)),
-      var(--student-card-left) var(--student-card-top),
-      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px),
-      calc(var(--student-card-left) + 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
-      calc(100% - var(--student-card-right) - 1.5px) calc(100% - var(--student-card-bottom) - 1.5px),
-      calc(100% - var(--student-card-right) - 1.5px) calc(var(--student-card-top) + 1.5px),
-      calc(var(--student-card-left) + 1.5px) calc(var(--student-card-top) + 1.5px)
-    );
-  }
-  12% {
-    clip-path: polygon(evenodd,
-      calc(var(--student-card-left) - 10px) calc(var(--student-card-top) - 10px),
-      calc(100% - var(--student-card-right) + 10px) calc(var(--student-card-top) - 10px),
-      calc(100% - var(--student-card-right) + 10px) calc(100% - var(--student-card-bottom) + 10px),
-      calc(var(--student-card-left) - 10px) calc(100% - var(--student-card-bottom) + 10px),
-      calc(var(--student-card-left) - 10px) calc(var(--student-card-top) - 10px),
-      calc(var(--student-card-left) + 16px) calc(var(--student-card-top) + 16px),
-      calc(var(--student-card-left) + 16px) calc(100% - var(--student-card-bottom) - 16px),
-      calc(100% - var(--student-card-right) - 16px) calc(100% - var(--student-card-bottom) - 16px),
-      calc(100% - var(--student-card-right) - 16px) calc(var(--student-card-top) + 16px),
-      calc(var(--student-card-left) + 16px) calc(var(--student-card-top) + 16px)
-    );
-  }
-  70% {
-    clip-path: polygon(evenodd,
-      -1vmax -1vmax,
-      calc(100% + 1vmax) -1vmax,
-      calc(100% + 1vmax) calc(100% + 1vmax),
-      -1vmax calc(100% + 1vmax),
-      -1vmax -1vmax,
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y)
-    );
-  }
-  100% {
-    clip-path: polygon(evenodd,
-      -8vmax -8vmax,
-      calc(100% + 8vmax) -8vmax,
-      calc(100% + 8vmax) calc(100% + 8vmax),
-      -8vmax calc(100% + 8vmax),
-      -8vmax -8vmax,
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y),
-      var(--student-card-center-x) var(--student-card-center-y)
-    );
-  }
+@keyframes student-page-content-reveal-mobile {
+  0%, 72% { opacity: 0; }
+  88% { opacity: 0.35; }
+  100% { opacity: 1; }
 }
 
-@keyframes student-edge-contract-mobile {
-  0% {
-    opacity: 1;
-    clip-path: inset(-8vmax -8vmax -8vmax -8vmax);
-  }
-  96% {
-    opacity: 0.72;
-    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
-  }
-  100% {
-    opacity: 0;
-    clip-path: inset(var(--student-card-top) var(--student-card-right) var(--student-card-bottom) var(--student-card-left));
-  }
+@keyframes student-page-content-exit-return-mobile {
+  0% { opacity: 1; }
+  32% { opacity: 0.35; }
+  48%, 100% { opacity: 0; }
 }
 
 /* View Transitions reduced motion */

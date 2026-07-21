@@ -93,7 +93,7 @@ describe('夜读主题基础层', () => {
 
     expect(viewTransitions).toMatch(/@view-transition\s*\{[\s\S]*?navigation:\s*auto\s*;/)
     expect(viewTransitions).not.toContain('navigation: none;')
-    expect(viewTransitions).toContain('student-edge-expand')
+    expect(viewTransitions).toContain('::view-transition-group(.student-surface)')
     expect(viewTransitions).not.toContain('view-transition-name: page-main')
     expect(globalStyles).toContain('font-family: var(--font-body)')
     expect(globalStyles).not.toContain('font-family: var(--font-sans)')

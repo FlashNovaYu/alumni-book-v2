@@ -124,12 +124,15 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
           const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
           const details = card.querySelector<HTMLElement>('[data-student-card-details]')
+          const surface = card.querySelector<HTMLElement>('.roster-card__transition-surface')
           avatar?.style.setProperty('view-transition-name', `student-avatar-${slug}`)
           avatar?.style.setProperty('view-transition-class', 'student-identity')
           name?.style.setProperty('view-transition-name', `student-name-${slug}`)
           name?.style.setProperty('view-transition-class', 'student-identity')
           details?.style.setProperty('view-transition-name', `student-card-details-${slug}`)
           details?.style.setProperty('view-transition-class', 'student-card-details')
+          surface?.style.setProperty('view-transition-name', `student-surface-${slug}`)
+          surface?.style.setProperty('view-transition-class', 'student-surface')
           return true
         }
 
@@ -239,6 +242,24 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           if (!preserveReturn) sessionStorage.removeItem('vt-student-return-edge-state')
         }
 
+        const clearStudentTransitionNames = () => {
+          const selectors = [
+            '.student-page__transition-surface',
+            '.student-hero__avatar',
+            '.student-hero__name',
+            '.roster-card__transition-surface',
+            '.roster-card__avatar',
+            '.archive-card__avatar',
+            '.roster-card__name',
+            '.archive-card__name',
+            '[data-student-card-details]',
+          ]
+          document.querySelectorAll<HTMLElement>(selectors.join(',')).forEach((element) => {
+            element.style.removeProperty('view-transition-name')
+            element.style.removeProperty('view-transition-class')
+          })
+        }
+
         const claimStudentTransitionOwnership = () => {
           activeStudentTransitionId = ++studentTransitionSequence
           return activeStudentTransitionId
@@ -248,6 +269,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           claimStudentTransitionOwnership()
           studentViewTransitionRunning = false
           queuedStudentNavigation = null
+          clearStudentTransitionNames()
           clearStudentTransition()
         }
 
@@ -277,12 +299,15 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const avatar = card.querySelector<HTMLElement>('.roster-card__avatar, .archive-card__avatar')
           const name = card.querySelector<HTMLElement>('.roster-card__name, .archive-card__name')
           const details = card.querySelector<HTMLElement>('[data-student-card-details]')
+          const surface = card.querySelector<HTMLElement>('.roster-card__transition-surface')
           avatar?.style.setProperty('view-transition-name', `student-avatar-${slug}`)
           avatar?.style.setProperty('view-transition-class', 'student-identity')
           name?.style.setProperty('view-transition-name', `student-name-${slug}`)
           name?.style.setProperty('view-transition-class', 'student-identity')
           details?.style.setProperty('view-transition-name', `student-card-details-${slug}`)
           details?.style.setProperty('view-transition-class', 'student-card-details')
+          surface?.style.setProperty('view-transition-name', `student-surface-${slug}`)
+          surface?.style.setProperty('view-transition-class', 'student-surface')
           return true
         }
 

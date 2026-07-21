@@ -326,6 +326,29 @@ test('从第二页进入详情后返回时恢复第二页中的身份目标', as
   await expect(returnedCard.locator('.roster-card__name')).toHaveCSS('view-transition-name', `student-name-${slug}`)
 })
 
+test('从个人页前往非档案页面时移除全屏共享底色名称', async ({ page }) => {
+  await signInForNavigation(page)
+  await page.goto('./roster/', { waitUntil: 'networkidle' })
+
+  const card = page.locator('.roster-card[href]:not([href="#"]):visible').first()
+  await card.click()
+  await expect(page).toHaveURL(/\/student\//)
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
+  await page.evaluate(() => {
+    ;(window as Window & { __studentSurfaceNameBeforeLeaving?: string }).__studentSurfaceNameBeforeLeaving = 'unset'
+    document.addEventListener('astro:before-preparation', () => {
+      ;(window as Window & { __studentSurfaceNameBeforeLeaving?: string }).__studentSurfaceNameBeforeLeaving =
+        document.querySelector<HTMLElement>('.student-page__transition-surface')?.style.viewTransitionName || ''
+    }, { once: true })
+  })
+
+  await page.locator('a[data-nav-item][href*="/preface/"]').first().evaluate((anchor: HTMLAnchorElement) => anchor.click())
+  await expect(page).toHaveURL(/\/preface\/$/)
+  await expect.poll(() => page.evaluate(() => (
+    window as Window & { __studentSurfaceNameBeforeLeaving?: string }
+  ).__studentSurfaceNameBeforeLeaving)).toBe('')
+})
+
 async function sampleIdentityContainment(
   page: import('@playwright/test').Page,
   selector: string,
@@ -336,48 +359,20 @@ async function sampleIdentityContainment(
     const rows: Array<{
       contained: boolean
       elapsed: number
-      rootArea: number
-      clipPath: string
+      surfaceArea: number
+      originArea: number
+      rootOpacity: number
+      surfaceBounds: { top: number; right: number; bottom: number; left: number }
+      avatarBounds: { top: number; right: number; bottom: number; left: number }
+      nameBounds: { top: number; right: number; bottom: number; left: number }
       sourceOpacity: number
       destinationOpacity: number
     }> = []
     const avatarPseudo = `::view-transition-group(student-avatar-${options.slug})`
     const namePseudo = `::view-transition-group(student-name-${options.slug})`
-
-    const clipBounds = (clipPath: string) => {
-      if (clipPath.startsWith('polygon(')) {
-        const coordinate = '(calc\\(100% [+-] \\d+(?:\\.\\d+)?px\\)|-?\\d+(?:\\.\\d+)?px)'
-        const pointPattern = new RegExp(`${coordinate}\\s+${coordinate}`, 'g')
-        const resolveCoordinate = (value: string, axisSize: number) => {
-          const pixels = Number.parseFloat(value.match(/-?\d+(?:\.\d+)?px/)?.[0] || '0')
-          if (!value.startsWith('calc(')) return pixels
-          return value.includes(' + ') ? axisSize + Math.abs(pixels) : axisSize - Math.abs(pixels)
-        }
-        const points = Array.from(clipPath.matchAll(pointPattern), match => ({
-          x: resolveCoordinate(match[1], innerWidth),
-          y: resolveCoordinate(match[2], innerHeight),
-        })).slice(0, 4)
-        if (points.length !== 4) return null
-        return {
-          top: Math.min(...points.map(point => point.y)),
-          right: Math.max(...points.map(point => point.x)),
-          bottom: Math.max(...points.map(point => point.y)),
-          left: Math.min(...points.map(point => point.x)),
-        }
-      }
-      const values = Array.from(clipPath.matchAll(/(-?\d+(?:\.\d+)?)px/g), match => Number(match[1]))
-      if (values.length < 1 || values.length > 4) return null
-      const top = values[0]
-      const right = values[1] ?? top
-      const bottom = values[2] ?? top
-      const left = values[3] ?? right
-      return {
-        top,
-        right: innerWidth - right,
-        bottom: innerHeight - bottom,
-        left,
-      }
-    }
+    const surfacePseudo = `::view-transition-group(student-surface-${options.slug})`
+    const origin = element.getBoundingClientRect()
+    const originArea = origin.width * origin.height
     const groupBounds = (pseudo: string) => {
       const style = getComputedStyle(document.documentElement, pseudo)
       if (style.width === 'auto' || style.transform === 'none') return null
@@ -398,7 +393,7 @@ async function sampleIdentityContainment(
         left: Math.min(...corners.map(point => point.x)),
       }
     }
-    const contains = (outer: NonNullable<ReturnType<typeof clipBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => {
+    const contains = (outer: NonNullable<ReturnType<typeof groupBounds>>, inner: NonNullable<ReturnType<typeof groupBounds>>) => {
       const visible = {
         top: Math.max(0, inner.top),
         right: Math.min(innerWidth, inner.right),
@@ -417,16 +412,20 @@ async function sampleIdentityContainment(
     await new Promise<void>((resolve) => {
       const sample = () => {
         const rootStyle = getComputedStyle(document.documentElement, options.rootPseudo)
-        const root = clipBounds(rootStyle.clipPath)
+        const surface = groupBounds(surfacePseudo)
         const avatar = groupBounds(avatarPseudo)
         const name = groupBounds(namePseudo)
-        if (root && avatar && name) {
+        if (surface && avatar && name) {
           rows.push({
-            contained: contains(root, avatar) && contains(root, name),
+            contained: contains(surface, avatar) && contains(surface, name),
             elapsed: performance.now() - startedAt,
-            rootArea: Math.max(0, Math.min(innerWidth, root.right) - Math.max(0, root.left))
-              * Math.max(0, Math.min(innerHeight, root.bottom) - Math.max(0, root.top)),
-            clipPath: rootStyle.clipPath,
+            surfaceArea: Math.max(0, Math.min(innerWidth, surface.right) - Math.max(0, surface.left))
+              * Math.max(0, Math.min(innerHeight, surface.bottom) - Math.max(0, surface.top)),
+            originArea,
+            rootOpacity: Number.parseFloat(rootStyle.opacity),
+            surfaceBounds: surface,
+            avatarBounds: avatar,
+            nameBounds: name,
             sourceOpacity: Number.parseFloat(getComputedStyle(document.documentElement, `::view-transition-old(student-avatar-${options.slug})`).opacity),
             destinationOpacity: Number.parseFloat(getComputedStyle(document.documentElement, `::view-transition-new(student-avatar-${options.slug})`).opacity),
           })
@@ -444,8 +443,12 @@ function expectContinuousEdge(
   samples: Array<{
     contained: boolean
     elapsed: number
-    rootArea: number
-    clipPath: string
+    surfaceArea: number
+    originArea: number
+    rootOpacity: number
+    surfaceBounds: { top: number; right: number; bottom: number; left: number }
+    avatarBounds: { top: number; right: number; bottom: number; left: number }
+    nameBounds: { top: number; right: number; bottom: number; left: number }
     sourceOpacity: number
     destinationOpacity: number
   }>,
@@ -455,21 +458,33 @@ function expectContinuousEdge(
   expect(samples.length).toBeGreaterThan(20)
   expect(samples.filter(sample => !sample.contained).slice(0, 3).map(sample => ({
     elapsed: Math.round(sample.elapsed),
-    rootArea: Math.round(sample.rootArea),
-    clipPath: sample.clipPath,
+    surfaceArea: Math.round(sample.surfaceArea),
+    surfaceBounds: sample.surfaceBounds,
+    avatarBounds: sample.avatarBounds,
+    nameBounds: sample.nameBounds,
   }))).toEqual([])
   const pairs = samples.slice(1).map((sample, index) => ({ current: sample, previous: samples[index] }))
   expect(pairs.every(({ current, previous }) => (
     direction === 'expand'
-      ? current.rootArea >= previous.rootArea - 2
-      : current.rootArea <= previous.rootArea + 2
+      ? current.surfaceArea >= previous.surfaceArea - 2
+      : current.surfaceArea <= previous.surfaceArea + 2
   ))).toBe(true)
   const peakAreaRate = Math.max(...pairs.map(({ current, previous }) => (
-    Math.abs(current.rootArea - previous.rootArea)
+    Math.abs(current.surfaceArea - previous.surfaceArea)
     / viewportArea
     / Math.max(1, current.elapsed - previous.elapsed)
   )))
   expect(peakAreaRate).toBeLessThanOrEqual(0.0035)
+  if (direction === 'expand') {
+    expect(samples[0]!.surfaceArea).toBeLessThanOrEqual(samples[0]!.originArea * 1.5)
+    const earlySamples = samples.filter(sample => sample.elapsed <= 250)
+    expect(earlySamples.length).toBeGreaterThan(0)
+    expect(Math.max(...earlySamples.map(sample => sample.rootOpacity))).toBeLessThanOrEqual(0.05)
+    expect(samples.at(-1)!.surfaceArea).toBeGreaterThanOrEqual(viewportArea * 0.85)
+  } else {
+    expect(samples[0]!.surfaceArea).toBeGreaterThanOrEqual(viewportArea * 0.85)
+    expect(samples.at(-1)!.surfaceArea).toBeLessThanOrEqual(samples[0]!.surfaceArea * 0.35)
+  }
 }
 
 test.describe('手机端档案卡转场', () => {
@@ -491,7 +506,6 @@ test.describe('手机端档案卡转场', () => {
     const back = await sampleIdentityContainment(page, 'a[href*="/roster/"]', slug, '::view-transition-old(root)')
 
     expectContinuousEdge(enter, 'expand', 390 * 844)
-    expect(enter[0]?.clipPath).toContain('polygon(')
     expect(enter[0]?.sourceOpacity).toBeGreaterThanOrEqual(0.9)
     expect(enter.every(sample => sample.sourceOpacity + sample.destinationOpacity >= 0.85)).toBe(true)
     expectContinuousEdge(back, 'contract', 390 * 844)

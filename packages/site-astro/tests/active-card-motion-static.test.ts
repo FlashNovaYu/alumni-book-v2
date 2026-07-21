@@ -81,27 +81,31 @@ describe('档案卡共享元素转场', () => {
   })
 
   it('手机端使用连续同步曲线并覆盖触摸横屏', () => {
+    const card = read('components/ArchiveRosterCard.vue')
+    const profile = read('components/StudentProfile.vue')
     const viewTransitions = read('styles/view-transitions.css')
     const mobileMotion = cssBlock(
       viewTransitions,
       '@media (max-width: 768px), (max-width: 900px) and (pointer: coarse)',
     )
 
+    expect(card).toContain('roster-card__transition-surface')
+    expect(card).toContain(':style="surfaceTransitionStyle"')
+    expect(profile).toContain('student-page__transition-surface')
+    expect(profile).toContain(':style="surfaceTransitionStyle"')
+    expect(viewTransitions).toContain('::view-transition-group(.student-surface)')
+    expect(viewTransitions).not.toContain('polygon(evenodd')
     expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-new\(root\)[\s\S]*?animation-duration:\s*1\.05s/)
+    expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-new\(root\)[\s\S]*?student-page-content-reveal-mobile/)
     expect(mobileMotion).toMatch(/html\[data-student-transition='return-edge'\]::view-transition-old\(root\)[\s\S]*?animation-duration:\s*0\.98s/)
     expect(mobileMotion).toMatch(/html\[data-student-transition='edge'\]::view-transition-group\(\.student-identity\)[\s\S]*?animation-delay:\s*0\.08s;[\s\S]*?animation-duration:\s*0\.92s/)
     expect(mobileMotion).toMatch(/html\[data-student-transition='return-edge'\]::view-transition-group\(\.student-identity\)[\s\S]*?animation-delay:\s*0\.04s;[\s\S]*?animation-duration:\s*0\.86s/)
     expect(mobileMotion).toMatch(/::view-transition-group\(\.student-card-details\)[\s\S]*?animation-duration:\s*0\.54s/)
 
-    const expand = cssBlock(viewTransitions, '@keyframes student-edge-expand-mobile')
-    const contract = cssBlock(viewTransitions, '@keyframes student-edge-contract-mobile')
-    expect(expand).toContain('polygon(evenodd')
-    expect(expand).toContain('--student-card-center-x')
-    expect(expand).toContain('12%')
-    expect(expand).not.toMatch(/0%\s*\{\s*clip-path:\s*inset/)
-    expect(contract).toContain('96%')
-    expect(contract).not.toContain('8%')
-    expect(contract).not.toContain('76%')
+    const reveal = cssBlock(viewTransitions, '@keyframes student-page-content-reveal-mobile')
+    expect(reveal).toContain('72%')
+    expect(reveal).toContain('88%')
+    expect(reveal).toMatch(/0%,\s*72%\s*\{\s*opacity:\s*0/)
   })
 
   it('身份快照在移动开始时连续交接而不是先隐藏再出现', () => {

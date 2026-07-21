@@ -13,6 +13,12 @@
     :style="getTiltStyles(card.slug, baseTransform)"
   >
     <div class="roster-card__inner">
+      <div
+        class="roster-card__transition-surface"
+        :style="surfaceTransitionStyle"
+        aria-hidden="true"
+      />
+
       <!-- 头像 -->
       <div class="roster-card__avatar" :style="avatarTransitionStyle">
         <img
@@ -110,6 +116,14 @@ const detailsTransitionStyle = computed(() => {
   }
 })
 
+const surfaceTransitionStyle = computed(() => {
+  if (!isTransitioning.value || !props.card.hasPage || !props.card.hasStandardProfile) return undefined
+  return {
+    viewTransitionName: 'student-surface-' + props.card.slug,
+    viewTransitionClass: 'student-surface',
+  }
+})
+
 function handleTransition() {
   if (props.card.hasPage && props.card.hasStandardProfile) {
     isTransitioning.value = true
@@ -176,6 +190,21 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   /* Absolute glare clip */
   overflow: hidden;
   height: 100%;
+}
+
+.roster-card__transition-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--bg-surface);
+  border-radius: inherit;
+}
+
+.roster-card__avatar,
+.roster-card__body {
+  position: relative;
+  z-index: 1;
 }
 
 .roster-card:hover .roster-card__inner {

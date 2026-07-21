@@ -27,6 +27,12 @@
 
       <!-- 标准个人页模板 -->
       <div v-else class="student-page page-shell">
+        <div
+          class="student-page__transition-surface"
+          :style="surfaceTransitionStyle"
+          aria-hidden="true"
+        />
+
         <!-- Hero Section -->
         <section class="student-hero" :style="heroBgStyle">
           <div class="student-hero__overlay" />
@@ -431,6 +437,14 @@ const nameTransitionStyle = computed(() => {
   }
 })
 
+const surfaceTransitionStyle = computed(() => {
+  if (!student.value) return undefined
+  return {
+    viewTransitionName: 'student-surface-' + student.value.slug,
+    viewTransitionClass: 'student-surface',
+  }
+})
+
 const heroBgStyle = computed(() => {
   if (!student.value) return {}
   const bgUrl = student.value.backgroundUrl
@@ -680,6 +694,20 @@ onUnmounted(() => {
 }
 
 /* ── Hero Section ── */
+.student-page {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.student-page__transition-surface {
+  position: fixed;
+  inset: -8px;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bg);
+}
+
 .student-hero {
   position: relative;
   min-height: 50vh;

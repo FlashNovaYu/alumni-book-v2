@@ -14,9 +14,9 @@ describe('同学档案卡双向边缘转场契约', () => {
     expect(layout).toContain('<ClientRouter />')
     expect(transitions).toContain('@view-transition')
     expect(transitions).toContain('navigation: auto')
-    expect(transitions).toContain('student-edge-expand')
-    expect(transitions).toContain('student-edge-old-fade')
-    expect(transitions).toContain('student-edge-contract')
+    expect(transitions).toContain('::view-transition-group(.student-surface)')
+    expect(transitions).toContain('student-page-content-reveal')
+    expect(transitions).toContain('student-page-content-exit-return')
     expect(transitions).not.toContain('navigation: none')
     expect(transitions).not.toContain('translateX(')
   })
@@ -31,9 +31,11 @@ describe('同学档案卡双向边缘转场契约', () => {
 
   it('保留身份共享元素并为非身份内容提供坍缩层', () => {
     expect(card).toContain('student-identity')
+    expect(card).toContain('student-surface')
     expect(card).toContain('student-card-details')
     expect(profile).toContain('student-avatar-')
     expect(profile).toContain('student-name-')
+    expect(profile).toContain('student-surface-')
     expect(transitions).toContain('student-card-details')
     expect(transitions).toContain('z-index: 4')
     expect(transitions).toContain('animation-delay: 0.12s')
@@ -49,6 +51,8 @@ describe('同学档案卡双向边缘转场契约', () => {
     expect(layout).toContain('prefers-reduced-motion')
     expect(transitions).toContain('@media (prefers-reduced-motion: reduce)')
     expect(layout).toContain('startViewTransition')
+    expect(layout).toContain('clearStudentTransitionNames')
+    expect(layout).toContain('.student-page__transition-surface')
   })
 
   it('旧会话缺少卡片中心坐标时清理状态并降级普通返回', () => {
