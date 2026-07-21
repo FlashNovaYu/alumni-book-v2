@@ -168,6 +168,7 @@ if (process.argv[1]?.endsWith('smoke-selfhosted.mjs')) {
       baseUrl: argument('--base-url'),
       apiOnly: process.argv.includes('--api-only'),
       expectedSha,
+      allowInsecureStaging: process.argv.includes('--allow-insecure-staging'),
     }).catch((error) => {
       console.error(String(error))
       process.exitCode = 1
