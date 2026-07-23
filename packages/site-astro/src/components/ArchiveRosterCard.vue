@@ -13,6 +13,8 @@
     :style="getTiltStyles(card.slug, baseTransform)"
   >
     <div class="roster-card__inner">
+      <span class="punch" aria-hidden="true"></span>
+      <span class="cat-no">NO. {{ card.studentNo || card.slug }}</span>
       <div
         class="roster-card__transition-surface"
         :style="surfaceTransitionStyle"
@@ -208,8 +210,32 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 }
 
 .roster-card:hover .roster-card__inner {
-  box-shadow: var(--shadow-skeuo-lg, var(--shadow-card-hover));
-  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md), 0 0 26px -8px rgba(201, 162, 75, 0.4);
+  border-color: var(--border-glass);
+}
+
+.punch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-0);
+  border: 1px solid var(--border-glass);
+  z-index: 3;
+}
+
+.cat-no {
+  position: absolute;
+  top: 11px;
+  right: 14px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  z-index: 3;
 }
 
 .glare-layer {

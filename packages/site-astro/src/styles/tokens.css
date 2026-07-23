@@ -1,21 +1,23 @@
 /**
- * site-astro 设计令牌
- * 站点特定的纹理和装饰覆盖
- * 注意：基础令牌已从 global.css 直接导入
+ * site-astro 存忆馆展厅专有纹理与装饰令牌
+ * 继承 shared/src/tokens.css 并提供物理光影、空气尘埃与视差蒙版
  */
 
 :root {
-  /* 站点特定的纹理和装饰 */
-  --texture-paper-fiber:
-    radial-gradient(circle at 20% 20%, rgba(80, 62, 42, 0.035), transparent 22%),
-    radial-gradient(circle at 80% 0%, rgba(173, 128, 81, 0.045), transparent 26%),
-    linear-gradient(rgba(80, 62, 42, 0.035) 1px, transparent 1px);
-
-  --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
+  /* 环境氛围与胶片噪点蒙版 */
+  --ambient-spot-1: radial-gradient(circle, var(--gold) 0%, transparent 70%);
+  --ambient-spot-2: radial-gradient(circle, var(--green-glow) 0%, transparent 70%);
+  --grain-opacity: 0.22;
+  --grain-blend: overlay;
+  --texture-paper-fiber: radial-gradient(circle at 20% 20%, rgba(80, 62, 42, 0.035), transparent 22%), linear-gradient(rgba(80, 62, 42, 0.035) 1px, transparent 1px);
 }
 
 html[data-theme='night'] {
-  --texture-paper-fiber:
-    radial-gradient(circle at 20% 20%, rgba(225, 189, 120, 0.05), transparent 24%),
-    linear-gradient(rgba(244, 234, 217, 0.028) 1px, transparent 1px);
+  --grain-opacity: 0.22;
+}
+
+html[data-theme='day'],
+html[data-theme='paper'] {
+  --grain-opacity: 0.45;
+  --grain-blend: multiply;
 }

@@ -255,9 +255,10 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-directory {
     position: relative;
     display: flex;
-    align-items: stretch;
+    align-items: center;
     justify-content: center;
     min-width: 0;
+    gap: 4px;
   }
 
   .nav-link {
@@ -267,18 +268,18 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     align-items: center;
     justify-content: center;
     min-width: 76px;
-    padding: 0 12px;
-    color: var(--color-paper-muted);
-    font-family: var(--font-serif, serif); /* Enforce serif for archival feel */
+    padding: 8px 16px;
+    color: var(--text-2);
+    font-family: var(--font-display);
     font-size: 15px;
     font-weight: 600;
-    letter-spacing: 1px;
+    letter-spacing: 0.05em;
     text-decoration: none;
-    transition: color var(--duration-fast) ease;
+    transition: color var(--dur-2) var(--ease);
   }
 
-  .nav-link:hover,
-  .nav-link.is-active { color: var(--color-paper-ink); }
+  .nav-link:hover { color: var(--text-1); }
+  .nav-link.is-active { color: var(--accent-strong); font-weight: 600; }
 
   .nav-link.is-active::before,
   .nav-link.is-active::after {
@@ -290,19 +291,20 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .nav-link.is-active::before {
-    top: 9px;
-    bottom: 8px;
+    top: 6px;
+    bottom: 6px;
     z-index: -1;
-    border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
-    background: var(--color-paper-bg-soft);
-    box-shadow: inset 0 1px 0 var(--glass-panel);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .nav-link.is-active::after {
-    bottom: 6px;
+    bottom: 4px;
     z-index: 2;
-    height: 3px;
-    background: var(--color-paper-stamp-red);
+    height: 2px;
+    background: var(--gold-hi);
     transform-origin: left center;
   }
 
@@ -319,32 +321,33 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .nav-active-paper {
-    top: 9px;
-    bottom: 8px;
+    top: 6px;
+    bottom: 6px;
     z-index: 0;
-    border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
-    background: var(--color-paper-bg-soft);
-    box-shadow: inset 0 1px 0 var(--glass-panel);
-    transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: transform var(--dur-2) var(--ease), width var(--dur-2) var(--ease), opacity var(--dur-1) ease;
   }
 
   .nav-active-ink {
-    bottom: 6px;
+    bottom: 4px;
     z-index: 2;
-    height: 3px;
+    height: 2px;
     overflow: hidden;
-    transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
+    transition: transform var(--dur-2) var(--ease), width var(--dur-2) var(--ease), opacity var(--dur-1) ease;
   }
 
   .nav-active-ink-fill {
     position: absolute;
     inset: 0;
     display: block;
-    background: var(--color-paper-stamp-red);
-    height: 3px; /* Slightly thicker */
+    background: var(--gold-hi);
+    height: 2px;
     transform: scaleX(1);
     transform-origin: left center;
-    transition: transform var(--duration-normal) var(--ease-out-quart);
+    transition: transform var(--dur-2) var(--ease);
   }
 
   .nav-directory[data-nav-direction='backward'] .nav-active-ink-fill { transform-origin: right center; }

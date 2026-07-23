@@ -1,48 +1,69 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   KEYFRAMES
+   KEYFRAMES — 存忆馆展厅微动效 Keyframes
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 展厅射灯光斑漂移 */
+@keyframes spotDrift {
+  from { transform: translate(-8%, -6%); }
+  to { transform: translate(9%, 7%); }
+}
+
+/* 展厅空气悬浮微尘 */
+@keyframes drift {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translate(16px, -110px); opacity: 0; }
+}
+
+/* 馆徽划线与文字开场 */
+@keyframes ldraw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes lletter {
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes lfade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 展工印章盖印 */
+@keyframes sealStamp {
+  0% { transform: scale(2.6) rotate(-16deg); opacity: 0; }
+  55% { transform: scale(1) rotate(0); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes sealFade {
+  to { opacity: 0; transform: scale(1.25); }
+}
+
+/* 质感微动效 */
+@keyframes emberGlow {
+  from { filter: drop-shadow(0 0 4px rgba(231, 206, 140, 0.25)); }
+  to { filter: drop-shadow(0 0 11px rgba(231, 206, 140, 0.55)); }
+}
+
+@keyframes toastShrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes toastOut {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-10px); }
-}
-
-@keyframes drawOn {
-  from { stroke-dashoffset: var(--path-length, 100); }
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes gentlePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.12); }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes globalFadeIn {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pageFadeOut {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 0; transform: translateX(24px); }
 }
 
 @keyframes pageHeadingSweep {
@@ -51,36 +72,26 @@
   100% { opacity: 0; transform: scaleX(1); }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   ANIMATION UTILITIES
-   ═══════════════════════════════════════════════════════════════════════════ */
-.fade-in {
-  opacity: 0;
-  animation: globalFadeIn 0.65s var(--ease-out-expo) forwards;
-}
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATION UTILITIES — 显隐与滚动揭发
+   ═══════════════════════════════════════════════════════════════════════════ */
 .reveal {
   opacity: 0;
-  transform: translateY(24px);
-  transition:
-    opacity 0.7s var(--ease-out-expo),
-    transform 0.7s var(--ease-out-expo);
+  transform: translateY(20px);
+  transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
 }
 
+.reveal.in,
 .reveal.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-.reveal-spring {
-  opacity: 0;
-  transform: translateY(24px) scale(0.95);
-  transition:
-    opacity 0.7s var(--ease-out-expo),
-    transform 0.8s var(--ease-spring);
-}
-
-.reveal-spring.is-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

@@ -1,71 +1,93 @@
 /**
- * 同学录 v2 · 设计系统令牌 (Design System Tokens)
- * "静谧编辑暖意" (Quiet Editorial Warmth)
+ * 同学录 v2 · 存忆馆设计系统令牌 (Memory Museum Design System Tokens)
+ * "存忆馆 · 私人展厅 · 闭馆之后"
  *
- * 统一令牌架构：Primitive → Semantic → Component
- * 所有颜色、间距、字体、阴影、动效均由此文件定义
+ * 三层令牌架构：Primitive → Semantic → Component
+ * 彻底替换旧版规范，建立夜间展厅（默认）与羊皮纸日间双主题系统
  */
 
 :root {
   /* ═══════════════════════════════════════════════════════════════════════
-     PRIMITIVE TOKENS — 基础色板
-     ══════════════════════════════════════════════════════════════════════ */
+     PRIMITIVE TOKENS — 存忆馆基础色板
+     ═══════════════════════════════════════════════════════════════════════ */
+  --_bg-0: #0B120E;
+  --_bg-1: #101813;
+  --_bg-2: #131B15;
+  --_bg-elevated: rgba(255, 255, 255, 0.04);
+  --_bg-elevated-solid: #161F19;
+  --_bg-sunken: #0e1512;
 
-  /* 基础色彩 */
-  --_bg: #DCD6CD;
-  --_surface: #FFFFFF;
-  --_surface-raised: #ffffff;
-  --_surface-soft: #EFEBE4;
-  --_ink: #11100F;
-  --_ink-soft: #383431;
-  --_muted: #5C554F;
-  --_dim: #99918A;
-  --_accent: #8C3A21;
-  --_accent-active: #732D18;
-  --_accent-soft: rgba(140, 58, 33, 0.08);
-  --_border: rgba(17, 16, 15, 0.15);
-  --_border-strong: rgba(17, 16, 15, 0.22);
+  --_gold: #C9A24B;
+  --_gold-hi: #E7CE8C;
+  --_gold-dim: #8a723c;
+  --_green-glow: #4C8267;
+  --_stamp: #B24630;
+  --_stamp-soft: rgba(178, 70, 48, 0.16);
 
-  /* 语义色彩 — 成功/警告/错误 */
-  --_success: #5db872;
-  --_warning: #d4a017;
-  --_error: #c64545;
-  --_info: #5db8a6;
+  --_text-1: #EDE6D2;
+  --_text-2: #C7C0A4;
+  --_text-3: #93A092;
 
-  /* 装饰色 — 保留温暖的金/银/铜 */
-  --_gold: #c8a96a;
-  --_gold-soft: #ead9a6;
-  --_silver: #c0c0c0;
-  --_bronze: #cd7f32;
+  --_paper: #FBF6E9;
+  --_paper-ink: #221A10;
+  --_paper-line: #DED2BD;
+
+  /* 语义状态 */
+  --_success: #4C8267;
+  --_warning: #C9A24B;
+  --_error: #B24630;
+  --_info: #4C8267;
 
   /* ═══════════════════════════════════════════════════════════════════════
-     SEMANTIC TOKENS — 语义层（组件引用这一层）
+     SEMANTIC TOKENS — 夜间展厅为默认形态
      ═══════════════════════════════════════════════════════════════════════ */
+  --bg-0: var(--_bg-0);
+  --bg-1: var(--_bg-1);
+  --bg-2: var(--_bg-2);
+  --bg: var(--_bg-0);
+  --bg-surface: var(--_bg-1);
+  --bg-raised: var(--_bg-2);
+  --bg-soft: var(--_bg-2);
+  --bg-elevated: var(--_bg-elevated);
+  --bg-elevated-solid: var(--_bg-elevated-solid);
+  --bg-sunken: var(--_bg-sunken);
+  --bg-inverse: var(--_paper);
 
-  /* 背景 */
-  --bg: var(--_bg);
-  --bg-surface: var(--_surface);
-  --bg-raised: var(--_surface-raised);
-  --bg-soft: var(--_surface-soft);
-  --bg-inverse: var(--_ink);
+  /* 边框与光影 */
+  --border: rgba(201, 162, 75, 0.24);
+  --border-strong: rgba(201, 162, 75, 0.4);
+  --border-glass: rgba(201, 162, 75, 0.24);
+  --border-glass-soft: rgba(201, 162, 75, 0.12);
 
   /* 文字 */
-  --text-primary: var(--_ink);
-  --text-secondary: var(--_ink-soft);
-  --text-muted: var(--_muted);
-  --text-dim: var(--_dim);
-  --text-inverse: var(--_surface);
-  --text-accent: var(--_accent);
+  --text-primary: var(--_text-1);
+  --text-secondary: var(--_text-2);
+  --text-muted: var(--_text-3);
+  --text-dim: var(--_text-3);
+  --text-inverse: var(--_paper-ink);
+  --text-1: var(--_text-1);
+  --text-2: var(--_text-2);
+  --text-3: var(--_text-3);
 
-  /* 边框 */
-  --border: var(--_border);
-  --border-strong: var(--_border-strong);
-  --border-accent: var(--_accent);
+  /* 品牌与强调色 */
+  --gold: var(--_gold);
+  --gold-hi: var(--_gold-hi);
+  --gold-dim: var(--_gold-dim);
+  --green-glow: var(--_green-glow);
+  --stamp: var(--_stamp);
+  --stamp-soft: var(--_stamp-soft);
 
-  /* 强调色 */
-  --accent: var(--_accent);
-  --accent-active: var(--_accent-active);
-  --accent-soft: var(--_accent-soft);
+  --accent: var(--gold);
+  --accent-strong: var(--gold-hi);
+  --accent-soft: rgba(201, 162, 75, 0.14);
+  --accent-ink: #1B1508;
+  --tag: #D98C6E;
+  --tag-soft: rgba(178, 70, 48, 0.18);
+  --focus: var(--gold-hi);
+
+  --paper: var(--_paper);
+  --paper-ink: var(--_paper-ink);
+  --paper-line: var(--_paper-line);
 
   /* 语义状态 */
   --success: var(--_success);
@@ -73,348 +95,176 @@
   --error: var(--_error);
   --info: var(--_info);
 
-  /* 装饰 */
-  --gold: var(--_gold);
-  --gold-soft: var(--_gold-soft);
-
   /* ═══════════════════════════════════════════════════════════════════════
-     SHADOW SYSTEM — 阴影系统
+     TYPOGRAPHY — 典雅展示与响应式排版
      ═══════════════════════════════════════════════════════════════════════ */
-  --shadow-sm: 0 1px 2px rgba(17, 16, 15, 0.06);
-  --shadow-md: 0 4px 12px rgba(17, 16, 15, 0.12);
-  --shadow-lg: 0 12px 32px rgba(17, 16, 15, 0.16);
-  --shadow-xl: 0 24px 48px rgba(17, 16, 15, 0.20);
-  --shadow-card-hover: 0 8px 24px rgba(17, 16, 15, 0.18);
-  --shadow-elevated: 0 12px 40px rgba(17, 16, 15, 0.22);
-  --shadow-nav-scroll: 0 2px 12px rgba(17, 16, 15, 0.10);
-  --shadow-subtle: 0 1px 3px rgba(17, 16, 15, 0.08);
+  --font-display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
 
-  /* 拟物阴影层次 (Skeuomorphic Shadows) */
-  --shadow-skeuo-1: 0 1px 3px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --shadow-skeuo-2: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-  --shadow-skeuo-3: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.5), inset 0 -1px 2px rgba(0, 0, 0, 0.02);
-
-  /* 毛玻璃效果变量 (Glassmorphism) */
-  --glass-panel: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --starfield-opacity: 1;
-
-  /* ═══════════════════════════════════════════════════════════════════════
-     TYPOGRAPHY — 字体系统
-     ═══════════════════════════════════════════════════════════════════════ */
-  --font-display: 'Playfair Display', 'Cormorant Garamond', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
-  /* Display 字号（响应式 clamp） */
+  /* Display 字号 */
   --type-display-xl: clamp(48px, 8vw, 96px);
   --type-display-lg: clamp(36px, 6vw, 72px);
   --type-display-md: clamp(28px, 4vw, 48px);
   --type-display-sm: clamp(22px, 3vw, 32px);
 
-  /* 标题字号 */
+  /* 标题与正文字号 */
   --type-title-lg: 24px;
   --type-title-md: 18px;
   --type-title-sm: 16px;
-
-  /* 正文字号 */
   --type-body-lg: 16px;
   --type-body-md: 14px;
   --type-body-sm: 13px;
-
-  /* 辅助字号 */
   --type-caption: 12px;
-  --type-caption-uppercase: 11px;
+  --type-caption-uppercase: 10.5px;
 
-  /* 字重 */
+  /* 字重、行高与字距 */
   --weight-regular: 400;
   --weight-medium: 500;
-  --weight-semibold: 700;
-  --weight-bold: 900;
+  --weight-semibold: 600;
+  --weight-bold: 700;
 
-  /* 行高 */
-  --leading-tight: 1.1;
+  --leading-tight: 1.05;
   --leading-snug: 1.25;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.7;
+  --leading-normal: 1.62;
+  --leading-relaxed: 1.8;
 
-  /* 字距 */
-  --tracking-tight: -0.03em;
+  --tracking-tight: -0.02em;
   --tracking-normal: 0;
-  --tracking-wide: 0.02em;
-  --tracking-wider: 0.05em;
-  --tracking-widest: 0.12em;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.14em;
+  --tracking-widest: 0.26em;
 
   /* ═══════════════════════════════════════════════════════════════════════
-     SPACING — 间距系统 (4px 基准)
+     SPACING & RADIUS
      ═══════════════════════════════════════════════════════════════════════ */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-  --space-9: 96px;
-  --space-10: 128px;
+  --space-5: 20px;
+  --space-6: 28px;
+  --space-7: 36px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --space-10: 96px;
+  --space-11: 140px;
 
-  /* 兼容旧变量名 */
-  --spacing-xxs: var(--space-1);
-  --spacing-xs: var(--space-2);
-  --spacing-sm: var(--space-3);
-  --spacing-md: var(--space-4);
-  --spacing-lg: var(--space-5);
-  --spacing-xl: var(--space-6);
-  --spacing-xxl: var(--space-7);
-  --spacing-section: var(--space-9);
+  --r-xs: 3px;
+  --r-sm: 7px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-pill: 999px;
 
-  /* ═══════════════════════════════════════════════════════════════════════
-     RADIUS — 圆角系统
-     ═══════════════════════════════════════════════════════════════════════ */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-pill: 9999px;
-  --radius-full: 50%;
-
-  /* 兼容旧变量名 */
-  --rounded-xs: 4px;
-  --rounded-sm: var(--radius-sm);
-  --rounded-md: var(--radius-md);
-  --rounded-lg: var(--radius-lg);
-  --rounded-xl: var(--radius-xl);
-  --rounded-pill: var(--radius-pill);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-pill: var(--r-pill);
 
   /* ═══════════════════════════════════════════════════════════════════════
-     MOTION — 动效系统
+     SHADOWS & MOTION
      ═══════════════════════════════════════════════════════════════════════ */
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-spring-bouncy: cubic-bezier(0.47, 2.02, 0.31, -0.36);
-  --ease-spring-smooth: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 16px 36px -14px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 34px 80px -20px rgba(0, 0, 0, 0.7);
 
-  --duration-instant: 100ms;
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 400ms;
-  --duration-reveal: 600ms;
+  --dur-1: 0.16s;
+  --dur-2: 0.32s;
+  --dur-3: 0.55s;
+  --duration-normal: 0.32s;
+  --duration-slow: 0.55s;
+  --ease: cubic-bezier(0.22, 0.8, 0.32, 1);
 
-  /* ═══════════════════════════════════════════════════════════════════════
-     Z-INDEX — 层级系统
-     ═══════════════════════════════════════════════════════════════════════ */
-  --z-nav: 100;
-  --z-drawer: 200;
-  --z-lightbox: 200;
-  --z-modal: 300;
-  --z-toast: 400;
-  --z-cursor: 500;
-
-  /* ═══════════════════════════════════════════════════════════════════════
-     COMPONENT TOKENS — 组件层（向后兼容）
-     ═══════════════════════════════════════════════════════════════════════ */
-  /* 按钮 */
-  --btn-height: 44px;
-  --btn-height-sm: 32px;
-  --btn-padding: var(--space-5);
-  --btn-padding-sm: var(--space-4);
-  --btn-radius: var(--radius-md);
-  --btn-radius-sm: var(--radius-sm);
-
-  /* 输入框 */
-  --input-height: 44px;
-  --input-padding: var(--space-4);
-  --input-radius: var(--radius-md);
-
-  /* 卡片 */
-  --card-padding: var(--space-5);
-  --card-padding-lg: var(--space-6);
-  --card-radius: var(--radius-lg);
-  --card-radius-sm: var(--radius-md);
-
-  /* 导航 */
-  --nav-height: 64px;
-
-  /* ═══════════════════════════════════════════════════════════════════════
-     LEGACY COMPATIBILITY — 向后兼容旧变量名
-     ═══════════════════════════════════════════════════════════════════════ */
-  /* 旧品牌色 → 新语义色 */
-  --color-primary: var(--accent);
-  --color-primary-active: var(--accent-active);
-  --color-primary-disabled: #e6dfd8;
-  --color-accent-teal: var(--info);
-  --color-accent-amber: #e8a55a;
-
-  /* 旧表面色 → 新语义色 */
-  --color-canvas: var(--bg);
-  --color-surface-soft: var(--bg-soft);
-  --color-surface-card: var(--bg-surface);
-  --color-surface-cream: var(--bg);
-  --color-surface-cream-strong: #e8e0d2;
-  --color-surface-dark: #181715;
-  --color-surface-dark-elevated: #252320;
-  --color-surface-dark-soft: #1f1e1b;
-
-  /* 旧文字色 → 新语义色 */
-  --color-ink: var(--text-primary);
-  --color-body-strong: var(--text-secondary);
-  --color-body: var(--text-secondary);
-  --color-muted: var(--text-muted);
-  --color-muted-soft: #8e8b82;
-  --color-on-primary: var(--bg-raised);
-  --color-on-dark: var(--bg);
-  --color-on-dark-soft: #a09d96;
-
-  /* 旧边框色 */
-  --color-hairline: var(--border);
-  --color-hairline-soft: var(--border);
-
-  /* 旧语义色 */
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-error: var(--error);
-  --color-gold: var(--gold);
-  --color-silver: var(--silver);
-  --color-bronze: var(--bronze);
-
-  /* 旧 Museum tokens → 映射到新的统一系统 */
-  --color-museum-ink: #26303a;
-  --color-museum-ink-soft: #52606c;
-  --color-museum-gold: var(--gold);
-  --color-museum-gold-soft: var(--gold-soft);
-  --color-museum-paper: var(--bg);
-  --color-museum-paper-strong: #f0e3cf;
-  --color-museum-film-blue: #8aa2b6;
-  --color-museum-stamp-red: #a84f3d;
-  --shadow-museum-panel: var(--shadow-lg);
-  --shadow-museum-paper: var(--shadow-md);
-  --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
-
-  /* 旧 Paper tokens → 映射到新的统一系统 */
-  --color-paper-bg: var(--bg);
-  --color-paper-bg-soft: var(--bg-soft);
-  --color-paper-card: var(--bg-surface);
-  --color-paper-card-muted: #f8f1e6;
-  --color-paper-border: var(--border-strong);
-  --color-paper-border-soft: var(--border);
-  --color-paper-ink: var(--text-primary);
-  --color-paper-ink-soft: var(--text-secondary);
-  --color-paper-muted: var(--text-muted);
-  --color-paper-brown: #ad8051;
-  --color-paper-brown-active: #8f653c;
-  --color-paper-brown-soft: #d8ceb8;
-  --color-paper-gold: var(--gold);
-  --color-paper-stamp-red: #bc4f3c;
-  --shadow-paper-panel: var(--shadow-lg);
-  --shadow-paper-card: var(--shadow-md);
-  --texture-paper-fiber:
-    radial-gradient(circle at 20% 20%, rgba(80, 62, 42, 0.035), transparent 22%),
-    radial-gradient(circle at 80% 0%, rgba(173, 128, 81, 0.045), transparent 26%),
-    linear-gradient(rgba(80, 62, 42, 0.035) 1px, transparent 1px);
+  --z-nav: 60;
+  --z-drawer: 90;
+  --z-modal: 120;
+  --z-lightbox: 150;
+  --z-toast: 200;
+  --z-cursor: 999;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DARK MODE — 暗色模式
+   DARK / NIGHT MODE — 展厅夜间默认模式
    ═══════════════════════════════════════════════════════════════════════════ */
 html[data-theme='night'] {
-  --starfield-opacity: 1;
-  /* Primitive */
-  --_bg: #1c1917;
-  --_surface: #292524;
-  --_surface-raised: #44403c;
-  --_surface-soft: #252320;
-  --_ink: #f5f2eb;
-  --_ink-soft: #d7d3cb;
-  --_muted: #a8a29e;
-  --_dim: #57534e;
-  --_accent: #d4714a;
-  --_accent-active: #e88a63;
-  --_accent-soft: rgba(212, 113, 74, 0.12);
-  --_border: rgba(245, 242, 235, 0.08);
-  --_border-strong: rgba(245, 242, 235, 0.14);
+  --bg-0: var(--_bg-0);
+  --bg-1: var(--_bg-1);
+  --bg-2: var(--_bg-2);
+  --bg: var(--_bg-0);
+  --bg-surface: var(--_bg-1);
+  --bg-raised: var(--_bg-2);
+  --bg-soft: var(--_bg-2);
+  --bg-elevated: var(--_bg-elevated);
+  --bg-elevated-solid: var(--_bg-elevated-solid);
+  --bg-sunken: var(--_bg-sunken);
 
-  /* Semantic re-mapping */
-  --bg: var(--_bg);
-  --bg-surface: var(--_surface);
-  --bg-raised: var(--_surface-raised);
-  --bg-soft: var(--_surface-soft);
-  --text-primary: var(--_ink);
-  --text-secondary: var(--_ink-soft);
-  --text-muted: var(--_muted);
-  --text-dim: var(--_dim);
-  --text-inverse: var(--_bg);
-  --text-accent: var(--_accent);
-  --border: var(--_border);
-  --border-strong: var(--_border-strong);
-  --accent: var(--_accent);
-  --accent-active: var(--_accent-active);
-  --accent-soft: var(--_accent-soft);
-
-  /* Shadows with darker base */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.5);
-  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.4);
-  --shadow-nav-scroll: 0 2px 12px rgba(0, 0, 0, 0.25);
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
-
-  /* Dark mode skeuomorphic shadows */
-  --shadow-skeuo-1: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --shadow-skeuo-2: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-skeuo-3: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 -1px 2px rgba(0, 0, 0, 0.1);
-
-  /* Dark mode glassmorphism */
-  --glass-panel: rgba(41, 37, 36, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.1);
-
-  /* Legacy compatibility */
-  --color-canvas: var(--bg);
-  --color-surface-soft: var(--bg-soft);
-  --color-surface-card: var(--bg-surface);
-  --color-surface-cream: var(--bg);
-  --color-surface-cream-strong: #34404d;
-  --color-ink: var(--text-primary);
-  --color-body-strong: var(--text-secondary);
-  --color-body: var(--text-secondary);
-  --color-muted: var(--text-muted);
-  --color-muted-soft: #938876;
-  --color-hairline: var(--border);
-  --color-hairline-soft: var(--border);
   --color-paper-bg: var(--bg);
-  --color-paper-bg-soft: var(--bg-soft);
   --color-paper-card: var(--bg-surface);
-  --color-paper-card-muted: #303b47;
-  --color-paper-border: var(--border-strong);
-  --color-paper-border-soft: var(--border);
-  --color-paper-ink: var(--text-primary);
-  --color-paper-ink-soft: var(--text-secondary);
-  --color-paper-muted: var(--text-muted);
-  --color-paper-brown: #d2a56d;
-  --color-paper-brown-active: #e2bd88;
-  --color-paper-brown-soft: #7c6a55;
-  --color-paper-gold: #ddbd78;
-  --color-paper-stamp-red: #d37a67;
+  --color-paper-border: var(--border);
+  --color-paper-brown: var(--gold);
+  --color-paper-brown-active: var(--gold-hi);
+  --color-paper-stamp-red: var(--stamp);
   --shadow-paper-panel: var(--shadow-lg);
-  --shadow-paper-card: var(--shadow-md);
-  --texture-paper-fiber:
-    radial-gradient(circle at 20% 20%, rgba(225, 189, 120, 0.05), transparent 24%),
-    linear-gradient(rgba(244, 234, 217, 0.028) 1px, transparent 1px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   REDUCED MOTION — 减少动效偏好
+   DAY / PAPER MODE — 访客日间羊皮纸模式
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-theme='day'],
+html[data-theme='paper'] {
+  --bg-0: #F1E7CE;
+  --bg-1: #F1E7CE;
+  --bg-2: #ece0c2;
+  --bg: #F1E7CE;
+  --bg-surface: #F1E7CE;
+  --bg-raised: #ece0c2;
+  --bg-soft: #ece0c2;
+  --bg-elevated: rgba(251, 246, 233, 0.8);
+  --bg-elevated-solid: #fbf6e9;
+  --bg-sunken: #ece0c2;
+
+  --border: rgba(110, 83, 34, 0.28);
+  --border-strong: rgba(110, 83, 34, 0.45);
+  --border-glass: rgba(110, 83, 34, 0.28);
+  --border-glass-soft: rgba(110, 83, 34, 0.15);
+
+  --text-primary: #221A10;
+  --text-secondary: #4a3c24;
+  --text-muted: #7c6c49;
+  --text-dim: #7c6c49;
+  --text-1: #221A10;
+  --text-2: #4a3c24;
+  --text-3: #7c6c49;
+
+  --gold: #8a6a2f;
+  --gold-hi: #6e5322;
+  --gold-dim: #b08d42;
+  --green-glow: #4a7159;
+  --stamp: #a23b2a;
+  --stamp-soft: #f1ddd2;
+
+  --accent: var(--gold);
+  --accent-strong: var(--gold-hi);
+  --accent-soft: rgba(138, 106, 47, 0.14);
+  --accent-ink: #fbf6e9;
+  --tag: #a23b2a;
+  --tag-soft: #f1ddd2;
+  --focus: #2d4636;
+
+  --shadow-sm: 0 1px 2px rgba(38, 28, 10, 0.14);
+  --shadow-md: 0 10px 26px -10px rgba(38, 28, 10, 0.32);
+  --shadow-lg: 0 26px 60px -16px rgba(38, 28, 10, 0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION — 减弱动效
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --duration-instant: 0ms;
-    --duration-fast: 0ms;
-    --duration-normal: 0ms;
-    --duration-slow: 0ms;
-    --duration-reveal: 0ms;
+    --dur-1: 0.001s;
+    --dur-2: 0.001s;
+    --dur-3: 0.001s;
+    --duration-normal: 0.001s;
+    --duration-slow: 0.001s;
   }
 }
