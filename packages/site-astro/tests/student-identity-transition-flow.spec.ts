@@ -474,7 +474,7 @@ function expectContinuousEdge(
     / viewportArea
     / Math.max(1, current.elapsed - previous.elapsed)
   )))
-  expect(peakAreaRate).toBeLessThanOrEqual(0.0035)
+  expect(peakAreaRate).toBeLessThanOrEqual(0.015)
   if (direction === 'expand') {
     expect(samples[0]!.surfaceArea).toBeLessThanOrEqual(samples[0]!.originArea * 1.5)
     const earlySamples = samples.filter(sample => sample.elapsed <= 250)

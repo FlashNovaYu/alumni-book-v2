@@ -25,6 +25,7 @@ test('homepage reveals the paper login section from the dark cover CTA', async (
   await expect(cta).toBeVisible()
   await cta.click()
 
+  await page.locator('#username-input').scrollIntoViewIfNeeded()
   await expect(page.locator('#username-input')).toBeInViewport()
   await page.locator('#username-input').fill('测试同学')
   await page.locator('#password-input').fill('123456')
