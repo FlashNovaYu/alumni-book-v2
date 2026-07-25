@@ -27,13 +27,18 @@
     const isTest = typeof window !== 'undefined' && (
       navigator.userAgent.includes('Playwright') ||
       Boolean((window as any).__playwright) ||
-      Boolean((window as any).__vite_plugin_react_preamble_installed__)
+      Boolean((window as any).__vite_plugin_react_preamble_installed__) ||
+      window.location.search.includes('playwright')
     )
+    const hasVisited = sessionStorage.getItem('alumni_load_lid_shown')
 
-    if (isReduced || isTest) {
+    // 如果为减弱动画、自动化测试或会话中非首次访问，直接移除幕帘
+    if (isReduced || isTest || hasVisited) {
       lid.remove()
       return
     }
+
+    sessionStorage.setItem('alumni_load_lid_shown', 'true')
 
     // 锁屏
     document.body.classList.add('locked')
@@ -52,7 +57,7 @@
       lid.classList.add('hide')
       document.body.classList.remove('locked')
       setTimeout(() => lid.remove(), 950)
-    }, 2400)
+    }, 2200)
   }
 
   if (document.readyState === 'loading') {
@@ -81,6 +86,7 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+    display: none !important;
   }
 
   .lid-emblem svg {
