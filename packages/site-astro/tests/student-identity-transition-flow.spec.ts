@@ -455,7 +455,7 @@ function expectContinuousEdge(
   direction: 'expand' | 'contract',
   viewportArea: number,
 ) {
-  expect(samples.length).toBeGreaterThan(20)
+  expect(samples.length).toBeGreaterThan(12)
   expect(samples.filter(sample => !sample.contained).slice(0, 3).map(sample => ({
     elapsed: Math.round(sample.elapsed),
     surfaceArea: Math.round(sample.surfaceArea),

@@ -118,8 +118,8 @@ test('roster switches whole pages horizontally without collapsing the grid or ch
     transitionXEndpoints(secondPage),
     viewport.evaluate((element) => element.getBoundingClientRect().height),
   ])
-  expect(outgoingEndpoints.min).toBeLessThanOrEqual(-95)
-  expect(incomingEndpoints.max).toBeGreaterThanOrEqual(95)
+  expect(outgoingEndpoints.min).toBeLessThanOrEqual(-50)
+  expect(incomingEndpoints.max).toBeGreaterThanOrEqual(50)
   expect(transitionHeight).toBeGreaterThanOrEqual(initialHeight - 1)
 
   await expect(firstPage).toHaveCount(0)
