@@ -240,9 +240,20 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     height: auto;
     align-items: center;
     justify-content: center;
-    color: var(--color-paper-stamp-red);
+    color: var(--gold-hi, #E7CE8C);
     border: 0;
     background: transparent;
+    filter: drop-shadow(0 0 6px rgba(231, 206, 140, 0.4));
+    animation: emberGlow 5s ease-in-out infinite alternate;
+  }
+
+  @keyframes emberGlow {
+    from {
+      filter: drop-shadow(0 0 4px rgba(231, 206, 140, 0.25));
+    }
+    to {
+      filter: drop-shadow(0 0 12px rgba(231, 206, 140, 0.65));
+    }
   }
 
   .brand-text {
@@ -250,6 +261,7 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     font-size: 20px;
     font-weight: 600;
     letter-spacing: 0;
+    color: var(--text-1);
   }
 
   .nav-directory {
@@ -368,6 +380,8 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-volume-button,
   .mobile-nav-button,
   .drawer-icon-button {
+    position: relative;
+    overflow: hidden;
     display: inline-grid;
     width: 36px;
     height: 36px;
@@ -379,6 +393,30 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     text-decoration: none;
     cursor: pointer;
     transition: color var(--dur-2) ease, background-color var(--dur-2) ease, border-color var(--dur-2) ease, transform var(--dur-1) ease;
+  }
+
+  .nav-account-button::after,
+  .nav-mailbox-button::after,
+  .nav-theme-button::after,
+  .nav-volume-button::after,
+  .mobile-nav-button::after,
+  .drawer-icon-button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 25%, rgba(231, 206, 140, 0.45), transparent 75%);
+    transform: translateX(-150%);
+    transition: transform 0.65s cubic-bezier(0.22, 0.8, 0.32, 1);
+    pointer-events: none;
+  }
+
+  .nav-account-button:hover::after,
+  .nav-mailbox-button:hover::after,
+  .nav-theme-button:hover::after,
+  .nav-volume-button:hover::after,
+  .mobile-nav-button:hover::after,
+  .drawer-icon-button:hover::after {
+    transform: translateX(150%);
   }
 
   .nav-account-button:hover,
@@ -624,3 +662,32 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     .mobile-drawer-overlay { transition: none; }
   }
 </style>
+
+<script>
+  function initMagnetic() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const elements = document.querySelectorAll<HTMLElement>('.magnetic, .nav-brand, .nav-theme-button, .nav-volume-button, .nav-account-button, .nav-mailbox-button')
+    elements.forEach((el) => {
+      if ((el as any).__magneticBound) return
+      ;(el as any).__magneticBound = true
+
+      el.addEventListener('mousemove', (e) => {
+        const rect = el.getBoundingClientRect()
+        const mx = e.clientX - (rect.left + rect.width / 2)
+        const my = e.clientY - (rect.top + rect.height / 2)
+        el.style.transform = `translate(${mx * 0.22}px, ${my * 0.3}px)`
+      })
+
+      el.addEventListener('mouseleave', () => {
+        el.style.transform = ''
+      })
+    })
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMagnetic)
+  } else {
+    initMagnetic()
+  }
+  document.addEventListener('astro:page-load', initMagnetic)
+</script>
