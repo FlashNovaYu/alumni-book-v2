@@ -240,10 +240,12 @@ export function useMouseTilt(options: TiltOptions = {}) {
     const currentScale = s.isHovered ? scale : 1
 
     return {
-      transform: `perspective(1000px) ${baseTransform} rotateX(${s.rotateX}deg) rotateY(${s.rotateY}deg) scale3d(${currentScale}, ${currentScale}, ${currentScale})`,
+      transform: `perspective(900px) ${baseTransform} rotateX(${s.rotateX}deg) rotateY(${s.rotateY}deg) scale3d(${currentScale}, ${currentScale}, ${currentScale})`,
       transition: 'transform 0.1s ease-out, box-shadow 0.1s ease-out',
       '--glare-x': `${s.glareX}%`,
       '--glare-y': `${s.glareY}%`,
+      '--mx': `${s.glareX}%`,
+      '--my': `${s.glareY}%`,
     }
   }
 

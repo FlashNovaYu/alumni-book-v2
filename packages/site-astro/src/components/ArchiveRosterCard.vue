@@ -165,11 +165,27 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card {
   display: block;
   text-decoration: none;
+  color: inherit;
+  outline: none;
+  position: relative;
   transform-style: preserve-3d;
   will-change: transform;
-  /* Ensure a high z-index when hovered for 3d effect */
-  position: relative;
-  z-index: 1;
+}
+
+.roster-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm, 8px);
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(231, 206, 140, 0.22), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.roster-card:hover::before {
+  opacity: 1;
 }
 
 .roster-card:hover {
