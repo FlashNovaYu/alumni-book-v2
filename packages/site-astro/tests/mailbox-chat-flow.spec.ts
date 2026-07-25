@@ -388,6 +388,7 @@ test('新建私聊在目录加载失败时可重试且支持 Escape 关闭', asy
 
   await seedClassmateSession(page)
   await page.goto('./mailbox/', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: '新建私聊' }).scrollIntoViewIfNeeded()
   await page.getByRole('button', { name: '新建私聊' }).click()
   await expect(page.getByRole('alert')).toContainText('同学目录加载失败')
   await page.getByRole('button', { name: '重新加载同学目录' }).click()

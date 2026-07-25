@@ -67,6 +67,7 @@ test.describe('Classmate Account Center Flow', () => {
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true }) })
     })
 
+    await page.route('**/api/auth/verify', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true }) }))
     await seedClassmateSession(page)
     await page.goto('./account/', { waitUntil: 'networkidle' })
     await expect(page.locator('.user-name')).toHaveText('测试同学')
