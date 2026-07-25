@@ -59,8 +59,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
-  font-size: 14.5px;
+  padding: 10px 22px;
+  font-size: 14px;
   font-weight: var(--weight-semibold);
   border-radius: var(--r-sm);
   border: 1.5px solid transparent;
@@ -73,7 +73,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.4), transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.35), transparent 70%);
   transform: translateX(-130%);
   transition: transform 0.6s ease;
   pointer-events: none;
@@ -84,7 +84,9 @@
 }
 
 .ui-btn:active,
-.btn-primary:active {
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active {
   transform: scale(0.96);
 }
 
@@ -92,40 +94,49 @@
 .btn-primary {
   background: linear-gradient(135deg, var(--gold-hi), var(--gold));
   color: var(--accent-ink);
-  box-shadow: var(--shadow-sm), 0 0 0 1px rgba(201, 162, 75, 0.3);
+  box-shadow: var(--shadow-sm), 0 0 0 1px rgba(201, 162, 75, 0.4);
+  border-color: rgba(231, 206, 140, 0.5);
 }
 
 .ui-btn--primary:hover,
 .btn-primary:hover {
-  box-shadow: var(--shadow-md), 0 0 24px rgba(231, 206, 140, 0.3);
+  box-shadow: var(--shadow-md), 0 0 24px rgba(231, 206, 140, 0.35);
+  border-color: var(--gold-hi);
 }
 
 .ui-btn--ghost,
-.btn-ghost {
-  background: var(--bg-elevated);
-  border-color: var(--border-glass);
+.btn-ghost,
+.btn-secondary {
+  background: color-mix(in srgb, var(--bg-elevated-solid) 85%, transparent);
+  border: 1.5px solid var(--border-glass);
   color: var(--text-primary);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .ui-btn--ghost:hover,
-.btn-ghost:hover {
-  border-color: var(--accent-strong);
-  color: var(--accent-strong);
+.btn-ghost:hover,
+.btn-secondary:hover {
+  background: var(--accent-soft);
+  border-color: var(--gold-hi);
+  color: var(--gold-hi);
+  box-shadow: 0 0 16px rgba(201, 162, 75, 0.25);
 }
 
 .ui-btn--quiet {
   background: none;
   color: var(--text-secondary);
   padding: 8px 10px;
+  border-radius: var(--r-xs);
 }
 
 .ui-btn--quiet:hover {
   color: var(--accent-strong);
+  background: var(--accent-soft);
 }
 
 .ui-btn--sm {
-  padding: 7px 14px;
+  padding: 6px 14px;
   font-size: 13px;
 }
 

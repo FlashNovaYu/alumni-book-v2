@@ -54,10 +54,10 @@
   --bg-inverse: var(--_paper);
 
   /* 边框与光影 */
-  --border: rgba(201, 162, 75, 0.24);
-  --border-strong: rgba(201, 162, 75, 0.4);
-  --border-glass: rgba(201, 162, 75, 0.24);
-  --border-glass-soft: rgba(201, 162, 75, 0.12);
+  --border: rgba(201, 162, 75, 0.32);
+  --border-strong: rgba(201, 162, 75, 0.55);
+  --border-glass: rgba(201, 162, 75, 0.32);
+  --border-glass-soft: rgba(201, 162, 75, 0.18);
 
   /* 文字 */
   --text-primary: var(--_text-1);

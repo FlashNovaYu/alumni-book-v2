@@ -369,15 +369,16 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .mobile-nav-button,
   .drawer-icon-button {
     display: inline-grid;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     place-items: center;
-    border: 0;
-    color: var(--color-paper-muted);
-    background: transparent;
+    border: 1px solid var(--border-glass-soft);
+    border-radius: var(--r-pill);
+    color: var(--text-2);
+    background: color-mix(in srgb, var(--bg-elevated-solid) 75%, transparent);
     text-decoration: none;
     cursor: pointer;
-    transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+    transition: color var(--dur-2) ease, background-color var(--dur-2) ease, border-color var(--dur-2) ease, transform var(--dur-1) ease;
   }
 
   .nav-account-button:hover,
@@ -387,12 +388,15 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-volume-button:hover,
   .mobile-nav-button:hover,
   .drawer-icon-button:hover {
-    color: var(--color-paper-ink);
-    background: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
+    color: var(--gold-hi);
+    border-color: var(--gold-hi);
+    background: var(--accent-soft);
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(201, 162, 75, 0.2);
   }
 
   .nav-mailbox-button { position: relative; }
-  .nav-theme-button { border: 0; font: inherit; }
+  .nav-theme-button { border: 1px solid var(--border-glass-soft); font: inherit; }
   .nav-theme-button--mobile { display: none; }
   .nav-admin-button {
     display: none;

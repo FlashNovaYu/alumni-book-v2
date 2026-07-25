@@ -216,25 +216,26 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .punch {
   position: absolute;
-  top: 8px;
-  left: 12px;
-  width: 6px;
-  height: 6px;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--bg-0, #0B120E);
-  border: 1px solid var(--border-glass-soft);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.75);
   z-index: 3;
 }
 
 .cat-no {
   position: absolute;
-  top: 6px;
-  right: 12px;
-  font-family: var(--font-mono, monospace);
-  font-size: 9px;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-  opacity: 0.75;
+  top: 12px;
+  right: 14px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--gold-dim);
+  letter-spacing: 0.08em;
   z-index: 3;
 }
 
@@ -261,9 +262,9 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
+  background: linear-gradient(150deg, var(--gold-hi), var(--green-glow));
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  box-shadow: 0 0 0 1.5px var(--border-strong), 0 4px 14px rgba(0, 0, 0, 0.45);
   font-family: var(--font-display);
   font-size: 30px;
   font-weight: var(--weight-semibold);
