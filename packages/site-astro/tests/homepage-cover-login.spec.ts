@@ -25,8 +25,11 @@ test('homepage reveals the paper login section from the dark cover CTA', async (
   await expect(cta).toBeVisible()
   await cta.click()
 
-  await page.locator('#username-input').scrollIntoViewIfNeeded()
-  await expect(page.locator('#username-input')).toBeInViewport()
+  await page.locator('#username-input').evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  await expect.poll(() => page.locator('#username-input').evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return r.top >= 0 && r.bottom <= window.innerHeight
+  })).toBe(true)
   await page.locator('#username-input').fill('测试同学')
   await page.locator('#password-input').fill('123456')
   await page.locator('.login-btn').click()

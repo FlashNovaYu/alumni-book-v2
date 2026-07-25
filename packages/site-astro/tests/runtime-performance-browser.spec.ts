@@ -85,6 +85,17 @@ test.describe('公开站点真实浏览器性能预算', () => {
     await page.goBack({ waitUntil: 'commit' })
     await expect(page).toHaveURL(/\/roster\/?$/)
     await waitNavigationInteractive(page)
+    await page.waitForTimeout(300)
+    const rosterStart = Date.now()
+    await page.evaluate(() => document.querySelector<HTMLAnchorElement>('[data-nav-item][href$="/yearbook/"]')?.click())
+    await page.waitForURL(/\/yearbook\/?$/, { waitUntil: 'commit' })
+    await waitNavigationInteractive(page)
+    expect(Date.now() - rosterStart).toBeLessThan(1200)
+    await page.waitForLoadState('load')
+    const yearbookStart = Date.now()
+    await page.goBack({ waitUntil: 'commit' })
+    await expect(page).toHaveURL(/\/roster\/?$/)
+    await waitNavigationInteractive(page)
     expect(Date.now() - yearbookStart).toBeLessThan(700)
     await page.waitForLoadState('load')
   })
@@ -92,13 +103,11 @@ test.describe('公开站点真实浏览器性能预算', () => {
   test('同页登录锚点不会启动跨文档进度线', async ({ page }) => {
     await page.goto('./', { waitUntil: 'networkidle' })
     await page.getByTestId('home-login-cta').click()
-    await expect(page).toHaveURL(/#login$/)
+    await expect.poll(() => page.url()).toMatch(/#login$/)
     await expect(page.locator('html')).not.toHaveClass(/is-navigating/)
   })
 
   test('悬停不会创建音频上下文，只有点击开启音效才会创建', async ({ page }) => {
-    await page.addInitScript(() => {
-      const NativeAudioContext = window.AudioContext
       ;(window as Window & { __audioContextCreations?: number }).__audioContextCreations = 0
       if (NativeAudioContext) {
         window.AudioContext = class extends NativeAudioContext {
