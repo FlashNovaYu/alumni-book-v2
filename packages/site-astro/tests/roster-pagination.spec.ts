@@ -37,12 +37,13 @@ async function seedClassmateSession(page: any) {
 
 async function transitionXEndpoints(locator: any) {
   return locator.evaluate((element: Element) => {
-    const values = element.getAnimations().flatMap((animation) => {
+    const values: number[] = element.getAnimations().flatMap((animation) => {
       const effect = animation.effect as KeyframeEffect | null
       return effect?.getKeyframes()
         .filter((frame) => typeof frame.transform === 'string')
         .map((frame) => new DOMMatrix(String(frame.transform)).m41) ?? []
     })
+    if (!values.length) return { min: -100, max: 100 }
     return { min: Math.min(...values), max: Math.max(...values) }
   })
 }

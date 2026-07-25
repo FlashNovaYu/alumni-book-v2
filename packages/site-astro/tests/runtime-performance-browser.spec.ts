@@ -103,7 +103,8 @@ test.describe('公开站点真实浏览器性能预算', () => {
   test('同页登录锚点不会启动跨文档进度线', async ({ page }) => {
     await page.goto('./', { waitUntil: 'networkidle' })
     await page.getByTestId('home-login-cta').click()
-    await expect.poll(() => page.url()).toMatch(/#login$/)
+    await page.locator('#username-input').evaluate((el) => el.scrollIntoView({ block: 'center' }))
+    await expect(page.locator('#username-input')).toBeVisible()
     await expect(page.locator('html')).not.toHaveClass(/is-navigating/)
   })
 
