@@ -216,25 +216,25 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .punch {
   position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 8px;
-  height: 8px;
+  top: 8px;
+  left: 12px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--bg-0);
-  border: 1px solid var(--border-glass);
+  background: var(--bg-0, #0B120E);
+  border: 1px solid var(--border-glass-soft);
   z-index: 3;
 }
 
 .cat-no {
   position: absolute;
-  top: 11px;
-  right: 14px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
+  top: 6px;
+  right: 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
   color: var(--text-muted);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
   z-index: 3;
 }
 
