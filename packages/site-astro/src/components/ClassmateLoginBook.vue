@@ -141,6 +141,10 @@ function handlePasswordCancel() {
 }
 
 function handleBypass() {
+  try {
+    localStorage.setItem('alumni_classmate_token', 'dev-guest-token')
+    localStorage.setItem('alumni_classmate_student', JSON.stringify({ slug: 'ke-hao-tian', name: '柯昊天', avatarUrl: '/avatars/ke-hao-tian.jpg' }))
+  } catch {}
   setClassmateSession('dev-guest-token', {
     slug: 'ke-hao-tian',
     name: '柯昊天',

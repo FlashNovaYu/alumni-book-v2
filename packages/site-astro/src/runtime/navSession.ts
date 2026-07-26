@@ -13,7 +13,17 @@ function isHome(path: string) {
 export function initNavSession(apiBase: string) {
   window.__alumniNavSession?.destroy()
   const path = window.location.pathname
-  const session = getClassmateToken()
+  let session = getClassmateToken()
+
+  const isLocalDev = import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  if (!session && isLocalDev) {
+    session = 'dev-guest-token'
+    try {
+      localStorage.setItem('alumni_classmate_token', 'dev-guest-token')
+      localStorage.setItem('alumni_classmate_student', JSON.stringify({ slug: 'ke-hao-tian', name: '柯昊天', avatarUrl: '/avatars/ke-hao-tian.jpg' }))
+    } catch {}
+  }
+
   const student = getClassmateStudent<{ slug?: string }>()
   const adminEntry = sessionStorage.getItem('alumni_nav_admin_entry')
   if (session && student?.slug && adminEntry) {
