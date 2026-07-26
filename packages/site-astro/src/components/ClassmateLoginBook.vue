@@ -44,6 +44,15 @@
       <button type="submit" class="btn-primary login-btn" :disabled="loading">
         <span>{{ loading ? '翻阅中...' : '翻开回忆' }}</span>
       </button>
+
+      <button
+        type="button"
+        class="login-btn dev-bypass-btn"
+        style="margin-top: 8px; background: rgba(143, 101, 60, 0.15); color: #8F5528; border: 1px solid rgba(143, 101, 60, 0.35); font-weight: 600;"
+        @click="handleBypass"
+      >
+        <span>🔓 关掉门禁 · 免密直接进入</span>
+      </button>
     </form>
 
     <p class="paper-login__note">首次登录后会自动弹出密码设置页，请按提示完成自己的专属密码。</p>
@@ -119,6 +128,17 @@ function handlePasswordCancel() {
   clearClassmateSession()
   showChangePasswordModal.value = false
   password.value = ''
+}
+
+function handleBypass() {
+  setClassmateSession('local-dev-bypass-token', {
+    slug: 'ke-hao-tian',
+    name: '柯昊天',
+    avatarUrl: '/avatars/ke-hao-tian.jpg'
+  } as any)
+  const baseUrl = import.meta.env.BASE_URL || '/'
+  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  window.location.href = `${prefix}preface`
 }
 </script>
 
