@@ -70,13 +70,12 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 <style>
 .home-cover {
   position: relative;
-  min-height: 100svh;
+  min-height: 72svh;
   display: grid;
   place-items: center;
-  overflow: hidden;
-  padding: calc(var(--nav-height) + var(--space-6)) 0 var(--space-7);
+  padding: calc(var(--nav-height) + 24px) 16px 40px;
   background:
-    linear-gradient(180deg, rgba(15, 13, 11, 0.08), rgba(15, 13, 11, 0.88)),
+    radial-gradient(circle at 50% 12%, rgba(200, 169, 106, 0.28), transparent 42%),
     radial-gradient(circle at 18% 28%, rgba(200, 169, 106, 0.18), transparent 32%),
     radial-gradient(circle at 78% 72%, rgba(188, 79, 60, 0.16), transparent 34%),
     #11100e;
@@ -278,47 +277,40 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 36vh;
-  padding: var(--space-9) var(--space-5);
+  padding: 32px 16px;
+  z-index: 10;
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 250, 242, 0.28), transparent 34%),
-    linear-gradient(180deg, #11100e 0%, #211d17 24%, var(--bg) 78%);
+    radial-gradient(circle at 50% 0%, rgba(255, 250, 242, 0.18), transparent 45%),
+    linear-gradient(180deg, #11100e 0%, #171f18 100%);
 }
 
 .home-login-cta__button {
   display: inline-flex;
-  min-height: 52px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
   padding: 0 var(--space-6);
-  border: 1px solid rgba(255, 250, 242, 0.22);
+  border: 1.5px solid rgba(201, 162, 75, 0.45);
   border-radius: var(--radius-pill);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-lg);
+  background: var(--bg-elevated-solid, #162119);
+  color: var(--text-primary, #F5EFE6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   font-weight: var(--weight-semibold);
   text-decoration: none;
-  transition:
-    background-color var(--duration-fast) var(--ease-out-expo),
-    box-shadow var(--duration-fast) var(--ease-out-expo),
-    transform var(--duration-fast) var(--ease-out-expo);
+  transition: background-color var(--dur-2), box-shadow var(--dur-2), border-color var(--dur-2);
 }
 
 .home-login-cta__button:hover {
-  background: var(--bg-soft);
-  box-shadow: 0 16px 40px rgba(76, 59, 38, 0.14);
-  transform: translateY(-2px);
+  background: #1C2B21;
+  border-color: var(--gold-hi, #E7CE8C);
+  box-shadow: 0 12px 32px rgba(201, 162, 75, 0.35);
 }
 
 .home-login-section {
-  min-height: 100svh;
-  display: grid;
-  align-items: center;
-  padding: calc(var(--nav-height) + var(--space-6)) 0 var(--space-9);
-  background:
-    var(--texture-paper-fiber),
-    var(--bg);
-  background-size: 100% 100%, 100% 26px;
+  position: relative;
+  z-index: 10;
+  padding: 48px 16px 80px;
+  background: var(--bg-0, #0B120E);
   scroll-margin-top: var(--nav-height);
 }
 
