@@ -4,8 +4,8 @@ export function normalizeApiBase(value: string): string {
 
 export function getSsgApiBase(): string {
   const base = normalizeApiBase(import.meta.env.VITE_SSG_API_BASE || '')
-  if (!base && import.meta.env.MODE !== 'test') {
-    throw new Error('缺少 VITE_SSG_API_BASE；请显式指定阿里云或 Cloudflare 开发 API 地址')
-  }
-  return base
+  if (base) return base
+  if (import.meta.env.MODE === 'test') return ''
+  // 本地开发或缺省时使用阿里云 ECS API 作为默认回退地址
+  return 'http://118.178.88.227'
 }
