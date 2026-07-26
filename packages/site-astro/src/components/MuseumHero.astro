@@ -1,6 +1,5 @@
 ---
 import VisitorPass from './VisitorPass.vue'
-import LoadLid from './LoadLid.astro'
 
 interface Props {
   apiBase: string
@@ -12,7 +11,6 @@ interface Props {
 const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 ---
 
-<LoadLid />
 <section class="home-cover" aria-labelledby="museum-hero-title">
   <!-- 噪点纹理覆盖层 -->
   <div class="home-cover__noise" aria-hidden="true" />
@@ -30,47 +28,31 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     <div class="home-cover__deco-line" aria-hidden="true" data-parallax='{"speed": 0.1}'></div>
   </div>
 
-  <div class="home-cover__copy container" data-parallax='{"speed": -0.2}'>
-    <p class="home-cover__kicker home-cover__copy-reveal" style="--reveal-delay: 0.28s">{heroEyebrow}</p>
+  <div class="home-cover__copy container">
+    <p class="home-cover__kicker">{heroEyebrow}</p>
     <h1 id="museum-hero-title" class="home-cover__title">
-      <span class="home-cover__copy-reveal" style="--reveal-delay: 0.46s">{heroTitle}</span>
-      <span class="home-cover__copy-reveal" style="--reveal-delay: 0.62s">翻开青春</span>
+      <span>{heroTitle}</span>
     </h1>
-    <p class="home-cover__subtitle home-cover__copy-reveal" style="--reveal-delay: 0.84s">{heroSubtitle}</p>
-  </div>
-
-  <div class="home-cover__scroll-slot">
-    <div class="home-cover__scroll-reveal home-cover__copy-reveal" style="--reveal-delay: 1.08s">
-      <a href="#login" class="home-cover__scroll" data-home-login-scroll aria-label="向下滑动到登录入口">
-        <span>向下滑动</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </a>
-    </div>
-  </div>
-</section>
-
-<section class="home-login-cta" aria-label="进入登录">
-  <a href="#login" class="home-login-cta__button home-scroll-reveal" data-testid="home-login-cta" data-home-login-scroll>
-    翻开同学录，进入登录
-  </a>
-</section>
-
-<section id="login" class="home-login-section" aria-labelledby="home-login-title">
-  <div class="home-login-section__inner container">
-    <div class="home-login-section__copy home-scroll-reveal">
-      <p class="home-cover__kicker">CLASSMATE PASS</p>
-      <h2 id="home-login-title" class="display-sm">身份验证</h2>
-      <p>输入自己的同学账号与密码。首次登录后，系统会引导你把初始密码换成专属密码。</p>
-    </div>
-    <div class="home-login-section__pass home-scroll-reveal">
-      <VisitorPass client:visible apiBase={apiBase} />
+    <p class="home-cover__subtitle">{heroSubtitle}</p>
+    
+    <!-- 首页中心直接渲染登录入口 -->
+    <div class="home-hero-login-wrapper" id="login">
+      <VisitorPass client:load apiBase={apiBase} />
     </div>
   </div>
 </section>
 
 <style>
+.home-hero-login-wrapper {
+  margin-top: 28px;
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  z-index: 20;
+  position: relative;
+}
+
 .home-cover {
   position: relative;
   min-height: 100svh;
