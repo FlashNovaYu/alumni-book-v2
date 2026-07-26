@@ -125,43 +125,46 @@ function handlePasswordCancel() {
 <style scoped>
 .paper-login {
   position: relative;
-  z-index: 10;
   width: min(100%, 460px);
   margin: 0 auto;
-  padding: var(--spacing-xl, 28px);
+  padding: 32px 36px 36px;
   overflow: hidden;
-  background: #FFFDF8 !important;
-  border: 2px solid #D9C8A9 !important;
-  border-radius: var(--rounded-lg, 12px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(188, 143, 84, 0.3) !important;
-  color: #2B2118 !important;
+  background:
+    linear-gradient(90deg, rgba(173, 128, 81, 0.06) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(173, 128, 81, 0.06) 1px, transparent 1px),
+    #FDFBF7;
+  background-size: 24px 24px;
+  border: 1px solid rgba(212, 195, 163, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(96, 75, 48, 0.16);
+  color: #2C2219;
 }
 
 .paper-login::before {
   content: '';
   position: absolute;
-  inset: var(--spacing-sm, 8px);
-  border: 1px dashed rgba(173, 128, 81, 0.35);
-  border-radius: var(--rounded-md, 8px);
+  inset: 10px;
+  border: 1px dashed rgba(173, 128, 81, 0.18);
+  border-radius: 12px;
   pointer-events: none;
 }
 
 .paper-login__stamp {
   position: absolute;
-  top: var(--spacing-lg);
-  right: var(--spacing-lg);
+  top: 28px;
+  right: 28px;
   display: grid;
-  width: 62px;
-  height: 62px;
+  width: 58px;
+  height: 58px;
   place-items: center;
-  border: 2px solid color-mix(in srgb, var(--color-paper-stamp-red) 70%, transparent);
+  border: 1.5px solid #C47963;
   border-radius: 50%;
-  color: var(--color-paper-stamp-red);
-  font-size: 12px;
+  color: #C47963;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  opacity: 0.82;
-  transform: rotate(10deg);
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+  transform: rotate(12deg);
 }
 
 .paper-login__header,
@@ -172,49 +175,49 @@ function handlePasswordCancel() {
 }
 
 .paper-login__header {
-  padding-right: 76px;
-  margin-bottom: var(--spacing-xl);
+  padding-right: 70px;
+  margin-bottom: 24px;
 }
 
 .paper-login__eyebrow {
-  margin-bottom: var(--spacing-xs);
-  color: var(--color-paper-brown);
-  font-size: var(--type-caption-uppercase-size);
-  font-weight: var(--type-caption-uppercase-weight);
-  letter-spacing: var(--type-caption-uppercase-letter-spacing);
+  margin-bottom: 6px;
+  color: #937149;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .paper-login__header h3 {
-  margin: 0 0 var(--spacing-xs);
-  color: #241B13 !important;
+  margin: 0 0 8px;
+  color: #2C2219;
   font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 500;
 }
 
 .paper-login__header p,
 .paper-login__note {
-  color: #614D3C !important;
-  font-size: 13.5px;
+  color: #6E5F50;
+  font-size: 13px;
   line-height: 1.7;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 16px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 6px;
 }
 
 .form-label {
-  color: #382A1D !important;
-  font-size: 13px;
+  color: #423427;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
@@ -224,63 +227,73 @@ function handlePasswordCancel() {
 
 .retro-input {
   width: 100%;
-  height: 46px;
-  padding: 0 var(--spacing-md);
-  color: #1A130C !important;
-  background: #F8F4EC !important;
-  border: 1.5px solid #C4B293 !important;
-  border-radius: var(--rounded-sm, 6px);
+  height: 44px;
+  padding: 0 14px;
+  color: #2C2219;
+  background: rgba(235, 227, 213, 0.55);
+  border: 1px solid rgba(188, 165, 138, 0.5);
+  border-radius: 8px;
   outline: none;
-  font-size: 14px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 13.5px;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .retro-input::placeholder {
-  color: #9E8C78 !important;
+  color: #A39380;
 }
 
 .retro-input:focus {
-  border-color: #8C6239 !important;
-  background: #FFFFFF !important;
-  box-shadow: 0 0 0 3px rgba(140, 98, 57, 0.2) !important;
+  border-color: #8F5528;
+  background: #FFFDF9;
+  box-shadow: 0 0 0 3px rgba(143, 85, 40, 0.15);
 }
 
 .error-msg {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--rounded-sm);
-  background: color-mix(in srgb, var(--color-error) 10%, var(--color-paper-card));
-  color: var(--color-error);
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(188, 79, 60, 0.1);
+  color: #BC4F3C;
   font-size: 13px;
 }
 
 .login-btn {
   width: 100%;
-  min-height: 46px;
-  margin-top: var(--spacing-xs);
-  box-shadow: 0 8px 18px rgba(143, 101, 60, 0.18);
+  min-height: 44px;
+  margin-top: 6px;
+  background: #8E361B;
+  color: #FFFFFF;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 6px 18px rgba(142, 54, 27, 0.28);
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .login-btn:hover {
+  background: #7A2E16;
+  box-shadow: 0 8px 22px rgba(142, 54, 27, 0.35);
   transform: translateY(-1px);
 }
 
 .login-btn:disabled {
-  background: var(--color-paper-brown-soft);
-  color: var(--color-paper-muted);
+  background: #C4B5A3;
+  color: #8C7B6B;
   cursor: not-allowed;
   box-shadow: none;
 }
 
 .paper-login__note {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-md);
-  border-top: 1px dashed var(--color-paper-border);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(173, 128, 81, 0.25);
 }
 
 @media (max-width: 768px) {
   .paper-login {
-    padding: var(--spacing-lg);
-    border-radius: var(--rounded-md);
+    padding: 24px;
+    border-radius: 12px;
   }
 
   .paper-login__header {
@@ -290,9 +303,9 @@ function handlePasswordCancel() {
   .paper-login__stamp {
     position: static;
     margin-left: auto;
-    margin-bottom: var(--spacing-md);
-    width: 54px;
-    height: 54px;
+    margin-bottom: 16px;
+    width: 50px;
+    height: 50px;
   }
 }
 </style>
