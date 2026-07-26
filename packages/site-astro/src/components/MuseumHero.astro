@@ -62,7 +62,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
       <p>输入自己的同学账号与密码。首次登录后，系统会引导你把初始密码换成专属密码。</p>
     </div>
     <div class="home-login-section__pass home-scroll-reveal">
-      <VisitorPass client:visible apiBase={apiBase} />
+      <VisitorPass client:load apiBase={apiBase} />
     </div>
   </div>
 </section>
@@ -398,20 +398,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   }
 }
 
-@supports (animation-timeline: view()) {
-  .home-scroll-reveal {
-    opacity: 0;
-    transform: translateY(48px) scale(0.98);
-    filter: blur(8px);
-    animation: homeScrollReveal 1s var(--ease-out-expo) both;
-    animation-timeline: view();
-    animation-range: entry 8% cover 36%;
-  }
 
-  .home-login-section__pass.home-scroll-reveal {
-    animation-range: entry 12% cover 42%;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .home-cover__shape,
