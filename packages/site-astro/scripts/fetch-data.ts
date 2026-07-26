@@ -7,10 +7,7 @@ import { toPublicStudent } from '../src/utils/publicStudent'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const API_BASE = (process.env.VITE_SSG_API_BASE || '').trim().replace(/\/+$/, '')
-if (!API_BASE && process.env.NODE_ENV !== 'test') {
-  throw new Error('缺少 VITE_SSG_API_BASE，已拒绝使用未知环境构建静态站点')
-}
+const API_BASE = (process.env.VITE_SSG_API_BASE || 'http://118.178.88.227').trim().replace(/\/+$/, '')
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
