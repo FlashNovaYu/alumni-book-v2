@@ -1,4 +1,4 @@
-import { getClassmateStudent, getClassmateToken } from '@alumni/shared'
+import { getClassmateStudent, getClassmateToken, setClassmateSession } from '@alumni/shared'
 
 interface NavSessionRuntime { destroy(): void }
 
@@ -18,10 +18,7 @@ export function initNavSession(apiBase: string) {
   const isLocalDev = import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
   if (!session && isLocalDev) {
     session = 'dev-guest-token'
-    try {
-      localStorage.setItem('alumni_classmate_token', 'dev-guest-token')
-      localStorage.setItem('alumni_classmate_student', JSON.stringify({ slug: 'ke-hao-tian', name: '柯昊天', avatarUrl: '/avatars/ke-hao-tian.jpg' }))
-    } catch {}
+    setClassmateSession('dev-guest-token', { slug: 'ke-hao-tian', name: '柯昊天', avatarUrl: '/avatars/ke-hao-tian.jpg' })
   }
 
   const student = getClassmateStudent<{ slug?: string }>()
