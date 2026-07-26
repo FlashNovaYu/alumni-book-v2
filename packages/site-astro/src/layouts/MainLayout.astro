@@ -1,7 +1,6 @@
 ---
 import TopNav from '../components/TopNav.astro'
 import AppFooter from '../components/AppFooter.astro'
-import LoadLid from '../components/LoadLid.astro'
 import { getSsgApiBase } from '../utils/ssgApiBase'
 import { ClientRouter } from 'astro:transitions'
 import '../styles/global.css'
@@ -107,8 +106,6 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
     </script>
   </head>
   <body>
-    <!-- 存忆馆开门幕帘动画 -->
-    <LoadLid />
     <!-- 动态呼吸光晕渐变背景与回忆之尘 -->
     <div class="alumni-ambient-bg" aria-hidden="true">
       <div class="alumni-fluid alumni-fluid-1"></div>

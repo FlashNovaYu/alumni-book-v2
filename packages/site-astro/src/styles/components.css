@@ -142,13 +142,58 @@
 
 /* ── 经典毛玻璃与 3D Card ── */
 .ui-card,
-.card {
-  background: var(--bg-elevated);
-  backdrop-filter: blur(18px) saturate(1.15);
-  border: 1px solid var(--border-glass-soft);
+.card,
+.panel,
+.glass-panel,
+.paper-card,
+.account-card,
+.retro-card,
+.dialog-content,
+.form-card {
+  background: var(--bg-elevated-solid, #152119);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1.5px solid var(--border-strong, rgba(201, 162, 75, 0.42));
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--dur-2), transform var(--dur-2), border-color var(--dur-2);
+  box-shadow: 0 10px 32px -8px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: box-shadow var(--dur-2), transform var(--dur-2), border-color var(--dur-2), background-color var(--dur-2);
+}
+
+.ui-card:hover,
+.card:hover,
+.panel:hover {
+  border-color: var(--gold-hi, #E7CE8C);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.85), 0 0 24px rgba(201, 162, 75, 0.32);
+}
+
+/* ── 强化全站表单输入框 ── */
+.retro-input,
+.form-control,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea,
+select {
+  background: color-mix(in srgb, var(--bg-0, #0B120E) 85%, #fff 15%);
+  color: var(--text-primary, #F5EFE6);
+  border: 1.5px solid rgba(201, 162, 75, 0.48);
+  border-radius: var(--r-xs, 6px);
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color var(--dur-2), box-shadow var(--dur-2), background-color var(--dur-2);
+}
+
+.retro-input:focus,
+.form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--gold-hi, #E7CE8C);
+  background: color-mix(in srgb, var(--bg-0, #0B120E) 75%, #fff 25%);
+  box-shadow: 0 0 14px rgba(201, 162, 75, 0.4), inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .tilt {

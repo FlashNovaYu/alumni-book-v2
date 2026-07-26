@@ -1,5 +1,7 @@
 ---
 import VisitorPass from './VisitorPass.vue'
+import LoadLid from './LoadLid.astro'
+
 interface Props {
   apiBase: string
   heroEyebrow: string
@@ -10,6 +12,7 @@ interface Props {
 const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 ---
 
+<LoadLid />
 <section class="home-cover" aria-labelledby="museum-hero-title">
   <!-- 噪点纹理覆盖层 -->
   <div class="home-cover__noise" aria-hidden="true" />
