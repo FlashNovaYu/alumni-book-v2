@@ -32,7 +32,7 @@ export function initNavSession(apiBase: string) {
 
   const isExempt = isHome(path) || path.includes('/admin/') || path.includes('/404')
   let cancelled = false
-  if (!isExempt && !session) {
+  if (!isExempt && !session && !isLocalDev) {
     const adminToken = sessionStorage.getItem('admin_token')
     if (adminToken) {
       fetch(apiBase + '/api/auth/verify', { headers: { Authorization: 'Bearer ' + adminToken } })

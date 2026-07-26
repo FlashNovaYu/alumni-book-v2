@@ -7,7 +7,8 @@ export function handleClassmateUnauthorized(): never {
   try {
     sessionStorage.removeItem('alumni_nav_admin_entry')
   } catch {}
-  if (typeof window !== 'undefined') {
+  const isLocalDev = import.meta.env.DEV || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  if (!isLocalDev && typeof window !== 'undefined') {
     window.location.assign(import.meta.env.BASE_URL || '/')
   }
   throw new Error(SESSION_EXPIRED_MESSAGE)
