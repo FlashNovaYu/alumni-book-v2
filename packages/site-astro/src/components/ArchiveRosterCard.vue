@@ -194,20 +194,24 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .roster-card__inner {
   position: relative;
+  background: var(--bg-elevated-solid, #161F19);
+  border: 1.5px solid var(--border-strong, rgba(201, 162, 75, 0.45));
+  border-radius: var(--radius-md, 12px);
+  padding: 32px 18px 20px;
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
   gap: var(--space-4);
-  padding: var(--space-5);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-skeuo-sm, var(--shadow-sm));
-  transition:
-    box-shadow var(--duration-normal) var(--ease-out-expo),
-    border-color var(--duration-normal) var(--ease-out-expo);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2), border-color var(--dur-2), background-color var(--dur-2);
   /* Absolute glare clip */
   overflow: hidden;
   height: 100%;
+}
+
+.roster-card:hover .roster-card__inner {
+  background: #1C2B21;
+  border-color: var(--gold-hi, #E7CE8C);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.85), 0 0 24px rgba(201, 162, 75, 0.4);
 }
 
 .roster-card__transition-surface {

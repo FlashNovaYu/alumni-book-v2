@@ -23,14 +23,12 @@ const isActive = (path: string) => currentPath === href(path) || currentPath.sta
 const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学录'
 ---
 
-<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
-  <div class="nav-inner ticket-container">
-    <!-- 左侧：票根存根 (Logo区) -->
-    <div class="ticket-stub-left">
-      <div class="ticket-punch-top"></div>
-      <div class="ticket-punch-bottom"></div>
-      <a href={href('/')} class="nav-brand nav-brand--stub" data-nav-home aria-label="同学录首页">
-        <span class="brand-mark"><IconBrand size={22} /></span>
+<nav class={`top-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
+  <div class="nav-inner container">
+    <!-- 左侧：Logo 区 -->
+    <div class="nav-left">
+      <a href={href('/')} class="nav-brand" data-nav-home aria-label="同学录首页">
+        <span class="brand-mark"><IconBrand size={26} /></span>
         <span class="brand-text">同学录</span>
       </a>
       <button class="mobile-nav-button" type="button" data-nav-open data-audio-hover aria-label="打开目录">
@@ -39,12 +37,8 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       <a href={adminHref} class="nav-admin-button nav-admin-button--mobile" data-nav-admin-entry>管理</a>
     </div>
 
-    <!-- 中部：主票面 (导航区) -->
-    <div class="ticket-main">
-      <a href={href('/')} class="nav-brand nav-brand--center" data-nav-home aria-label="同学录首页">
-        <span class="brand-mark"><IconBrand size={22} /></span>
-        <span class="brand-text">同学录</span>
-      </a>
+    <!-- 中部：导航 Tab 区 -->
+    <div class="nav-center">
       <p class="mobile-page-title" aria-live="polite">{pageTitle}</p>
       <div class="nav-directory" data-nav-directory data-nav-ready="true">
         <span class="nav-active-paper" aria-hidden="true"></span>
@@ -63,10 +57,8 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       </div>
     </div>
 
-    <!-- 右侧：副券 (工具栏区) -->
-    <div class="ticket-stub-right">
-      <div class="ticket-punch-top"></div>
-      <div class="ticket-punch-bottom"></div>
+    <!-- 右侧：工具栏区 -->
+    <div class="nav-right">
       <div class="nav-utilities">
         <button class="nav-theme-button nav-theme-button--desktop" type="button" data-theme-toggle aria-label="切换为夜读模式" aria-pressed="false" title="切换夜读模式">
           <svg data-theme-icon viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.64 5.64l1.77 1.77M16.59 16.59l1.77 1.77M18.36 5.64l-1.77 1.77M7.41 16.59l-1.77 1.77" /><circle cx="12" cy="12" r="3.5" /></svg>
@@ -157,52 +149,46 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     background-color: transparent;
   }
 
-  .top-nav.is-scrolled .ticket-container {
-    filter: drop-shadow(0 8px 24px rgba(74, 50, 29, 0.12));
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-nav);
+    width: 100%;
+    height: 70px;
+    backdrop-filter: blur(14px) saturate(1.3);
+    background: color-mix(in srgb, var(--bg-0) 80%, transparent);
+    border-bottom: 1px solid var(--border-glass-soft);
+    transition: background var(--dur-3) var(--ease), border-color var(--dur-3) var(--ease);
   }
 
   .nav-inner {
-    min-height: var(--nav-height);
-    display: flex;
-    align-items: stretch;
-    gap: var(--spacing-md);
-  }
-
-  /* Ticket styles */
-  .ticket-container {
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    background: var(--color-paper-card);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
-    filter: drop-shadow(0 4px 15px rgba(96, 65, 35, 0.08));
-    margin: 0;
-    padding: 0;
-    transition: filter var(--duration-normal) ease;
-  }
-
-  .ticket-stub-left, .ticket-stub-right {
-    position: relative;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(16px, 4vw, 56px);
+    height: 70px;
     display: flex;
     align-items: center;
-    padding: 0 var(--spacing-lg);
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
   }
 
-  .ticket-stub-left {
-    border-right: 2px dashed color-mix(in srgb, var(--color-paper-brown) 30%, var(--color-paper-border));
-    background: var(--color-paper-bg-soft);
-    border-radius: 6px 0 0 6px;
-  }
-
-  .ticket-stub-right {
-    border-left: 2px dashed color-mix(in srgb, var(--color-paper-brown) 30%, var(--color-paper-border));
-  }
-
-  .ticket-main {
-    flex: 1;
+  .nav-left {
     display: flex;
-    align-items: stretch;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .nav-center {
+    display: flex;
+    align-items: center;
     justify-content: center;
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .ticket-punch-top, .ticket-punch-bottom {
