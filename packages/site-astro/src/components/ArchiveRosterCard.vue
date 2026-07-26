@@ -13,8 +13,6 @@
     :style="getTiltStyles(card.slug, baseTransform)"
   >
     <div class="roster-card__inner">
-      <span class="punch" aria-hidden="true"></span>
-      <span class="cat-no">NO. {{ card.studentNo || card.slug }}</span>
       <div
         class="roster-card__transition-surface"
         :style="surfaceTransitionStyle"
@@ -165,27 +163,11 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card {
   display: block;
   text-decoration: none;
-  color: inherit;
-  outline: none;
-  position: relative;
   transform-style: preserve-3d;
   will-change: transform;
-}
-
-.roster-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-sm, 8px);
-  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(231, 206, 140, 0.22), transparent 55%);
-  opacity: 0;
-  transition: opacity 0.35s ease;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.roster-card:hover::before {
-  opacity: 1;
+  /* Ensure a high z-index when hovered for 3d effect */
+  position: relative;
+  z-index: 1;
 }
 
 .roster-card:hover {
@@ -194,24 +176,20 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .roster-card__inner {
   position: relative;
-  background: var(--bg-elevated-solid, #161F19);
-  border: 1.5px solid var(--border-strong, rgba(201, 162, 75, 0.45));
-  border-radius: var(--radius-md, 12px);
-  padding: 32px 18px 20px;
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
   gap: var(--space-4);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2), border-color var(--dur-2), background-color var(--dur-2);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-skeuo-sm, var(--shadow-sm));
+  transition:
+    box-shadow var(--duration-normal) var(--ease-out-expo),
+    border-color var(--duration-normal) var(--ease-out-expo);
   /* Absolute glare clip */
   overflow: hidden;
   height: 100%;
-}
-
-.roster-card:hover .roster-card__inner {
-  background: #1C2B21;
-  border-color: var(--gold-hi, #E7CE8C);
-  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.85), 0 0 24px rgba(201, 162, 75, 0.4);
 }
 
 .roster-card__transition-surface {
@@ -230,33 +208,8 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 }
 
 .roster-card:hover .roster-card__inner {
-  box-shadow: var(--shadow-md), 0 0 26px -8px rgba(201, 162, 75, 0.4);
-  border-color: var(--border-glass);
-}
-
-.punch {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--bg-0, #0B120E);
-  border: 1.5px solid var(--border-strong);
-  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.75);
-  z-index: 3;
-}
-
-.cat-no {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  color: var(--gold-dim);
-  letter-spacing: 0.08em;
-  z-index: 3;
+  box-shadow: var(--shadow-skeuo-lg, var(--shadow-card-hover));
+  border-color: var(--border-strong);
 }
 
 .glare-layer {
@@ -282,9 +235,9 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, var(--gold-hi), var(--green-glow));
+  background: linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
   color: var(--text-primary);
-  box-shadow: 0 0 0 1.5px var(--border-strong), 0 4px 14px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
   font-family: var(--font-display);
   font-size: 30px;
   font-weight: var(--weight-semibold);

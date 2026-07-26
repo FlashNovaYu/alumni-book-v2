@@ -23,12 +23,14 @@ const isActive = (path: string) => currentPath === href(path) || currentPath.sta
 const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学录'
 ---
 
-<nav class={`top-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
-  <div class="nav-inner container">
-    <!-- 左侧：Logo 区 -->
-    <div class="nav-left">
-      <a href={href('/')} class="nav-brand" data-nav-home aria-label="同学录首页">
-        <span class="brand-mark"><IconBrand size={26} /></span>
+<nav class={`top-nav paper-bookmark-nav ${isHome ? 'top-nav--home' : ''}`} aria-label="主导航">
+  <div class="nav-inner ticket-container">
+    <!-- 左侧：票根存根 (Logo区) -->
+    <div class="ticket-stub-left">
+      <div class="ticket-punch-top"></div>
+      <div class="ticket-punch-bottom"></div>
+      <a href={href('/')} class="nav-brand nav-brand--stub" data-nav-home aria-label="同学录首页">
+        <span class="brand-mark"><IconBrand size={22} /></span>
         <span class="brand-text">同学录</span>
       </a>
       <button class="mobile-nav-button" type="button" data-nav-open data-audio-hover aria-label="打开目录">
@@ -37,8 +39,12 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       <a href={adminHref} class="nav-admin-button nav-admin-button--mobile" data-nav-admin-entry>管理</a>
     </div>
 
-    <!-- 中部：导航 Tab 区 -->
-    <div class="nav-center">
+    <!-- 中部：主票面 (导航区) -->
+    <div class="ticket-main">
+      <a href={href('/')} class="nav-brand nav-brand--center" data-nav-home aria-label="同学录首页">
+        <span class="brand-mark"><IconBrand size={22} /></span>
+        <span class="brand-text">同学录</span>
+      </a>
       <p class="mobile-page-title" aria-live="polite">{pageTitle}</p>
       <div class="nav-directory" data-nav-directory data-nav-ready="true">
         <span class="nav-active-paper" aria-hidden="true"></span>
@@ -57,8 +63,10 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
       </div>
     </div>
 
-    <!-- 右侧：工具栏区 -->
-    <div class="nav-right">
+    <!-- 右侧：副券 (工具栏区) -->
+    <div class="ticket-stub-right">
+      <div class="ticket-punch-top"></div>
+      <div class="ticket-punch-bottom"></div>
       <div class="nav-utilities">
         <button class="nav-theme-button nav-theme-button--desktop" type="button" data-theme-toggle aria-label="切换为夜读模式" aria-pressed="false" title="切换夜读模式">
           <svg data-theme-icon viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.64 5.64l1.77 1.77M16.59 16.59l1.77 1.77M18.36 5.64l-1.77 1.77M7.41 16.59l-1.77 1.77" /><circle cx="12" cy="12" r="3.5" /></svg>
@@ -149,46 +157,52 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     background-color: transparent;
   }
 
-  .top-nav {
-    position: sticky;
-    top: 0;
-    z-index: var(--z-nav);
-    width: 100%;
-    height: 70px;
-    backdrop-filter: blur(14px) saturate(1.3);
-    background: color-mix(in srgb, var(--bg-0) 80%, transparent);
-    border-bottom: 1px solid var(--border-glass-soft);
-    transition: background var(--dur-3) var(--ease), border-color var(--dur-3) var(--ease);
+  .top-nav.is-scrolled .ticket-container {
+    filter: drop-shadow(0 8px 24px rgba(74, 50, 29, 0.12));
   }
 
   .nav-inner {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 0 clamp(16px, 4vw, 56px);
-    height: 70px;
+    min-height: var(--nav-height);
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    width: 100%;
+    align-items: stretch;
+    gap: var(--spacing-md);
   }
 
-  .nav-left {
+  /* Ticket styles */
+  .ticket-container {
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    align-items: stretch;
+    background: var(--color-paper-card);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
+    filter: drop-shadow(0 4px 15px rgba(96, 65, 35, 0.08));
+    margin: 0;
+    padding: 0;
+    transition: filter var(--duration-normal) ease;
   }
 
-  .nav-center {
+  .ticket-stub-left, .ticket-stub-right {
+    position: relative;
     display: flex;
     align-items: center;
+    padding: 0 var(--spacing-lg);
+  }
+
+  .ticket-stub-left {
+    border-right: 2px dashed color-mix(in srgb, var(--color-paper-brown) 30%, var(--color-paper-border));
+    background: var(--color-paper-bg-soft);
+    border-radius: 6px 0 0 6px;
+  }
+
+  .ticket-stub-right {
+    border-left: 2px dashed color-mix(in srgb, var(--color-paper-brown) 30%, var(--color-paper-border));
+  }
+
+  .ticket-main {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
     justify-content: center;
-  }
-
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
   }
 
   .ticket-punch-top, .ticket-punch-bottom {
@@ -226,20 +240,9 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     height: auto;
     align-items: center;
     justify-content: center;
-    color: var(--gold-hi, #E7CE8C);
+    color: var(--color-paper-stamp-red);
     border: 0;
     background: transparent;
-    filter: drop-shadow(0 0 6px rgba(231, 206, 140, 0.4));
-    animation: emberGlow 5s ease-in-out infinite alternate;
-  }
-
-  @keyframes emberGlow {
-    from {
-      filter: drop-shadow(0 0 4px rgba(231, 206, 140, 0.25));
-    }
-    to {
-      filter: drop-shadow(0 0 12px rgba(231, 206, 140, 0.65));
-    }
   }
 
   .brand-text {
@@ -247,16 +250,14 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     font-size: 20px;
     font-weight: 600;
     letter-spacing: 0;
-    color: var(--text-1);
   }
 
   .nav-directory {
     position: relative;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     min-width: 0;
-    gap: 4px;
   }
 
   .nav-link {
@@ -266,18 +267,18 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     align-items: center;
     justify-content: center;
     min-width: 76px;
-    padding: 8px 16px;
-    color: var(--text-2);
-    font-family: var(--font-display);
+    padding: 0 12px;
+    color: var(--color-paper-muted);
+    font-family: var(--font-serif, serif); /* Enforce serif for archival feel */
     font-size: 15px;
     font-weight: 600;
-    letter-spacing: 0.05em;
+    letter-spacing: 1px;
     text-decoration: none;
-    transition: color var(--dur-2) var(--ease);
+    transition: color var(--duration-fast) ease;
   }
 
-  .nav-link:hover { color: var(--text-1); }
-  .nav-link.is-active { color: var(--accent-strong); font-weight: 600; }
+  .nav-link:hover,
+  .nav-link.is-active { color: var(--color-paper-ink); }
 
   .nav-link.is-active::before,
   .nav-link.is-active::after {
@@ -289,20 +290,19 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .nav-link.is-active::before {
-    top: 6px;
-    bottom: 6px;
+    top: 9px;
+    bottom: 8px;
     z-index: -1;
-    border: 1px solid var(--border-glass);
-    border-radius: var(--r-sm);
-    background: var(--accent-soft);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
+    background: var(--color-paper-bg-soft);
+    box-shadow: inset 0 1px 0 var(--glass-panel);
   }
 
   .nav-link.is-active::after {
-    bottom: 4px;
+    bottom: 6px;
     z-index: 2;
-    height: 2px;
-    background: var(--gold-hi);
+    height: 3px;
+    background: var(--color-paper-stamp-red);
     transform-origin: left center;
   }
 
@@ -319,33 +319,32 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   }
 
   .nav-active-paper {
-    top: 6px;
-    bottom: 6px;
+    top: 9px;
+    bottom: 8px;
     z-index: 0;
-    border: 1px solid var(--border-glass);
-    border-radius: var(--r-sm);
-    background: var(--accent-soft);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    transition: transform var(--dur-2) var(--ease), width var(--dur-2) var(--ease), opacity var(--dur-1) ease;
+    border: 1px solid color-mix(in srgb, var(--color-paper-brown) 32%, var(--color-paper-border));
+    background: var(--color-paper-bg-soft);
+    box-shadow: inset 0 1px 0 var(--glass-panel);
+    transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
   }
 
   .nav-active-ink {
-    bottom: 4px;
+    bottom: 6px;
     z-index: 2;
-    height: 2px;
+    height: 3px;
     overflow: hidden;
-    transition: transform var(--dur-2) var(--ease), width var(--dur-2) var(--ease), opacity var(--dur-1) ease;
+    transition: transform var(--duration-normal) var(--ease-out-quart), width var(--duration-normal) var(--ease-out-quart), opacity var(--duration-fast) ease;
   }
 
   .nav-active-ink-fill {
     position: absolute;
     inset: 0;
     display: block;
-    background: var(--gold-hi);
-    height: 2px;
+    background: var(--color-paper-stamp-red);
+    height: 3px; /* Slightly thicker */
     transform: scaleX(1);
     transform-origin: left center;
-    transition: transform var(--dur-2) var(--ease);
+    transition: transform var(--duration-normal) var(--ease-out-quart);
   }
 
   .nav-directory[data-nav-direction='backward'] .nav-active-ink-fill { transform-origin: right center; }
@@ -366,43 +365,16 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-volume-button,
   .mobile-nav-button,
   .drawer-icon-button {
-    position: relative;
-    overflow: hidden;
     display: inline-grid;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     place-items: center;
-    border: 1px solid var(--border-glass-soft);
-    border-radius: var(--r-pill);
-    color: var(--text-2);
-    background: color-mix(in srgb, var(--bg-elevated-solid) 75%, transparent);
+    border: 0;
+    color: var(--color-paper-muted);
+    background: transparent;
     text-decoration: none;
     cursor: pointer;
-    transition: color var(--dur-2) ease, background-color var(--dur-2) ease, border-color var(--dur-2) ease, transform var(--dur-1) ease;
-  }
-
-  .nav-account-button::after,
-  .nav-mailbox-button::after,
-  .nav-theme-button::after,
-  .nav-volume-button::after,
-  .mobile-nav-button::after,
-  .drawer-icon-button::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, transparent 25%, rgba(231, 206, 140, 0.45), transparent 75%);
-    transform: translateX(-150%);
-    transition: transform 0.65s cubic-bezier(0.22, 0.8, 0.32, 1);
-    pointer-events: none;
-  }
-
-  .nav-account-button:hover::after,
-  .nav-mailbox-button:hover::after,
-  .nav-theme-button:hover::after,
-  .nav-volume-button:hover::after,
-  .mobile-nav-button:hover::after,
-  .drawer-icon-button:hover::after {
-    transform: translateX(150%);
+    transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
   }
 
   .nav-account-button:hover,
@@ -412,15 +384,12 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
   .nav-volume-button:hover,
   .mobile-nav-button:hover,
   .drawer-icon-button:hover {
-    color: var(--gold-hi);
-    border-color: var(--gold-hi);
-    background: var(--accent-soft);
-    transform: scale(1.05);
-    box-shadow: 0 0 12px rgba(201, 162, 75, 0.2);
+    color: var(--color-paper-ink);
+    background: color-mix(in srgb, var(--color-paper-brown) 10%, transparent);
   }
 
   .nav-mailbox-button { position: relative; }
-  .nav-theme-button { border: 1px solid var(--border-glass-soft); font: inherit; }
+  .nav-theme-button { border: 0; font: inherit; }
   .nav-theme-button--mobile { display: none; }
   .nav-admin-button {
     display: none;
@@ -648,32 +617,3 @@ const pageTitle = navItems.find((item) => isActive(item.href))?.label || '同学
     .mobile-drawer-overlay { transition: none; }
   }
 </style>
-
-<script>
-  function initMagnetic() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const elements = document.querySelectorAll<HTMLElement>('.magnetic, .nav-brand, .nav-theme-button, .nav-volume-button, .nav-account-button, .nav-mailbox-button')
-    elements.forEach((el) => {
-      if ((el as any).__magneticBound) return
-      ;(el as any).__magneticBound = true
-
-      el.addEventListener('mousemove', (e) => {
-        const rect = el.getBoundingClientRect()
-        const mx = e.clientX - (rect.left + rect.width / 2)
-        const my = e.clientY - (rect.top + rect.height / 2)
-        el.style.transform = `translate(${mx * 0.22}px, ${my * 0.3}px)`
-      })
-
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = ''
-      })
-    })
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMagnetic)
-  } else {
-    initMagnetic()
-  }
-  document.addEventListener('astro:page-load', initMagnetic)
-</script>

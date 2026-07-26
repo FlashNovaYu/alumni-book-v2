@@ -127,44 +127,44 @@ function handlePasswordCancel() {
   position: relative;
   width: min(100%, 460px);
   margin: 0 auto;
-  padding: 32px 36px 36px;
+  padding: var(--spacing-xl);
   overflow: hidden;
   background:
-    linear-gradient(90deg, rgba(173, 128, 81, 0.06) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(173, 128, 81, 0.06) 1px, transparent 1px),
-    #FDFBF7;
-  background-size: 24px 24px;
-  border: 1px solid rgba(212, 195, 163, 0.8);
-  border-radius: 16px;
-  box-shadow: 0 16px 40px rgba(96, 75, 48, 0.16);
-  color: #2C2219;
+    linear-gradient(90deg, rgba(173, 128, 81, 0.08) 1px, transparent 1px),
+    var(--texture-paper-fiber),
+    var(--color-paper-card);
+  background-size: 28px 100%, 100% 100%, auto;
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-lg);
+  box-shadow: var(--shadow-paper-panel);
+  color: var(--color-paper-ink);
 }
 
 .paper-login::before {
   content: '';
   position: absolute;
-  inset: 10px;
-  border: 1px dashed rgba(173, 128, 81, 0.18);
-  border-radius: 12px;
+  inset: var(--spacing-sm);
+  border: 1px solid rgba(173, 128, 81, 0.14);
+  border-radius: var(--rounded-md);
   pointer-events: none;
 }
 
 .paper-login__stamp {
   position: absolute;
-  top: 28px;
-  right: 28px;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   place-items: center;
-  border: 1.5px solid #C47963;
+  border: 2px solid color-mix(in srgb, var(--color-paper-stamp-red) 70%, transparent);
   border-radius: 50%;
-  color: #C47963;
-  font-size: 11px;
+  color: var(--color-paper-stamp-red);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  opacity: 0.85;
-  transform: rotate(12deg);
+  letter-spacing: 0.14em;
+  opacity: 0.82;
+  transform: rotate(10deg);
 }
 
 .paper-login__header,
@@ -175,49 +175,50 @@ function handlePasswordCancel() {
 }
 
 .paper-login__header {
-  padding-right: 70px;
-  margin-bottom: 24px;
+  padding-right: 76px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .paper-login__eyebrow {
-  margin-bottom: 6px;
-  color: #937149;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-paper-brown);
+  font-size: var(--type-caption-uppercase-size);
+  font-weight: var(--type-caption-uppercase-weight);
+  letter-spacing: var(--type-caption-uppercase-letter-spacing);
   text-transform: uppercase;
 }
 
 .paper-login__header h3 {
-  margin: 0 0 8px;
-  color: #2C2219;
+  margin: 0 0 var(--spacing-xs);
+  color: var(--color-paper-ink);
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 500;
+  letter-spacing: 0;
 }
 
 .paper-login__header p,
 .paper-login__note {
-  color: #6E5F50;
-  font-size: 13px;
+  color: var(--color-paper-muted);
+  font-size: var(--type-body-sm-size);
   line-height: 1.7;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--spacing-lg);
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--spacing-xs);
 }
 
 .form-label {
-  color: #423427;
-  font-size: 12.5px;
+  color: var(--color-paper-ink-soft);
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -227,73 +228,63 @@ function handlePasswordCancel() {
 
 .retro-input {
   width: 100%;
-  height: 44px;
-  padding: 0 14px;
-  color: #2C2219;
-  background: rgba(235, 227, 213, 0.55);
-  border: 1px solid rgba(188, 165, 138, 0.5);
-  border-radius: 8px;
+  height: 46px;
+  padding: 0 var(--spacing-md);
+  color: var(--color-paper-ink);
+  background: var(--color-paper-bg-soft);
+  border: 1px solid var(--color-paper-border);
+  border-radius: var(--rounded-sm);
   outline: none;
-  font-size: 13.5px;
-  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+  transition:
+    border-color var(--duration-fast) var(--ease-out-quart),
+    box-shadow var(--duration-fast) var(--ease-out-quart);
 }
 
 .retro-input::placeholder {
-  color: #A39380;
+  color: color-mix(in srgb, var(--color-paper-muted) 72%, transparent);
 }
 
 .retro-input:focus {
-  border-color: #8F5528;
-  background: #FFFDF9;
-  box-shadow: 0 0 0 3px rgba(143, 85, 40, 0.15);
+  border-color: var(--color-paper-brown);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-paper-brown) 16%, transparent);
 }
 
 .error-msg {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(188, 79, 60, 0.1);
-  color: #BC4F3C;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--rounded-sm);
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-paper-card));
+  color: var(--color-error);
   font-size: 13px;
 }
 
 .login-btn {
   width: 100%;
-  min-height: 44px;
-  margin-top: 6px;
-  background: #8E361B;
-  color: #FFFFFF;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  box-shadow: 0 6px 18px rgba(142, 54, 27, 0.28);
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  min-height: 46px;
+  margin-top: var(--spacing-xs);
+  box-shadow: 0 8px 18px rgba(143, 101, 60, 0.18);
 }
 
 .login-btn:hover {
-  background: #7A2E16;
-  box-shadow: 0 8px 22px rgba(142, 54, 27, 0.35);
   transform: translateY(-1px);
 }
 
 .login-btn:disabled {
-  background: #C4B5A3;
-  color: #8C7B6B;
+  background: var(--color-paper-brown-soft);
+  color: var(--color-paper-muted);
   cursor: not-allowed;
   box-shadow: none;
 }
 
 .paper-login__note {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px dashed rgba(173, 128, 81, 0.25);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px dashed var(--color-paper-border);
 }
 
 @media (max-width: 768px) {
   .paper-login {
-    padding: 24px;
-    border-radius: 12px;
+    padding: var(--spacing-lg);
+    border-radius: var(--rounded-md);
   }
 
   .paper-login__header {
@@ -303,9 +294,9 @@ function handlePasswordCancel() {
   .paper-login__stamp {
     position: static;
     margin-left: auto;
-    margin-bottom: 16px;
-    width: 50px;
-    height: 50px;
+    margin-bottom: var(--spacing-md);
+    width: 54px;
+    height: 54px;
   }
 }
 </style>

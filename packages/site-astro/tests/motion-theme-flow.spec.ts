@@ -21,7 +21,6 @@ test('一级栏目切换时保留共享标题转场', async ({ page }) => {
   await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'page-heading')
 
   await page.getByRole('link', { name: '班级空间', exact: true }).click()
-  await page.waitForURL(/\/class-space\/?$/)
   await expect(page).toHaveURL(/\/class-space\/?$/)
   await expect(page.locator('[data-page-heading] h1')).toHaveText('班级空间')
   await expect(page.locator('[data-page-heading]')).toHaveCSS('view-transition-name', 'page-heading')
