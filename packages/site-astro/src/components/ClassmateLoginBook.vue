@@ -45,13 +45,15 @@
         <span>{{ loading ? '翻阅中...' : '翻开回忆' }}</span>
       </button>
 
+      <!-- 仅在绝对本地开发 localhost 下呈现，线上生产环境 100% 隐藏封锁 -->
       <button
+        v-if="isLocalDev"
         type="button"
         class="login-btn dev-bypass-btn"
         style="margin-top: 8px; background: rgba(143, 101, 60, 0.15); color: #8F5528; border: 1px solid rgba(143, 101, 60, 0.35); font-weight: 600;"
         @click="handleBypass"
       >
-        <span>🔓 关掉门禁 · 免密直接进入</span>
+        <span>🔓 本地开发专属 · 关掉门禁直接进入</span>
       </button>
     </form>
 
@@ -69,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { clearClassmateSession, setClassmateSession } from '@alumni/shared'
 import { classmateLogin } from '../api/classmateAuth'
 import FirstLoginPasswordGuide from './FirstLoginPasswordGuide.vue'
@@ -83,6 +85,14 @@ const password = ref('')
 const loading = ref(false)
 const error = ref('')
 const showChangePasswordModal = ref(false)
+const isLocalDev = ref(false)
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    isLocalDev.value = import.meta.env.DEV || host === 'localhost' || host === '127.0.0.1'
+  }
+})
 
 async function handleLogin() {
   error.value = ''
