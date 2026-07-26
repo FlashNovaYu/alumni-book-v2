@@ -125,27 +125,24 @@ function handlePasswordCancel() {
 <style scoped>
 .paper-login {
   position: relative;
+  z-index: 10;
   width: min(100%, 460px);
   margin: 0 auto;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-xl, 28px);
   overflow: hidden;
-  background:
-    linear-gradient(90deg, rgba(173, 128, 81, 0.08) 1px, transparent 1px),
-    var(--texture-paper-fiber),
-    var(--color-paper-card);
-  background-size: 28px 100%, 100% 100%, auto;
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-lg);
-  box-shadow: var(--shadow-paper-panel);
-  color: var(--color-paper-ink);
+  background: #FFFDF8 !important;
+  border: 2px solid #D9C8A9 !important;
+  border-radius: var(--rounded-lg, 12px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(188, 143, 84, 0.3) !important;
+  color: #2B2118 !important;
 }
 
 .paper-login::before {
   content: '';
   position: absolute;
-  inset: var(--spacing-sm);
-  border: 1px solid rgba(173, 128, 81, 0.14);
-  border-radius: var(--rounded-md);
+  inset: var(--spacing-sm, 8px);
+  border: 1px dashed rgba(173, 128, 81, 0.35);
+  border-radius: var(--rounded-md, 8px);
   pointer-events: none;
 }
 
@@ -190,17 +187,16 @@ function handlePasswordCancel() {
 
 .paper-login__header h3 {
   margin: 0 0 var(--spacing-xs);
-  color: var(--color-paper-ink);
+  color: #241B13 !important;
   font-family: var(--font-display);
   font-size: 30px;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-weight: 600;
 }
 
 .paper-login__header p,
 .paper-login__note {
-  color: var(--color-paper-muted);
-  font-size: var(--type-body-sm-size);
+  color: #614D3C !important;
+  font-size: 13.5px;
   line-height: 1.7;
 }
 
@@ -217,7 +213,7 @@ function handlePasswordCancel() {
 }
 
 .form-label {
-  color: var(--color-paper-ink-soft);
+  color: #382A1D !important;
   font-size: 13px;
   font-weight: 600;
 }
@@ -230,23 +226,23 @@ function handlePasswordCancel() {
   width: 100%;
   height: 46px;
   padding: 0 var(--spacing-md);
-  color: var(--color-paper-ink);
-  background: var(--color-paper-bg-soft);
-  border: 1px solid var(--color-paper-border);
-  border-radius: var(--rounded-sm);
+  color: #1A130C !important;
+  background: #F8F4EC !important;
+  border: 1.5px solid #C4B293 !important;
+  border-radius: var(--rounded-sm, 6px);
   outline: none;
-  transition:
-    border-color var(--duration-fast) var(--ease-out-quart),
-    box-shadow var(--duration-fast) var(--ease-out-quart);
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .retro-input::placeholder {
-  color: color-mix(in srgb, var(--color-paper-muted) 72%, transparent);
+  color: #9E8C78 !important;
 }
 
 .retro-input:focus {
-  border-color: var(--color-paper-brown);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-paper-brown) 16%, transparent);
+  border-color: #8C6239 !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 0 0 3px rgba(140, 98, 57, 0.2) !important;
 }
 
 .error-msg {
