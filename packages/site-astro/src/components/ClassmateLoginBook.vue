@@ -141,7 +141,7 @@ function handlePasswordCancel() {
 }
 
 function handleBypass() {
-  setClassmateSession('local-dev-bypass-token', {
+  setClassmateSession('dev-guest-token', {
     slug: 'ke-hao-tian',
     name: '柯昊天',
     avatarUrl: '/avatars/ke-hao-tian.jpg'
