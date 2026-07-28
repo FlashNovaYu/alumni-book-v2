@@ -20,7 +20,7 @@ describe('公开站点设计令牌入口', () => {
     const siteTokens = read('../src/styles/tokens.css')
 
     expect(sharedTokens).toContain("html[data-theme='night']")
-    expect(sharedTokens).toContain('--color-paper-bg: var(--bg)')
+    expect(sharedTokens).toContain('--color-paper-bg: var(--surface-canvas)')
     expect(siteTokens).toContain('--texture-paper-fiber:')
     expect(siteTokens).toContain("html[data-theme='night']")
   })

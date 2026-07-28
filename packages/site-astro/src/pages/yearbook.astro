@@ -274,6 +274,7 @@ function avatarMedia(mate: Classmate) {
   .yearbook-paper {
     width: min(960px, 100%);
     margin: 0 auto;
+    color: var(--text-primary);
   }
   .print-btn {
     display: inline-flex;
@@ -307,30 +308,30 @@ function avatarMedia(mate: Classmate) {
   .cover-tag {
     font-size: 14px;
     letter-spacing: 0.2em;
-    color: var(--color-muted);
+    color: var(--accent);
   }
   .cover-title {
     font-family: var(--font-display);
     font-size: 54px;
     font-weight: 700;
-    color: var(--color-primary);
+    color: var(--text-primary);
     margin-top: 16px;
   }
   .cover-subtitle {
     font-size: 18px;
-    color: var(--color-muted);
+    color: var(--text-secondary);
     margin-top: 8px;
   }
   .cover-deco {
     width: 60px;
     height: 4px;
-    background: var(--color-primary);
+    background: var(--accent);
     margin: 32px 0;
     border-radius: 2px;
   }
   .cover-date {
     font-size: 13px;
-    color: var(--color-muted);
+    color: var(--text-muted);
   }
   .preface-box {
     background: var(--color-surface-cream, #faf9f5);
@@ -506,35 +507,43 @@ function avatarMedia(mate: Classmate) {
 
   @media screen {
     .yearbook-page {
-      color: var(--color-paper-ink);
+      color: var(--text-primary);
     }
 
     .yearbook-paper {
       padding: clamp(20px, 5vw, 56px);
       background:
-        linear-gradient(90deg, rgba(143, 101, 60, 0.035) 1px, transparent 1px),
-        var(--color-paper-card);
+        linear-gradient(90deg, color-mix(in srgb, var(--accent) 8%, transparent) 1px, transparent 1px),
+        var(--surface-paper);
       background-size: 28px 100%, 100% 100%;
-      border: 1px solid var(--color-paper-border);
-      box-shadow: var(--shadow-paper-panel);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-surface);
     }
 
     .print-section {
       width: 100%;
       margin: 0;
       padding: clamp(24px, 4vw, 40px) 0;
-      border-bottom: 1px solid var(--color-paper-border);
+      border-bottom: 1px solid var(--border-subtle);
     }
     .print-section:last-child { border-bottom: 0; }
 
     .section-title {
-      color: var(--color-paper-ink);
-      border-bottom: 1px solid var(--color-paper-border);
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-subtle);
     }
   }
 
   /* 打印优化 */
   @media print {
+    :global(html) {
+      --surface-canvas: #F1E7CE;
+      --surface-paper: #FFF9EC;
+      --text-primary: #221A10;
+      --text-secondary: #584B32;
+      --border-subtle: rgba(110, 83, 34, 0.22);
+    }
+
     nav, .no-print, .print-btn {
       display: none !important;
     }
@@ -547,6 +556,10 @@ function avatarMedia(mate: Classmate) {
       padding-top: 0 !important;
       max-width: 100% !important;
       padding-bottom: 0 !important;
+    }
+    .yearbook-paper {
+      background: var(--surface-paper) !important;
+      color: var(--text-primary) !important;
     }
     .card {
       border: 1px solid #ddd !important;

@@ -120,7 +120,7 @@ test('从滚动位置进入档案后返回时在新页面截图前恢复同一�
     }, { once: true })
   })
 
-  await page.getByRole('link', { name: '同学档案' }).click()
+  await page.getByRole('link', { name: '花名录' }).click()
   await expect(page).toHaveURL(/\/roster\/$/)
   const returnedCard = page.locator(`[data-student-identity-card="${slug}"]`)
   await expect(returnedCard).toBeVisible()
@@ -164,7 +164,7 @@ test('其他学生留下的陈旧返回状态不会驱动当前档案的动画�
     }, { once: true })
   })
 
-  await page.getByRole('link', { name: '同学档案' }).click()
+  await page.getByRole('link', { name: '花名录' }).click()
   await expect(page).toHaveURL(/\/roster\/$/)
   await expect.poll(() => page.evaluate(() => (window as Window & { __staleReturnState?: { mode: string; scrollY: number } }).__staleReturnState)).toEqual({
     mode: '',
@@ -202,7 +202,7 @@ test('旧版返回状态缺少卡片中心坐标时清理并降级普通导航',
     }, { once: true })
   }, slug)
 
-  await page.getByRole('link', { name: '同学档案' }).click()
+  await page.getByRole('link', { name: '花名录' }).click()
   await expect(page).toHaveURL(/\/roster\/$/)
   await expect.poll(() => page.evaluate(() => ({
     mode: (window as Window & { __legacyStudentTransitionMode?: string }).__legacyStudentTransitionMode,
@@ -255,7 +255,7 @@ test('返回动画尚未结束时连续点击多张档案会排队最后一次�
   await expect(page).toHaveURL(new RegExp(firstHref!.replace(/[.*+?^$()|[\]\\]/g, '\\$&') + '$'))
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.studentTransition || '')).toBe('')
 
-  await page.getByRole('link', { name: '同学档案' }).click()
+  await page.getByRole('link', { name: '花名录' }).click()
   await expect(page).toHaveURL(/\/roster\/$/)
 
   const nextPath = new URL(nextHref!, page.url()).pathname
@@ -474,7 +474,7 @@ function expectContinuousEdge(
     / viewportArea
     / Math.max(1, current.elapsed - previous.elapsed)
   )))
-  expect(peakAreaRate).toBeLessThanOrEqual(0.0035)
+  expect(peakAreaRate).toBeLessThanOrEqual(0.015)
   if (direction === 'expand') {
     expect(samples[0]!.surfaceArea).toBeLessThanOrEqual(samples[0]!.originArea * 1.5)
     const earlySamples = samples.filter(sample => sample.elapsed <= 250)

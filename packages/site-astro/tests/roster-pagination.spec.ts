@@ -36,15 +36,21 @@ async function seedClassmateSession(page: any) {
 }
 
 async function transitionXEndpoints(locator: any) {
-  return locator.evaluate((element: Element) => {
-    const values = element.getAnimations().flatMap((animation) => {
+  const values = async () => locator.evaluate((element: Element) => {
+    return element.getAnimations().flatMap((animation) => {
       const effect = animation.effect as KeyframeEffect | null
       return effect?.getKeyframes()
         .filter((frame) => typeof frame.transform === 'string')
         .map((frame) => new DOMMatrix(String(frame.transform)).m41) ?? []
     })
-    return { min: Math.min(...values), max: Math.max(...values) }
   })
+
+  await expect.poll(values).not.toHaveLength(0)
+  const endpoints = await values()
+  return {
+    min: Math.min(...endpoints),
+    max: Math.max(...endpoints),
+  }
 }
 
 test.beforeEach(async ({ page }) => {

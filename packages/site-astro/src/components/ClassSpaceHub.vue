@@ -94,9 +94,9 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const sections = computed(() => overviewData.value ? [
-  { id: 'group-chat', index: '01', label: '班级群聊', description: '此刻的对话', count: overviewData.value.counts.groupMessages },
-  { id: 'albums', index: '02', label: '精选影像', description: '值得翻看的照片', count: overviewData.value.counts.albums },
-  { id: 'timeline', index: '03', label: '班级大事', description: '由我们郑重记下', count: overviewData.value.counts.timelineItems },
+  { id: 'group-chat', label: '班级群聊', description: '此刻的对话', count: overviewData.value.counts.groupMessages },
+  { id: 'albums', label: '精选影像', description: '值得翻看的照片', count: overviewData.value.counts.albums },
+  { id: 'timeline', label: '班级大事', description: '由我们郑重记下', count: overviewData.value.counts.timelineItems },
 ] : [])
 
 function href(path: string) {
@@ -148,10 +148,10 @@ onMounted(() => {
 
 /* Workbench */
 .class-space-workbench {
-  display: grid;
-  grid-template-columns: 176px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-6);
-  max-width: 1200px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: var(--space-7) var(--space-5);
 }
@@ -215,7 +215,6 @@ onMounted(() => {
 /* Responsive */
 @media (max-width: 1024px) {
   .class-space-workbench {
-    grid-template-columns: 1fr;
     padding: var(--space-5) var(--space-4);
   }
 

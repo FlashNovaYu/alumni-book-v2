@@ -14,6 +14,9 @@ let config: any = {
   preface: { title: '致青春岁月', subtitle: '写在翻开同学录之前', content: '' },
   acknowledgments: [],
 }
+let studentCount = 0
+let photoCount = 0
+let timelineCount = 0
 
 async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<any> {
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -35,8 +38,17 @@ async function fetchWithRetry(url: string, retries = 4, delay = 1000): Promise<a
 }
 
 try {
-  const data = await fetchWithRetry(`${API_BASE}/api/config`)
-  if (data.success && data.data) config = data.data
+  const [configData, studentsData, albumsData, timelineData] = await Promise.all([
+    fetchWithRetry(`${API_BASE}/api/config`),
+    fetchWithRetry(`${API_BASE}/api/students?audience=public`),
+    fetchWithRetry(`${API_BASE}/api/albums`),
+    fetchWithRetry(`${API_BASE}/api/timeline`),
+  ])
+  if (configData.success && configData.data) config = configData.data
+  studentCount = Array.isArray(studentsData?.data) ? studentsData.data.length : 0
+  const albums = Array.isArray(albumsData?.data) ? albumsData.data : []
+  photoCount = albums.reduce((total: number, album: { photos?: unknown[] }) => total + (Array.isArray(album.photos) ? album.photos.length : 0), 0)
+  timelineCount = Array.isArray(timelineData?.data) ? timelineData.data.length : 0
 } catch (e: any) {
   console.error(`❌ preface.astro failed to fetch config: ${e.message}. Aborting build.`)
   throw e
@@ -46,12 +58,21 @@ try {
 <MainLayout>
   <div class="preface-page page-shell">
     <div class="container">
-      <PageHeader label="PREFACE LETTER" title={config.preface?.title || '致青春岁月'} subtitle={config.preface?.subtitle || '写在翻开同学录之前'} />
+      <PageHeader label="OPENING HALL" title={config.preface?.title || '致青春岁月'} subtitle={config.preface?.subtitle || '写在翻开同学录之前'} />
+
+      <section class="preface-register fade-in" aria-label="入馆登记簿">
+        <p class="preface-register__label">ARCHIVE REGISTER</p>
+        <dl class="preface-register__counts">
+          <div><dt>在册同学</dt><dd>{studentCount}</dd></div>
+          <div><dt>班级影像</dt><dd>{photoCount}</dd></div>
+          <div><dt>共同篇章</dt><dd>{timelineCount}</dd></div>
+        </dl>
+      </section>
 
       <PrefaceWall client:load initialConfig={config} apiBase={CLIENT_API_BASE} />
 
-      <div class="bottom-actions fade-in">
-        <a href={href('/roster')} class="btn-primary">翻阅同学档案</a>
+      <div class="preface-actions fade-in">
+        <a href={href('/roster')} class="btn-primary">翻开花名录</a>
         <a href={href('/class-space')} class="btn-secondary">前往班级空间</a>
       </div>
     </div>
@@ -59,17 +80,68 @@ try {
 </MainLayout>
 
 <style>
-  .bottom-actions {
+  .preface-register {
+    width: min(720px, 100%);
+    margin: 0 auto var(--space-7);
+    padding: var(--space-5);
+    text-align: center;
+    background: var(--surface-paper);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-surface);
+  }
+
+  .preface-register__label {
+    margin: 0 0 var(--space-4);
+    color: var(--accent);
+    font-size: var(--type-caption-uppercase);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-widest);
+  }
+
+  .preface-register__counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .preface-register__counts > div {
+    display: grid;
+    gap: var(--space-1);
+    padding: 0 var(--space-4);
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .preface-register__counts > div:last-child { border-right: 0; }
+  .preface-register__counts dt { color: var(--text-muted); font-size: var(--type-caption); }
+  .preface-register__counts dd { margin: 0; color: var(--text-primary); font-family: var(--font-display); font-size: var(--type-display-sm); }
+
+  .preface-actions {
     display: flex;
     justify-content: center;
     gap: var(--spacing-md);
     margin-top: var(--spacing-xxl);
     padding-top: var(--spacing-xl);
-    border-top: 1px solid var(--color-paper-border);
+    border-top: 1px solid var(--border-subtle);
   }
 
   @media (max-width: 768px) {
-    .bottom-actions {
+    .preface-register__counts {
+      grid-template-columns: 1fr;
+      gap: var(--space-3);
+    }
+
+    .preface-register__counts > div {
+      border-right: 0;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: var(--space-3);
+    }
+
+    .preface-register__counts > div:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .preface-actions {
       flex-direction: column;
       align-items: stretch;
     }

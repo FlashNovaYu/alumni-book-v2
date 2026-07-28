@@ -12,14 +12,15 @@ describe('公开站点界面反馈回归', () => {
     expect(timeline).toContain('timeline-rail__track')
   })
 
-  it('gives each class-space chapter a numbered directory entry with a description', () => {
+  it('keeps class-space chapters in a centered unnumbered directory with descriptions', () => {
     const hub = read('components/ClassSpaceHub.vue')
     const directory = read('components/ClassSpaceSectionNav.vue')
 
-    expect(hub).toContain("index: '01'")
     expect(hub).toContain("description: '此刻的对话'")
-    expect(directory).toContain('section-index')
     expect(directory).toContain('section-description')
+    expect(directory).not.toContain('section-index')
+    expect(directory).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
+    expect(directory).toContain('margin: 0 auto')
   })
 
   it('keeps the roster at twelve cards per page with accessible page buttons', () => {

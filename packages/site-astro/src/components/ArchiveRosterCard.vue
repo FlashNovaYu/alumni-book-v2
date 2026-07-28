@@ -3,6 +3,7 @@
     :href="card.hasPage ? card.href : '#'"
     class="roster-card"
     :data-student-identity-card="card.slug"
+    data-audio-hover
     @click="handleTransition"
     @pointerenter="handlePointerEnter($event, card.slug)"
     @pointerleave="onMouseLeave(card.slug)"
@@ -10,7 +11,7 @@
     @pointerup="onPointerEnd($event, card.slug)"
     @pointercancel="onPointerEnd($event, card.slug)"
     @pointerdown="handlePointerDown"
-    :style="getTiltStyles(card.slug, baseTransform)"
+    :style="getTiltStyles(card.slug)"
   >
     <div class="roster-card__inner">
       <div
@@ -41,13 +42,16 @@
 
       <!-- 内容 -->
       <div class="roster-card__body">
+        <div class="roster-card__meta">
+          <span class="roster-card__archive-id">{{ archiveId }}</span>
+          <span v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</span>
+        </div>
         <div class="roster-card__name" :style="nameTransitionStyle">{{ card.name }}</div>
         <div data-student-card-details class="roster-card__details" :style="detailsTransitionStyle">
           <p v-if="card.motto" class="roster-card__motto">{{ card.motto }}</p>
           <div v-if="card.tags?.length" class="roster-card__tags">
-            <span v-for="tag in card.tags" :key="tag" class="roster-card__tag">{{ tag }}</span>
+            <span class="roster-card__tag">{{ card.tags[0] }}</span>
           </div>
-          <div v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</div>
         </div>
       </div>
       
@@ -64,11 +68,11 @@ import { buildMediaSources } from '@alumni/shared'
 import { useMouseTilt } from '../composables/useMouseTilt'
 import { useAudioSynth } from '../composables/useAudioSynth'
 
-const props = withDefaults(defineProps<{ 
+const props = defineProps<{
   card: ArchiveClassmateCard; 
   apiBase: string;
-  baseTransform?: string;
-}>(), { baseTransform: '' })
+  archiveId: string;
+}>()
 const emit = defineEmits<{ 'identity-transition': [slug: string] }>()
 
 const avatarError = ref(false)
@@ -207,6 +211,21 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   z-index: 1;
 }
 
+.roster-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.roster-card__archive-id {
+  color: var(--text-muted);
+  font-size: var(--type-caption-uppercase);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-widest);
+  line-height: var(--leading-tight);
+}
+
 .roster-card:hover .roster-card__inner {
   box-shadow: var(--shadow-skeuo-lg, var(--shadow-card-hover));
   border-color: var(--border-strong);
@@ -218,7 +237,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   pointer-events: none;
   background: radial-gradient(
     circle 200px at var(--glare-x, 50%) var(--glare-y, 50%),
-    rgba(255, 255, 255, 0.12) 0%,
+    color-mix(in srgb, var(--surface-paper) 12%, transparent) 0%,
     transparent 100%
   );
   mix-blend-mode: plus-lighter;
@@ -295,7 +314,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   font-size: var(--type-body-sm);
   line-height: var(--leading-normal);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -332,7 +351,8 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   font-size: var(--type-caption);
   color: var(--error);
   font-weight: var(--weight-medium);
-  min-height: 18px;
+  line-height: var(--leading-tight);
+  text-align: right;
 }
 
 @media (max-width: 768px) {

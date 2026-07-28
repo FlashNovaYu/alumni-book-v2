@@ -12,19 +12,19 @@
      ══════════════════════════════════════════════════════════════════════ */
 
   /* 基础色彩 */
-  --_bg: #DCD6CD;
-  --_surface: #FFFFFF;
-  --_surface-raised: #ffffff;
-  --_surface-soft: #EFEBE4;
-  --_ink: #11100F;
-  --_ink-soft: #383431;
-  --_muted: #5C554F;
-  --_dim: #99918A;
-  --_accent: #8C3A21;
-  --_accent-active: #732D18;
-  --_accent-soft: rgba(140, 58, 33, 0.08);
-  --_border: rgba(17, 16, 15, 0.15);
-  --_border-strong: rgba(17, 16, 15, 0.22);
+  --_bg: #F1E7CE;
+  --_surface: #FBF6E9;
+  --_surface-raised: #FFF9EC;
+  --_surface-soft: #E7D9BA;
+  --_ink: #221A10;
+  --_ink-soft: #584B32;
+  --_muted: #7C6C49;
+  --_dim: #9B8E70;
+  --_accent: #6E5322;
+  --_accent-active: #4D3915;
+  --_accent-soft: rgba(110, 83, 34, 0.12);
+  --_border: rgba(110, 83, 34, 0.22);
+  --_border-strong: rgba(110, 83, 34, 0.48);
 
   /* 语义色彩 — 成功/警告/错误 */
   --_success: #5db872;
@@ -42,30 +42,41 @@
      SEMANTIC TOKENS — 语义层（组件引用这一层）
      ═══════════════════════════════════════════════════════════════════════ */
 
-  /* 背景 */
-  --bg: var(--_bg);
-  --bg-surface: var(--_surface);
-  --bg-raised: var(--_surface-raised);
-  --bg-soft: var(--_surface-soft);
-  --bg-inverse: var(--_ink);
+  /* 存忆馆表面 */
+  --surface-canvas: #F1E7CE;
+  --surface-sunken: #E7D9BA;
+  --surface-raised: #FBF6E9;
+  --surface-paper: #FFF9EC;
+
+  /* 背景（兼容旧变量） */
+  --bg: var(--surface-canvas);
+  --bg-surface: var(--surface-raised);
+  --bg-raised: var(--surface-paper);
+  --bg-soft: var(--surface-sunken);
+  --bg-inverse: var(--text-primary);
 
   /* 文字 */
-  --text-primary: var(--_ink);
-  --text-secondary: var(--_ink-soft);
-  --text-muted: var(--_muted);
+  --text-primary: #221A10;
+  --text-secondary: #584B32;
+  --text-muted: #7C6C49;
   --text-dim: var(--_dim);
   --text-inverse: var(--_surface);
   --text-accent: var(--_accent);
 
   /* 边框 */
-  --border: var(--_border);
-  --border-strong: var(--_border-strong);
-  --border-accent: var(--_accent);
+  --border-subtle: rgba(110, 83, 34, 0.22);
+  --border-strong: rgba(110, 83, 34, 0.48);
+  --border: var(--border-subtle);
+  --border-accent: var(--accent);
 
   /* 强调色 */
-  --accent: var(--_accent);
-  --accent-active: var(--_accent-active);
-  --accent-soft: var(--_accent-soft);
+  --accent: #6E5322;
+  --accent-strong: #4D3915;
+  --accent-active: var(--accent-strong);
+  --accent-soft: rgba(110, 83, 34, 0.12);
+  --stamp: #A23B2A;
+  --state-archive-green: #4A7159;
+  --focus-ring: #6E5322;
 
   /* 语义状态 */
   --success: var(--_success);
@@ -80,7 +91,8 @@
   /* ═══════════════════════════════════════════════════════════════════════
      SHADOW SYSTEM — 阴影系统
      ═══════════════════════════════════════════════════════════════════════ */
-  --shadow-sm: 0 1px 2px rgba(17, 16, 15, 0.06);
+  --shadow-surface: 0 16px 38px rgba(62, 43, 15, 0.16);
+  --shadow-sm: 0 1px 2px rgba(34, 26, 16, 0.06);
   --shadow-md: 0 4px 12px rgba(17, 16, 15, 0.12);
   --shadow-lg: 0 12px 32px rgba(17, 16, 15, 0.16);
   --shadow-xl: 0 24px 48px rgba(17, 16, 15, 0.20);
@@ -294,20 +306,20 @@
   --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
 
   /* 旧 Paper tokens → 映射到新的统一系统 */
-  --color-paper-bg: var(--bg);
-  --color-paper-bg-soft: var(--bg-soft);
-  --color-paper-card: var(--bg-surface);
-  --color-paper-card-muted: #f8f1e6;
+  --color-paper-bg: var(--surface-canvas);
+  --color-paper-bg-soft: var(--surface-sunken);
+  --color-paper-card: var(--surface-raised);
+  --color-paper-card-muted: var(--surface-paper);
   --color-paper-border: var(--border-strong);
   --color-paper-border-soft: var(--border);
   --color-paper-ink: var(--text-primary);
   --color-paper-ink-soft: var(--text-secondary);
   --color-paper-muted: var(--text-muted);
-  --color-paper-brown: #ad8051;
-  --color-paper-brown-active: #8f653c;
-  --color-paper-brown-soft: #d8ceb8;
+  --color-paper-brown: var(--accent);
+  --color-paper-brown-active: var(--accent-strong);
+  --color-paper-brown-soft: var(--surface-sunken);
   --color-paper-gold: var(--gold);
-  --color-paper-stamp-red: #bc4f3c;
+  --color-paper-stamp-red: var(--stamp);
   --shadow-paper-panel: var(--shadow-lg);
   --shadow-paper-card: var(--shadow-md);
   --texture-paper-fiber:
@@ -322,38 +334,48 @@
 html[data-theme='night'] {
   --starfield-opacity: 1;
   /* Primitive */
-  --_bg: #1c1917;
-  --_surface: #292524;
-  --_surface-raised: #44403c;
-  --_surface-soft: #252320;
-  --_ink: #f5f2eb;
-  --_ink-soft: #d7d3cb;
-  --_muted: #a8a29e;
-  --_dim: #57534e;
-  --_accent: #d4714a;
-  --_accent-active: #e88a63;
-  --_accent-soft: rgba(212, 113, 74, 0.12);
-  --_border: rgba(245, 242, 235, 0.08);
-  --_border-strong: rgba(245, 242, 235, 0.14);
+  --_bg: #0B120E;
+  --_surface: #161F19;
+  --_surface-raised: #1D2820;
+  --_surface-soft: #101A14;
+  --_ink: #EDE6D2;
+  --_ink-soft: #C5C1AD;
+  --_muted: #93A092;
+  --_dim: #68766A;
+  --_accent: #E7CE8C;
+  --_accent-active: #F2DFA7;
+  --_accent-soft: rgba(231, 206, 140, 0.14);
+  --_border: rgba(237, 230, 210, 0.14);
+  --_border-strong: rgba(231, 206, 140, 0.42);
 
   /* Semantic re-mapping */
-  --bg: var(--_bg);
-  --bg-surface: var(--_surface);
-  --bg-raised: var(--_surface-raised);
-  --bg-soft: var(--_surface-soft);
-  --text-primary: var(--_ink);
-  --text-secondary: var(--_ink-soft);
-  --text-muted: var(--_muted);
+  --surface-canvas: #0B120E;
+  --surface-sunken: #101A14;
+  --surface-raised: #161F19;
+  --surface-paper: #1D2820;
+  --bg: var(--surface-canvas);
+  --bg-surface: var(--surface-raised);
+  --bg-raised: var(--surface-paper);
+  --bg-soft: var(--surface-sunken);
+  --text-primary: #EDE6D2;
+  --text-secondary: #C5C1AD;
+  --text-muted: #93A092;
   --text-dim: var(--_dim);
-  --text-inverse: var(--_bg);
-  --text-accent: var(--_accent);
-  --border: var(--_border);
-  --border-strong: var(--_border-strong);
-  --accent: var(--_accent);
-  --accent-active: var(--_accent-active);
-  --accent-soft: var(--_accent-soft);
+  --text-inverse: var(--surface-canvas);
+  --text-accent: var(--accent);
+  --border-subtle: rgba(237, 230, 210, 0.14);
+  --border-strong: rgba(231, 206, 140, 0.42);
+  --border: var(--border-subtle);
+  --accent: #E7CE8C;
+  --accent-strong: #F2DFA7;
+  --accent-active: var(--accent-strong);
+  --accent-soft: rgba(231, 206, 140, 0.14);
+  --stamp: #B24630;
+  --state-archive-green: #4C8267;
+  --focus-ring: #E7CE8C;
 
   /* Shadows with darker base */
+  --shadow-surface: 0 18px 42px rgba(0, 0, 0, 0.42);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -385,20 +407,20 @@ html[data-theme='night'] {
   --color-muted-soft: #938876;
   --color-hairline: var(--border);
   --color-hairline-soft: var(--border);
-  --color-paper-bg: var(--bg);
-  --color-paper-bg-soft: var(--bg-soft);
-  --color-paper-card: var(--bg-surface);
-  --color-paper-card-muted: #303b47;
+  --color-paper-bg: var(--surface-canvas);
+  --color-paper-bg-soft: var(--surface-sunken);
+  --color-paper-card: var(--surface-raised);
+  --color-paper-card-muted: var(--surface-paper);
   --color-paper-border: var(--border-strong);
   --color-paper-border-soft: var(--border);
   --color-paper-ink: var(--text-primary);
   --color-paper-ink-soft: var(--text-secondary);
   --color-paper-muted: var(--text-muted);
-  --color-paper-brown: #d2a56d;
-  --color-paper-brown-active: #e2bd88;
-  --color-paper-brown-soft: #7c6a55;
-  --color-paper-gold: #ddbd78;
-  --color-paper-stamp-red: #d37a67;
+  --color-paper-brown: var(--accent);
+  --color-paper-brown-active: var(--accent-strong);
+  --color-paper-brown-soft: var(--surface-sunken);
+  --color-paper-gold: var(--accent);
+  --color-paper-stamp-red: var(--stamp);
   --shadow-paper-panel: var(--shadow-lg);
   --shadow-paper-card: var(--shadow-md);
   --texture-paper-fiber:

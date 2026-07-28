@@ -1,5 +1,9 @@
 <template>
-  <section class="preface-wall paper-page fade-in">
+  <section class="preface-wall preface-wall--curator-note paper-page fade-in">
+    <header class="preface-wall__heading">
+      <p class="preface-wall__label">CURATOR'S NOTE</p>
+      <h2 class="preface-wall__title">馆长题记</h2>
+    </header>
     <div class="preface-body fade-in">
       <p class="preface-content">{{ prefaceContent }}</p>
     </div>
@@ -74,20 +78,39 @@ onMounted(() => {
 
 <style scoped>
 .preface-wall {
-  color: var(--color-paper-ink);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.preface-wall__heading {
+  margin-bottom: var(--space-5);
+}
+
+.preface-wall__label {
+  margin: 0 0 var(--space-2);
+  color: var(--accent);
+  font-size: var(--type-caption-uppercase);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-widest);
+}
+
+.preface-wall__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-title-lg);
 }
 
 .preface-content {
-  color: var(--color-paper-ink-soft);
+  color: var(--text-secondary);
   line-height: 2.15;
   text-indent: 2em;
-  text-align: justify;
+  text-align: left;
   white-space: pre-line;
 }
 
 .hairline {
   border: none;
-  border-top: 1px solid var(--color-paper-border-soft);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .acknowledgment {
@@ -110,7 +133,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
-  color: var(--color-paper-ink);
+  color: var(--text-primary);
 }
 
 .ack-avatar {
@@ -118,11 +141,11 @@ onMounted(() => {
   height: 58px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--color-paper-card-muted), var(--color-paper-brown-soft));
+  background: var(--surface-sunken);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--color-paper-border);
+  border: 2px solid var(--border-strong);
 }
 
 .ack-avatar img {
@@ -135,7 +158,7 @@ onMounted(() => {
   font-family: var(--font-display);
   font-size: 24px;
   font-weight: 500;
-  color: var(--color-paper-muted);
+  color: var(--text-muted);
 }
 
 .ack-name {
@@ -144,6 +167,6 @@ onMounted(() => {
 
 .ack-role {
   font-size: var(--type-body-sm-size);
-  color: var(--color-paper-muted);
+  color: var(--text-muted);
 }
 </style>

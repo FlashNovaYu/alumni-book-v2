@@ -55,7 +55,7 @@ afterEach(() => {
 })
 
 describe('同学会话失效处理', () => {
-  it('清理会话、跳回站点入口并抛出固定中文错误', () => {
+  it('本地开发环境清理会话、不强制跳转并抛出固定中文错误', () => {
     sessionStorage.setItem('classmate_account_token', 'expired-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学' }))
     sessionStorage.setItem('classmate_name', '测试同学')
@@ -64,7 +64,7 @@ describe('同学会话失效处理', () => {
     expect(sessionStorage.getItem('classmate_account_token')).toBeNull()
     expect(sessionStorage.getItem('classmate_account_student')).toBeNull()
     expect(sessionStorage.getItem('classmate_name')).toBeNull()
-    expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')
+    expect(redirect).not.toHaveBeenCalled()
   })
 
   it('统一请求客户端收到真实 401 时清理会话', async () => {
@@ -74,7 +74,7 @@ describe('同学会话失效处理', () => {
 
     await expect(requestClassmateApi('https://api.example.test', '/api/inbox/summary')).rejects.toThrow(SESSION_EXPIRED_MESSAGE)
     expect(sessionStorage.getItem('classmate_account_token')).toBeNull()
-    expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')
+    expect(redirect).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -82,7 +82,7 @@ describe('同学会话失效处理', () => {
     ['退出登录', () => logoutClassmate('https://api.example.test')],
     ['读取账号信息', () => fetchClassmateMe('https://api.example.test')],
     ['读取管理入口', () => fetchClassmateAdminEntry('https://api.example.test')],
-  ])('%s 接口收到真实 401 时统一清理会话并跳转', async (_name, request) => {
+  ])('%s 接口收到真实 401 时本地开发环境只清理会话', async (_name, request) => {
     sessionStorage.setItem('classmate_account_token', 'expired-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学' }))
     sessionStorage.setItem('classmate_name', '测试同学')
@@ -95,10 +95,10 @@ describe('同学会话失效处理', () => {
     expect(sessionStorage.getItem('alumni_nav_admin_entry')).toBeNull()
     expect(sessionStorage.getItem('classmate_account_student')).toBeNull()
     expect(sessionStorage.getItem('classmate_name')).toBeNull()
-    expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')
+    expect(redirect).not.toHaveBeenCalled()
   })
 
-  it('非 401 的账号接口失败不会清理会话或跳转', async () => {
+  it('非 401 的账号接口失败不会清理会话或触发跳转', async () => {
     sessionStorage.setItem('classmate_account_token', 'active-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学' }))
     sessionStorage.setItem('classmate_name', '测试同学')
@@ -111,7 +111,7 @@ describe('同学会话失效处理', () => {
     expect(redirect).not.toHaveBeenCalled()
   })
 
-  it('个人页延迟刷新携带同学令牌收到 401 时统一清理会话并跳转', async () => {
+  it('个人页延迟刷新携带同学令牌收到 401 时本地开发环境只清理会话', async () => {
     sessionStorage.setItem('classmate_account_token', 'expired-token')
     sessionStorage.setItem('classmate_account_student', JSON.stringify({ name: '测试同学' }))
     sessionStorage.setItem('classmate_name', '测试同学')
@@ -122,7 +122,7 @@ describe('同学会话失效处理', () => {
     expect(sessionStorage.getItem('classmate_account_token')).toBeNull()
     expect(sessionStorage.getItem('classmate_account_student')).toBeNull()
     expect(sessionStorage.getItem('classmate_name')).toBeNull()
-    expect(redirect).toHaveBeenCalledWith(import.meta.env.BASE_URL || '/')
+    expect(redirect).not.toHaveBeenCalled()
   })
 
   it('携带同学令牌的组件以统一处理器标记 401，编辑保存不递归重试或清旧缓存', () => {

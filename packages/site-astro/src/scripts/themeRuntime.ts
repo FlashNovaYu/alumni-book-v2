@@ -20,7 +20,7 @@ function readTheme(): AlumniTheme {
 
 function applyTheme(theme: AlumniTheme, persist = true) {
   document.documentElement.dataset.theme = theme
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'night' ? '#20252d' : '#f4eddf')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'night' ? '#0B120E' : '#F1E7CE')
   document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
     button.setAttribute('aria-pressed', String(theme === 'night'))
     button.setAttribute('aria-label', theme === 'night' ? '切换为纸页模式' : '切换为夜读模式')

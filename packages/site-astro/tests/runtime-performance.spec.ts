@@ -65,9 +65,14 @@ describe('公开站点原生运行时性能约束', () => {
     expect(hero).toContain('cancelAnimationFrame')
   })
 
-  it('首页、时间轴、更多和年度册构建产物不输出 Vue islands', () => {
+  it('首页只保留登录所需的 Vue island，其余公共页保持静态', () => {
     const dist = resolve(__dirname, '../dist')
-    for (const route of ['index.html', 'timeline/index.html', 'more/index.html', 'yearbook/index.html']) {
+    const home = readFileSync(resolve(dist, 'index.html'), 'utf8')
+    expect(home).not.toContain('astro:transitions')
+    expect(home).toMatch(/component-url="[^"]*VisitorPass[^"]*"/)
+    expect(home.match(/client="load"/g)).toHaveLength(1)
+
+    for (const route of ['timeline/index.html', 'more/index.html', 'yearbook/index.html']) {
       const html = readFileSync(resolve(dist, route), 'utf8')
       expect(html).not.toContain('astro:transitions')
       expect(html).not.toContain('client="load"')

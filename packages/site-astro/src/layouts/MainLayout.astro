@@ -46,7 +46,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           ? stored
           : matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'paper'
         document.documentElement.dataset.theme = theme
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'night' ? '#20252d' : '#f4eddf')
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'night' ? '#0B120E' : '#F1E7CE')
       })()
     </script>
     <script is:inline define:vars={{ apiBase }}>

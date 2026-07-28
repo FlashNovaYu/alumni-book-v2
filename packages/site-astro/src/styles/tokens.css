@@ -7,15 +7,15 @@
 :root {
   /* 站点特定的纹理和装饰 */
   --texture-paper-fiber:
-    radial-gradient(circle at 20% 20%, rgba(80, 62, 42, 0.035), transparent 22%),
-    radial-gradient(circle at 80% 0%, rgba(173, 128, 81, 0.045), transparent 26%),
-    linear-gradient(rgba(80, 62, 42, 0.035) 1px, transparent 1px);
+    radial-gradient(circle at 20% 20%, rgba(110, 83, 34, 0.05), transparent 22%),
+    radial-gradient(circle at 80% 0%, rgba(162, 59, 42, 0.04), transparent 26%),
+    linear-gradient(rgba(110, 83, 34, 0.04) 1px, transparent 1px);
 
   --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
 }
 
 html[data-theme='night'] {
   --texture-paper-fiber:
-    radial-gradient(circle at 20% 20%, rgba(225, 189, 120, 0.05), transparent 24%),
-    linear-gradient(rgba(244, 234, 217, 0.028) 1px, transparent 1px);
+    radial-gradient(circle at 20% 20%, rgba(231, 206, 140, 0.06), transparent 24%),
+    linear-gradient(rgba(237, 230, 210, 0.03) 1px, transparent 1px);
 }

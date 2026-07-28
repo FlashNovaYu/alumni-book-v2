@@ -64,11 +64,11 @@
           :data-roster-page="currentPage"
         >
           <ArchiveRosterCard
-            v-for="(mate, index) in paginatedClassmates"
+            v-for="mate in paginatedClassmates"
             :key="mate.slug"
             :card="toArchiveClassmateCard(mate, siteBase)"
             :api-base="apiBase"
-            :base-transform="`rotateZ(${getStaticRotation((currentPage - 1) * PAGE_SIZE + index)}deg) translateY(${getStaticY((currentPage - 1) * PAGE_SIZE + index)}px)`"
+            :archive-id="archiveIdFor(mate)"
             @identity-transition="rememberIdentityTransition"
           />
         </div>
@@ -172,17 +172,16 @@ const gyroLabel = computed(() => ({
   error: '使用触摸光影',
 }[gyroStatus.value]))
 
-function getStaticRotation(index: number) {
-  return (Math.sin(index * 1.5) * 1.5).toFixed(2);
-}
-function getStaticY(index: number) {
-  return (Math.cos(index * 2.1) * 4).toFixed(2);
-}
 const currentPage = ref(1)
 const transitionName = ref('roster-page-forward')
 const isRestoringIdentityState = ref(false)
 const loading = ref(false)
 const PAGE_SIZE = 12
+
+function archiveIdFor(mate: Classmate) {
+  const index = classmates.value.findIndex((entry) => entry.slug === mate.slug)
+  return `ARCHIVE-${String(Math.max(0, index) + 1).padStart(3, '0')}`
+}
 
 const rootRef = ref<HTMLElement | null>(null)
 const rosterPageRef = ref<HTMLElement | null>(null)
@@ -437,7 +436,7 @@ onMounted(async () => {
 /* Grid & Animations */
 .roster-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-rows: 1fr;
   align-items: stretch;
   gap: var(--space-5);
@@ -493,6 +492,17 @@ onMounted(async () => {
   margin-top: var(--space-7);
 }
 
+@media (max-width: 960px) {
+  .roster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .roster-grid > * {
+    min-width: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .roster-search {
     padding: var(--space-4);
@@ -516,12 +526,13 @@ onMounted(async () => {
   }
 
   .roster-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: var(--space-3);
   }
+}
 
-  .roster-grid > * {
-    min-width: 0;
+@media (max-width: 560px) {
+  .roster-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

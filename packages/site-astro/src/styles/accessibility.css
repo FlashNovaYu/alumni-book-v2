@@ -6,7 +6,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid var(--accent) !important;
+  outline: 3px solid var(--focus-ring) !important;
   outline-offset: 3px !important;
 }
 

@@ -86,9 +86,9 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
    TODO: 逐步迁移并删除这些映射
    ═══════════════════════════════════════════════════════════════════════════ */
 .museum-paper {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-surface);
 }
 
 .museum-kicker {
@@ -117,8 +117,8 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
 
 .paper-panel,
 .paper-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
   color: var(--text-primary);
 }
 
@@ -155,16 +155,16 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
   width: min(860px, 100%);
   margin-inline: auto;
   padding: var(--space-6);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: var(--surface-paper);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
 
 .paper-note {
   padding: var(--space-5);
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
 }
