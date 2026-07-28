@@ -140,7 +140,7 @@ describe('同学会话失效处理', () => {
       expect(source).toMatch(/import\s*\{(?=[^}]*\bhandleClassmateUnauthorized\b)[^}]*\}\s*from\s*['"][^'"]*classmateSession['"]/)
       expect(source).toMatch(unauthorizedBranch)
     }
-    expect(selfEdit.match(new RegExp(unauthorizedBranch.source, 'g'))).toHaveLength(2)
+    expect(selfEdit.match(new RegExp(unauthorizedBranch.source, 'g'))).toHaveLength(3)
     expect(selfEdit).not.toMatch(/return\s+save\s*\(/)
     expect(selfEdit).not.toMatch(/classmate_token_\$\{props\.studentSlug\}/)
     expect(messageWall).not.toMatch(/classmate_token_\$\{props\.studentSlug\}/)
