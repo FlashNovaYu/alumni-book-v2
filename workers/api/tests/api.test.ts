@@ -464,9 +464,10 @@ describe('Museum Gallery & Timeline API', () => {
         coverR2Key: 'covers/batch-a.jpg',
         tags: ['甲'],
         featured: true,
+        acceptsClassmateUploads: false,
         photos: [
-          { id: 'albums-batch-photo-2', albumId: albumIds[0], filename: '甲-2.jpg', caption: '甲-2', r2Key: 'photos/batch-a-2.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:04' },
-          { id: 'albums-batch-photo-1', albumId: albumIds[0], filename: '甲-1.jpg', caption: '甲-1', r2Key: 'photos/batch-a-1.jpg', sortOrder: 2, createdAt: '2026-07-18 00:00:03', media: { variants: [{ key: 'photos/batch-a-1_320.webp', contentType: 'image/webp', width: 320, height: 213, kind: '320' }] } },
+          { id: 'albums-batch-photo-2', albumId: albumIds[0], filename: '甲-2.jpg', caption: '甲-2', r2Key: 'photos/batch-a-2.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:04', submittedBySlug: null, uploadSource: 'admin' },
+          { id: 'albums-batch-photo-1', albumId: albumIds[0], filename: '甲-1.jpg', caption: '甲-1', r2Key: 'photos/batch-a-1.jpg', sortOrder: 2, createdAt: '2026-07-18 00:00:03', submittedBySlug: null, uploadSource: 'admin', media: { variants: [{ key: 'photos/batch-a-1_320.webp', contentType: 'image/webp', width: 320, height: 213, kind: '320' }] } },
         ],
         createdAt: '2026-07-18 00:00:01',
       },
@@ -479,8 +480,9 @@ describe('Museum Gallery & Timeline API', () => {
         coverR2Key: null,
         tags: ['乙'],
         featured: false,
+        acceptsClassmateUploads: false,
         photos: [
-          { id: 'albums-batch-photo-3', albumId: albumIds[1], filename: '乙-1.jpg', caption: '乙-1', r2Key: 'photos/batch-b-1.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:05' },
+          { id: 'albums-batch-photo-3', albumId: albumIds[1], filename: '乙-1.jpg', caption: '乙-1', r2Key: 'photos/batch-b-1.jpg', sortOrder: 1, createdAt: '2026-07-18 00:00:05', submittedBySlug: null, uploadSource: 'admin' },
         ],
         createdAt: '2026-07-18 00:00:02',
       },
