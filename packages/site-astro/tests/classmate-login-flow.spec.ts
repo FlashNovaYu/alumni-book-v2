@@ -51,7 +51,7 @@ test('first login requires changing the initial password before entering preface
   await page.locator('#password-input').fill('123456')
   await Promise.all([
     page.waitForResponse((response) => response.url().includes('/api/classmate-auth/login') && response.ok()),
-    page.click('.login-btn'),
+    page.getByRole('button', { name: '翻开回忆', exact: true }).click(),
   ])
   
   // 检查是否显示强制改密弹窗

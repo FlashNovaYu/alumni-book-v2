@@ -28,7 +28,7 @@ test('homepage reveals the paper login section from the dark cover CTA', async (
   await expect(page.locator('#username-input')).toBeInViewport()
   await page.locator('#username-input').fill('测试同学')
   await page.locator('#password-input').fill('123456')
-  await page.locator('.login-btn').click()
+  await page.getByRole('button', { name: '翻开回忆', exact: true }).click()
 
   await expect(page).toHaveURL(/\/preface/, { timeout: 15000 })
 })

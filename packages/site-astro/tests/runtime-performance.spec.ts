@@ -70,7 +70,8 @@ describe('公开站点原生运行时性能约束', () => {
     const home = readFileSync(resolve(dist, 'index.html'), 'utf8')
     expect(home).not.toContain('astro:transitions')
     expect(home).toMatch(/component-url="[^"]*VisitorPass[^"]*"/)
-    expect(home.match(/client="load"/g)).toHaveLength(1)
+    expect(home).toContain('client="visible"')
+    expect(home).not.toContain('client="load"')
 
     for (const route of ['timeline/index.html', 'more/index.html', 'yearbook/index.html']) {
       const html = readFileSync(resolve(dist, route), 'utf8')

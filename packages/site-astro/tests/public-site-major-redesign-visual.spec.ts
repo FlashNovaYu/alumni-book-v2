@@ -30,7 +30,7 @@ test.describe('public site major redesign responsive smoke', () => {
     { width: 390, height: 844 },
     { width: 430, height: 932 },
   ]) {
-    test(`roster stays two columns at ${viewport.width}px`, async ({ page }) => {
+    test(`roster uses one column at ${viewport.width}px`, async ({ page }) => {
       await page.setViewportSize(viewport)
       await seedClassmateSession(page)
       await page.goto('./roster/', { waitUntil: 'networkidle' })
@@ -38,7 +38,7 @@ test.describe('public site major redesign responsive smoke', () => {
       const columns = await page.locator('.roster-grid').first().evaluate((grid) =>
         getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
       )
-      expect(columns).toBe(2)
+      expect(columns).toBe(1)
     })
   }
 

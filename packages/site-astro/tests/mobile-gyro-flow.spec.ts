@@ -23,7 +23,7 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ]) {
-  test(`${viewport.width}px 档案墙保持两列且没有横向溢出`, async ({ page }) => {
+  test(`${viewport.width}px 档案墙保持单列且没有横向溢出`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await seedClassmateSession(page)
     await page.goto('./roster/', { waitUntil: 'networkidle' })
@@ -31,7 +31,7 @@ for (const viewport of [
     const columns = await page.locator('.roster-grid').first().evaluate((grid) =>
       getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length,
     )
-    expect(columns).toBe(2)
+    expect(columns).toBe(1)
 
     const viewportWidth = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,

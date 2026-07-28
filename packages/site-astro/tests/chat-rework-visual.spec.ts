@@ -115,10 +115,22 @@ test('班级空间在三种视口保持分区结构、纵向时间线和无页�
     expect(layout.scroll, `${viewport.name} 页面横向溢出；viewport=${layout.viewport}，client=${layout.client}，scroll=${layout.scroll}，container=${layout.container}，page=${layout.page}，workbench=${layout.workbench}；层级=${layout.hierarchy.join('，')}`).toBeLessThanOrEqual(layout.client + 1)
     expect(layout.uncontainedOverflow, `${viewport.name} 非横滑轨道内容溢出：${layout.uncontainedOverflow.join(', ')}；允许的轨道内容：${layout.rawOverflow.join(', ')}`).toEqual([])
 
-    if (viewport.name === 'desktop') {
-      await expect(sectionNav).toHaveCSS('position', 'sticky')
+    if (viewport.name !== 'mobile') {
+      const navLayout = await sectionNav.evaluate((nav) => {
+        const rect = nav.getBoundingClientRect()
+        return {
+          columns: getComputedStyle(nav).gridTemplateColumns.split(' ').filter(Boolean).length,
+          leftMargin: Math.round(rect.left),
+          rightMargin: Math.round(window.innerWidth - rect.right),
+        }
+      })
+      expect(navLayout.columns).toBe(3)
+      if (viewport.name === 'desktop') {
+        expect(Math.abs(navLayout.leftMargin - navLayout.rightMargin)).toBeLessThanOrEqual(1)
+      }
     } else {
-      await expect(sectionNav).toHaveCSS('overflow-x', 'auto')
+      const columns = await sectionNav.evaluate((nav) => getComputedStyle(nav).gridTemplateColumns.split(' ').filter(Boolean).length)
+      expect(columns).toBe(1)
     }
 
     if (viewport.name === 'mobile') {
