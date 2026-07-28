@@ -460,6 +460,7 @@ app.get('/api/albums', async (c) => {
     coverR2Key: album.cover_r2_key,
     tags: JSON.parse(album.tags || '[]'),
     featured: !!album.featured,
+    acceptsClassmateUploads: !!album.accepts_classmate_uploads,
     photos: (photosByAlbum.get(album.id) || []).map((p: any) => ({
       id: p.id,
       albumId: p.album_id,
@@ -469,6 +470,8 @@ app.get('/api/albums', async (c) => {
       ...(() => { try { const value = JSON.parse(p.media_json || '{}'); return Array.isArray(value.variants) && value.variants.length ? { media: { variants: value.variants } } : {} } catch { return {} } })(),
       sortOrder: p.sort_order,
       createdAt: p.created_at,
+      submittedBySlug: p.submitted_by_slug || null,
+      uploadSource: p.upload_source || 'admin',
     })),
     createdAt: album.created_at,
   }))

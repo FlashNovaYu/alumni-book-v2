@@ -3,7 +3,7 @@ import { parseLimitedJson } from '../lib/jsonBodyLimit'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { verifyClassmateSession } from '../lib/classmateSession'
 import { validateImageUpload } from '../lib/imageValidation'
-import { parseUploadVariants } from './upload'
+import { buildUploadKey, parseUploadVariants } from './upload'
 import {
   checkAuthRateLimit,
   clearAuthFailures,
@@ -319,5 +319,54 @@ classmateRoutes.post('/classmate/upload', async (c) => {
   const absoluteUrl = `${origin}${relativeUrl}`
 
   return c.json({ success: true, data: { url: absoluteUrl, r2Key, ...(parsedVariants.metadata.length ? { variants: parsedVariants.metadata } : {}) } })
+})
+
+// POST /api/classmate/album-photos — 同学向管理员指定的投稿相册传图
+classmateRoutes.post('/classmate/album-photos', async (c) => {
+  const db = c.env.DB
+  const r2 = c.env.R2
+  if (!r2) return c.json({ success: false, message: '文件存储未启用' }, 503)
+
+  const slug = await authClassmate(c)
+  if (!slug) return c.json({ success: false, message: '未授权' }, 401)
+  const student = await db.prepare('SELECT account_initial_password_changed FROM students WHERE slug = ?').bind(slug).first<any>()
+  if (!student || !student.account_initial_password_changed) return c.json({ success: false, message: '首次登录请先修改密码后再投稿' }, 403)
+
+  const album = await db.prepare('SELECT id FROM albums WHERE accepts_classmate_uploads = 1').first<any>()
+  if (!album) return c.json({ success: false, message: '管理员尚未设置投稿相册' }, 409)
+
+  const formData = await c.req.formData()
+  const file = formData.get('file') as File | null
+  if (!file) return c.json({ success: false, message: '没有文件' }, 400)
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) return c.json({ success: false, message: '不支持的图片格式' }, 400)
+  if (file.size > 8 * 1024 * 1024) return c.json({ success: false, message: '文件体积超出限制' }, 413)
+  const contents = await file.arrayBuffer()
+  const imageFormat = validateImageUpload(file.type, contents)
+  if (!imageFormat) return c.json({ success: false, message: '图片内容与文件格式不一致' }, 400)
+  const variants = await parseUploadVariants(formData, 'photo', album.id)
+  if ('error' in variants) return c.json({ success: false, message: variants.error }, 400)
+
+  const quota = await db.prepare("SELECT COUNT(*) AS count FROM photos WHERE submitted_by_slug = ? AND upload_source = 'classmate'").bind(slug).first<any>()
+  if (Number(quota?.count || 0) >= 5) return c.json({ success: false, message: '每名同学最多上传 5 张照片' }, 409)
+
+  const r2Key = buildUploadKey('photo', file, '', album.id, imageFormat.extension)
+  const uploadedKeys = [r2Key]
+  try {
+    await r2.put(r2Key, contents, { httpMetadata: { contentType: imageFormat.mime } })
+    for (const variant of variants.files) {
+      await r2.put(variant.metadata.key, variant.file.stream(), { httpMetadata: { contentType: variant.metadata.contentType } })
+      uploadedKeys.push(variant.metadata.key)
+    }
+    const photoId = `photo_${Date.now()}_${crypto.randomUUID()}`
+    await db.prepare('INSERT INTO photos (id, album_id, filename, r2_key, media_json, submitted_by_slug, upload_source) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(photoId, album.id, file.name, r2Key, JSON.stringify({ variants: variants.metadata }), slug, 'classmate').run()
+    return c.json({ success: true, data: { id: photoId, albumId: album.id, remaining: 4 - Number(quota?.count || 0) } }, 201)
+  } catch (error) {
+    await Promise.all(uploadedKeys.map((key) => r2.delete(key).catch(() => undefined)))
+    if (String(error).includes('classmate album submission limit reached')) {
+      return c.json({ success: false, message: '每名同学最多上传 5 张照片' }, 409)
+    }
+    return c.json({ success: false, message: '文件记录保存失败，请重试' }, 500)
+  }
 })
 

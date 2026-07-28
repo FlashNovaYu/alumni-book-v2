@@ -5,6 +5,7 @@ import performanceIndexesMigration from '../migrations/0017_performance_indexes.
 import normalizeTimestampsMigration from '../migrations/0018_normalize_timestamps.sql?raw'
 import mediaVariantsMigration from '../migrations/0019_media_variants.sql?raw'
 import studentCheckinsMigration from '../migrations/0020_student_checkins.sql?raw'
+import classmateAlbumSubmissionsMigration from '../migrations/0021_classmate_album_submissions.sql?raw'
 
 function migrationQueries(source: string) {
   return source.replace(/^\uFEFF/, '').trim().split(/;\s*\r?\n\s*\r?\n/).map((query) => query.trim()).filter(Boolean)
@@ -383,7 +384,8 @@ export const testMigrations = [
   { name: '0017_performance_indexes', queries: migrationQueries(performanceIndexesMigration) },
   { name: '0018_normalize_timestamps', queries: migrationQueries(normalizeTimestampsMigration) },
   { name: '0019_media_variants', queries: migrationQueries(mediaVariantsMigration) },
-  { name: '0020_student_checkins', queries: migrationQueries(studentCheckinsMigration) }
+  { name: '0020_student_checkins', queries: migrationQueries(studentCheckinsMigration) },
+  { name: '0021_classmate_album_submissions', queries: migrationQueries(classmateAlbumSubmissionsMigration) }
 ]
 
 export const TEST_LEGACY_ADMIN_PASSWORD = 'test-legacy-admin-password'

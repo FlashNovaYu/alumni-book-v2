@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS albums (
   cover_r2_key TEXT,
   tags TEXT DEFAULT '[]',
   featured INTEGER DEFAULT 0,
+  accepts_classmate_uploads INTEGER NOT NULL DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -65,6 +66,8 @@ CREATE TABLE IF NOT EXISTS photos (
   caption TEXT DEFAULT '',
   r2_key TEXT NOT NULL,
   media_json TEXT NOT NULL DEFAULT '{}',
+  submitted_by_slug TEXT,
+  upload_source TEXT NOT NULL DEFAULT 'admin',
   sort_order INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
@@ -75,6 +78,21 @@ CREATE INDEX IF NOT EXISTS idx_photos_album_sort_order
 
 CREATE INDEX IF NOT EXISTS idx_albums_sort_created
   ON albums(sort_order, created_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_albums_one_classmate_submission_target
+  ON albums(accepts_classmate_uploads) WHERE accepts_classmate_uploads = 1;
+CREATE INDEX IF NOT EXISTS idx_photos_classmate_submission_quota
+  ON photos(submitted_by_slug, upload_source);
+
+CREATE TRIGGER IF NOT EXISTS trg_photos_classmate_submission_limit
+BEFORE INSERT ON photos
+WHEN NEW.upload_source = 'classmate' AND (
+  SELECT COUNT(*) FROM photos
+  WHERE submitted_by_slug = NEW.submitted_by_slug AND upload_source = 'classmate'
+) >= 5
+BEGIN
+  SELECT RAISE(ABORT, 'classmate album submission limit reached');
+END;
 
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,

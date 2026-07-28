@@ -4,6 +4,8 @@
       <h1 class="page-title">相册管理</h1>
       <button class="btn-primary" @click="showCreate = true">+ 新建相册</button>
     </div>
+    <p v-if="storageStats" class="album-meta">服务器总容量 {{ formatBytes(storageStats.filesystem?.totalBytes) }} · 已使用 {{ formatBytes(storageStats.filesystem?.usedBytes) }} · 相册占用 {{ formatBytes(storageStats.albums?.totalBytes) }}</p>
+    <p v-else-if="storageMessage" class="album-meta">{{ storageMessage }}</p>
 
     <div class="album-list">
       <div v-for="album in albums" :key="album.id" class="album-card card">
@@ -77,6 +79,9 @@
                 <span class="ml-2">精选相册</span>
               </label>
             </div>
+            <div class="form-group checkbox-group">
+              <label class="checkbox-label"><input v-model="editForm.acceptsClassmateUploads" type="checkbox" /><span class="ml-2">接收同学投稿（同时仅一个相册）</span></label>
+            </div>
             <div class="modal-actions">
               <button class="btn-secondary" @click="showCreate = false">取消</button>
               <button class="btn-primary" @click="handleCreate" :disabled="creating">
@@ -127,6 +132,7 @@
               <h3 class="title-sm mb-2">照片管理 (输入说明后失焦自动保存，点击▲▼调序)</h3>
               <div v-if="editAlbum.photos && editAlbum.photos.length" class="manage-photo-grid">
                 <div v-for="(photo, idx) in editAlbum.photos" :key="photo.id" class="manage-photo-item">
+                  <input v-model="selectedPhotoIds" :value="photo.id" type="checkbox" :aria-label="`选择${photo.filename}`" />
                   <img :src="getPhotoMedia(photo, 160).src" :srcset="getPhotoMedia(photo, 160).srcset || undefined" :sizes="getPhotoMedia(photo, 160).sizes" class="manage-photo-img" width="160" height="120" loading="lazy" decoding="async" />
                   <div class="photo-info">
                     <input v-model="photo.caption" type="text" class="text-input photo-caption-input" placeholder="输入说明..." @blur="updatePhotoCaption(photo)" />
@@ -140,6 +146,10 @@
                     </div>
                   </div>
                 </div>
+              </div>
+              <div v-if="selectedPhotoIds.length" class="photo-actions mt-1">
+                <select v-model="moveTargetAlbumId" class="text-input"><option value="">移动到…</option><option v-for="album in albums.filter(item => item.id !== editAlbum.id)" :key="album.id" :value="album.id">{{ album.title }}</option></select>
+                <button class="btn-secondary btn-action-sm" :disabled="!moveTargetAlbumId" @click="moveSelectedPhotos">移动所选 {{ selectedPhotoIds.length }} 张</button>
               </div>
               <p v-else class="text-muted text-center py-3">暂无照片，请关闭后选择上传照片</p>
             </div>
@@ -228,6 +238,8 @@ const creating = ref(false)
 const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
 const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
+const storageStats = ref<any | null>(null)
+const storageMessage = ref('')
 const loadingMore = ref(false)
 let listController: AbortController | null = null
 let uploadController: AbortController | null = null
@@ -240,7 +252,10 @@ const editForm = ref({
   tagsInput: '',
   coverR2Key: '',
   featured: false,
+  acceptsClassmateUploads: false,
 })
+const selectedPhotoIds = ref<string[]>([])
+const moveTargetAlbumId = ref('')
 
 function getPhotoUrl(r2Key: string): string {
   if (r2Key.startsWith('http')) return r2Key
@@ -271,6 +286,21 @@ async function loadAlbums(reset = false) {
   } finally {
     if (listController === controller) loadingMore.value = false
   }
+}
+
+function formatBytes(value?: number) {
+  if (typeof value !== 'number') return '—'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']; let amount = value; let index = 0
+  while (amount >= 1024 && index < units.length - 1) { amount /= 1024; index++ }
+  return `${amount.toFixed(index ? 1 : 0)} ${units[index]}`
+}
+
+async function loadStorage() {
+  try {
+    const res = await adminFetch<ApiResponse<any>>('/api/albums/storage')
+    if (res.data?.available) storageStats.value = res.data
+    else storageMessage.value = res.data?.message || '该运行环境不提供服务器磁盘统计'
+  } catch { storageMessage.value = '容量统计加载失败' }
 }
 function getPhotoMedia(photo: any, width: number) {
   return buildMediaSources(getPhotoUrl(photo.r2Key), photo.media?.variants, width, Math.round(width * 0.75))
@@ -435,7 +465,18 @@ function startEdit(album: any) {
     tagsInput: album.tags ? album.tags.join(', ') : '',
     coverR2Key: album.coverR2Key || '',
     featured: !!album.featured,
+    acceptsClassmateUploads: !!album.acceptsClassmateUploads,
   }
+  selectedPhotoIds.value = []
+  moveTargetAlbumId.value = ''
+}
+
+async function moveSelectedPhotos() {
+  if (!editAlbum.value || !moveTargetAlbumId.value || !selectedPhotoIds.value.length) return
+  await adminFetch('/api/photos/move', { method: 'POST', body: JSON.stringify({ photoIds: selectedPhotoIds.value, targetAlbumId: moveTargetAlbumId.value }) })
+  editAlbum.value.photos = editAlbum.value.photos.filter((photo: any) => !selectedPhotoIds.value.includes(photo.id))
+  selectedPhotoIds.value = []; moveTargetAlbumId.value = ''
+  await loadAlbums(true)
 }
 
 function closeEdit() {
@@ -522,7 +563,8 @@ async function handleSaveEdit() {
         frameStyle: editForm.value.frameStyle,
         coverR2Key: editForm.value.coverR2Key,
         tags,
-        featured: editForm.value.featured,
+      featured: editForm.value.featured,
+      acceptsClassmateUploads: editForm.value.acceptsClassmateUploads,
       })
     })
     closeEdit()
@@ -534,7 +576,7 @@ async function handleSaveEdit() {
   }
 }
 
-onMounted(() => { void loadAlbums(true) })
+onMounted(() => { void loadAlbums(true); void loadStorage() })
 onBeforeUnmount(() => { listController?.abort(); uploadController?.abort() })
 </script>
 

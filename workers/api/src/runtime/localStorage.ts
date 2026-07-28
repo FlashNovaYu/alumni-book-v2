@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, statfs, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path'
 
 export type LocalStorageOptions = {
@@ -30,6 +30,7 @@ export type LocalStorage = {
   head(key: string): Promise<LocalStorageObject | null>
   delete(key: string): Promise<void>
   list(prefixOrOptions?: string | { prefix?: string; limit?: number }): Promise<{ objects: Array<{ key: string; size: number; httpEtag: string }> }>
+  getDiskUsage?(): Promise<{ totalBytes: number; usedBytes: number; availableBytes: number; uploadsBytes: number }>
   close(): void
 }
 
@@ -158,6 +159,12 @@ export function createLocalStorage(root: string): LocalStorage {
       }
       await visit(start)
       return { objects }
+    },
+    async getDiskUsage() {
+      const [disk, files] = await Promise.all([statfs(rootPath), this.list()])
+      const totalBytes = Number(disk.blocks) * Number(disk.bsize)
+      const availableBytes = Number(disk.bavail) * Number(disk.bsize)
+      return { totalBytes, availableBytes, usedBytes: totalBytes - availableBytes, uploadsBytes: files.objects.reduce((sum, file) => sum + file.size, 0) }
     },
     close() {
       // 本地文件存储没有需要关闭的长期句柄。

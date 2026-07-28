@@ -175,6 +175,7 @@ export interface Album {
   sortOrder: number
   photos: Photo[]
   createdAt: string
+  acceptsClassmateUploads?: boolean
 }
 
 /** 照片 */
@@ -187,6 +188,8 @@ export interface Photo {
   sortOrder: number
   createdAt: string
   media?: { variants: MediaVariant[] } | null
+  submittedBySlug?: string | null
+  uploadSource?: 'admin' | 'classmate'
 }
 
 /** Image derivative metadata stored alongside an original R2 object. */

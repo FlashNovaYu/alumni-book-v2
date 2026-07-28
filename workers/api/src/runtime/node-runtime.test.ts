@@ -291,7 +291,7 @@ describe('新实例数据库初始化', () => {
     const firstRun = await database.prepare('SELECT COUNT(*) AS count FROM _alumni_migrations').first<{ count: number }>()
     const students = await database.prepare('SELECT COUNT(*) AS count FROM students').first<{ count: number }>()
     const roles = await database.prepare('SELECT COUNT(*) AS count FROM admin_roles').first<{ count: number }>()
-    expect(firstRun?.count).toBe(20)
+    expect(firstRun?.count).toBe(21)
     expect(students?.count).toBe(0)
     expect(roles?.count).toBe(4)
 
@@ -299,7 +299,7 @@ describe('新实例数据库初始化', () => {
     const secondDatabase = initializeLocalDatabase(databasePath)
     openDatabases.push(secondDatabase)
     const secondRun = await secondDatabase.prepare('SELECT COUNT(*) AS count FROM _alumni_migrations').first<{ count: number }>()
-    expect(secondRun?.count).toBe(20)
+    expect(secondRun?.count).toBe(21)
   })
 
   it('创建唯一的主管理员并保存 PBKDF2 密码哈希', async () => {

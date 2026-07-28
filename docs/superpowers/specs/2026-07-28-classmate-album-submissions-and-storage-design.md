@@ -38,6 +38,8 @@
 
 建立 `(submitted_by_slug, upload_source)` 索引。限额查询只统计 `upload_source = 'classmate'` 且 `submitted_by_slug` 等于当前登录同学的仍存在照片记录。照片移动不改变这两个字段。
 
+建立 `BEFORE INSERT` 触发器：当新行属于同学投稿且该投稿人的现存投稿记录已达五张时，中止插入。应用层的预检查用于提示剩余额度，触发器是并发请求下的最终约束。
+
 本地 SQLite 初始化 schema 与迁移测试数据库同步更新；Cloudflare D1 保持相同表结构。
 
 ## 同学投稿流程
