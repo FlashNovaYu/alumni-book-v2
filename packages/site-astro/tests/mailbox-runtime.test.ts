@@ -137,6 +137,25 @@ describe('同学会话请求可靠性', () => {
 })
 
 describe('私聊乐观消息状态', () => {
+  it('不支持 randomUUID 的 HTTP 环境仍可新建私聊并发送首条消息', async () => {
+    vi.stubGlobal('crypto', { randomUUID: undefined })
+    apiMocks.startDirectConversation.mockResolvedValue({ conversation, message: startedMessage })
+    const inbox = useInbox('https://api.example.test')
+    await inbox.startConversation({ name: '同学', slug: 'peer', avatarUrl: null, hasPage: false, motto: '' })
+
+    await inbox.send('HTTP 入口也能发送')
+
+    expect(apiMocks.startDirectConversation).toHaveBeenCalledWith(
+      'https://api.example.test',
+      expect.objectContaining({
+        recipientSlug: 'peer',
+        body: 'HTTP 入口也能发送',
+        clientNonce: expect.any(String),
+      }),
+    )
+    expect(apiMocks.startDirectConversation.mock.calls[0][1].clientNonce).not.toHaveLength(0)
+  })
+
   it('新建会话首发消息在请求完成前立即可见，失败后可重试', async () => {
     let rejectFirst!: (error: Error) => void
     apiMocks.startDirectConversation.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirst = reject }))

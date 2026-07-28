@@ -20,8 +20,13 @@ export type DirectInboxMessage = DirectMessage & {
   deliveryState: 'sent' | 'sending' | 'failed'
 }
 
+let fallbackNonceSequence = 0
+
 function nonce() {
-  return crypto.randomUUID()
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+
+  fallbackNonceSequence += 1
+  return `fallback-${Date.now().toString(36)}-${fallbackNonceSequence.toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
 function sortByCreatedAt(items: DirectInboxMessage[]) {
