@@ -380,6 +380,7 @@ export interface ClassSpaceAlbumPreview {
   coverR2Key: string | null
   photoCount: number
   tags: string[]
+  acceptsClassmateUploads: boolean
   media?: { variants: MediaVariant[] } | null
 }
 
