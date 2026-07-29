@@ -161,10 +161,6 @@ html.theme-transition [data-page-heading] {
   view-transition-name: none !important;
 }
 
-html[data-theme='night'] .page-shell {
-  background-color: var(--color-paper-bg);
-}
-
 ::view-transition-group(.student-surface) {
   z-index: 2;
   overflow: clip;

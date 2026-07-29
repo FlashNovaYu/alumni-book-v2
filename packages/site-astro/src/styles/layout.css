@@ -38,20 +38,58 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 .page-shell {
   position: relative; /* Ensure the pseudo-element is positioned relative to the shell */
+  z-index: 0;
+  isolation: isolate;
+  --page-shell-surface: color-mix(in srgb, var(--bg) 86%, transparent);
+  --page-shell-star-opacity: 0.46;
+  --page-shell-star-core: rgba(110, 83, 34, 0.72);
+  --page-shell-star-halo: rgba(110, 83, 34, 0.18);
   min-height: 100vh;
   padding-top: var(--space-9);
   padding-bottom: var(--space-9);
   background:
     var(--texture-paper-fiber),
-    var(--bg);
+    var(--page-shell-surface);
   background-size: 100% 100%, 100% 26px;
+}
+
+html[data-theme='night'] .page-shell {
+  --page-shell-surface: color-mix(in srgb, var(--bg) 80%, transparent);
+  --page-shell-star-opacity: 0.82;
+  --page-shell-star-core: rgba(237, 230, 210, 0.9);
+  --page-shell-star-halo: rgba(231, 206, 140, 0.24);
+}
+
+.page-shell > * {
+  position: relative;
+  z-index: 1;
 }
 
 .page-shell::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 1;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--page-shell-star-opacity);
+  background:
+    radial-gradient(circle at 7% 14%, var(--page-shell-star-core) 0 1.3px, var(--page-shell-star-halo) 2px, transparent 3.6px),
+    radial-gradient(circle at 16% 58%, var(--page-shell-star-core) 0 1.6px, var(--page-shell-star-halo) 2.4px, transparent 4.2px),
+    radial-gradient(circle at 24% 26%, var(--page-shell-star-core) 0 1px, transparent 2.4px),
+    radial-gradient(circle at 34% 77%, var(--page-shell-star-core) 0 1.4px, var(--page-shell-star-halo) 2px, transparent 3.6px),
+    radial-gradient(circle at 46% 11%, var(--page-shell-star-core) 0 1.1px, transparent 2.4px),
+    radial-gradient(circle at 55% 44%, var(--page-shell-star-core) 0 1.7px, var(--page-shell-star-halo) 2.5px, transparent 4.2px),
+    radial-gradient(circle at 63% 82%, var(--page-shell-star-core) 0 1px, transparent 2.4px),
+    radial-gradient(circle at 73% 21%, var(--page-shell-star-core) 0 1.5px, var(--page-shell-star-halo) 2.2px, transparent 3.8px),
+    radial-gradient(circle at 86% 56%, var(--page-shell-star-core) 0 1.4px, transparent 2.9px),
+    radial-gradient(circle at 94% 13%, var(--page-shell-star-core) 0 1px, transparent 2.4px);
+}
+
+.page-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
   opacity: 0.035;

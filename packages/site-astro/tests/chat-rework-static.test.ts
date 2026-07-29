@@ -105,7 +105,7 @@ describe('可见性轮询生命周期契约', () => {
 })
 
 describe('纸质档案导航契约', () => {
-  it('用目录条替换玻璃灯条，并保留稳定的活动纸签和信箱入口', () => {
+  it('以纸质目录条承载克制磨砂材质，并保留稳定的活动纸签和信箱入口', () => {
     const nav = read('components/TopNav.astro')
 
     expect(nav).toContain('paper-bookmark-nav')
@@ -113,7 +113,8 @@ describe('纸质档案导航契约', () => {
     expect(nav).toContain('nav-active-ink')
     expect(nav).toContain('mobile-page-title')
     expect(nav).toContain('nav-mailbox-button')
-    expect(nav).not.toContain('backdrop-filter')
+    expect(nav).toContain('@supports (backdrop-filter: blur(1px))')
+    expect(nav).toContain('backdrop-filter: blur(18px) saturate(1.05)')
     expect(nav).not.toContain('width: 820px')
     expect(nav).not.toContain('inkLineFlow')
   })

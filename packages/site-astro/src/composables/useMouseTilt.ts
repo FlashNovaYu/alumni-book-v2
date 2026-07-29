@@ -54,6 +54,17 @@ let targetGlareX = 50
 let targetGlareY = 50
 let rafId: number | null = null
 
+const syncAmbientTilt = () => {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  const ambientX = round(currentRotateY * 16)
+  const ambientY = round(currentRotateX * 16)
+  root.style.setProperty('--ambient-tilt-x', `${ambientX}px`)
+  root.style.setProperty('--ambient-tilt-y', `${ambientY}px`)
+  root.style.setProperty('--ambient-hero-x', `${round(ambientX * 0.3)}px`)
+  root.style.setProperty('--ambient-hero-y', `${round(ambientY * 0.3)}px`)
+}
+
 const handleOrientation = (e: DeviceOrientationEvent) => {
   if (e.beta === null || e.gamma === null) return
   if (baseBeta === null) baseBeta = e.beta
@@ -72,6 +83,7 @@ const loop = () => {
   currentRotateY += (targetRotateY - currentRotateY) * 0.1
   currentGlareX += (targetGlareX - currentGlareX) * 0.1
   currentGlareY += (targetGlareY - currentGlareY) * 0.1
+  syncAmbientTilt()
 
   activeStates.forEach((states) => {
     states.forEach((s) => {
@@ -143,6 +155,7 @@ export const stopDeviceOrientation = () => {
   currentGlareY = 50
   targetGlareX = 50
   targetGlareY = 50
+  syncAmbientTilt()
   activeStates.forEach((states) => {
     states.forEach((s) => {
       s.isOrientationActive = false

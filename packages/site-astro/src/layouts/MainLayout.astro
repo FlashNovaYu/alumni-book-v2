@@ -488,6 +488,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
         document.addEventListener('astro:page-load', () => {
           restoreStudentIdentityTarget()
           reinitAuxiliaryRuntime()
+          initCustomCursor()
           const ownerId = activeStudentTransitionId
           window.setTimeout(() => clearStudentTransition(window.location.pathname.includes('/student/'), ownerId), 1400)
         })
@@ -521,7 +522,7 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
 
         // 自定义复古光标初始化逻辑 (无延迟跟手方案)
         function initCustomCursor() {
-          if (window.matchMedia('(pointer: coarse)').matches) return;
+          if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
           if (document.querySelector('.custom-cursor')) return;
 
           const cursor = document.createElement('div');
@@ -607,18 +608,52 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
 </html>
 
 <style is:global>
-  .app { min-height: 100vh; display: flex; flex-direction: column; }
+  .app { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
   .main-content { flex: 1; }
 
   /* Ambient Fluid Background */
   .alumni-ambient-bg {
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
     overflow: hidden;
     pointer-events: none;
-    background: transparent;
+    --starfield-opacity: 0.72;
+    background:
+      radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 30%),
+      radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 34%);
   }
+
+  [data-theme="paper"] .alumni-ambient-bg {
+    --starfield-opacity: 0.56;
+    background:
+      radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 30%),
+      radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--stamp) 6%, transparent), transparent 34%);
+  }
+
+  .alumni-ambient-bg::before {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: '';
+    opacity: var(--starfield-opacity);
+    transform: translate3d(var(--ambient-tilt-x, 0px), var(--ambient-tilt-y, 0px), 0) scale(1.04);
+    will-change: transform;
+    background:
+      radial-gradient(circle at 7% 14%, rgba(237, 230, 210, 0.9) 0 1.4px, rgba(237, 230, 210, 0.18) 2px, transparent 3.2px),
+      radial-gradient(circle at 16% 58%, rgba(231, 206, 140, 0.92) 0 1.7px, rgba(231, 206, 140, 0.22) 2.4px, transparent 4px),
+      radial-gradient(circle at 24% 26%, rgba(237, 230, 210, 0.7) 0 1px, transparent 2.2px),
+      radial-gradient(circle at 34% 77%, rgba(231, 206, 140, 0.84) 0 1.4px, rgba(231, 206, 140, 0.16) 2px, transparent 3.4px),
+      radial-gradient(circle at 46% 11%, rgba(237, 230, 210, 0.76) 0 1.1px, transparent 2.3px),
+      radial-gradient(circle at 55% 44%, rgba(231, 206, 140, 0.92) 0 1.8px, rgba(231, 206, 140, 0.2) 2.6px, transparent 4.2px),
+      radial-gradient(circle at 63% 82%, rgba(237, 230, 210, 0.8) 0 1px, transparent 2.2px),
+      radial-gradient(circle at 73% 21%, rgba(231, 206, 140, 0.9) 0 1.5px, rgba(231, 206, 140, 0.16) 2.2px, transparent 3.6px),
+      radial-gradient(circle at 86% 56%, rgba(237, 230, 210, 0.86) 0 1.4px, transparent 2.8px),
+      radial-gradient(circle at 94% 13%, rgba(231, 206, 140, 0.82) 0 1px, transparent 2.2px);
+    mix-blend-mode: screen;
+  }
+
+  [data-theme="paper"] .alumni-ambient-bg::before { mix-blend-mode: multiply; }
 
   .alumni-fluid {
     position: absolute;
@@ -788,9 +823,11 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .alumni-ambient-bg::before,
     .alumni-fluid,
     .alumni-dust::before,
     .alumni-dust::after {
+      transform: none !important;
       animation: none !important;
       will-change: auto;
     }

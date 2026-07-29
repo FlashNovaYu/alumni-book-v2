@@ -81,4 +81,18 @@ describe('移动端档案墙与样式契约', () => {
     expect(layout).toContain('@media (max-width: 768px)')
     expect(layout).toContain('@media (prefers-reduced-motion: reduce)')
   })
+
+  it('授权后的方向数据驱动全局星空与首页入口，而不是增加第二份监听器', () => {
+    const tilt = readFileSync(src('composables/useMouseTilt.ts'), 'utf8')
+    const layout = readFileSync(src('layouts/MainLayout.astro'), 'utf8')
+    const hero = readFileSync(src('components/MuseumHero.astro'), 'utf8')
+
+    expect(tilt).toContain("'--ambient-tilt-x'")
+    expect(tilt).toContain("'--ambient-tilt-y'")
+    expect(layout).toContain('var(--ambient-tilt-x, 0px)')
+    expect(layout).toContain('var(--ambient-tilt-y, 0px)')
+    expect(hero).toContain('data-home-gyro-toggle')
+    expect(hero).toContain('initDeviceOrientation()')
+    expect(hero).toContain('var(--ambient-hero-x, 0px)')
+  })
 })

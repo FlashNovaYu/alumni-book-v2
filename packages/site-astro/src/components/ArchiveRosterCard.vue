@@ -160,12 +160,14 @@ const avatarSrc = computed(() => {
   if (props.card.avatarUrl.startsWith('http')) return props.card.avatarUrl
   return `${props.apiBase}${props.card.avatarUrl}`
 })
-const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card.avatarMedia?.variants, 72, 72))
+const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card.avatarMedia?.variants, 256, 256))
 </script>
 
 <style scoped>
 .roster-card {
   display: block;
+  aspect-ratio: 1 / 1;
+  min-width: 0;
   text-decoration: none;
   transform-style: preserve-3d;
   will-change: transform;
@@ -181,9 +183,11 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card__inner {
   position: relative;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: var(--space-4);
-  padding: var(--space-5);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  height: 100%;
+  padding: clamp(var(--space-4), 6%, var(--space-6));
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -193,7 +197,6 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
     border-color var(--duration-normal) var(--ease-out-expo);
   /* Absolute glare clip */
   overflow: hidden;
-  height: 100%;
 }
 
 .roster-card__transition-surface {
@@ -214,7 +217,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card__meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--space-2);
 }
 
@@ -248,8 +251,11 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 /* Avatar */
 .roster-card__avatar {
   position: relative;
-  width: 72px;
-  height: 72px;
+  align-self: end;
+  justify-self: center;
+  width: clamp(76px, 36%, 148px);
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 50%;
   overflow: hidden;
   display: grid;
@@ -298,7 +304,9 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
+  text-align: center;
 }
 
 .roster-card__name {
@@ -314,13 +322,14 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   font-size: var(--type-body-sm);
   line-height: var(--leading-normal);
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .roster-card__tags {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
@@ -357,14 +366,12 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 @media (max-width: 768px) {
   .roster-card__inner {
-    grid-template-columns: 60px minmax(0, 1fr);
-    padding: var(--space-4);
+    padding: clamp(var(--space-3), 6%, var(--space-5));
     gap: var(--space-3);
   }
 
   .roster-card__avatar {
-    width: 60px;
-    height: 60px;
+    width: clamp(68px, 34%, 112px);
     font-size: 24px;
   }
 }

@@ -34,24 +34,34 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
       <span class="home-cover__copy-reveal" style="--reveal-delay: 0.62s">翻开青春</span>
     </h1>
     <p class="home-cover__subtitle home-cover__copy-reveal" style="--reveal-delay: 0.84s">{heroSubtitle}</p>
+    <div class="home-cover__gyro-control home-cover__copy-reveal" style="--reveal-delay: 0.96s" data-home-gyro-control>
+      <button type="button" class="home-cover__gyro-button" data-home-gyro-toggle aria-label="开启沉浸光影">
+        开启沉浸光影
+      </button>
+      <p class="home-cover__gyro-status" data-home-gyro-status role="status" hidden></p>
+    </div>
   </div>
 
   <div class="home-cover__scroll-slot">
     <div class="home-cover__scroll-reveal home-cover__copy-reveal" style="--reveal-delay: 1.08s">
-      <a href="#login" class="home-cover__scroll" data-home-login-scroll aria-label="向下滑动到登录入口">
-        <span>向下滑动</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </a>
+      <span class="home-cover__magnetic" data-hero-magnetic>
+        <a href="#login" class="home-cover__scroll" data-home-login-scroll aria-label="向下滑动到登录入口">
+          <span>向下滑动</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      </span>
     </div>
   </div>
 </section>
 
 <section class="home-login-cta" aria-label="进入登录">
-  <a href="#login" class="home-login-cta__button home-scroll-reveal" data-testid="home-login-cta" data-home-login-scroll>
-    翻开同学录，进入登录
-  </a>
+  <div class="home-login-cta__magnetic" data-hero-magnetic>
+    <a href="#login" class="home-login-cta__button home-scroll-reveal" data-testid="home-login-cta" data-home-login-scroll>
+      翻开同学录，进入登录
+    </a>
+  </div>
 </section>
 
 <section id="login" class="home-login-section" aria-labelledby="home-login-title">
@@ -79,7 +89,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     linear-gradient(180deg, rgba(15, 13, 11, 0.08), rgba(15, 13, 11, 0.88)),
     radial-gradient(circle at 18% 28%, rgba(200, 169, 106, 0.18), transparent 32%),
     radial-gradient(circle at 78% 72%, rgba(188, 79, 60, 0.16), transparent 34%),
-    #11100e;
+    rgba(17, 16, 14, 0.76);
   color: var(--text-inverse);
 }
 
@@ -310,6 +320,47 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   transform: translateY(-2px);
 }
 
+.home-cover__magnetic,
+.home-login-cta__magnetic {
+  --hero-magnetic-x: 0px;
+  --hero-magnetic-y: 0px;
+  display: inline-flex;
+  transform: translate3d(
+    calc(var(--hero-magnetic-x) + var(--ambient-hero-x, 0px)),
+    calc(var(--hero-magnetic-y) + var(--ambient-hero-y, 0px)),
+    0
+  );
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.home-cover__gyro-control {
+  display: none;
+  justify-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.home-cover__gyro-button {
+  min-height: 44px;
+  padding: 9px 16px;
+  color: rgba(255, 250, 242, 0.9);
+  background: color-mix(in srgb, var(--surface-raised) 36%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 48%, transparent);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--type-caption);
+  letter-spacing: var(--tracking-wide);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 242, 0.16), 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.home-cover__gyro-status {
+  max-width: 240px;
+  margin: 0;
+  color: rgba(255, 250, 242, 0.68);
+  font-size: var(--type-caption);
+}
+
 .home-login-section {
   min-height: 100svh;
   display: grid;
@@ -416,7 +467,9 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 @media (prefers-reduced-motion: reduce) {
   .home-cover__shape,
   .home-cover__deco-line,
-  .home-cover__copy-reveal {
+  .home-cover__copy-reveal,
+  .home-cover__magnetic,
+  .home-login-cta__magnetic {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;
@@ -426,6 +479,13 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   .home-scroll-reveal {
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-cover__gyro-control {
+    display: grid;
+  }
 }
 
 .home-cover__subtitle {
@@ -677,8 +737,41 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 </style>
 
 <script>
+  import { initDeviceOrientation, type DeviceOrientationStatus } from '../composables/useMouseTilt'
+
   let cleanupParallax = () => {}
   let cleanupLoginScroll = () => {}
+  let cleanupHeroMagnetic = () => {}
+  let cleanupHomeGyro = () => {}
+
+  const gyroStatusLabel: Record<DeviceOrientationStatus, string> = {
+    idle: '开启沉浸光影',
+    granted: '沉浸光影已开启',
+    unsupported: '当前设备将保留触摸光影',
+    'insecure-context': 'HTTPS 后即可开启沉浸光影',
+    denied: '可再次点击请求陀螺仪权限',
+    error: '当前使用触摸光影',
+  }
+
+  function initHomeGyro() {
+    cleanupHomeGyro()
+    const button = document.querySelector<HTMLButtonElement>('[data-home-gyro-toggle]')
+    const status = document.querySelector<HTMLElement>('[data-home-gyro-status]')
+    if (!button || !status) return
+
+    const render = (result: DeviceOrientationStatus) => {
+      const label = gyroStatusLabel[result]
+      const completed = result === 'granted' || result === 'unsupported' || result === 'error' || result === 'insecure-context'
+      button.textContent = label
+      button.setAttribute('aria-label', label)
+      button.hidden = completed
+      status.textContent = label
+      status.hidden = !completed
+    }
+    const onClick = async () => render(await initDeviceOrientation())
+    button.addEventListener('click', onClick)
+    cleanupHomeGyro = () => button.removeEventListener('click', onClick)
+  }
 
   function initParallax() {
     cleanupParallax()
@@ -733,9 +826,40 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     cleanupLoginScroll = () => triggers.forEach((trigger) => trigger.removeEventListener('click', onClick))
   }
 
+  function initHeroMagnetic() {
+    cleanupHeroMagnetic()
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)')
+    if (!finePointer.matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const cleanups: Array<() => void> = []
+    document.querySelectorAll<HTMLElement>('[data-hero-magnetic]').forEach((element) => {
+      const onPointerMove = (event: PointerEvent) => {
+        const rect = element.getBoundingClientRect()
+        const x = ((event.clientX - rect.left) / rect.width - 0.5) * 12
+        const y = ((event.clientY - rect.top) / rect.height - 0.5) * 10
+        element.style.setProperty('--hero-magnetic-x', `${x.toFixed(2)}px`)
+        element.style.setProperty('--hero-magnetic-y', `${y.toFixed(2)}px`)
+      }
+      const onPointerLeave = () => {
+        element.style.setProperty('--hero-magnetic-x', '0px')
+        element.style.setProperty('--hero-magnetic-y', '0px')
+      }
+      element.addEventListener('pointermove', onPointerMove, { passive: true })
+      element.addEventListener('pointerleave', onPointerLeave)
+      cleanups.push(() => {
+        element.removeEventListener('pointermove', onPointerMove)
+        element.removeEventListener('pointerleave', onPointerLeave)
+        onPointerLeave()
+      })
+    })
+    cleanupHeroMagnetic = () => cleanups.forEach((cleanup) => cleanup())
+  }
+
   function initMuseumHeroRuntime() {
     initHomeLoginScroll()
     initParallax()
+    initHeroMagnetic()
+    initHomeGyro()
   }
 
   window.addEventListener('pageshow', initMuseumHeroRuntime)
@@ -743,6 +867,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     if (!(event as PageTransitionEvent).persisted) {
       cleanupLoginScroll()
       cleanupParallax()
+      cleanupHeroMagnetic()
+      cleanupHomeGyro()
     }
   })
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMuseumHeroRuntime, { once: true })

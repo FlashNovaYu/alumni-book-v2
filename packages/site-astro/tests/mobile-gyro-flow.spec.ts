@@ -75,3 +75,34 @@ test('方向事件不可用时显示触摸降级并由触摸位置驱动光影',
   expect(Number.parseFloat(glarePosition.x)).toBeCloseTo(20, 0)
   expect(Number.parseFloat(glarePosition.y)).toBeCloseTo(75, 0)
 })
+
+test('首页在用户授权后将设备倾斜同步给星空与入口牵引变量', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(() => {
+    class DeviceOrientationEventStub extends Event {
+      static async requestPermission() { return 'granted' as const }
+    }
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: DeviceOrientationEventStub,
+    })
+  })
+
+  await page.goto('./', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: '开启沉浸光影' }).click()
+  await expect(page.getByRole('status')).toContainText('沉浸光影已开启')
+
+  await page.evaluate(() => {
+    const event = new Event('deviceorientation')
+    Object.defineProperties(event, {
+      beta: { value: 18 },
+      gamma: { value: 20 },
+    })
+    window.dispatchEvent(event)
+  })
+
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--ambient-tilt-x')))
+    .not.toBe('0px')
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--ambient-hero-x')))
+    .not.toBe('0px')
+})
