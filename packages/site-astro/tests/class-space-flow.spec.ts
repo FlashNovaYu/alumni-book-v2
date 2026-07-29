@@ -58,7 +58,8 @@ const mockOverviewData = {
         title: '青春毕业照',
         coverR2Key: 'photos/cover.jpg',
         photoCount: 15,
-        tags: ['回忆', '毕业']
+        tags: ['回忆', '毕业'],
+        acceptsClassmateUploads: true,
       }
     ],
     timeline: [
@@ -124,8 +125,9 @@ test.describe('Class Space Flow', () => {
     await expect(page.locator('[data-message-id="msg-2"]')).toContainText('李四的群聊消息')
 
     // 验证相册轨道
-    await expect(page.getByText('青春毕业照')).toBeVisible()
+    await expect(page.locator('.album-title', { hasText: '青春毕业照' })).toBeVisible()
     await expect(page.getByText('15 张')).toBeVisible()
+    await expect(page.getByText('向「青春毕业照」投稿')).toBeVisible()
     // 链接带有 #album-
     const albumLink = page.locator('a.album-rail-card')
     await expect(albumLink).toHaveAttribute('href', /\/(?:alumni-book-v2\/)?album#album-album-1$/)

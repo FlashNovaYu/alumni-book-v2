@@ -79,8 +79,8 @@ beforeAll(async () => {
       "INSERT OR REPLACE INTO group_chat_mutes (student_slug, muted_until, reason, created_by, created_at, updated_at) VALUES (?, NULL, '测试禁言', 'admin', datetime('now'), datetime('now'))"
     ).bind(CLASSMATE_SLUG),
     ...Array.from({ length: 5 }, (_, index) => env.DB.prepare(
-      'INSERT OR REPLACE INTO albums (id, title, description, frame_style, sort_order, featured) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(`album-overview-${index + 1}`, `相册 ${index + 1}`, '毕业那天', 'polaroid', index, index === 0 ? 1 : 0)),
+      'INSERT OR REPLACE INTO albums (id, title, description, frame_style, sort_order, featured, accepts_classmate_uploads) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(`album-overview-${index + 1}`, `相册 ${index + 1}`, '毕业那天', 'polaroid', index, index === 0 ? 1 : 0, index === 0 ? 1 : 0)),
     env.DB.prepare(
       "INSERT OR REPLACE INTO photos (id, album_id, filename, caption, r2_key, sort_order, media_json) VALUES ('photo-overview', 'album-overview-1', 'cover.jpg', '合照', 'photos/cover.jpg', 0, ?)"
     ).bind(JSON.stringify({ variants: [{ key: 'photos/cover_320.webp', contentType: 'image/webp', width: 320, height: 240, kind: '320' }] })),
@@ -163,10 +163,33 @@ describe('Class space overview API', () => {
     expect(body.data.timeline.length).toBeLessThanOrEqual(6)
     expect(body.data.albums[0]).not.toHaveProperty('photos')
     expect(body.data.albums[0].coverR2Key).toBe('photos/cover.jpg')
+    expect(body.data.albums[0].acceptsClassmateUploads).toBe(true)
+    expect(body.data.albums.slice(1)).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ acceptsClassmateUploads: true }),
+    ]))
     expect(body.data.albums[0].media.variants[0]).toMatchObject({ key: 'photos/cover_320.webp', width: 320 })
     expect(body.data.counts).toEqual({ groupMessages: 32, albums: 5, timelineItems: 6 })
     expect(body.data).not.toHaveProperty('messages')
     expect(res.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+
+  it('includes the selected submission album even when it falls outside the normal four-album preview', async () => {
+    await env.DB.batch([
+      env.DB.prepare('UPDATE albums SET accepts_classmate_uploads = 0'),
+      env.DB.prepare("UPDATE albums SET accepts_classmate_uploads = 1 WHERE id = 'album-overview-5'"),
+    ])
+    const classmateToken = await getClassmateToken()
+    const ctx = createExecutionContext()
+    const res = await worker.fetch(new Request('http://localhost/api/class-space/overview', {
+      headers: { 'X-Classmate-Token': classmateToken },
+    }), env, ctx)
+    await waitOnExecutionContext(ctx)
+    const body = await res.json() as any
+
+    expect(res.status).toBe(200)
+    expect(body.data.albums).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'album-overview-5', acceptsClassmateUploads: true }),
+    ]))
   })
 
   it('omits the history cursor when the overview already contains every visible message', async () => {

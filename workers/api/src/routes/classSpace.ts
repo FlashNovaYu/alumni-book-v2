@@ -43,13 +43,13 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
 
   const [albumRows, groupMessageCount, albumCount, timeline, mute] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT a.id, a.title, a.tags,
+      `SELECT a.id, a.title, a.tags, a.accepts_classmate_uploads,
         COALESCE(a.cover_r2_key, (SELECT p.r2_key FROM photos p WHERE p.album_id = a.id ORDER BY p.sort_order, p.created_at LIMIT 1)) AS cover_r2_key,
         (SELECT p.media_json FROM photos p
           WHERE p.album_id = a.id AND (a.cover_r2_key IS NULL OR p.r2_key = a.cover_r2_key)
           ORDER BY p.sort_order, p.created_at LIMIT 1) AS cover_media_json,
         (SELECT COUNT(*) FROM photos p WHERE p.album_id = a.id) AS photo_count
-       FROM albums a ORDER BY a.featured DESC, a.sort_order, a.created_at DESC LIMIT 4`
+       FROM albums a ORDER BY a.accepts_classmate_uploads DESC, a.featured DESC, a.sort_order, a.created_at DESC LIMIT 4`
     ).all(),
     c.env.DB.prepare("SELECT COUNT(*) AS count FROM public_messages WHERE status IN ('visible', 'recalled_by_author', 'recalled_by_admin')").first(),
     c.env.DB.prepare('SELECT COUNT(*) AS count FROM albums').first(),
@@ -65,6 +65,7 @@ classSpaceRoutes.get('/class-space/overview', async (c) => {
     ...(parseMediaVariants(row.cover_media_json) ? { media: parseMediaVariants(row.cover_media_json) } : {}),
     photoCount: Number(row.photo_count || 0),
     tags: parseJson(row.tags, []),
+    acceptsClassmateUploads: Boolean(row.accepts_classmate_uploads),
   }))
 
   c.header('Cache-Control', 'private, no-store')

@@ -2,34 +2,36 @@
   <div class="album-rail-container">
     <div class="album-rail-viewport">
       <div v-if="albums.length > 0" class="album-rail-track">
-        <a
+        <article
           v-for="album in albums"
           :key="album.id"
-          :href="albumHref(album.id)"
-          class="album-rail-card"
+          class="album-rail-entry"
         >
-          <div class="album-cover-wrapper">
-            <img
-              v-if="album.coverR2Key"
-              :src="coverMedia(album).src"
-              :srcset="coverMedia(album).srcset || undefined"
-              :sizes="coverMedia(album).sizes"
-              :alt="album.title"
-              width="292"
-              height="195"
-              loading="lazy"
-              decoding="async"
-              class="album-cover"
-            />
-            <div v-else class="album-cover-placeholder">暂无封面</div>
-            <div class="album-cover-overlay">
-              <h3 class="album-title">{{ album.title }}</h3>
+          <a :href="albumHref(album.id)" class="album-rail-card">
+            <div class="album-cover-wrapper">
+              <img
+                v-if="album.coverR2Key"
+                :src="coverMedia(album).src"
+                :srcset="coverMedia(album).srcset || undefined"
+                :sizes="coverMedia(album).sizes"
+                :alt="album.title"
+                width="292"
+                height="195"
+                loading="lazy"
+                decoding="async"
+                class="album-cover"
+              />
+              <div v-else class="album-cover-placeholder">暂无封面</div>
+              <div class="album-cover-overlay">
+                <h3 class="album-title">{{ album.title }}</h3>
+              </div>
+              <div class="photo-count-badge">
+                {{ album.photoCount }} 张
+              </div>
             </div>
-            <div class="photo-count-badge">
-              {{ album.photoCount }} 张
-            </div>
-          </div>
-        </a>
+          </a>
+          <ClassSpaceAlbumSubmission v-if="album.acceptsClassmateUploads" :api-base="apiBase" :album-title="album.title" />
+        </article>
       </div>
       <div v-else class="empty-albums">
         <p class="empty-text">影像馆暂无相册记录 ~</p>
@@ -41,6 +43,7 @@
 <script setup lang="ts">
 import { buildMediaSources, type ClassSpaceAlbumPreview } from '@alumni/shared'
 import { joinApiUrl } from '../utils/apiBase'
+import ClassSpaceAlbumSubmission from './ClassSpaceAlbumSubmission.vue'
 
 const props = defineProps<{
   albums: ClassSpaceAlbumPreview[]
@@ -101,9 +104,15 @@ function albumHref(albumId: string) {
   padding-bottom: var(--spacing-xs);
 }
 
+.album-rail-entry {
+  flex: 0 0 clamp(220px, 25vw, 292px);
+  scroll-snap-align: start;
+}
+
 .album-rail-card {
   position: relative;
-  flex: 0 0 clamp(220px, 25vw, 292px);
+  display: block;
+  width: 100%;
   aspect-ratio: 3 / 2;
   background: var(--color-paper-card, #fcfaf2);
   border: 1px solid var(--color-paper-border, #eedec4);
@@ -112,7 +121,6 @@ function albumHref(albumId: string) {
   box-shadow: var(--shadow-paper-card, 0 4px 12px rgba(139,120,95,0.06));
   text-decoration: none;
   color: inherit;
-  scroll-snap-align: start;
   transition: transform var(--duration-normal) var(--ease-out-quart), box-shadow var(--duration-normal) var(--ease-out-quart), border-color var(--duration-normal) var(--ease-out-quart);
 }
 
@@ -198,7 +206,7 @@ function albumHref(albumId: string) {
 }
 
 @media (max-width: 768px) {
-  .album-rail-card {
+  .album-rail-entry {
     flex-basis: min(72vw, 260px);
   }
 }

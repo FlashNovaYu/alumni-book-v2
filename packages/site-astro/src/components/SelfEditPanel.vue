@@ -47,14 +47,6 @@
                 </div>
               </section>
 
-              <section class="edit-section">
-                <h3 class="section-label">班级相册投稿</h3>
-                <p class="text-muted">每名同学最多保留 5 张投稿图片，上传时会自动压缩以节省空间。</p>
-                <label class="btn-sm btn-secondary upload-label">
-                  选择图片投稿<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="file-input" multiple @change="uploadAlbumPhotos" :disabled="uploading" />
-                </label>
-              </section>
-
               <!-- 身份档案 -->
               <section class="edit-section">
                 <h3 class="section-label">身份档案</h3>
@@ -462,32 +454,6 @@ async function uploadBackground(event: Event) {
     await uploadPreparedFile(file, 'background')
   } catch {
     saveMsg.value = { type: 'error', text: '上传失败' }
-  } finally {
-    uploading.value = false
-    input.value = ''
-  }
-}
-
-async function uploadAlbumPhotos(event: Event) {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files || []).slice(0, 5)
-  if (!files.length || !(await ensureToken())) return
-  uploading.value = true
-  try {
-    for (const file of files) {
-      const compressed = await compressImage(file, 1920, 0.82)
-      const variants = await generateImageVariants(compressed, { widths: [640, 1280], quality: 0.82 })
-      const formData = new FormData()
-      formData.append('file', compressed)
-      appendImageVariants(formData, variants, 'photos', 'classmate-submission')
-      const res = await fetch(joinApiUrl(props.apiBase, '/api/classmate/album-photos'), { method: 'POST', headers: authHeaders(), body: formData })
-      if (res.status === 401) handleClassmateUnauthorized()
-      const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.message || '投稿失败')
-    }
-    saveMsg.value = { type: 'success', text: `已投稿 ${files.length} 张图片` }
-  } catch (error) {
-    saveMsg.value = { type: 'error', text: error instanceof Error ? error.message : '投稿失败' }
   } finally {
     uploading.value = false
     input.value = ''

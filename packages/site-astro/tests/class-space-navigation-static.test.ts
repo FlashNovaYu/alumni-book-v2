@@ -118,6 +118,7 @@ describe('class space responsive dashboard contracts', () => {
     const hub = read('components/ClassSpaceHub.vue')
     const stage = read('components/GroupChatStage.vue')
     const albumRail = read('components/ClassSpaceAlbumRail.vue')
+    const selfEdit = read('components/SelfEditPanel.vue')
 
     expect(hub).toContain('overviewData.value.counts.groupMessages')
     expect(hub).toContain(':initial-items="overviewData.chat.items"')
@@ -126,6 +127,9 @@ describe('class space responsive dashboard contracts', () => {
     expect(stage).toContain('useGroupChat')
     expect(albumRail).toContain('albumHref(album.id)')
     expect(albumRail).toContain('album#album-${albumId}')
+    expect(albumRail).toContain('ClassSpaceAlbumSubmission')
+    expect(albumRail).toContain('album.acceptsClassmateUploads')
+    expect(selfEdit).not.toContain('/api/classmate/album-photos')
   })
 })
 
