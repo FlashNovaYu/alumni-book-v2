@@ -19,9 +19,10 @@
         :style="surfaceTransitionStyle"
         aria-hidden="true"
       />
+      <span class="roster-card__punch" aria-hidden="true" />
+      <span class="roster-card__archive-id">{{ archiveId }}</span>
 
-      <!-- 头像 -->
-      <div class="roster-card__avatar" :style="avatarTransitionStyle">
+      <div class="roster-card__media" :class="'roster-card__avatar'" :style="avatarTransitionStyle">
         <img
           v-if="card.avatarUrl && !avatarError"
           ref="avatarImage"
@@ -29,21 +30,19 @@
           :srcset="avatarMedia.srcset || undefined"
           :sizes="avatarMedia.sizes"
           :alt="card.name"
-          width="72"
-          height="72"
+          width="480"
+          height="480"
           loading="lazy"
           decoding="async"
           @error="markAvatarError"
         />
         <span v-else class="roster-card__avatar-fallback">{{ card.name.charAt(0) }}</span>
-        <!-- 照片 glow 效果 -->
         <div v-if="card.avatarUrl && !avatarError" class="roster-card__avatar-glow" aria-hidden="true" />
       </div>
 
-      <!-- 内容 -->
+      <span class="roster-card__rule" aria-hidden="true" />
       <div class="roster-card__body">
         <div class="roster-card__meta">
-          <span class="roster-card__archive-id">{{ archiveId }}</span>
           <span v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</span>
         </div>
         <div class="roster-card__name" :style="nameTransitionStyle">{{ card.name }}</div>
@@ -183,14 +182,13 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card__inner {
   position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
+  grid-template-rows: minmax(0, 1.15fr) 1px minmax(0, 0.85fr);
+  gap: clamp(8px, 3%, var(--space-3));
   height: 100%;
-  padding: clamp(var(--space-4), 6%, var(--space-6));
-  background: var(--bg-surface);
+  padding: clamp(var(--space-3), 5%, var(--space-5));
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--surface-raised));
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-skeuo-sm, var(--shadow-sm));
   transition:
     box-shadow var(--duration-normal) var(--ease-out-expo),
@@ -208,20 +206,36 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   border-radius: inherit;
 }
 
-.roster-card__avatar,
+.roster-card__media,
 .roster-card__body {
   position: relative;
   z-index: 1;
 }
 
+.roster-card__punch {
+  position: absolute;
+  inset: clamp(12px, 6%, 20px) auto auto clamp(12px, 6%, 20px);
+  z-index: 3;
+  width: 8px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-primary) 36%, var(--bg));
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.24), 0 1px 0 color-mix(in srgb, var(--surface-raised) 52%, transparent);
+}
+
 .roster-card__meta {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--space-2);
+  min-height: 16px;
 }
 
 .roster-card__archive-id {
+  position: absolute;
+  z-index: 3;
+  top: clamp(11px, 5%, 18px);
+  right: clamp(11px, 5%, 18px);
   color: var(--text-muted);
   font-size: var(--type-caption-uppercase);
   font-weight: var(--weight-medium);
@@ -232,6 +246,14 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card:hover .roster-card__inner {
   box-shadow: var(--shadow-skeuo-lg, var(--shadow-card-hover));
   border-color: var(--border-strong);
+}
+
+.roster-card__rule {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--border-strong) 10% 90%, transparent);
 }
 
 .glare-layer {
@@ -248,28 +270,25 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   z-index: 5;
 }
 
-/* Avatar */
-.roster-card__avatar {
+/* Portrait media */
+.roster-card__media {
   position: relative;
-  align-self: end;
-  justify-self: center;
-  width: clamp(76px, 36%, 148px);
-  aspect-ratio: 1 / 1;
-  height: auto;
-  border-radius: 50%;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
+  border-radius: calc(var(--radius-md) - 2px);
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
   color: var(--text-primary);
   border: 1px solid var(--border);
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: clamp(32px, 10vw, 56px);
   font-weight: var(--weight-semibold);
   flex-shrink: 0;
 }
 
-.roster-card__avatar img {
+.roster-card__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -287,7 +306,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card__avatar-glow {
   position: absolute;
   inset: -4px;
-  border-radius: 50%;
+  border-radius: inherit;
   background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
   opacity: 0;
   transition: opacity var(--duration-normal) var(--ease-out-expo);
@@ -304,9 +323,10 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  text-align: center;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(3px, 2%, var(--space-2));
+  text-align: left;
 }
 
 .roster-card__name {
@@ -329,7 +349,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .roster-card__tags {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
@@ -361,18 +381,16 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   color: var(--error);
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
-  text-align: right;
+  text-align: left;
 }
 
 @media (max-width: 768px) {
   .roster-card__inner {
-    padding: clamp(var(--space-3), 6%, var(--space-5));
-    gap: var(--space-3);
+    padding: clamp(var(--space-3), 5%, var(--space-4));
   }
 
-  .roster-card__avatar {
-    width: clamp(68px, 34%, 112px);
-    font-size: 24px;
+  .roster-card__name {
+    font-size: var(--type-body-lg);
   }
 }
 </style>

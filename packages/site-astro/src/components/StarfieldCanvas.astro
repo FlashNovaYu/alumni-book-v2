@@ -1,0 +1,192 @@
+<div class="starfield" aria-hidden="true" data-starfield-root>
+  <canvas data-starfield-canvas></canvas>
+  <span class="starfield__mist starfield__mist--gold"></span>
+  <span class="starfield__mist starfield__mist--stamp"></span>
+</div>
+
+<script>
+  type Star = {
+    x: number
+    y: number
+    radius: number
+    alpha: number
+    drift: number
+    depth: number
+  }
+
+  const seed = (index: number) => ((Math.sin(index * 12.9898) * 43758.5453) % 1 + 1) % 1
+
+  function initStarfield() {
+    const root = document.querySelector<HTMLElement>('[data-starfield-root]')
+    const canvas = root?.querySelector<HTMLCanvasElement>('[data-starfield-canvas]')
+    if (!root || !canvas || root.dataset.starfieldReady === 'true') return
+
+    root.dataset.starfieldReady = 'true'
+    const context = canvas.getContext('2d')
+    if (!context) return
+
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const mobileQuery = window.matchMedia('(max-width: 768px)')
+    const stars = Array.from({ length: mobileQuery.matches ? 38 : 72 }, (_, index): Star => ({
+      x: seed(index + 1),
+      y: seed(index + 101),
+      radius: 0.45 + seed(index + 201) * 1.55,
+      alpha: 0.16 + seed(index + 301) * 0.62,
+      drift: 0.16 + seed(index + 401) * 0.52,
+      depth: 0.24 + seed(index + 501) * 0.76,
+    }))
+
+    let frame = 0
+    let width = 0
+    let height = 0
+    let ratio = 1
+    let visible = document.visibilityState === 'visible'
+    let disposed = false
+
+    const resize = () => {
+      const bounds = root.getBoundingClientRect()
+      width = Math.max(1, Math.round(bounds.width))
+      height = Math.max(1, Math.round(bounds.height))
+      ratio = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = Math.round(width * ratio)
+      canvas.height = Math.round(height * ratio)
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
+      draw(0)
+    }
+
+    const draw = (timestamp: number) => {
+      context.setTransform(ratio, 0, 0, ratio, 0, 0)
+      context.clearRect(0, 0, width, height)
+      const styles = getComputedStyle(document.documentElement)
+      const offsetX = Number.parseFloat(styles.getPropertyValue('--ambient-tilt-x')) || 0
+      const offsetY = Number.parseFloat(styles.getPropertyValue('--ambient-tilt-y')) || 0
+      const paper = document.documentElement.dataset.theme === 'paper'
+      const time = motionQuery.matches ? 0 : timestamp / 1000
+
+      for (const star of stars) {
+        const x = (star.x * width + offsetX * star.depth + time * star.drift * 8) % width
+        const y = (star.y * height + offsetY * star.depth + Math.sin(time * star.drift + star.x * 16) * star.depth * 5) % height
+        context.beginPath()
+        context.fillStyle = paper
+          ? `rgba(113, 86, 47, ${star.alpha * 0.42})`
+          : `rgba(242, 231, 201, ${star.alpha})`
+        context.arc(x < 0 ? x + width : x, y < 0 ? y + height : y, star.radius, 0, Math.PI * 2)
+        context.fill()
+      }
+    }
+
+    const tick = (timestamp: number) => {
+      draw(timestamp)
+      if (visible && !motionQuery.matches) frame = requestAnimationFrame(tick)
+    }
+
+    const restart = () => {
+      cancelAnimationFrame(frame)
+      draw(performance.now())
+      if (visible && !motionQuery.matches) frame = requestAnimationFrame(tick)
+    }
+
+    const onVisibilityChange = () => {
+      visible = document.visibilityState === 'visible'
+      if (visible) restart()
+      else cancelAnimationFrame(frame)
+    }
+
+    const cleanup = () => {
+      if (disposed) return
+      disposed = true
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      document.removeEventListener('astro:before-swap', cleanup)
+      motionQuery.removeEventListener('change', restart)
+      root.dataset.starfieldReady = ''
+    }
+
+    const observer = new ResizeObserver(resize)
+    observer.observe(root)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    motionQuery.addEventListener('change', restart)
+    resize()
+    restart()
+
+    document.addEventListener('astro:before-swap', cleanup, { once: true })
+    window.addEventListener('pagehide', cleanup, { once: true })
+  }
+
+  document.addEventListener('astro:page-load', initStarfield)
+  initStarfield()
+</script>
+
+<style is:global>
+  .starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 32%),
+      radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 38%);
+  }
+
+  .starfield canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.94;
+    mix-blend-mode: screen;
+  }
+
+  .starfield__mist {
+    position: absolute;
+    width: 56vw;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.38;
+    will-change: transform;
+    animation: starfield-drift 28s ease-in-out infinite alternate;
+  }
+
+  .starfield__mist--gold {
+    top: -20vw;
+    left: -18vw;
+    background: color-mix(in srgb, var(--gold) 24%, transparent);
+  }
+
+  .starfield__mist--stamp {
+    right: -22vw;
+    bottom: -28vw;
+    background: color-mix(in srgb, var(--stamp) 20%, transparent);
+    animation-delay: -14s;
+    animation-direction: alternate-reverse;
+  }
+
+  [data-theme="paper"] .starfield {
+    background:
+      radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 32%),
+      radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--stamp) 7%, transparent), transparent 38%);
+  }
+
+  [data-theme="paper"] .starfield canvas {
+    opacity: 0.62;
+    mix-blend-mode: multiply;
+  }
+
+  @keyframes starfield-drift {
+    from { transform: translate3d(var(--ambient-tilt-x, 0px), var(--ambient-tilt-y, 0px), 0) scale(1); }
+    to { transform: translate3d(calc(var(--ambient-tilt-x, 0px) + 8vw), calc(var(--ambient-tilt-y, 0px) + 5vh), 0) scale(1.12); }
+  }
+
+  @media (max-width: 768px) {
+    .starfield__mist { width: 82vw; filter: blur(56px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .starfield__mist { animation: none; transform: none; will-change: auto; }
+  }
+</style>

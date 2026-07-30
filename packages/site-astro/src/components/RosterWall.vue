@@ -436,7 +436,7 @@ onMounted(async () => {
 /* Grid & Animations */
 .roster-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-rows: 1fr;
   align-items: stretch;
   gap: var(--space-5);
@@ -492,7 +492,7 @@ onMounted(async () => {
   margin-top: var(--space-7);
 }
 
-@media (max-width: 960px) {
+@media (max-width: 900px) {
   .roster-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-4);

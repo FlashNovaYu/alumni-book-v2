@@ -75,22 +75,23 @@ describe('移动端档案墙与样式契约', () => {
     expect(student).toContain("html[data-theme='night'] .student-page .student-hero__name")
   })
 
-  it('MainLayout 只保留一份 dustDrift 和移动环境光规则', () => {
+  it('全局星空只保留一份可降级的 Canvas 环境光规则', () => {
     const layout = readFileSync(src('layouts/MainLayout.astro'), 'utf8')
-    expect(layout.match(/@keyframes dustDrift/g)?.length).toBe(1)
-    expect(layout).toContain('@media (max-width: 768px)')
-    expect(layout).toContain('@media (prefers-reduced-motion: reduce)')
+    const starfield = readFileSync(src('components/StarfieldCanvas.astro'), 'utf8')
+    expect(layout).toContain('<StarfieldCanvas />')
+    expect(starfield).toContain('@media (max-width: 768px)')
+    expect(starfield).toContain('@media (prefers-reduced-motion: reduce)')
   })
 
   it('授权后的方向数据驱动全局星空与首页入口，而不是增加第二份监听器', () => {
     const tilt = readFileSync(src('composables/useMouseTilt.ts'), 'utf8')
-    const layout = readFileSync(src('layouts/MainLayout.astro'), 'utf8')
+    const starfield = readFileSync(src('components/StarfieldCanvas.astro'), 'utf8')
     const hero = readFileSync(src('components/MuseumHero.astro'), 'utf8')
 
     expect(tilt).toContain("'--ambient-tilt-x'")
     expect(tilt).toContain("'--ambient-tilt-y'")
-    expect(layout).toContain('var(--ambient-tilt-x, 0px)')
-    expect(layout).toContain('var(--ambient-tilt-y, 0px)')
+    expect(starfield).toContain('var(--ambient-tilt-x, 0px)')
+    expect(starfield).toContain('var(--ambient-tilt-y, 0px)')
     expect(hero).toContain('data-home-gyro-toggle')
     expect(hero).toContain('initDeviceOrientation()')
     expect(hero).toContain('var(--ambient-hero-x, 0px)')
