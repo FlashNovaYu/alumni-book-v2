@@ -5,6 +5,8 @@
 </div>
 
 <script>
+  import { getCurrentMotionBudget, getMotionFrameInterval } from '../utils/motion'
+
   type Star = {
     x: number
     y: number
@@ -12,9 +14,16 @@
     alpha: number
     drift: number
     depth: number
+    fillStyle: string
+    shadowColor: string
   }
 
   const seed = (index: number) => ((Math.sin(index * 12.9898) * 43758.5453) % 1 + 1) % 1
+
+  const readRgb = (styles: CSSStyleDeclaration, name: string, fallback: string) => {
+    const value = styles.getPropertyValue(name).trim()
+    return value || fallback
+  }
 
   function initStarfield() {
     const root = document.querySelector<HTMLElement>('[data-starfield-root]')
@@ -34,14 +43,37 @@
       alpha: 0.16 + seed(index + 301) * 0.62,
       drift: 0.16 + seed(index + 401) * 0.52,
       depth: 0.24 + seed(index + 501) * 0.76,
+      fillStyle: '',
+      shadowColor: '',
     }))
 
+    const motionBudget = getCurrentMotionBudget()
+    const frameInterval = getMotionFrameInterval(motionBudget)
     let frame = 0
     let width = 0
     let height = 0
     let ratio = 1
     let visible = document.visibilityState === 'visible'
     let disposed = false
+    let lastDrawAt = Number.NEGATIVE_INFINITY
+    let offsetX = 0
+    let offsetY = 0
+    let coreRgb = '242 231 201'
+    let haloRgb = '201 162 75'
+    let alphaScale = 1
+
+    const refreshTheme = () => {
+      const styles = getComputedStyle(document.documentElement)
+      offsetX = Number.parseFloat(styles.getPropertyValue('--ambient-tilt-x')) || 0
+      offsetY = Number.parseFloat(styles.getPropertyValue('--ambient-tilt-y')) || 0
+      coreRgb = readRgb(styles, '--star-core-rgb', coreRgb)
+      haloRgb = readRgb(styles, '--star-halo-rgb', haloRgb)
+      alphaScale = Number.parseFloat(styles.getPropertyValue('--star-alpha-scale')) || 1
+      stars.forEach((star) => {
+        star.fillStyle = `rgb(${coreRgb} / ${star.alpha * alphaScale})`
+        star.shadowColor = `rgb(${haloRgb} / ${star.alpha * 0.24})`
+      })
+    }
 
     const resize = () => {
       const bounds = root.getBoundingClientRect()
@@ -52,39 +84,43 @@
       canvas.height = Math.round(height * ratio)
       canvas.style.width = `${width}px`
       canvas.style.height = `${height}px`
-      draw(0)
+      refreshTheme()
+      draw(0, true)
     }
 
-    const draw = (timestamp: number) => {
+    const draw = (timestamp: number, force = false) => {
+      if (!force && frameInterval > 0 && timestamp - lastDrawAt < frameInterval) return
+      lastDrawAt = timestamp
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
       context.clearRect(0, 0, width, height)
-      const styles = getComputedStyle(document.documentElement)
-      const offsetX = Number.parseFloat(styles.getPropertyValue('--ambient-tilt-x')) || 0
-      const offsetY = Number.parseFloat(styles.getPropertyValue('--ambient-tilt-y')) || 0
-      const paper = document.documentElement.dataset.theme === 'paper'
       const time = motionQuery.matches ? 0 : timestamp / 1000
 
       for (const star of stars) {
         const x = (star.x * width + offsetX * star.depth + time * star.drift * 8) % width
         const y = (star.y * height + offsetY * star.depth + Math.sin(time * star.drift + star.x * 16) * star.depth * 5) % height
         context.beginPath()
-        context.fillStyle = paper
-          ? `rgba(113, 86, 47, ${star.alpha * 0.42})`
-          : `rgba(242, 231, 201, ${star.alpha})`
+        context.fillStyle = star.fillStyle
+        context.shadowColor = star.shadowColor
+        context.shadowBlur = star.radius > 1.2 ? 3 : 0
         context.arc(x < 0 ? x + width : x, y < 0 ? y + height : y, star.radius, 0, Math.PI * 2)
         context.fill()
+        context.shadowBlur = 0
       }
     }
 
+    const canAnimate = () => visible && !motionQuery.matches && motionBudget !== 'reduced'
+
     const tick = (timestamp: number) => {
       draw(timestamp)
-      if (visible && !motionQuery.matches) frame = requestAnimationFrame(tick)
+      if (canAnimate()) frame = requestAnimationFrame(tick)
     }
 
     const restart = () => {
       cancelAnimationFrame(frame)
-      draw(performance.now())
-      if (visible && !motionQuery.matches) frame = requestAnimationFrame(tick)
+      lastDrawAt = Number.NEGATIVE_INFINITY
+      refreshTheme()
+      draw(performance.now(), true)
+      if (canAnimate()) frame = requestAnimationFrame(tick)
     }
 
     const onVisibilityChange = () => {
@@ -93,26 +129,43 @@
       else cancelAnimationFrame(frame)
     }
 
+    const onAmbientTilt = (event: Event) => {
+      const detail = (event as CustomEvent<{ x?: number; y?: number }>).detail
+      if (typeof detail?.x === 'number') offsetX = detail.x
+      if (typeof detail?.y === 'number') offsetY = detail.y
+    }
+
+    const onPageHide = () => cleanup()
+
     const cleanup = () => {
       if (disposed) return
       disposed = true
       cancelAnimationFrame(frame)
       observer.disconnect()
+      themeObserver.disconnect()
       document.removeEventListener('visibilitychange', onVisibilityChange)
       document.removeEventListener('astro:before-swap', cleanup)
+      document.removeEventListener('alumni:ambient-tilt', onAmbientTilt)
       motionQuery.removeEventListener('change', restart)
+      window.removeEventListener('pagehide', onPageHide)
       root.dataset.starfieldReady = ''
     }
 
     const observer = new ResizeObserver(resize)
+    const themeObserver = new MutationObserver(() => {
+      refreshTheme()
+      draw(performance.now(), true)
+    })
     observer.observe(root)
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     document.addEventListener('visibilitychange', onVisibilityChange)
+    document.addEventListener('alumni:ambient-tilt', onAmbientTilt)
     motionQuery.addEventListener('change', restart)
     resize()
     restart()
 
     document.addEventListener('astro:before-swap', cleanup, { once: true })
-    window.addEventListener('pagehide', cleanup, { once: true })
+    window.addEventListener('pagehide', onPageHide, { once: true })
   }
 
   document.addEventListener('astro:page-load', initStarfield)
@@ -137,8 +190,8 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    opacity: 0.94;
-    mix-blend-mode: screen;
+    opacity: var(--starfield-opacity);
+    mix-blend-mode: var(--star-mix-mode);
   }
 
   .starfield__mist {
@@ -170,11 +223,6 @@
     background:
       radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 32%),
       radial-gradient(circle at 76% 68%, color-mix(in srgb, var(--stamp) 7%, transparent), transparent 38%);
-  }
-
-  [data-theme="paper"] .starfield canvas {
-    opacity: 0.62;
-    mix-blend-mode: multiply;
   }
 
   @keyframes starfield-drift {

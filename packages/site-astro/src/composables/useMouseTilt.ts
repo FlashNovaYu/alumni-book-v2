@@ -1,4 +1,5 @@
 import { reactive, onUnmounted, getCurrentInstance } from 'vue'
+import { getCurrentMotionBudget, getMotionFrameInterval } from '../utils/motion'
 
 interface TiltOptions {
   maxTilt?: number
@@ -52,17 +53,25 @@ let currentGlareX = 50
 let currentGlareY = 50
 let targetGlareX = 50
 let targetGlareY = 50
-let rafId: number | null = null
+let orientationFrameId: number | null = null
+let lastOrientationFrame = Number.NEGATIVE_INFINITY
+let orientationFrameInterval = getMotionFrameInterval(getCurrentMotionBudget())
+let lastAmbientX: number | null = null
+let lastAmbientY: number | null = null
 
 const syncAmbientTilt = () => {
   if (typeof document === 'undefined') return
   const root = document.documentElement
   const ambientX = round(currentRotateY * 16)
   const ambientY = round(currentRotateX * 16)
+  if (ambientX === lastAmbientX && ambientY === lastAmbientY) return
+  lastAmbientX = ambientX
+  lastAmbientY = ambientY
   root.style.setProperty('--ambient-tilt-x', `${ambientX}px`)
   root.style.setProperty('--ambient-tilt-y', `${ambientY}px`)
   root.style.setProperty('--ambient-hero-x', `${round(ambientX * 0.3)}px`)
   root.style.setProperty('--ambient-hero-y', `${round(ambientY * 0.3)}px`)
+  document.dispatchEvent(new CustomEvent('alumni:ambient-tilt', { detail: { x: ambientX, y: ambientY } }))
 }
 
 const handleOrientation = (e: DeviceOrientationEvent) => {
@@ -73,18 +82,12 @@ const handleOrientation = (e: DeviceOrientationEvent) => {
   targetRotateY = target.rotateY / 8
   targetGlareX = target.glareX
   targetGlareY = target.glareY
+  queueOrientationFrame()
 }
 
 const activeStates = new Set<Map<string | number, TiltState>>()
 
-const loop = () => {
-  if (!isDeviceOrientationActive) return
-  currentRotateX += (targetRotateX - currentRotateX) * 0.1
-  currentRotateY += (targetRotateY - currentRotateY) * 0.1
-  currentGlareX += (targetGlareX - currentGlareX) * 0.1
-  currentGlareY += (targetGlareY - currentGlareY) * 0.1
-  syncAmbientTilt()
-
+const updateOrientationStates = () => {
   activeStates.forEach((states) => {
     states.forEach((s) => {
       if (!s.isHovered) {
@@ -96,15 +99,44 @@ const loop = () => {
       }
     })
   })
-  rafId = requestAnimationFrame(loop)
+}
+
+const queueOrientationFrame = () => {
+  if (!isDeviceOrientationActive || orientationFrameId !== null || typeof window === 'undefined') return
+  orientationFrameId = requestAnimationFrame(updateOrientation)
+}
+
+const updateOrientation = (timestamp: number) => {
+  orientationFrameId = null
+  if (!isDeviceOrientationActive) return
+  if (timestamp - lastOrientationFrame < orientationFrameInterval) {
+    queueOrientationFrame()
+    return
+  }
+  lastOrientationFrame = timestamp
+  currentRotateX += (targetRotateX - currentRotateX) * 0.1
+  currentRotateY += (targetRotateY - currentRotateY) * 0.1
+  currentGlareX += (targetGlareX - currentGlareX) * 0.1
+  currentGlareY += (targetGlareY - currentGlareY) * 0.1
+  syncAmbientTilt()
+  updateOrientationStates()
+
+  const settled = [
+    targetRotateX - currentRotateX,
+    targetRotateY - currentRotateY,
+    targetGlareX - currentGlareX,
+    targetGlareY - currentGlareY,
+  ].every((difference) => Math.abs(difference) < 0.01)
+  if (!settled) queueOrientationFrame()
 }
 
 const startOrientationListener = () => {
   if (isDeviceOrientationActive || typeof window === 'undefined') return
   isDeviceOrientationActive = true
+  orientationFrameInterval = getMotionFrameInterval(getCurrentMotionBudget())
+  lastOrientationFrame = Number.NEGATIVE_INFINITY
   activeStates.forEach((states) => states.forEach((state) => { state.isOrientationActive = true }))
   window.addEventListener('deviceorientation', handleOrientation)
-  loop()
 }
 
 export const initDeviceOrientation = async (): Promise<DeviceOrientationStatus> => {
@@ -142,10 +174,11 @@ export const stopDeviceOrientation = () => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('deviceorientation', handleOrientation)
   }
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId)
-    rafId = null
+  if (orientationFrameId !== null) {
+    cancelAnimationFrame(orientationFrameId)
+    orientationFrameId = null
   }
+  lastOrientationFrame = Number.NEGATIVE_INFINITY
   baseBeta = null
   currentRotateX = 0
   currentRotateY = 0
@@ -175,6 +208,13 @@ export function useMouseTilt(options: TiltOptions = {}) {
 
   const states = reactive(new Map<string | number, TiltState>())
   activeStates.add(states)
+  const pendingPointers = new Map<string | number, {
+    target: HTMLElement
+    clientX: number
+    clientY: number
+    pointerType: string
+  }>()
+  let pointerFrameId: number | null = null
 
   const getState = (key: string | number): TiltState => {
     if (!states.has(key)) {
@@ -191,24 +231,39 @@ export function useMouseTilt(options: TiltOptions = {}) {
     return states.get(key)!
   }
 
+  const flushPointers = () => {
+    pointerFrameId = null
+    pendingPointers.forEach((pending, key) => {
+      const rect = pending.target.getBoundingClientRect()
+      const x = pending.clientX - rect.left
+      const y = pending.clientY - rect.top
+      const centerX = rect.width / 2 || 1
+      const centerY = rect.height / 2 || 1
+      const percentX = (x - centerX) / centerX
+      const percentY = -((y - centerY) / centerY)
+
+      const s = getState(key)
+      s.rotateX = percentY * maxTilt
+      s.rotateY = percentX * maxTilt
+      const glare = mapPointerToGlare({ x, y, width: rect.width || 1, height: rect.height || 1 })
+      s.glareX = glare.glareX
+      s.glareY = glare.glareY
+    })
+    pendingPointers.clear()
+  }
+
+  const queuePointerFrame = () => {
+    if (pointerFrameId === null) pointerFrameId = requestAnimationFrame(flushPointers)
+  }
+
   const onPointerMove = (e: MouseEvent | PointerEvent, key: string | number) => {
     const target = e.currentTarget as HTMLElement
     if (!target) return
-    const rect = target.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
-    const percentX = (x - centerX) / centerX
-    const percentY = -((y - centerY) / centerY)
-
     const s = getState(key)
-    if ('pointerType' in e && e.pointerType !== 'mouse') s.isHovered = true
-    s.rotateX = percentY * maxTilt
-    s.rotateY = percentX * maxTilt
-    const glare = mapPointerToGlare({ x, y, width: rect.width, height: rect.height })
-    s.glareX = glare.glareX
-    s.glareY = glare.glareY
+    const pointerType = 'pointerType' in e ? e.pointerType || 'mouse' : 'mouse'
+    if (pointerType !== 'mouse') s.isHovered = true
+    pendingPointers.set(key, { target, clientX: e.clientX, clientY: e.clientY, pointerType })
+    queuePointerFrame()
   }
 
   const onMouseMove = onPointerMove
@@ -218,6 +273,11 @@ export function useMouseTilt(options: TiltOptions = {}) {
   }
 
   const onMouseLeave = (key: string | number) => {
+    pendingPointers.delete(key)
+    if (pendingPointers.size === 0 && pointerFrameId !== null) {
+      cancelAnimationFrame(pointerFrameId)
+      pointerFrameId = null
+    }
     const s = getState(key)
     s.isHovered = false
     if (!isDeviceOrientationActive) {
@@ -234,6 +294,11 @@ export function useMouseTilt(options: TiltOptions = {}) {
 
   if (getCurrentInstance()) {
     onUnmounted(() => {
+      pendingPointers.clear()
+      if (pointerFrameId !== null) {
+        cancelAnimationFrame(pointerFrameId)
+        pointerFrameId = null
+      }
       activeStates.delete(states)
       if (activeStates.size === 0) stopDeviceOrientation()
     })
