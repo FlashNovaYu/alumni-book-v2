@@ -20,9 +20,15 @@ describe('动画性能静态契约', () => {
 
   it('方向动画只在事件驱动的合帧循环中更新', () => {
     const tilt = read('composables/useMouseTilt.ts')
+    const card = read('components/ArchiveRosterCard.vue')
+    expect(tilt).toContain('pendingPointers')
+    expect(tilt).toContain('pointerFrameId')
     expect(tilt).toContain('orientationFrameId')
     expect(tilt).toContain('lastOrientationFrame')
     expect(tilt).toContain('getMotionFrameInterval(')
+    expect(tilt).toContain('cancelAnimationFrame(pointerFrameId)')
+    expect(tilt).toContain('cancelAnimationFrame(orientationFrameId)')
     expect(tilt).toContain("document.dispatchEvent(new CustomEvent('alumni:ambient-tilt'")
+    expect(card).not.toContain('will-change: transform')
   })
 })

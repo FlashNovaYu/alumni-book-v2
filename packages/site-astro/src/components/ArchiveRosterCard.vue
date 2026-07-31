@@ -169,7 +169,6 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   min-width: 0;
   text-decoration: none;
   transform-style: preserve-3d;
-  will-change: transform;
   /* Ensure a high z-index when hovered for 3d effect */
   position: relative;
   z-index: 1;
