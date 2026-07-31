@@ -226,7 +226,7 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   display: grid;
   gap: var(--space-2);
   margin: 0;
-  color: #fffaf2;
+  color: var(--hero-ink);
   font-family: var(--font-display);
   font-size: clamp(56px, 10vw, 120px);
   font-weight: var(--weight-semibold);
@@ -279,8 +279,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 }
 
 .home-cover__scroll:hover {
-  color: #fffaf2;
-  border-color: rgba(255, 250, 242, 0.46);
+  color: var(--hero-ink);
+  border-color: color-mix(in srgb, var(--hero-ink) 46%, transparent);
   transform: translateY(-2px);
 }
 
@@ -291,8 +291,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   min-height: 36vh;
   padding: var(--space-9) var(--space-5);
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 250, 242, 0.28), transparent 34%),
-    linear-gradient(180deg, #11100e 0%, #211d17 24%, var(--bg) 78%);
+    radial-gradient(circle at 50% 0%, var(--hero-ink-soft), transparent 34%),
+    linear-gradient(180deg, var(--hero-scrim) 0%, color-mix(in srgb, var(--hero-scrim) 72%, var(--bg)) 24%, var(--bg) 78%);
 }
 
 .home-login-cta__button {
@@ -524,8 +524,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 }
 
 .home-cover__scroll:hover {
-  color: #fffaf2;
-  border-color: rgba(255, 250, 242, 0.46);
+  color: var(--hero-ink);
+  border-color: color-mix(in srgb, var(--hero-ink) 46%, transparent);
   transform: translateY(-2px);
 }
 
@@ -536,8 +536,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
   min-height: 36vh;
   padding: var(--space-9) var(--space-5);
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 250, 242, 0.28), transparent 34%),
-    linear-gradient(180deg, #11100e 0%, #211d17 24%, var(--bg) 78%);
+    radial-gradient(circle at 50% 0%, var(--hero-ink-soft), transparent 34%),
+    linear-gradient(180deg, var(--hero-scrim) 0%, color-mix(in srgb, var(--hero-scrim) 72%, var(--bg)) 24%, var(--bg) 78%);
 }
 
 .home-login-cta__button {
@@ -775,29 +775,45 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 
   function initParallax() {
     cleanupParallax()
-    const elements = document.querySelectorAll<HTMLElement>('[data-parallax]')
-    if (!elements.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const hero = document.querySelector<HTMLElement>('.home-cover')
+    const parallaxItems = Array.from(document.querySelectorAll<HTMLElement>('[data-parallax]')).map((element) => {
+      let speed = 0
+      try {
+        speed = Number(JSON.parse(element.dataset.parallax || '{}').speed) || 0
+      } catch {}
+      return { element, speed }
+    })
+    if (!parallaxItems.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     let rafId: number | null = null
     let ticking = false
+    let heroVisible = true
+    const heroObserver = hero && 'IntersectionObserver' in window
+      ? new IntersectionObserver(([entry]) => {
+        heroVisible = entry.isIntersecting
+        if (!heroVisible && rafId !== null) {
+          cancelAnimationFrame(rafId)
+          rafId = null
+          ticking = false
+        }
+      }, { threshold: 0 })
+      : null
+    if (heroObserver && hero) heroObserver.observe(hero)
+
     const updateParallax = () => {
+      rafId = null
+      ticking = false
+      if (!heroVisible) return
       const scrollY = window.scrollY
       if (scrollY > window.innerHeight * 1.5) {
-        ticking = false
-        rafId = null
         return
       }
-      elements.forEach((element) => {
-        try {
-          const speed = JSON.parse(element.getAttribute('data-parallax') || '{}').speed || 0
-          element.style.setProperty('--parallax-y', `${scrollY * speed}px`)
-        } catch {}
+      parallaxItems.forEach(({ element, speed }) => {
+        element.style.setProperty('--parallax-y', `${scrollY * speed}px`)
       })
-      ticking = false
-      rafId = null
     }
     const onScroll = () => {
-      if (!ticking) {
+      if (heroVisible && !ticking) {
         rafId = requestAnimationFrame(updateParallax)
         ticking = true
       }
@@ -806,8 +822,10 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
     cleanupParallax = () => {
       window.removeEventListener('scroll', onScroll)
       if (rafId !== null) cancelAnimationFrame(rafId)
+      heroObserver?.disconnect()
       rafId = null
       ticking = false
+      heroVisible = false
     }
   }
 
@@ -833,14 +851,25 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
 
     const cleanups: Array<() => void> = []
     document.querySelectorAll<HTMLElement>('[data-hero-magnetic]').forEach((element) => {
+      let targetX = 0
+      let targetY = 0
+      let pointerFrameId: number | null = null
+      const flushPointer = () => {
+        pointerFrameId = null
+        element.style.setProperty('--hero-magnetic-x', `${targetX.toFixed(2)}px`)
+        element.style.setProperty('--hero-magnetic-y', `${targetY.toFixed(2)}px`)
+      }
       const onPointerMove = (event: PointerEvent) => {
         const rect = element.getBoundingClientRect()
-        const x = ((event.clientX - rect.left) / rect.width - 0.5) * 12
-        const y = ((event.clientY - rect.top) / rect.height - 0.5) * 10
-        element.style.setProperty('--hero-magnetic-x', `${x.toFixed(2)}px`)
-        element.style.setProperty('--hero-magnetic-y', `${y.toFixed(2)}px`)
+        targetX = ((event.clientX - rect.left) / rect.width - 0.5) * 12
+        targetY = ((event.clientY - rect.top) / rect.height - 0.5) * 10
+        if (pointerFrameId === null) pointerFrameId = requestAnimationFrame(flushPointer)
       }
       const onPointerLeave = () => {
+        if (pointerFrameId !== null) cancelAnimationFrame(pointerFrameId)
+        pointerFrameId = null
+        targetX = 0
+        targetY = 0
         element.style.setProperty('--hero-magnetic-x', '0px')
         element.style.setProperty('--hero-magnetic-y', '0px')
       }
@@ -849,6 +878,8 @@ const { apiBase, heroEyebrow, heroTitle, heroSubtitle } = Astro.props
       cleanups.push(() => {
         element.removeEventListener('pointermove', onPointerMove)
         element.removeEventListener('pointerleave', onPointerLeave)
+        if (pointerFrameId !== null) cancelAnimationFrame(pointerFrameId)
+        pointerFrameId = null
         onPointerLeave()
       })
     })

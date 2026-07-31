@@ -65,6 +65,15 @@ describe('公开站点原生运行时性能约束', () => {
     expect(hero).toContain('cancelAnimationFrame')
   })
 
+  it('首页视差与磁吸更新使用缓存数据、可见性门控和合帧写入', () => {
+    const hero = read('components/MuseumHero.astro')
+    expect(hero).toContain('const parallaxItems =')
+    expect(hero).toContain('IntersectionObserver')
+    expect(hero).toContain('pointerFrameId')
+    expect(hero).toContain('cancelAnimationFrame(pointerFrameId)')
+    expect(hero).not.toContain("JSON.parse(element.getAttribute('data-parallax') || '{}').speed")
+  })
+
   it('首页只保留登录所需的 Vue island，其余公共页保持静态', () => {
     const dist = resolve(__dirname, '../dist')
     const home = readFileSync(resolve(dist, 'index.html'), 'utf8')
