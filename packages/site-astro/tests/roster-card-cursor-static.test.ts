@@ -5,15 +5,19 @@ import { resolve } from 'path'
 const site = (file: string) => readFileSync(resolve(__dirname, '../src', file), 'utf-8')
 
 describe('花名录方形卡与自定义指针', () => {
-  it('将同学档案渲染为大方形卡片，同时保留头像和文字的纵向信息层级', () => {
+  it('将同学档案渲染为居中的方形索引卡，而非照片主视觉卡', () => {
     const card = site('components/ArchiveRosterCard.vue')
     const wall = site('components/RosterWall.vue')
 
     expect(card).toContain('aspect-ratio: 1 / 1')
     expect(card).toContain('class="roster-card__punch"')
-    expect(card).toContain('class="roster-card__media"')
+    expect(card).toContain('class="roster-card__seal"')
+    expect(card).toContain("'roster-card__avatar'")
+    expect(card).toContain('border-radius: 50%')
     expect(card).toContain('class="roster-card__rule"')
     expect(card).toContain('class="roster-card__body"')
+    expect(card).toContain('align-items: center')
+    expect(card).toContain('text-align: center')
     expect(wall).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
   })
 

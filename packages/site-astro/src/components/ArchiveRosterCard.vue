@@ -22,7 +22,7 @@
       <span class="roster-card__punch" aria-hidden="true" />
       <span class="roster-card__archive-id">{{ archiveId }}</span>
 
-      <div class="roster-card__media" :class="'roster-card__avatar'" :style="avatarTransitionStyle">
+      <div class="roster-card__seal" :class="'roster-card__avatar'" :style="avatarTransitionStyle">
         <img
           v-if="card.avatarUrl && !avatarError"
           ref="avatarImage"
@@ -42,10 +42,10 @@
 
       <span class="roster-card__rule" aria-hidden="true" />
       <div class="roster-card__body">
-        <div class="roster-card__meta">
-          <span v-if="card.statusLabel" class="roster-card__status">{{ card.statusLabel }}</span>
-        </div>
         <div class="roster-card__name" :style="nameTransitionStyle">{{ card.name }}</div>
+        <div v-if="card.statusLabel" class="roster-card__meta">
+          <span class="roster-card__status">{{ card.statusLabel }}</span>
+        </div>
         <div data-student-card-details class="roster-card__details" :style="detailsTransitionStyle">
           <p v-if="card.motto" class="roster-card__motto">{{ card.motto }}</p>
           <div v-if="card.tags?.length" class="roster-card__tags">
@@ -182,13 +182,16 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card__inner {
   position: relative;
   display: grid;
-  grid-template-rows: minmax(0, 1.15fr) 1px minmax(0, 0.85fr);
-  gap: clamp(8px, 3%, var(--space-3));
+  grid-template-rows: auto 1px minmax(0, 1fr);
+  justify-items: center;
+  gap: clamp(9px, 3.5%, var(--space-3));
   height: 100%;
-  padding: clamp(var(--space-3), 5%, var(--space-5));
-  background: color-mix(in srgb, var(--bg-surface) 92%, var(--surface-raised));
+  padding: clamp(28px, 9%, 42px) clamp(var(--space-3), 6%, var(--space-5)) clamp(var(--space-3), 6%, var(--space-5));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-raised) 48%, transparent), transparent 52%),
+    color-mix(in srgb, var(--bg-surface) 94%, var(--surface-raised));
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-skeuo-sm, var(--shadow-sm));
   transition:
     box-shadow var(--duration-normal) var(--ease-out-expo),
@@ -206,7 +209,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   border-radius: inherit;
 }
 
-.roster-card__media,
+.roster-card__seal,
 .roster-card__body {
   position: relative;
   z-index: 1;
@@ -214,11 +217,13 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .roster-card__punch {
   position: absolute;
-  inset: clamp(12px, 6%, 20px) auto auto clamp(12px, 6%, 20px);
+  top: clamp(12px, 5%, 18px);
+  left: 50%;
   z-index: 3;
   width: 8px;
   aspect-ratio: 1;
   border-radius: 50%;
+  transform: translateX(-50%);
   background: color-mix(in srgb, var(--text-primary) 36%, var(--bg));
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.24), 0 1px 0 color-mix(in srgb, var(--surface-raised) 52%, transparent);
 }
@@ -226,7 +231,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 .roster-card__meta {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: var(--space-2);
   min-height: 16px;
 }
@@ -252,7 +257,7 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   position: relative;
   z-index: 1;
   display: block;
-  width: 100%;
+  width: 62%;
   background: linear-gradient(90deg, transparent, var(--border-strong) 10% 90%, transparent);
 }
 
@@ -270,25 +275,27 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   z-index: 5;
 }
 
-/* Portrait media */
-.roster-card__media {
+/* 档案圆章：头像仅作为索引标记，不占据整张卡片。 */
+.roster-card__seal {
   position: relative;
-  min-height: 0;
-  height: 100%;
+  width: clamp(56px, 29%, 90px);
+  aspect-ratio: 1;
   overflow: hidden;
-  border-radius: calc(var(--radius-md) - 2px);
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
+  background:
+    radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 48%),
+    linear-gradient(135deg, var(--bg-soft), var(--bg-raised));
   color: var(--text-primary);
   border: 1px solid var(--border);
   font-family: var(--font-display);
-  font-size: clamp(32px, 10vw, 56px);
+  font-size: clamp(26px, 7vw, 40px);
   font-weight: var(--weight-semibold);
-  flex-shrink: 0;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bg-surface) 62%, transparent), 0 0 0 5px var(--border);
 }
 
-.roster-card__media img {
+.roster-card__seal img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -305,13 +312,13 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .roster-card__avatar-glow {
   position: absolute;
-  inset: -4px;
+  inset: 0;
   border-radius: inherit;
   background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
   opacity: 0;
   transition: opacity var(--duration-normal) var(--ease-out-expo);
   pointer-events: none;
-  z-index: -1;
+  z-index: 1;
 }
 
 .roster-card:hover .roster-card__avatar-glow {
@@ -320,13 +327,14 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 /* Body */
 .roster-card__body {
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   gap: clamp(3px, 2%, var(--space-2));
-  text-align: left;
+  text-align: center;
 }
 
 .roster-card__name {
@@ -345,11 +353,12 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-width: 24ch;
 }
 
 .roster-card__tags {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
@@ -378,10 +387,10 @@ const avatarMedia = computed(() => buildMediaSources(avatarSrc.value, props.card
 
 .roster-card__status {
   font-size: var(--type-caption);
-  color: var(--error);
+  color: var(--accent);
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
-  text-align: left;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
