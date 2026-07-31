@@ -412,4 +412,3 @@ Expected: 用户现有主题改动、global-theme-palette 计划/规格、.tmp�
 - 计划不包含生产部署、API/数据库修改、内容虚拟化或新动画框架。
 - 所有新增符号已在前置任务定义：MotionBudget、MotionEnvironment、getMotionBudget、getMotionFrameInterval、getCurrentMotionBudget、pendingPointers、pointerFrameId、orientationFrameId、cursorFrameId、cursorMode。
 - 没有 TBD、TODO、later 或实现占位。
-
