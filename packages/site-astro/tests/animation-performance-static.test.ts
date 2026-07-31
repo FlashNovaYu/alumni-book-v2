@@ -41,4 +41,20 @@ describe('动画性能静态契约', () => {
     expect(cursor).toContain('will-change: transform, opacity')
     expect(cursor).not.toContain('will-change: transform, width, height, opacity')
   })
+
+  it('交互样式不再使用会扩大重绘范围的 transition: all', () => {
+    const files = [
+      'components/AccountCenter.vue',
+      'components/AlbumGrid.vue',
+      'components/CalendarDatePicker.vue',
+      'components/MessageWall.vue',
+      'components/RankingsPanel.vue',
+      'components/RosterWall.vue',
+      'components/StudentProfile.vue',
+      'components/TopNavSession.vue',
+      'pages/timeline.astro',
+    ]
+    for (const file of files) expect(read(file)).not.toMatch(/transition:\s*all/)
+    expect(read('components/AlbumGrid.vue')).toContain('transition: transform')
+  })
 })

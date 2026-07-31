@@ -348,7 +348,7 @@ onMounted(async () => {
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out-expo);
+  transition: background-color var(--duration-fast) var(--ease-out-expo), color var(--duration-fast) var(--ease-out-expo), border-color var(--duration-fast) var(--ease-out-expo), box-shadow var(--duration-fast) var(--ease-out-expo);
 }
 
 .roster-gyro-status {
@@ -402,7 +402,7 @@ onMounted(async () => {
 }
 
 .roster-search__input::placeholder {
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
 
 .roster-search__clear {

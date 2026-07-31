@@ -454,7 +454,7 @@ const heroBgStyle = computed(() => {
   return {
     backgroundImage: backgroundMedia.src
       ? `linear-gradient(180deg, rgba(28,25,23,0.3) 0%, rgba(28,25,23,0.7) 100%), url(${backgroundMedia.src})`
-      : 'linear-gradient(180deg, #292524 0%, #1c1917 100%)',
+      : 'linear-gradient(180deg, var(--hero-scrim) 0%, var(--bg) 100%)',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
   }
@@ -772,7 +772,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--gold), #a07830);
+  background: linear-gradient(135deg, var(--gold), var(--accent-strong));
   border-radius: 50%;
   color: var(--bg-raised);
   box-shadow: var(--shadow-sm);
@@ -1219,7 +1219,7 @@ html[data-theme='night'] .student-page .student-hero__action {
 button.seal {
   background: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
 }
 
 button.seal:not(:disabled):hover {

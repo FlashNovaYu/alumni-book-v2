@@ -204,7 +204,7 @@ async function handleLogout() {
   max-width: 500px;
   margin: 0 auto;
   padding: 30px;
-  background: var(--color-surface-card, #fff);
+  background: var(--color-surface-card, var(--surface-raised));
   border-radius: var(--rounded-lg, 12px);
   box-shadow: var(--shadow-sm, 0 4px 12px rgba(0, 0, 0, 0.05));
 }
@@ -215,7 +215,7 @@ async function handleLogout() {
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-hairline, #eee);
+  border-bottom: 1px solid var(--color-hairline);
 }
 
 .avatar-container {
@@ -223,7 +223,7 @@ async function handleLogout() {
   height: 64px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--color-primary-light, #ffdcd2);
+  border: 2px solid var(--accent-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,8 +238,8 @@ async function handleLogout() {
 .avatar-fallback {
   width: 100%;
   height: 100%;
-  background: var(--color-primary-light, #ffdcd2);
-  color: var(--color-primary, #cc785c);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 24px;
   font-weight: 700;
   display: flex;
@@ -251,13 +251,13 @@ async function handleLogout() {
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: var(--color-text, #333);
+  color: var(--text-primary);
 }
 
 .badge {
   font-size: 11px;
-  background: var(--color-primary-light, #ffdcd2);
-  color: var(--color-primary, #cc785c);
+  background: var(--accent-soft);
+  color: var(--accent);
   padding: 2px 8px;
   border-radius: 20px;
   font-weight: 500;
@@ -278,19 +278,19 @@ async function handleLogout() {
   padding: 12px;
   min-height: 44px;
   border-radius: var(--rounded-md, 8px);
-  background: var(--color-surface-cream, #fcfaf7);
-  border: 1px solid var(--color-hairline, #eee);
-  color: var(--color-text, #333);
+  background: var(--surface-raised);
+  border: 1px solid var(--color-hairline);
+  color: var(--text-primary);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: all var(--duration-fast, 0.2s);
+  transition: background-color var(--duration-fast, 0.2s), color var(--duration-fast, 0.2s), border-color var(--duration-fast, 0.2s);
 }
 
 .link-item:hover {
-  background: var(--color-primary-light, #ffdcd2);
-  border-color: var(--color-primary, #cc785c);
-  color: var(--color-primary, #cc785c);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .icon { display: inline-grid; width: 18px; height: 18px; place-items: center; }
@@ -299,7 +299,7 @@ async function handleLogout() {
 .password-change-section {
   margin-bottom: 30px;
   padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-hairline, #eee);
+  border-bottom: 1px solid var(--color-hairline);
 }
 
 .password-change-section h3 {
@@ -310,7 +310,7 @@ async function handleLogout() {
 
 .section-desc {
   font-size: 13px;
-  color: var(--color-muted, #666);
+  color: var(--text-muted);
   margin: 0 0 20px 0;
 }
 
@@ -329,13 +329,13 @@ async function handleLogout() {
 .form-group label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-muted, #555);
+  color: var(--text-secondary);
 }
 
 .form-group input {
   padding: 10px 14px;
   min-height: 44px;
-  border: 1px solid var(--color-hairline, #ccc);
+  border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-md, 8px);
   font-size: 14px;
   color: var(--text-primary);
@@ -345,16 +345,16 @@ async function handleLogout() {
 }
 
 .form-group input:focus {
-  border-color: var(--color-primary, #cc785c);
+  border-color: var(--accent);
 }
 
 .error-msg {
-  color: var(--color-error, #c62828);
+  color: var(--error);
   font-size: 13px;
 }
 
 .success-msg {
-  color: var(--color-success, #2e7d32);
+  color: var(--success);
   font-size: 13px;
   padding-left: 8px;
   border-left: 2px solid currentColor;
@@ -368,16 +368,16 @@ async function handleLogout() {
   border-radius: var(--rounded-md, 8px);
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .btn-primary {
-  background: var(--color-primary, #cc785c);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .btn-primary:hover {
-  background: var(--color-primary-strong, #b56146);
+  background: var(--accent-strong);
 }
 
 .btn-primary:disabled {
@@ -387,8 +387,8 @@ async function handleLogout() {
 
 .btn-danger {
   background: transparent;
-  color: var(--color-error, #c62828);
-  border: 1px solid var(--color-error, #c62828);
+  color: var(--error);
+  border: 1px solid var(--error);
 }
 
 .btn-danger:hover {
@@ -402,14 +402,14 @@ async function handleLogout() {
 .loading-state, .unauthorized-state {
   text-align: center;
   padding: 40px 0;
-  color: var(--color-muted, #666);
+  color: var(--text-muted);
 }
 
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid var(--color-hairline, #eee);
-  border-top-color: var(--color-primary, #cc785c);
+  border: 3px solid var(--color-hairline);
+  border-top-color: var(--accent);
   border-radius: 50%;
   margin: 0 auto 16px;
   animation: spin 0.8s linear infinite;

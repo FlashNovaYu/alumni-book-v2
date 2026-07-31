@@ -402,7 +402,7 @@ onBeforeUnmount(() => {
   height: 28px;
   border: 0;
   background: transparent;
-  color: var(--color-muted-soft, #8e8b82);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
@@ -413,7 +413,7 @@ onBeforeUnmount(() => {
   right: 12px;
   display: flex;
   align-items: center;
-  color: var(--color-muted-soft, #8e8b82);
+  color: var(--text-muted);
   pointer-events: none;
 }
 
@@ -424,8 +424,8 @@ onBeforeUnmount(() => {
   z-index: 1000;
   margin-top: 6px;
   width: 300px;
-  background-color: var(--color-surface-cream, #faf9f5);
-  border: 1px solid var(--color-hairline, #e6dfd8);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-lg, 12px);
   padding: 16px 12px;
   box-shadow: var(--shadow-paper-card, 0 10px 30px rgba(0, 0, 0, 0.15));
@@ -446,16 +446,16 @@ onBeforeUnmount(() => {
   width: 28px;
   height: 28px;
   border-radius: var(--rounded-sm, 6px);
-  border: 1px solid var(--color-hairline, #e6dfd8);
+  border: 1px solid var(--color-hairline);
   background-color: transparent;
-  color: var(--color-ink, #141413);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nav-btn:hover {
-  background-color: var(--color-surface-cream-strong, #e8e0d2);
-  border-color: var(--color-muted-soft, #8e8b82);
+  background-color: var(--surface-sunken);
+  border-color: var(--text-muted);
 }
 
 .header-title {
@@ -463,7 +463,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-ink, #141413);
+  color: var(--text-primary);
 }
 
 .clickable-title {
@@ -474,7 +474,7 @@ onBeforeUnmount(() => {
 }
 
 .clickable-title:hover {
-  background-color: var(--color-surface-cream-strong, #e8e0d2);
+  background-color: var(--surface-sunken);
 }
 
 /* 星期头部样式 */
@@ -493,7 +493,7 @@ onBeforeUnmount(() => {
   height: 36px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-muted-soft, #8e8b82);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -519,8 +519,8 @@ onBeforeUnmount(() => {
   cursor: pointer;
   border-radius: var(--rounded-md, 8px);
   font-size: 13px;
-  color: var(--color-ink, #141413);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-primary);
+  transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0;
 }
 
@@ -530,17 +530,17 @@ onBeforeUnmount(() => {
 
 .day-cell:hover:not(.is-selected) {
   background-color: var(--color-surface-soft, rgba(0, 0, 0, 0.05));
-  color: var(--color-ink, #141413);
+  color: var(--text-primary);
 }
 
 .day-cell.is-prev-next {
-  color: var(--color-muted-soft, #8e8b82);
+  color: var(--text-muted);
   opacity: 0.3;
 }
 
 .day-cell.is-selected {
-  background-color: var(--color-primary, #cc785c);
-  color: var(--color-on-primary, #ffffff);
+  background-color: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -554,14 +554,14 @@ onBeforeUnmount(() => {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background-color: var(--color-primary, #cc785c);
+  background-color: var(--accent);
   pointer-events: none;
   z-index: 2;
   transition: background-color 0.15s ease;
 }
 
 .day-cell.is-today.is-selected::after {
-  background-color: var(--color-on-primary, #ffffff);
+  background-color: var(--on-accent);
 }
 
 /* 月份/年份网格通用样式 */
@@ -578,26 +578,26 @@ onBeforeUnmount(() => {
 
 .grid-item-btn {
   padding: 8px 4px;
-  border: 1px solid var(--color-hairline, #e6dfd8);
+  border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-md, 8px);
   background-color: transparent;
-  color: var(--color-ink, #141413);
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   text-align: center;
 }
 
 .grid-item-btn:hover {
-  background-color: var(--color-surface-cream-strong, #e8e0d2);
-  border-color: var(--color-muted-soft, #8e8b82);
+  background-color: var(--surface-sunken);
+  border-color: var(--text-muted);
 }
 
 .grid-item-btn.is-active {
-  background-color: var(--color-primary, #cc785c);
-  color: var(--color-on-primary, #ffffff);
-  border-color: var(--color-primary, #cc785c);
+  background-color: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
 }
 
 /* 动效 */

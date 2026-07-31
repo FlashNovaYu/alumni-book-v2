@@ -298,7 +298,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out-quart);
+  transition: background-color var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), border-color var(--duration-fast) var(--ease-out-quart);
 }
 
 .tag-filter-btn:hover {
@@ -358,7 +358,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   /* Retro paper padding */
   padding: 12px;
   padding-bottom: 36px;
-  background: #fdfaf6;
+  background: var(--surface-paper);
   box-shadow:
     0 4px 12px rgba(0,0,0,0.08),
     0 1px 3px rgba(0,0,0,0.1),
@@ -404,7 +404,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   right: 0;
   text-align: center;
   padding: 0 12px;
-  color: #8c7b64;
+  color: var(--text-muted);
   font-family: 'Kaiti', 'STKaiti', cursive, serif;
   font-size: 13px;
   opacity: 0.8;
@@ -414,20 +414,20 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.photo-item:hover .photo-caption { opacity: 1; color: #5a4b38; }
+.photo-item:hover .photo-caption { opacity: 1; color: var(--accent-strong); }
 
-.frame-retro .photo-item { background: #f4ecd8; padding-bottom: 40px; }
-.frame-film .photo-item { padding: 12px; padding-bottom: 12px; background: #1c1c1c; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-.frame-film .photo-caption { color: #aaa; bottom: 16px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); padding: 8px; opacity: 0; }
-.frame-film .photo-item:hover .photo-caption { opacity: 1; color: #eee; }
+.frame-retro .photo-item { background: var(--surface-sunken); padding-bottom: 40px; }
+.frame-film .photo-item { padding: 12px; padding-bottom: 12px; background: var(--surface-canvas); box-shadow: var(--shadow-md); }
+.frame-film .photo-caption { color: var(--hero-ink-soft); bottom: 16px; background: linear-gradient(to top, color-mix(in srgb, var(--hero-scrim) 80%, transparent), transparent); padding: 8px; opacity: 0; }
+.frame-film .photo-item:hover .photo-caption { opacity: 1; color: var(--hero-ink); }
 .frame-polaroid .photo-item { padding: 16px; padding-bottom: 56px; background: var(--bg-surface); box-shadow: var(--shadow-lg); border-radius: 2px; }
-.frame-polaroid .photo-caption { bottom: 16px; font-size: 14px; color: #444; }
+.frame-polaroid .photo-caption { bottom: 16px; font-size: 14px; color: var(--text-secondary); }
 
 /* FLIP Animations */
 .photo-list-move,
 .photo-list-enter-active,
 .photo-list-leave-active {
-  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .photo-list-enter-from,
@@ -440,9 +440,9 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   position: absolute;
 }
 
-.lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; }
-.lightbox-close { position: absolute; top: 20px; right: 24px; color: rgba(240,210,150,0.6); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
-.lightbox-close:hover { color: var(--color-on-dark); transform: rotate(90deg); }
+.lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: var(--hero-scrim); display: flex; align-items: center; justify-content: center; }
+.lightbox-close { position: absolute; top: 20px; right: 24px; color: var(--hero-ink-soft); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
+.lightbox-close:hover { color: var(--hero-ink); transform: rotate(90deg); }
 
 /* 渐进式大图加载容器与图片样式 */
 .lightbox-content {
@@ -496,8 +496,8 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .spinner-ring {
   width: 36px;
   height: 36px;
-  border: 3px solid rgba(240, 210, 150, 0.1);
-  border-top: 3px solid rgba(240, 210, 150, 0.85);
+  border: 3px solid color-mix(in srgb, var(--hero-ink) 10%, transparent);
+  border-top: 3px solid color-mix(in srgb, var(--hero-ink) 85%, transparent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -506,14 +506,14 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-.lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: rgba(240,210,150,0.5); font-size: 36px; background: rgba(0,0,0,0.3); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
-.lightbox-nav:hover { background: rgba(0,0,0,0.6); color: var(--color-on-dark); }
+.lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: var(--hero-ink-soft); font-size: 36px; background: color-mix(in srgb, var(--hero-scrim) 30%, transparent); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); }
+.lightbox-nav:hover { background: color-mix(in srgb, var(--hero-scrim) 60%, transparent); color: var(--hero-ink); }
 .lightbox-nav.prev:hover { transform: translateY(-50%) translateX(-2px); }
 .lightbox-nav.next:hover { transform: translateY(-50%) translateX(2px); }
 .lightbox-nav.prev { left: 16px; }
 .lightbox-nav.next { right: 16px; }
-.lightbox-caption { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); color: rgba(240,210,150,0.7); font-size: var(--type-body-sm-size); letter-spacing: 0.1em; }
-.lightbox-counter { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: rgba(240,210,150,0.4); font-size: var(--type-caption-size); }
+.lightbox-caption { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); color: var(--hero-ink-soft); font-size: var(--type-body-sm-size); letter-spacing: 0.1em; }
+.lightbox-counter { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: color-mix(in srgb, var(--hero-ink) 55%, transparent); font-size: var(--type-caption-size); }
 
 .empty-state { text-align: center; padding: 40px; color: var(--color-muted); }
 
@@ -551,7 +551,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  background-color: var(--color-surface-soft, #f7f6f2);
+  background-color: var(--surface-sunken);
   color: var(--color-muted);
   border: 1px dashed var(--color-hairline);
   aspect-ratio: 1;

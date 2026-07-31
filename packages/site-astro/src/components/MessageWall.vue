@@ -247,6 +247,21 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.message-wall-section {
+  --msg-paper-bg: color-mix(in srgb, var(--surface-paper) 94%, var(--accent-soft));
+  --msg-paper-border: var(--border-strong);
+  --msg-paper-ink: var(--text-secondary);
+  --msg-chalk-bg: color-mix(in srgb, var(--state-archive-green) 38%, var(--surface-canvas));
+  --msg-chalk-border: color-mix(in srgb, var(--state-archive-green) 58%, var(--surface-canvas));
+  --msg-chalk-ink: var(--hero-ink);
+  --msg-photo-bg: var(--surface-raised);
+  --msg-photo-border: var(--border-subtle);
+  --msg-photo-ink: var(--text-primary);
+  --msg-letter-bg: color-mix(in srgb, var(--surface-paper) 94%, var(--surface-sunken));
+  --msg-letter-border: var(--border-strong);
+  --msg-letter-ink: var(--text-secondary);
+  --msg-letter-line: color-mix(in srgb, var(--accent) 24%, transparent);
+}
 .message-wall-section { margin-bottom: var(--spacing-section); }
 .section-title {
   margin-bottom: var(--spacing-xl);
@@ -349,7 +364,7 @@ onMounted(async () => {
   color: var(--color-ink);
   border-radius: var(--rounded-sm);
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: background-color var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 .style-select-btn.active {
   background-color: var(--color-primary);
@@ -374,36 +389,36 @@ onMounted(async () => {
 }
 
 .style-paper {
-  background: #fcfaf2;
-  border: 1px solid #eedec4;
-  color: #4a3e3d;
-  box-shadow: 0 4px 12px rgba(139,120,95,0.08);
+  background: var(--msg-paper-bg);
+  border: 1px solid var(--msg-paper-border);
+  color: var(--msg-paper-ink);
+  box-shadow: var(--shadow-paper-card);
 }
 .style-chalkboard {
-  background: #1e2d2f;
-  border: 1px solid #10191a;
-  color: #f5f5f5;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background: var(--msg-chalk-bg);
+  border: 1px solid var(--msg-chalk-border);
+  color: var(--msg-chalk-ink);
+  box-shadow: var(--shadow-paper-card);
 }
 .style-chalkboard .msg-author,
 .style-chalkboard .msg-time,
 .style-chalkboard .msg-content,
 .style-chalkboard .reply-label {
-  color: #e0f2f1;
+  color: var(--msg-chalk-ink);
 }
 .style-photoback {
-  background: var(--bg-surface);
-  border: 1px solid #e0e0e0;
-  color: #212121;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  background: var(--msg-photo-bg);
+  border: 1px solid var(--msg-photo-border);
+  color: var(--msg-photo-ink);
+  box-shadow: var(--shadow-paper-card);
 }
 .style-letter {
-  background: #faf6f0;
-  background-image: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 27px, #e0d4c9 28px);
+  background: var(--msg-letter-bg);
+  background-image: repeating-linear-gradient(transparent 0px, transparent 27px, var(--msg-letter-line) 28px);
   line-height: 28px !important;
-  color: #3e2723;
-  border: 1px solid #e0d4c9;
-  box-shadow: 0 4px 12px rgba(93,64,55,0.08);
+  color: var(--msg-letter-ink);
+  border: 1px solid var(--msg-letter-border);
+  box-shadow: var(--shadow-paper-card);
 }
 .style-letter .msg-content {
   line-height: 28px !important;
@@ -411,42 +426,26 @@ onMounted(async () => {
 
 /* Preview class in forms */
 .msg-textarea.style-preview-paper {
-  background: var(--msg-paper-bg, #fcfaf2);
-  color: var(--msg-paper-ink, #4a3e3d);
+  background: var(--msg-paper-bg);
+  color: var(--msg-paper-ink);
   border-color: var(--msg-paper-border, var(--color-hairline));
 }
 .msg-textarea.style-preview-chalkboard {
-  background: var(--msg-chalk-bg, #1e2d2f);
-  color: var(--msg-chalk-ink, #f5f5f5);
-  border-color: var(--msg-chalk-border, #10191a);
+  background: var(--msg-chalk-bg);
+  color: var(--msg-chalk-ink);
+  border-color: var(--msg-chalk-border);
 }
 .msg-textarea.style-preview-photoback {
   background: var(--msg-photo-bg, var(--bg-surface));
-  color: var(--msg-photo-ink, #212121);
-  border-color: var(--msg-photo-border, #e0e0e0);
+  color: var(--msg-photo-ink);
+  border-color: var(--msg-photo-border);
 }
 .msg-textarea.style-preview-letter {
-  background-color: var(--msg-letter-bg, #faf6f0);
-  background-image: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 27px, var(--msg-letter-line, #e0d4c9) 28px);
+  background-color: var(--msg-letter-bg);
+  background-image: repeating-linear-gradient(transparent 0px, transparent 27px, var(--msg-letter-line) 28px);
   line-height: 28px;
-  color: var(--msg-letter-ink, #3e2723);
-  border-color: var(--msg-letter-border, #e0d4c9);
-}
-
-/* Dark mode overrides for card skins */
-:global(html[data-theme='night']) {
-  --msg-paper-bg: #2c2724;
-  --msg-paper-border: #4a3e35;
-  --msg-paper-ink: #d1c7bd;
-
-  --msg-photo-bg: #242424;
-  --msg-photo-border: #383838;
-  --msg-photo-ink: #d4d4d4;
-
-  --msg-letter-bg: #2a2522;
-  --msg-letter-border: #463c35;
-  --msg-letter-ink: #c9baa8;
-  --msg-letter-line: #463c35;
+  color: var(--msg-letter-ink);
+  border-color: var(--msg-letter-border);
 }
 
 :global(html[data-theme='night']) .style-paper {

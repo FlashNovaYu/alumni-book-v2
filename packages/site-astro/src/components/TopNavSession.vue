@@ -65,7 +65,7 @@ async function handleLogout() {
   padding: 2px 8px;
   cursor: pointer;
   font-size: var(--type-sm, 12px);
-  transition: all var(--duration-fast);
+  transition: background-color var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
   white-space: nowrap;
 }
 

@@ -271,13 +271,13 @@ function timelineMedia(item: any) {
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-out-quart);
+    transition: background-color var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), border-color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart);
   }
 
   .tab-btn.active {
     background: var(--color-paper-brown);
     border-color: var(--color-paper-brown);
-    color: #fffaf2;
+    color: var(--on-accent);
   }
 
   .tl-dot {

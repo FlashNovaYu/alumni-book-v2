@@ -153,7 +153,7 @@ onMounted(async () => {
   cursor: pointer;
   color: var(--color-muted);
   font-weight: 500;
-  transition: all var(--duration-fast);
+  transition: background-color var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .tab-btn.active {
