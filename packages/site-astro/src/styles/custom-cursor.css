@@ -24,11 +24,11 @@
     z-index: var(--z-cursor, 9999);
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(0.96);
-    background: var(--accent);
+    background: var(--accent-strong);
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
-      0 0 18px color-mix(in srgb, var(--accent) 38%, transparent);
-    will-change: transform, width, height, opacity;
+      0 0 0 1px color-mix(in srgb, var(--accent-strong) 18%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent-strong) 38%, transparent);
+    will-change: transform, opacity;
     mix-blend-mode: difference;
     transition:
       width 120ms cubic-bezier(0.22, 1.18, 0.32, 1),
@@ -44,7 +44,7 @@
     position: absolute;
     inset: -7px;
     border-radius: inherit;
-    border: 1.5px solid var(--accent);
+    border: 1.5px solid var(--accent-strong);
     opacity: 0;
     transform: scale(0.8);
     transition:
@@ -60,10 +60,10 @@
   .custom-cursor.is-clickable {
     width: 12px;
     height: 12px;
-    background: var(--accent);
+    background: var(--accent-strong);
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
-      0 0 28px color-mix(in srgb, var(--accent) 52%, transparent);
+      0 0 0 1px color-mix(in srgb, var(--accent-strong) 30%, transparent),
+      0 0 28px color-mix(in srgb, var(--accent-strong) 52%, transparent);
     mix-blend-mode: normal;
   }
 
@@ -76,7 +76,7 @@
     width: 3px;
     height: 20px;
     border-radius: 999px;
-    background: var(--accent);
+    background: var(--accent-strong);
     box-shadow: none;
     mix-blend-mode: difference;
   }

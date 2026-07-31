@@ -31,4 +31,14 @@ describe('动画性能静态契约', () => {
     expect(tilt).toContain("document.dispatchEvent(new CustomEvent('alumni:ambient-tilt'")
     expect(card).not.toContain('will-change: transform')
   })
+
+  it('自定义光标使用单一 RAF 并限制合成层提示', () => {
+    const layout = read('layouts/MainLayout.astro')
+    const cursor = read('styles/custom-cursor.css')
+    expect(layout).toContain('cursorFrameId')
+    expect(layout).toContain('cancelAnimationFrame(cursorFrameId)')
+    expect(layout).toContain('cursorMode')
+    expect(cursor).toContain('will-change: transform, opacity')
+    expect(cursor).not.toContain('will-change: transform, width, height, opacity')
+  })
 })
