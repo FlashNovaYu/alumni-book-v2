@@ -525,12 +525,11 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           document.body.appendChild(cursor);
           document.documentElement.setAttribute('data-custom-cursor', 'true');
 
-          let currentX = window.innerWidth / 2;
-          let currentY = window.innerHeight / 2;
           let isVisible = false;
           let cursorFrameId: number | null = null;
           let cursorMode = 'default';
           let pendingCursorMode = cursorMode;
+          let lastCursorTarget: Element | null = null;
 
           const TEXT_SELECTOR = 'p, span, strong, em, blockquote, li, h1, h2, h3, h4, h5, h6, figcaption, td, th, label, .email-text';
           const CLICKABLE_SELECTOR = 'a, button, [role="button"], .btn, .archive-card, input, textarea, select, .profile-mail-actions a, [data-mailbox-trigger], .cursor-pointer';
@@ -542,35 +541,44 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
             cursor.classList.toggle('is-text', mode === 'text');
           };
 
-          const flushCursor = () => {
+          const flushCursorMode = () => {
             cursorFrameId = null;
-            cursor.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
             setCursorMode(pendingCursorMode);
           };
 
-          const queueCursor = () => {
-            if (cursorFrameId === null) cursorFrameId = requestAnimationFrame(flushCursor);
+          const queueCursorMode = () => {
+            if (cursorFrameId === null && pendingCursorMode !== cursorMode) {
+              cursorFrameId = requestAnimationFrame(flushCursorMode);
+            }
+          };
+
+          const updateCursorPosition = (x: number, y: number) => {
+            cursor.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
           };
 
           const onPointerMove = (e: PointerEvent) => {
             if (e.pointerType && e.pointerType !== 'mouse') return;
-            currentX = e.clientX;
-            currentY = e.clientY;
+            const coalesced = e.getCoalescedEvents?.();
+            const latestEvent = coalesced?.length ? coalesced[coalesced.length - 1] : e;
+            updateCursorPosition(latestEvent.clientX, latestEvent.clientY);
             
             if (!isVisible) {
               cursor.classList.add('is-visible');
               isVisible = true;
             }
 
-            const target = e.target as Element | null;
-            if (target && target.closest(CLICKABLE_SELECTOR)) {
-              pendingCursorMode = 'clickable';
-            } else if (target && target.closest(TEXT_SELECTOR)) {
-              pendingCursorMode = 'text';
-            } else {
-              pendingCursorMode = 'default';
+            const target = e.target instanceof Element ? e.target : null;
+            if (target !== lastCursorTarget) {
+              lastCursorTarget = target;
+              if (target?.closest(CLICKABLE_SELECTOR)) {
+                pendingCursorMode = 'clickable';
+              } else if (target?.closest(TEXT_SELECTOR)) {
+                pendingCursorMode = 'text';
+              } else {
+                pendingCursorMode = 'default';
+              }
+              queueCursorMode();
             }
-            queueCursor();
           };
 
           const onPointerDown = (e: PointerEvent) => {
@@ -586,6 +594,9 @@ const footerText = [classLabel, siteConfig.footer.copyright].filter(Boolean).joi
           const onPointerLeave = () => {
             cursor.classList.remove('is-visible');
             isVisible = false;
+            lastCursorTarget = null;
+            pendingCursorMode = 'default';
+            queueCursorMode();
           };
 
           const onPageHide = (event: PageTransitionEvent) => {

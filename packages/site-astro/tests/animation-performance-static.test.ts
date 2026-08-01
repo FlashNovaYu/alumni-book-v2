@@ -32,12 +32,17 @@ describe('动画性能静态契约', () => {
     expect(card).not.toContain('will-change: transform')
   })
 
-  it('自定义光标使用单一 RAF 并限制合成层提示', () => {
+  it('自定义光标位置立即更新、状态切换单一合帧并限制合成层提示', () => {
     const layout = read('layouts/MainLayout.astro')
     const cursor = read('styles/custom-cursor.css')
+    expect(layout).toContain('updateCursorPosition')
+    expect(layout).toContain('e.getCoalescedEvents?.()')
+    expect(layout).toContain('lastCursorTarget')
     expect(layout).toContain('cursorFrameId')
     expect(layout).toContain('cancelAnimationFrame(cursorFrameId)')
-    expect(layout).toContain('cursorMode')
+    expect(layout).toContain('queueCursorMode')
+    expect(layout).not.toContain('const flushCursor =')
+    expect(layout).not.toContain('queueCursor();')
     expect(cursor).toContain('will-change: transform, opacity')
     expect(cursor).not.toContain('will-change: transform, width, height, opacity')
   })

@@ -80,7 +80,7 @@
               </label>
             </div>
             <div class="form-group checkbox-group">
-              <label class="checkbox-label"><input v-model="editForm.acceptsClassmateUploads" type="checkbox" /><span class="ml-2">接收同学投稿（同时仅一个相册）</span></label>
+              <label class="checkbox-label"><input v-model="newAlbum.acceptsClassmateUploads" type="checkbox" /><span class="ml-2">接收同学投稿（同时仅一个相册）</span></label>
             </div>
             <div class="modal-actions">
               <button class="btn-secondary" @click="showCreate = false">取消</button>
@@ -235,7 +235,7 @@ const uploadTasks = ref<UploadTask[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
 const creating = ref(false)
-const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false })
+const newAlbum = ref({ title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false, acceptsClassmateUploads: false })
 const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
 const storageStats = ref<any | null>(null)
@@ -321,10 +321,11 @@ async function handleCreate() {
         frameStyle: newAlbum.value.frameStyle,
         tags,
         featured: newAlbum.value.featured,
+        acceptsClassmateUploads: newAlbum.value.acceptsClassmateUploads,
       }),
     })
     showCreate.value = false
-    newAlbum.value = { title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false }
+    newAlbum.value = { title: '', description: '', frameStyle: 'none', tagsInput: '', featured: false, acceptsClassmateUploads: false }
     await loadAlbums(true)
   } catch (e: any) {
     alert(e.message || '创建失败')
