@@ -46,7 +46,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .ui-empty-state__icon {
-  color: var(--text-dim);
+  color: var(--text-muted);
   line-height: 0;
 }
 

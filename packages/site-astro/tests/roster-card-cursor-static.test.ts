@@ -31,7 +31,7 @@ describe('花名录方形卡与自定义指针', () => {
 
     expect(layout).toContain("window.matchMedia('(hover: hover) and (pointer: fine)')")
     expect(cursorStyles).toContain('@media (hover: hover) and (pointer: fine)')
-    expect(cursorStyles).toContain('0 0 18px color-mix(in srgb, var(--accent) 38%, transparent)')
+    expect(cursorStyles).toContain('0 0 18px color-mix(in srgb, var(--accent-strong) 38%, transparent)')
     expect(pageLoadRuntime).toContain('initCustomCursor()')
     expect(layout).toContain("document.documentElement.setAttribute('data-custom-cursor', 'true')")
     expect(layout).toContain("document.documentElement.removeAttribute('data-custom-cursor')")

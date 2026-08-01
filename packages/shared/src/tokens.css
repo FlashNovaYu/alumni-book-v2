@@ -14,15 +14,15 @@
   /* 基础色彩 */
   --_bg: #F1E7CE;
   --_surface: #FBF6E9;
-  --_surface-raised: #FFF9EC;
-  --_surface-soft: #E7D9BA;
+  --_surface-raised: #FBF6E9;
+  --_surface-soft: #ECE0C2;
   --_ink: #221A10;
   --_ink-soft: #584B32;
   --_muted: #7C6C49;
-  --_dim: #9B8E70;
-  --_accent: #6E5322;
-  --_accent-active: #4D3915;
-  --_accent-soft: rgba(110, 83, 34, 0.12);
+  --_dim: #A98E5E;
+  --_accent: #8A6A2F;
+  --_accent-active: #6E5322;
+  --_accent-soft: rgba(138, 106, 47, 0.12);
   --_border: rgba(110, 83, 34, 0.22);
   --_border-strong: rgba(110, 83, 34, 0.48);
 
@@ -33,8 +33,8 @@
   --_info: #5db8a6;
 
   /* 装饰色 — 保留温暖的金/银/铜 */
-  --_gold: #c8a96a;
-  --_gold-soft: #ead9a6;
+  --_gold: #8A6A2F;
+  --_gold-soft: #B08D42;
   --_silver: #c0c0c0;
   --_bronze: #cd7f32;
 
@@ -46,7 +46,8 @@
   --surface-canvas: #F1E7CE;
   --surface-sunken: #E7D9BA;
   --surface-raised: #FBF6E9;
-  --surface-paper: #FFF9EC;
+  --surface-paper: #FFF8EA;
+  --surface-overlay: color-mix(in srgb, var(--surface-raised) 88%, transparent);
 
   /* 背景（兼容旧变量） */
   --bg: var(--surface-canvas);
@@ -60,6 +61,7 @@
   --text-secondary: #584B32;
   --text-muted: #7C6C49;
   --text-dim: var(--_dim);
+  --text-tertiary: #7C6C49;
   --text-inverse: var(--_surface);
   --text-accent: var(--_accent);
 
@@ -68,15 +70,25 @@
   --border-strong: rgba(110, 83, 34, 0.48);
   --border: var(--border-subtle);
   --border-accent: var(--accent);
+  --border-glass: rgba(110, 83, 34, 0.15);
 
   /* 强调色 */
-  --accent: #6E5322;
-  --accent-strong: #4D3915;
+  --accent: #8A6A2F;
+  --accent-strong: #6E5322;
   --accent-active: var(--accent-strong);
-  --accent-soft: rgba(110, 83, 34, 0.12);
+  --accent-soft: rgba(138, 106, 47, 0.12);
+  --on-accent: #FBF6E9;
   --stamp: #A23B2A;
+  --stamp-soft: rgba(162, 59, 42, 0.12);
   --state-archive-green: #4A7159;
-  --focus-ring: #6E5322;
+  --focus-ring: #2D4636;
+  --shadow-rgb: 38, 28, 10;
+  --star-core-rgb: 113 86 47;
+  --star-halo-rgb: 162 59 42;
+  --star-mix-mode: multiply;
+  --hero-ink: #FBF6E9;
+  --hero-ink-soft: rgba(251, 246, 233, 0.78);
+  --hero-scrim: rgba(17, 16, 14, 0.76);
 
   /* 语义状态 */
   --success: var(--_success);
@@ -107,9 +119,10 @@
   --shadow-skeuo-3: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.5), inset 0 -1px 2px rgba(0, 0, 0, 0.02);
 
   /* 毛玻璃效果变量 (Glassmorphism) */
-  --glass-panel: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --starfield-opacity: 1;
+  --glass-panel: var(--surface-overlay);
+  --glass-border: var(--border-glass);
+  --starfield-opacity: 0.62;
+  --star-alpha-scale: 0.42;
 
   /* ═══════════════════════════════════════════════════════════════════════
      TYPOGRAPHY — 字体系统
@@ -256,27 +269,27 @@
   /* 旧品牌色 → 新语义色 */
   --color-primary: var(--accent);
   --color-primary-active: var(--accent-active);
-  --color-primary-disabled: #e6dfd8;
+  --color-primary-disabled: color-mix(in srgb, var(--border) 55%, var(--bg-soft));
   --color-accent-teal: var(--info);
-  --color-accent-amber: #e8a55a;
+  --color-accent-amber: var(--gold);
 
   /* 旧表面色 → 新语义色 */
   --color-canvas: var(--bg);
   --color-surface-soft: var(--bg-soft);
   --color-surface-card: var(--bg-surface);
   --color-surface-cream: var(--bg);
-  --color-surface-cream-strong: #e8e0d2;
-  --color-surface-dark: #181715;
-  --color-surface-dark-elevated: #252320;
-  --color-surface-dark-soft: #1f1e1b;
+  --color-surface-cream-strong: var(--surface-sunken);
+  --color-surface-dark: var(--surface-canvas);
+  --color-surface-dark-elevated: var(--surface-raised);
+  --color-surface-dark-soft: var(--surface-sunken);
 
   /* 旧文字色 → 新语义色 */
   --color-ink: var(--text-primary);
   --color-body-strong: var(--text-secondary);
   --color-body: var(--text-secondary);
   --color-muted: var(--text-muted);
-  --color-muted-soft: #8e8b82;
-  --color-on-primary: var(--bg-raised);
+  --color-muted-soft: var(--text-muted);
+  --color-on-primary: var(--on-accent);
   --color-on-dark: var(--bg);
   --color-on-dark-soft: #a09d96;
 
@@ -293,14 +306,14 @@
   --color-bronze: var(--bronze);
 
   /* 旧 Museum tokens → 映射到新的统一系统 */
-  --color-museum-ink: #26303a;
-  --color-museum-ink-soft: #52606c;
+  --color-museum-ink: var(--text-primary);
+  --color-museum-ink-soft: var(--text-secondary);
   --color-museum-gold: var(--gold);
   --color-museum-gold-soft: var(--gold-soft);
   --color-museum-paper: var(--bg);
-  --color-museum-paper-strong: #f0e3cf;
-  --color-museum-film-blue: #8aa2b6;
-  --color-museum-stamp-red: #a84f3d;
+  --color-museum-paper-strong: var(--surface-paper);
+  --color-museum-film-blue: var(--state-archive-green);
+  --color-museum-stamp-red: var(--stamp);
   --shadow-museum-panel: var(--shadow-lg);
   --shadow-museum-paper: var(--shadow-md);
   --texture-paper-line: linear-gradient(rgba(38, 48, 58, 0.055) 1px, transparent 1px);
@@ -332,27 +345,31 @@
    DARK MODE — 暗色模式
    ═══════════════════════════════════════════════════════════════════════════ */
 html[data-theme='night'] {
-  --starfield-opacity: 1;
+  --starfield-opacity: 0.94;
+  --star-alpha-scale: 1;
   /* Primitive */
   --_bg: #0B120E;
   --_surface: #161F19;
   --_surface-raised: #1D2820;
-  --_surface-soft: #101A14;
+  --_surface-soft: #101813;
   --_ink: #EDE6D2;
-  --_ink-soft: #C5C1AD;
+  --_ink-soft: #C7C0A4;
   --_muted: #93A092;
   --_dim: #68766A;
-  --_accent: #E7CE8C;
-  --_accent-active: #F2DFA7;
-  --_accent-soft: rgba(231, 206, 140, 0.14);
+  --_accent: #C9A24B;
+  --_accent-active: #E7CE8C;
+  --_accent-soft: rgba(201, 162, 75, 0.14);
   --_border: rgba(237, 230, 210, 0.14);
   --_border-strong: rgba(231, 206, 140, 0.42);
+  --_gold: #C9A24B;
+  --_gold-soft: #E7CE8C;
 
   /* Semantic re-mapping */
   --surface-canvas: #0B120E;
   --surface-sunken: #101A14;
   --surface-raised: #161F19;
   --surface-paper: #1D2820;
+  --surface-overlay: color-mix(in srgb, var(--surface-raised) 82%, transparent);
   --bg: var(--surface-canvas);
   --bg-surface: var(--surface-raised);
   --bg-raised: var(--surface-paper);
@@ -361,18 +378,29 @@ html[data-theme='night'] {
   --text-secondary: #C5C1AD;
   --text-muted: #93A092;
   --text-dim: var(--_dim);
+  --text-tertiary: #93A092;
   --text-inverse: var(--surface-canvas);
   --text-accent: var(--accent);
   --border-subtle: rgba(237, 230, 210, 0.14);
   --border-strong: rgba(231, 206, 140, 0.42);
   --border: var(--border-subtle);
-  --accent: #E7CE8C;
-  --accent-strong: #F2DFA7;
+  --border-glass: rgba(231, 206, 140, 0.14);
+  --accent: #C9A24B;
+  --accent-strong: #E7CE8C;
   --accent-active: var(--accent-strong);
-  --accent-soft: rgba(231, 206, 140, 0.14);
+  --accent-soft: rgba(201, 162, 75, 0.14);
+  --on-accent: #1B1508;
   --stamp: #B24630;
+  --stamp-soft: rgba(178, 70, 48, 0.16);
   --state-archive-green: #4C8267;
   --focus-ring: #E7CE8C;
+  --shadow-rgb: 0, 0, 0;
+  --star-core-rgb: 242 231 201;
+  --star-halo-rgb: 201 162 75;
+  --star-mix-mode: screen;
+  --hero-ink: #EDE6D2;
+  --hero-ink-soft: rgba(237, 230, 210, 0.78);
+  --hero-scrim: rgba(11, 18, 14, 0.82);
 
   /* Shadows with darker base */
   --shadow-surface: 0 18px 42px rgba(0, 0, 0, 0.42);
@@ -391,20 +419,21 @@ html[data-theme='night'] {
   --shadow-skeuo-3: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 -1px 2px rgba(0, 0, 0, 0.1);
 
   /* Dark mode glassmorphism */
-  --glass-panel: rgba(41, 37, 36, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-panel: var(--surface-overlay);
+  --glass-border: var(--border-glass);
 
   /* Legacy compatibility */
   --color-canvas: var(--bg);
   --color-surface-soft: var(--bg-soft);
   --color-surface-card: var(--bg-surface);
   --color-surface-cream: var(--bg);
-  --color-surface-cream-strong: #34404d;
+  --color-surface-cream-strong: var(--surface-sunken);
   --color-ink: var(--text-primary);
   --color-body-strong: var(--text-secondary);
   --color-body: var(--text-secondary);
   --color-muted: var(--text-muted);
-  --color-muted-soft: #938876;
+  --color-muted-soft: var(--text-muted);
+  --color-on-primary: var(--on-accent);
   --color-hairline: var(--border);
   --color-hairline-soft: var(--border);
   --color-paper-bg: var(--surface-canvas);

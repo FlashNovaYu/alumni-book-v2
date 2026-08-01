@@ -114,8 +114,8 @@ function albumHref(albumId: string) {
   display: block;
   width: 100%;
   aspect-ratio: 3 / 2;
-  background: var(--color-paper-card, #fcfaf2);
-  border: 1px solid var(--color-paper-border, #eedec4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
   border-radius: var(--rounded-md);
   overflow: hidden;
   box-shadow: var(--shadow-paper-card, 0 4px 12px rgba(139,120,95,0.06));
@@ -127,13 +127,13 @@ function albumHref(albumId: string) {
 .album-rail-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 12px 24px rgba(139,120,95,0.12);
-  border-color: var(--color-paper-brown, #b8903a);
+  border-color: var(--accent);
 }
 
 .album-cover-wrapper {
   position: absolute;
   inset: 0;
-  background: var(--color-surface-soft, #f7f6f2);
+  background: var(--surface-sunken);
   overflow: hidden;
 }
 
@@ -162,7 +162,7 @@ function albumHref(albumId: string) {
   bottom: var(--spacing-sm);
   right: var(--spacing-sm);
   background: rgba(0, 0, 0, 0.65);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 11px;
   padding: 3px var(--spacing-xs);
   border-radius: var(--rounded-sm);
@@ -181,7 +181,7 @@ function albumHref(albumId: string) {
   margin: 0;
   display: inline;
   padding: 4px 7px;
-  color: #fffaf2;
+  color: var(--on-accent);
   background: rgba(47, 35, 24, 0.68);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -194,7 +194,7 @@ function albumHref(albumId: string) {
 .empty-albums {
   padding: var(--spacing-xl);
   text-align: center;
-  background: var(--color-surface-cream, #fbfaf7);
+  background: var(--surface-raised);
   border: 1px dashed var(--color-paper-border);
   border-radius: var(--rounded-lg);
   width: 100%;

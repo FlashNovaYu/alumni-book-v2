@@ -334,11 +334,11 @@ function avatarMedia(mate: Classmate) {
     color: var(--text-muted);
   }
   .preface-box {
-    background: var(--color-surface-cream, #faf9f5);
+    background: var(--surface-raised);
   }
   .preface-content {
     line-height: 1.8;
-    color: #4e342e;
+    color: var(--text-secondary);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -392,9 +392,9 @@ function avatarMedia(mate: Classmate) {
     align-items: center;
     justify-content: center;
   }
-  .rank-row:nth-child(1) .rank-num-badge { background: var(--color-gold); color: #fff; }
-  .rank-row:nth-child(2) .rank-num-badge { background: var(--color-silver); color: #fff; }
-  .rank-row:nth-child(3) .rank-num-badge { background: var(--color-bronze); color: #fff; }
+  .rank-row:nth-child(1) .rank-num-badge { background: var(--color-gold); color: var(--on-accent); }
+  .rank-row:nth-child(2) .rank-num-badge { background: var(--color-silver); color: var(--text-primary); }
+  .rank-row:nth-child(3) .rank-num-badge { background: var(--color-bronze); color: var(--on-accent); }
   .rank-name-lbl {
     font-weight: 600;
     font-size: 14px;
@@ -465,7 +465,7 @@ function avatarMedia(mate: Classmate) {
     word-break: break-word;
   }
   .yearbook-msg-card {
-    background: var(--color-surface-cream, #faf9f5);
+    background: var(--surface-raised);
     min-width: 0;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -538,7 +538,7 @@ function avatarMedia(mate: Classmate) {
   @media print {
     :global(html) {
       --surface-canvas: #F1E7CE;
-      --surface-paper: #FFF9EC;
+      --surface-paper: #FFF8EA;
       --text-primary: #221A10;
       --text-secondary: #584B32;
       --border-subtle: rgba(110, 83, 34, 0.22);
@@ -562,7 +562,7 @@ function avatarMedia(mate: Classmate) {
       color: var(--text-primary) !important;
     }
     .card {
-      border: 1px solid #ddd !important;
+      border: 1px solid var(--border-subtle) !important;
       box-shadow: none !important;
       background: white !important;
       transform: none !important;
@@ -572,8 +572,8 @@ function avatarMedia(mate: Classmate) {
       break-after: page !important;
     }
     .preface-box {
-      background: #fdfdfd !important;
-      border: 1px solid #ccc !important;
+      background: var(--surface-raised) !important;
+      border: 1px solid var(--border-subtle) !important;
     }
     .yearbook-summary-grid {
       grid-template-columns: repeat(4, 1fr) !important;
@@ -688,7 +688,7 @@ function avatarMedia(mate: Classmate) {
       grid-template-columns: repeat(3, 1fr) !important;
     }
     .yearbook-timeline {
-      border-left: 1px solid #ccc !important;
+      border-left: 1px solid var(--border-subtle) !important;
     }
   }
 </style>

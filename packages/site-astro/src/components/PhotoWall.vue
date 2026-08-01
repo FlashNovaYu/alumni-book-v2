@@ -213,16 +213,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  background-color: var(--color-surface-soft, #f7f6f2);
+  background-color: var(--surface-sunken);
   color: var(--color-muted);
   border: 1px dashed var(--color-hairline);
   aspect-ratio: 1;
 }
 
 /* 灯箱大图样式 */
-.lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; }
-.lightbox-close { position: absolute; top: 20px; right: 24px; color: rgba(240,210,150,0.6); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); z-index: 10; }
-.lightbox-close:hover { color: var(--color-on-dark); transform: rotate(90deg); }
+.lightbox { position: fixed; inset: 0; z-index: var(--z-lightbox, 200); background: var(--hero-scrim); display: flex; align-items: center; justify-content: center; }
+.lightbox-close { position: absolute; top: 20px; right: 24px; color: var(--hero-ink-soft); font-size: 28px; background: none; border: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); z-index: 10; }
+.lightbox-close:hover { color: var(--hero-ink); transform: rotate(90deg); }
 .lightbox-content { display: flex; align-items: center; justify-content: center; max-width: 90vw; max-height: 85vh; }
 .lightbox-img { max-width: 100%; max-height: 85vh; border-radius: 2px; box-shadow: 0 10px 60px rgba(0,0,0,0.5); object-fit: contain; }
 .lightbox-error-placeholder {
@@ -231,19 +231,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c62828;
-  background: rgba(255,255,255,0.08);
+  color: var(--error);
+  background: color-mix(in srgb, var(--surface-raised) 8%, transparent);
   border-radius: var(--rounded-md);
   border: 1px dashed rgba(255,255,255,0.2);
   font-size: 14px;
 }
-.lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: rgba(240,210,150,0.5); font-size: 36px; background: rgba(0,0,0,0.3); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); z-index: 10; }
-.lightbox-nav:hover { background: rgba(0,0,0,0.6); color: var(--color-on-dark); }
+.lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: var(--hero-ink-soft); font-size: 36px; background: color-mix(in srgb, var(--hero-scrim) 30%, transparent); border: none; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart), transform var(--duration-fast) var(--ease-out-quart); z-index: 10; }
+.lightbox-nav:hover { background: color-mix(in srgb, var(--hero-scrim) 60%, transparent); color: var(--hero-ink); }
 .lightbox-nav.prev:hover { transform: translateY(-50%) translateX(-2px); }
 .lightbox-nav.next:hover { transform: translateY(-50%) translateX(2px); }
 .lightbox-nav.prev { left: 16px; }
 .lightbox-nav.next { right: 16px; }
-.lightbox-counter { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: rgba(240,210,150,0.4); font-size: var(--type-caption-size); z-index: 10; }
+.lightbox-counter { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: color-mix(in srgb, var(--hero-ink) 55%, transparent); font-size: var(--type-caption-size); z-index: 10; }
 
 /* Lightbox transitions */
 .lightbox-enter-active { transition: opacity var(--duration-slow) var(--ease-out-quart); }

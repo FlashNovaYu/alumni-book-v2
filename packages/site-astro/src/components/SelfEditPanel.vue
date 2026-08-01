@@ -300,6 +300,7 @@ async function openEditorAfterAuthed() {
   try {
     const url = joinApiUrl(props.apiBase, `/api/students/${props.studentSlug}`)
     const res = await fetch(url, { headers: authHeaders() })
+    if (res.status === 401) handleClassmateUnauthorized()
     const data = await res.json()
     if (data.success && data.data) {
       const s = data.data as Student
@@ -556,8 +557,8 @@ function moveModule(index: number, direction: number) {
 .self-edit { position: fixed; bottom: 84px; right: 24px; z-index: var(--z-nav); }
 .edit-trigger {
   padding: 10px 20px;
-  background: var(--color-primary, #cc785c);
-  color: var(--text-inverse);
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
   border-radius: var(--rounded-md);
   font-size: 14px;
@@ -572,7 +573,7 @@ function moveModule(index: number, direction: number) {
 
 .editor-overlay {
   position: fixed; inset: 0; z-index: var(--z-modal, 300);
-  background: rgba(0,0,0,0.4);
+  background: color-mix(in srgb, var(--hero-scrim) 40%, transparent);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
 }
@@ -647,7 +648,7 @@ function moveModule(index: number, direction: number) {
 
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-danger { color: var(--color-error); border: 1px solid var(--color-error); background: transparent; }
-.btn-danger:hover { background-color: rgba(198, 69, 69, 0.08); }
+.btn-danger:hover { background-color: var(--stamp-soft); }
 
 /* Transition */
 .modal-enter-active, .modal-leave-active { transition: opacity var(--duration-normal) var(--ease-out-quart); }
@@ -673,14 +674,14 @@ function moveModule(index: number, direction: number) {
 .secret-desc { font-size: 14px; color: var(--color-muted); margin: 0; line-height: 1.5; }
 .secret-input { width: 100%; }
 .secret-buttons { display: flex; justify-content: flex-end; gap: 12px; }
-.error-text { font-size: 12px; color: #c62828; margin: 0; }
+.error-text { font-size: 12px; color: var(--error); margin: 0; }
 
 .privacy-select {
   padding: 2px 6px;
   border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-sm);
   font-size: 12px;
-  background: var(--color-surface-cream, #fcfaf7);
+  background: var(--surface-raised);
   color: var(--color-muted);
   cursor: pointer;
   outline: none;
@@ -697,20 +698,20 @@ function moveModule(index: number, direction: number) {
   align-items: flex-start;
   gap: 12px;
   background: color-mix(in srgb, var(--color-warning) 15%, var(--bg-surface));
-  border: 1px solid #ffe082;
+  border: 1px solid color-mix(in srgb, var(--warning) 52%, var(--border));
   border-radius: var(--rounded-sm);
   padding: 12px 16px;
   margin-bottom: 20px;
 }
 .warning-icon { font-size: 20px; }
-.notice-text { font-size: 13px; color: #b78103; margin: 0; line-height: 1.5; }
+.notice-text { font-size: 13px; color: var(--warning); margin: 0; line-height: 1.5; }
 
 .module-item {
   border: 1px solid var(--color-hairline);
   padding: 12px;
   margin-bottom: 12px;
   border-radius: var(--rounded-sm);
-  background: var(--color-surface-cream, #fcfaf7);
+  background: var(--surface-raised);
 }
 .module-item-header {
   display: flex;

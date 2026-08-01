@@ -116,11 +116,11 @@ function formatTime(value: string) {
 .direct-message.is-own footer { justify-content: flex-end; }
 .direct-message footer button { padding: 0; color: var(--color-paper-stamp-red); background: transparent; border: 0; font: inherit; cursor: pointer; text-decoration: underline; }
 .conversation-empty { margin: auto; color: var(--color-paper-muted); font-size: 14px; text-align: center; }
-.jump-to-latest { position: absolute; right: var(--spacing-lg); bottom: 78px; z-index: 1; min-height: 36px; padding: 0 12px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-sm); }
+.jump-to-latest { position: absolute; right: var(--spacing-lg); bottom: 78px; z-index: 1; min-height: 36px; padding: 0 12px; color: var(--on-accent); background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-sm); }
 .direct-composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--spacing-sm); padding: var(--spacing-md); border-top: 1px solid var(--color-paper-border); }
 .direct-capability-note { grid-column: 1 / -1; margin: 0; color: var(--color-paper-muted); font-size: 12px; line-height: 1.45; }
 .direct-composer textarea { min-width: 0; min-height: 44px; max-height: 120px; padding: 10px 12px; resize: vertical; color: var(--color-paper-ink); background: var(--color-paper-bg-soft); border: 1px solid var(--color-paper-border); border-radius: var(--rounded-md); font: inherit; line-height: 1.45; }
-.direct-composer button { min-width: 94px; min-height: 44px; padding: 0 14px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-weight: 700; cursor: pointer; }
+.direct-composer button { min-width: 94px; min-height: 44px; padding: 0 14px; color: var(--on-accent); background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-weight: 700; cursor: pointer; }
 .direct-composer button:disabled, .direct-composer textarea:disabled { opacity: 0.58; cursor: not-allowed; }
 .detail-empty { display: grid; min-height: 420px; place-items: center; color: var(--color-paper-muted); background: var(--color-paper-card); border: 1px dashed var(--color-paper-border); font-size: 14px; }
 @media (max-width: 768px) {

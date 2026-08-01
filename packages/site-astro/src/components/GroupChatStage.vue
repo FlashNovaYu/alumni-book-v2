@@ -168,7 +168,7 @@ watch(() => items.value.length, async () => {
 .chat-log { display: flex; flex-direction: column; gap: var(--spacing-md); height: clamp(360px, 52vh, 540px); overflow-y: auto; overscroll-behavior-y: auto; touch-action: pan-y; padding: var(--spacing-sm) 2px var(--spacing-sm) 0; scrollbar-color: var(--color-paper-border) transparent; }
 .chat-log-spacer { margin-top: auto; }
 .chat-empty { align-self: center; margin: auto; color: var(--color-paper-muted); font-size: 14px; }
-.new-message-button { position: absolute; right: var(--spacing-sm); bottom: var(--spacing-sm); min-height: 36px; padding: 0 10px; color: #fffaf2; background: var(--color-paper-stamp-red); border: 0; border-radius: var(--rounded-sm); font: inherit; font-size: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(99, 46, 36, 0.2); }
+.new-message-button { position: absolute; right: var(--spacing-sm); bottom: var(--spacing-sm); min-height: 36px; padding: 0 10px; color: var(--on-accent); background: var(--color-paper-stamp-red); border: 0; border-radius: var(--rounded-sm); font: inherit; font-size: 12px; cursor: pointer; box-shadow: var(--shadow-md); }
 
 @media (max-width: 768px) {
   .group-chat-stage { padding: var(--spacing-md); }

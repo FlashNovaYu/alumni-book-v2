@@ -58,7 +58,7 @@ html::before {
   height: 2px;
   pointer-events: none;
   content: '';
-  background: linear-gradient(90deg, transparent, var(--color-paper-stamp-red), var(--color-gold, #c8a96a), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-paper-stamp-red), var(--gold), transparent);
   opacity: 0;
   transform: scaleX(0);
   transform-origin: left center;

@@ -87,7 +87,7 @@ header h2 { margin-top: 2px; color: var(--color-paper-ink); font-family: var(--f
 .empty-state { margin: 0; padding: var(--spacing-xl) var(--spacing-md); color: var(--color-paper-muted); font-size: 13px; text-align: center; }
 
 .visitor-stack { display: flex; margin-top: 6px; padding-left: 2px; }
-.visitor-avatar { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-paper-card, #fff); object-fit: cover; margin-left: -8px; background: var(--color-paper-bg-soft); position: relative; }
+.visitor-avatar { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-paper-card); object-fit: cover; margin-left: -8px; background: var(--color-paper-bg-soft); position: relative; }
 .visitor-stack .visitor-avatar:first-child { margin-left: 0; }
-.visitor-more { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-paper-card, #fff); background: var(--color-paper-muted); color: var(--color-paper-card, #fff); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; margin-left: -8px; position: relative; }
+.visitor-more { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-paper-card); background: var(--color-paper-muted); color: var(--on-accent); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; margin-left: -8px; position: relative; }
 </style>

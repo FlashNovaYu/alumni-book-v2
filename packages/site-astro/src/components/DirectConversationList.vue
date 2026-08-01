@@ -79,6 +79,6 @@ header button { min-height: 34px; padding: 0 8px; color: var(--color-paper-brown
 .conversation-title strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-title time { flex: 0 0 auto; color: var(--color-paper-muted); font-size: 11px; }
 .conversation-preview { overflow: hidden; color: var(--color-paper-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.unread-count { display: grid; min-width: 18px; height: 18px; padding: 0 4px; place-items: center; color: #fffaf2; background: var(--color-paper-stamp-red); border-radius: 9px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.unread-count { display: grid; min-width: 18px; height: 18px; padding: 0 4px; place-items: center; color: var(--on-accent); background: var(--color-paper-stamp-red); border-radius: 9px; font-size: 10px; font-variant-numeric: tabular-nums; }
 .empty-state { margin: 0; padding: var(--spacing-xl) var(--spacing-md); color: var(--color-paper-muted); font-size: 13px; line-height: 1.6; text-align: center; }
 </style>

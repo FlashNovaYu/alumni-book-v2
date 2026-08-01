@@ -237,7 +237,7 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   overflow: hidden;
   border-radius: var(--rounded-md);
-  background: #201d1a;
+  background: var(--hero-scrim);
   cursor: grab;
   touch-action: none;
   user-select: none;

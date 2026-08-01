@@ -189,7 +189,7 @@ function handleCancel() {
 
 .success-msg {
   font-size: 13px;
-  color: var(--color-success, #059669);
+  color: var(--success);
   font-weight: 500;
 }
 
@@ -211,7 +211,7 @@ function handleCancel() {
 
 .change-password-btn {
   background-color: var(--color-paper-brown);
-  color: #fff;
+  color: var(--on-accent);
   border-radius: 6px;
   font-weight: 500;
 }

@@ -80,17 +80,17 @@ async function uploadPhotos(event: Event) {
   justify-content: center;
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid var(--color-paper-brown, #b8903a);
+  border: 1px solid var(--accent);
   border-radius: var(--rounded-md);
-  color: var(--color-paper-brown, #8a641c);
-  background: var(--color-paper-card, #fcfaf2);
+  color: var(--accent);
+  background: var(--surface-raised);
   font-size: var(--type-body-sm-size);
   font-weight: 600;
   cursor: pointer;
 }
 
 .album-submission__trigger:hover:not(.is-uploading) {
-  background: #f6ecd7;
+  background: var(--accent-soft);
 }
 
 .album-submission__trigger.is-uploading {
@@ -118,10 +118,10 @@ async function uploadPhotos(event: Event) {
 }
 
 .album-submission__message.is-success {
-  color: #34734b;
+  color: var(--success);
 }
 
 .album-submission__message.is-error {
-  color: #a74444;
+  color: var(--error);
 }
 </style>

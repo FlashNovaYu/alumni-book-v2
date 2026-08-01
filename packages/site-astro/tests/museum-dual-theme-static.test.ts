@@ -70,12 +70,12 @@ describe('museum preface', () => {
 })
 
 describe('museum roster index', () => {
-  it('uses a fixed three-column archive index while retaining twelve-item pagination', () => {
+  it('uses a fixed four-column archive index while retaining twelve-item pagination', () => {
     const wall = readSite('components/RosterWall.vue')
     const card = readSite('components/ArchiveRosterCard.vue')
 
-    expect(wall).toMatch(/\.roster-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/)
-    expect(wall).toContain('@media (max-width: 960px)')
+    expect(wall).toMatch(/\.roster-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/)
+    expect(wall).toContain('@media (max-width: 900px)')
     expect(wall).toContain('@media (max-width: 560px)')
     expect(wall).toContain('const PAGE_SIZE = 12')
     expect(wall).toContain('function archiveIdFor')

@@ -57,7 +57,7 @@ function formatMuteUntil(value: string) {
 .composer-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--spacing-sm); align-items: end; }
 textarea { min-height: 44px; max-height: 120px; padding: 11px 12px; resize: vertical; color: var(--color-paper-ink); background: var(--color-paper-bg-soft); border: 1px solid var(--color-paper-border); border-radius: var(--rounded-md); font: inherit; line-height: 1.45; }
 textarea:focus { outline: 2px solid color-mix(in srgb, var(--color-paper-brown) 50%, transparent); outline-offset: 1px; }
-button { min-width: 88px; min-height: 44px; padding: 0 14px; color: #fffaf2; background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-weight: 700; cursor: pointer; }
+button { min-width: 88px; min-height: 44px; padding: 0 14px; color: var(--on-accent); background: var(--color-paper-brown); border: 1px solid var(--color-paper-brown); border-radius: var(--rounded-md); font: inherit; font-weight: 700; cursor: pointer; }
 button:disabled, textarea:disabled { opacity: 0.58; cursor: not-allowed; }
 .mute-notice { margin: 0; padding: 10px 12px; color: var(--color-paper-stamp-red); background: color-mix(in srgb, var(--color-paper-stamp-red) 7%, var(--color-paper-card)); border: 1px solid color-mix(in srgb, var(--color-paper-stamp-red) 26%, var(--color-paper-border)); font-size: 13px; line-height: 1.5; }
 

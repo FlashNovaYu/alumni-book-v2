@@ -50,7 +50,7 @@
         v-if="isLocalDev"
         type="button"
         class="login-btn dev-bypass-btn"
-        style="margin-top: 8px; background: rgba(143, 101, 60, 0.15); color: #8F5528; border: 1px solid rgba(143, 101, 60, 0.35); font-weight: 600;"
+        style="margin-top: 8px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border-strong); font-weight: 600;"
         @click="handleBypass"
       >
         <span>🔓 本地开发专属 · 关掉门禁直接进入</span>
